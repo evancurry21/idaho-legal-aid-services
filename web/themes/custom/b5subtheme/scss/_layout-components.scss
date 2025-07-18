@@ -1,31 +1,25 @@
+@import 'variables_theme';
+@import 'mixins';
+
 /***********************************************
  * General Content Styles & Curved Backgrounds (Standardized)
- * 
- * Responsive improvements:
- * - Added responsive font sizes and spacing
- * - Consistent curve implementation
- * - Standardized color values
  ***********************************************/
 
 /* Main Content Styling */
 .main-content {
+  @extend %centered-container;
   position: relative;
   z-index: z('overlay');
   margin: 0 auto 3rem auto;
   padding: 0 1rem;
   max-width: 1200px;
-  font-size: 1.5rem;
+  @include responsive-typography(1.5rem, 1.4rem, $font-size-mobile-body);
   line-height: 1.6;
   text-transform: none;
   color: $color-black;
   text-align: center;
   
-  @include tablet {
-    font-size: 1.4rem;
-  }
-  
   @include mobile {
-    font-size: $font-size-mobile-body;
     margin: 0 !important;
     padding: 0 !important;
   }
@@ -66,61 +60,39 @@
 
 /* Add new utility classes for the new fields */
 .page-subheader {
+  @extend %centered-container;
+  @include responsive-typography(1.5rem, 1.4rem, $font-size-mobile-body);
   margin-top: 1rem;
-  width: 100%;
-  margin-left: auto;
-  margin-right: auto;
-  font-size: 1.5rem;
   line-height: 1.6;
   text-transform: none;
   color: $color-black;
   text-align: center;
-  
-  @include tablet {
-    font-size: 1.4rem;
-  }
-  
-  @include mobile {
-    font-size: $font-size-mobile-body;
-  }
 }
 
 .impact-quote {
-  margin-top: 1rem;
-  width: 100%;
+  @extend %centered-container;
+  @include responsive-typography(1.5rem, 1.4rem, $font-size-mobile-body);
   max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
-  font-size: 1.5rem;
-  line-height: 1.6;
-  text-transform: none;
+  margin-top: 1rem;
   color: #000000;
   text-align: center;
   font-style: italic;
   padding: 1.5rem;
   
-  @include tablet {
-    font-size: 1.4rem;
-    margin-top: 0.75rem;
-    padding: 1.25rem;
-  }
-  
   @include mobile {
-    font-size: $font-size-mobile-body;
     margin-top: 0.5rem;
     padding: 1rem;
   }
   
   .quote-author {
+    @include responsive-typography(1.25rem, false, $font-size-mobile-body);
     display: block;
     margin-top: 1rem;
     font-style: normal;
     font-weight: 700;
     color: $color-primary;
-    font-size: 1.25rem;
     
     @include mobile {
-      font-size: $font-size-mobile-body;
       margin-top: 0.75rem;
     }
   }
@@ -130,92 +102,50 @@
  * 2) Curved Backgrounds
  *******************************************************/
 
-/*
- * Curved Page Header
- * Apply to any section that should have the gray curved background
- * with a centered title.
- */
 .curved-page-header {
   @include curved-section-base(8rem);
   @include full-bleed-bg($color-gray-bg, z('background'));
   @include curved-bottom($color-white, $curve-height-desktop, $curve-height-mobile, z('background'), $curve-border-width solid $color-gray-border);
 
   .curved-page-header-title {
+    @include responsive-typography(3.5rem, 2.5rem, $font-size-mobile-header);
     position: relative;
     z-index: z('foreground');
-    font-size: 3.5rem;
     font-weight: bold;
     text-align: center;
     margin: 0;
     color: $color-primary;
     white-space: normal;
     word-break: break-word;
-    
-    @include tablet {
-      font-size: 2.5rem;
-    }
-    
-    @include mobile {
-      font-size: $font-size-mobile-header;
-    }
   }
 
   .curved-page-header-subtitle {
+    @include responsive-typography(1.8rem, 1.6rem, $font-size-mobile-subheader);
     position: relative;
     z-index: 3;
-    font-size: 1.8rem;
     font-weight: normal;
     text-align: center;
     margin: 1rem 0 0;
     color: #5a5a5a; /* Gray subtitle */
     
-    @include tablet {
-      font-size: 1.6rem;
-      margin-top: 0.75rem;
-    }
-    
     @include mobile {
-      font-size: $font-size-mobile-subheader;
       margin-top: 0.5rem;
     }
   }
 }
 
-/*
- * 3) Blue Curved Section
- *
- * This version is intended to be a decorative band beneath
- * your main content (and above the footer). Because you're NOT
- * wrapping page content inside it anymore, you can give it
- * a fixed or minimal height/padding to keep it visually small.
- */
 .curved-section-blue {
   @include bottom-blue-curve();
 }
 
-/* Note: This duplicate definition has been consolidated into the main .curved-page-header above */
-
-/* Note: Main content styling has been consolidated at the top of this file */
-
 /*******************************************************
  * 4) Standardized Content Sections
- * Reusable patterns for consistent page sections
  *******************************************************/
 
-/* Base content section */
 .content-section {
   padding: 1rem 0;
   position: relative;
   
-  @include tablet {
-    padding: 1rem 0;
-  }
-  
-  @include mobile {
-    padding: 1rem 0;
-  }
-  
-  /* Section modifiers */
   &--primary {
     @include full-bleed-bg($color-primary, z('background'));
     color: $color-white;
@@ -246,10 +176,6 @@
     padding: 4rem 0;
     text-align: center;
     
-    @include tablet {
-      padding: 3rem 0;
-    }
-    
     @include mobile {
       padding: 2.5rem 0;
     }
@@ -259,67 +185,52 @@
     }
   }
   
-  /* Ensure content is above background */
   > * {
     position: relative;
     z-index: z('foreground');
   }
 }
 
-/* Section title - consistent across all sections */
 .section-title {
-  font-size: 2.5rem;
+  @include responsive-typography(2.5rem, 2.25rem, $font-size-mobile-subheader);
   font-weight: 600;
   margin-bottom: 2rem;
   color: $color-primary;
   
-  @include tablet {
-    font-size: 2.25rem;
-    margin-bottom: 1.75rem;
-  }
-  
   @include mobile {
-    font-size: $font-size-mobile-subheader;
     margin-bottom: 1.5rem;
   }
 }
 
-/* Info cards for structured content (office info, etc.) */
 .info-card {
+  @include card-base; // Use the mixin instead of extend
+  flex-direction: column;
   background: $color-gray-bg;
   border: 6px solid $color-primary;
-  border-radius: $border-radius;
   padding: 2rem;
-  box-shadow: $box-shadow-sm;
   margin-bottom: 2rem;
   
   @include mobile {
     padding: 1.5rem;
-    border: 4px solid $color-primary;
+    border-width: 4px;
   }
   
   &__title {
-    font-size: 2.5rem;
+    @include responsive-typography(2.5rem, 2.2rem, $font-size-mobile-subheader);
     font-weight: 700 !important;
     margin: 0 0 1.5rem 0;
     color: $color-primary;
     text-align: center;
-    text-transform: none; // Override Lux theme uppercase
+    text-transform: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     
-    @include tablet {
-      font-size: 2.2rem;
-    }
-    
     @include mobile {
-      font-size: $font-size-mobile-subheader;
       margin-bottom: 1rem;
     }
   }
 }
 
-/* Definition list styling for info cards */
 .info-list {
   margin: 0;
   
@@ -336,22 +247,16 @@
   dd {
     margin-left: 0;
     margin-bottom: 0;
-    color: $color-black;
+    color: $color-gray-text;
   }
 }
 
-/* Lead text for CTAs and important paragraphs */
 .lead {
-  font-size: 1.25rem;
+  @include responsive-typography(1.25rem, false, $font-size-mobile-body);
   line-height: 1.6;
   font-weight: 300;
-  
-  @include mobile {
-    font-size: $font-size-mobile-body;
-  }
 }
 
-/* Centered list wrapper utility */
 .centered-list-wrapper {
   display: flex;
   justify-content: center;
@@ -359,12 +264,12 @@
   padding: 1rem 0;
   
   ul, ol {
+    @extend %centered-container;
     text-align: left;
     display: inline-block;
     margin: 1rem 0;
     padding-left: 2rem;
     max-width: 600px;
-    width: 100%;
     
     @include mobile {
       padding-left: 1.5rem;
@@ -379,20 +284,18 @@
     }
   }
   
-  // For nested lists
   ul ul, ol ol, ul ol, ol ul {
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
   }
 }
 
-/* Apply for Help Schedule Section */
 .apply-schedule-section {
+  @extend %centered-container;
   padding: 0 1rem;
   max-width: 800px;
-  width: 100%;
-  margin: 0 auto .5rem auto;
-  font-size: 1.125rem;
+  margin-bottom: .5rem;
+  @include responsive-typography(1.125rem);
   line-height: 1.6;
   color: $color-black;
   text-align: center;
@@ -405,25 +308,21 @@
     padding: 0 1rem;
   }
   
-  // Style for the schedule header
   h2, h3 {
     color: $color-primary;
   }
   
-  // Target table within the field class as well
   .field--name-field-apply-schedule table,
   table {
-    width: 100%;
+    @extend %centered-container;
     max-width: 600px;
     border-collapse: separate !important;
     border-spacing: 0;
-    margin: 1rem auto;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
     text-align: left;
     background-color: $color-white;
     border: 6px solid $color-primary !important;
-    border-width: 6px !important;
-    border-style: solid !important;
-    border-color: $color-primary !important;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     overflow: hidden;
@@ -432,7 +331,7 @@
     td {
       padding: 0.75rem;
       border-bottom: 1px solid #ddd;
-      font-size: 1.125rem;
+      @include responsive-typography(1.125rem, false, 1rem);
       
       p {
         margin: 0 !important;
@@ -441,32 +340,25 @@
       
       @include mobile {
         padding: 0.5rem;
-        font-size: 1rem;
       }
     }
     
     th {
       font-weight: 700;
-      font-size: 1.25rem;
+      @include responsive-typography(1.25rem, false, $font-size-mobile-body);
       text-transform: uppercase;
       color: #555;
       background-color: #f8f9fa;
-      
-      @include mobile {
-        font-size: $font-size-mobile-body;
-      }
     }
     
     tbody tr:last-child td {
       border-bottom: none;
     }
     
-    // Ensure tbody doesn't override table border
     tbody {
       border: none !important;
     }
     
-    // Style for closed days
     strong {
       color: #d9534f;
       font-weight: 700;

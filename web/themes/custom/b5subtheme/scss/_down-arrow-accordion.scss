@@ -202,13 +202,9 @@
   &__item {
     // Make buttons smaller width
     display: inline-flex;
-    min-width: 0; // Allow button to shrink below its content width
-    max-width: 100%; // Prevent overflow beyond container
-    padding: 0.5rem 1.5rem !important;
-    font-size: 1rem !important;
     
     // Override only what's needed for accordion context
-    white-space: normal; // Allow text to wrap on small screens
+    white-space: nowrap; // Allow text to wrap on small screens
     overflow-wrap: break-word; // Break long words if needed
     word-break: break-word; // Additional support for word breaking
     align-items: center;
@@ -218,8 +214,8 @@
     // Ensure all font properties inherit from .btn
     font-family: inherit;
     font-weight: inherit;
-    line-height: 1.4;
-    text-transform: none; // Reset any transforms
+    line-height: 1.5;
+    text-transform: uppercase; // Reset any transforms
     
     // For larger screens, prevent wrapping
     @media (min-width: $tablet-breakpoint) {

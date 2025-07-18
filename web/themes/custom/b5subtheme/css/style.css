@@ -1,5 +1,12 @@
 @import url(https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;500;600;700&display=swap);
 @charset "UTF-8";
+.apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table, .apply-schedule-section, .centered-list-wrapper ul, .centered-list-wrapper ol, .impact-quote, .page-subheader, .main-content {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /*!
  * Bootstrap  v5.3.6 (https://getbootstrap.com/)
  * Copyright 2011-2025 The Bootstrap Authors
@@ -22452,6 +22459,13 @@ readers do not read off random characters that represent icons */
  *  HEADER & NAVIGATION STYLES
  *  File: _header.scss
  *****************************************************************/
+.apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table, .apply-schedule-section, .centered-list-wrapper ul, .centered-list-wrapper ol, .impact-quote, .page-subheader, .main-content {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .utility-bar {
   position: fixed;
   top: 0;
@@ -22909,6 +22923,13 @@ readers do not read off random characters that represent icons */
  * Standardized button styles for site-wide consistency.
  * Matches the utility bar hover style with subtle rounded corners.
  ***********************************************/
+.apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table, .apply-schedule-section, .centered-list-wrapper ul, .centered-list-wrapper ol, .impact-quote, .page-subheader, .main-content {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .btn, .resource-full .sidebar-card .card-footer .sidebar-btn, .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn {
   display: inline-block;
   font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -23616,13 +23637,15 @@ html, body {
   overflow-x: hidden;
 }
 
+.apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table, .apply-schedule-section, .centered-list-wrapper ul, .centered-list-wrapper ol, .impact-quote, .page-subheader, .main-content {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /***********************************************
  * General Content Styles & Curved Backgrounds (Standardized)
- * 
- * Responsive improvements:
- * - Added responsive font sizes and spacing
- * - Consistent curve implementation
- * - Standardized color values
  ***********************************************/
 /* Main Content Styling */
 .main-content {
@@ -23646,6 +23669,10 @@ html, body {
 @media (max-width: 767.98px) {
   .main-content {
     font-size: 1.1rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .main-content {
     margin: 0 !important;
     padding: 0 !important;
   }
@@ -23679,11 +23706,8 @@ html, body {
 
 /* Add new utility classes for the new fields */
 .page-subheader {
-  margin-top: 1rem;
-  width: 100%;
-  margin-left: auto;
-  margin-right: auto;
   font-size: 1.5rem;
+  margin-top: 1rem;
   line-height: 1.6;
   text-transform: none;
   color: #000000;
@@ -23701,14 +23725,9 @@ html, body {
 }
 
 .impact-quote {
-  margin-top: 1rem;
-  width: 100%;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
   font-size: 1.5rem;
-  line-height: 1.6;
-  text-transform: none;
+  max-width: 800px;
+  margin-top: 1rem;
   color: #000000;
   text-align: center;
   font-style: italic;
@@ -23717,28 +23736,34 @@ html, body {
 @media (min-width: 768px) and (max-width: 991.98px) {
   .impact-quote {
     font-size: 1.4rem;
-    margin-top: 0.75rem;
-    padding: 1.25rem;
   }
 }
 @media (max-width: 767.98px) {
   .impact-quote {
     font-size: 1.1rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .impact-quote {
     margin-top: 0.5rem;
     padding: 1rem;
   }
 }
 .impact-quote .quote-author {
+  font-size: 1.25rem;
   display: block;
   margin-top: 1rem;
   font-style: normal;
   font-weight: 700;
   color: #1263a0;
-  font-size: 1.25rem;
 }
 @media (max-width: 767.98px) {
   .impact-quote .quote-author {
     font-size: 1.1rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .impact-quote .quote-author {
     margin-top: 0.75rem;
   }
 }
@@ -23746,11 +23771,6 @@ html, body {
 /*******************************************************
  * 2) Curved Backgrounds
  *******************************************************/
-/*
- * Curved Page Header
- * Apply to any section that should have the gray curved background
- * with a centered title.
- */
 .curved-page-header {
   position: relative;
   display: block;
@@ -23803,9 +23823,9 @@ html, body {
   }
 }
 .curved-page-header .curved-page-header-title {
+  font-size: 3.5rem;
   position: relative;
   z-index: 1;
-  font-size: 3.5rem;
   font-weight: bold;
   text-align: center;
   margin: 0;
@@ -23824,9 +23844,9 @@ html, body {
   }
 }
 .curved-page-header .curved-page-header-subtitle {
+  font-size: 1.8rem;
   position: relative;
   z-index: 3;
-  font-size: 1.8rem;
   font-weight: normal;
   text-align: center;
   margin: 1rem 0 0;
@@ -23835,24 +23855,19 @@ html, body {
 @media (min-width: 768px) and (max-width: 991.98px) {
   .curved-page-header .curved-page-header-subtitle {
     font-size: 1.6rem;
-    margin-top: 0.75rem;
   }
 }
 @media (max-width: 767.98px) {
   .curved-page-header .curved-page-header-subtitle {
     font-size: 1.7rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .curved-page-header .curved-page-header-subtitle {
     margin-top: 0.5rem;
   }
 }
 
-/*
- * 3) Blue Curved Section
- *
- * This version is intended to be a decorative band beneath
- * your main content (and above the footer). Because you're NOT
- * wrapping page content inside it anymore, you can give it
- * a fixed or minimal height/padding to keep it visually small.
- */
 .curved-section-blue {
   position: relative;
   padding: 0;
@@ -23912,28 +23927,12 @@ html, body {
   }
 }
 
-/* Note: This duplicate definition has been consolidated into the main .curved-page-header above */
-/* Note: Main content styling has been consolidated at the top of this file */
 /*******************************************************
  * 4) Standardized Content Sections
- * Reusable patterns for consistent page sections
  *******************************************************/
-/* Base content section */
 .content-section {
   padding: 1rem 0;
   position: relative;
-  /* Section modifiers */
-  /* Ensure content is above background */
-}
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .content-section {
-    padding: 1rem 0;
-  }
-}
-@media (max-width: 767.98px) {
-  .content-section {
-    padding: 1rem 0;
-  }
 }
 .content-section--primary {
   color: #ffffff;
@@ -23977,11 +23976,6 @@ html, body {
   padding: 4rem 0;
   text-align: center;
 }
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .content-section--cta {
-    padding: 3rem 0;
-  }
-}
 @media (max-width: 767.98px) {
   .content-section--cta {
     padding: 2.5rem 0;
@@ -23995,7 +23989,6 @@ html, body {
   z-index: 1;
 }
 
-/* Section title - consistent across all sections */
 .section-title {
   font-size: 2.5rem;
   font-weight: 600;
@@ -24005,29 +23998,34 @@ html, body {
 @media (min-width: 768px) and (max-width: 991.98px) {
   .section-title {
     font-size: 2.25rem;
-    margin-bottom: 1.75rem;
   }
 }
 @media (max-width: 767.98px) {
   .section-title {
     font-size: 1.7rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .section-title {
     margin-bottom: 1.5rem;
   }
 }
 
-/* Info cards for structured content (office info, etc.) */
 .info-card {
+  display: flex;
+  position: relative;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  transition: all 0.3s ease;
+  flex-direction: column;
   background: #f0f2f5;
   border: 6px solid #1263a0;
-  border-radius: 0.375rem;
   padding: 2rem;
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
   margin-bottom: 2rem;
 }
 @media (max-width: 767.98px) {
   .info-card {
     padding: 1.5rem;
-    border: 4px solid #1263a0;
+    border-width: 4px;
   }
 }
 .info-card__title {
@@ -24048,11 +24046,14 @@ html, body {
 @media (max-width: 767.98px) {
   .info-card__title {
     font-size: 1.7rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .info-card__title {
     margin-bottom: 1rem;
   }
 }
 
-/* Definition list styling for info cards */
 .info-list {
   margin: 0;
 }
@@ -24067,10 +24068,9 @@ html, body {
 .info-list dd {
   margin-left: 0;
   margin-bottom: 0;
-  color: #000000;
+  color: #6c757d;
 }
 
-/* Lead text for CTAs and important paragraphs */
 .lead {
   font-size: 1.25rem;
   line-height: 1.6;
@@ -24082,7 +24082,6 @@ html, body {
   }
 }
 
-/* Centered list wrapper utility */
 .centered-list-wrapper {
   display: flex;
   justify-content: center;
@@ -24095,7 +24094,6 @@ html, body {
   margin: 1rem 0;
   padding-left: 2rem;
   max-width: 600px;
-  width: 100%;
 }
 @media (max-width: 767.98px) {
   .centered-list-wrapper ul, .centered-list-wrapper ol {
@@ -24113,12 +24111,10 @@ html, body {
   margin-bottom: 0.5rem;
 }
 
-/* Apply for Help Schedule Section */
 .apply-schedule-section {
   padding: 0 1rem;
   max-width: 800px;
-  width: 100%;
-  margin: 0 auto 0.5rem auto;
+  margin-bottom: 0.5rem;
   font-size: 1.125rem;
   line-height: 1.6;
   color: #000000;
@@ -24139,17 +24135,14 @@ html, body {
 }
 .apply-schedule-section .field--name-field-apply-schedule table,
 .apply-schedule-section table {
-  width: 100%;
   max-width: 600px;
   border-collapse: separate !important;
   border-spacing: 0;
-  margin: 1rem auto;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   text-align: left;
   background-color: #ffffff;
   border: 6px solid #1263a0 !important;
-  border-width: 6px !important;
-  border-style: solid !important;
-  border-color: #1263a0 !important;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -24161,6 +24154,14 @@ html, body {
   padding: 0.75rem;
   border-bottom: 1px solid #ddd;
   font-size: 1.125rem;
+}
+@media (max-width: 767.98px) {
+  .apply-schedule-section .field--name-field-apply-schedule table th,
+  .apply-schedule-section .field--name-field-apply-schedule table td,
+  .apply-schedule-section table th,
+  .apply-schedule-section table td {
+    font-size: 1rem;
+  }
 }
 .apply-schedule-section .field--name-field-apply-schedule table th p,
 .apply-schedule-section .field--name-field-apply-schedule table td p,
@@ -24175,7 +24176,6 @@ html, body {
   .apply-schedule-section table th,
   .apply-schedule-section table td {
     padding: 0.5rem;
-    font-size: 1rem;
   }
 }
 .apply-schedule-section .field--name-field-apply-schedule table th,
@@ -24206,181 +24206,146 @@ html, body {
   font-weight: 700;
 }
 
-/***********************************************
- * Topic Cards Component
- ***********************************************/
-/* The grid container for the cards */
-.field--name-field-topic-cards {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  justify-content: center !important;
-  gap: 1.25rem !important;
-  width: 100% !important;
-  max-width: none !important;
-  margin: 0 auto !important;
-  padding: 0 !important;
-  box-sizing: border-box !important;
-  z-index: 3;
-}
-@media (max-width: 767.98px) {
-  .field--name-field-topic-cards {
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
-  }
-}
-.field--name-field-topic-cards .field__item {
-  flex: 0 1 350px !important;
-  max-width: 350px !important;
-  display: flex !important;
-}
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .field--name-field-topic-cards .field__item {
-    flex: 0 1 calc(50% - 1.25rem) !important;
-    max-width: calc(50% - 1.25rem) !important;
-    display: flex !important;
-  }
-}
-@media (max-width: 767.98px) {
-  .field--name-field-topic-cards .field__item {
-    flex: 0 1 100% !important;
-    max-width: 100% !important;
-    display: flex !important;
-    justify-content: center !important;
-  }
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-/* The card styling */
-.topic-card {
-  /* Basic sizing & position */
-  display: flex !important;
-  flex: 1 !important;
-  position: relative !important;
-  width: 100% !important;
-  overflow: visible !important;
-  margin: 0 !important;
+/***********************************************
+ * Topic Cards Component (Refactored with CSS Grid)
+ ***********************************************/
+.field--name-field-topic-cards, .how-we-help-section .topic-cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  align-items: start;
+  gap: 1.25rem;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
   z-index: 3;
-  /* Animate border-color & box-shadow for that "jazz" effect */
-  transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
-  /* Subtle drop shadow by default */
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
-  /* Thick white border by default */
-  border: 6px solid #ffffff !important;
-  /* Blue variant */
-  /* Gray variant */
-  /* Link takes up full card */
-  /* Content container: left-aligned */
-  /* Title styling */
-  /* Description hidden by default => expand on hover */
-  /* Hover expansion for any variant */
 }
 @media (max-width: 767.98px) {
-  .topic-card {
-    border-width: 3px !important;
-    max-width: 300px !important;
+  .field--name-field-topic-cards, .how-we-help-section .topic-cards-row {
+    padding: 0 0.75rem;
   }
 }
-.topic-card.topic-card--blue {
-  background-color: #1263a0 !important;
-  color: #fff !important;
-  /* Title & link default white */
+.field--name-field-topic-cards .field__item, .field--name-field-topic-cards .how-we-help-section .topic-card-col, .how-we-help-section .field--name-field-topic-cards .topic-card-col, .how-we-help-section .topic-cards-row .field__item, .how-we-help-section .topic-cards-row .topic-card-col {
+  display: flex;
+  justify-content: stretch;
+  position: relative;
 }
-.topic-card.topic-card--blue .topic-card__title,
-.topic-card.topic-card--blue .topic-card__link {
-  color: #fff !important;
-}
-.topic-card.topic-card--blue:hover {
-  background-color: #fff !important;
-  border-color: #1263a0 !important;
-  color: #1263a0 !important;
-  box-shadow: 0 0 10px 3px rgba(18, 99, 160, 0.4) !important;
-  /* Title & link become blue on hover */
-}
-.topic-card.topic-card--blue:hover .topic-card__title,
-.topic-card.topic-card--blue:hover .topic-card__link {
-  color: #1263a0 !important;
-}
-.topic-card.topic-card--gray {
-  background-color: #f0f2f5 !important;
-  color: #1263a0 !important;
-  border-color: #1263a0 !important;
-  /* Title & link default blue */
-}
-.topic-card.topic-card--gray .topic-card__title,
-.topic-card.topic-card--gray .topic-card__link {
-  color: #1263a0 !important;
-}
-.topic-card.topic-card--gray:hover {
-  background-color: #fff !important;
-  box-shadow: 0 0 10px 3px rgba(90, 90, 90, 0.4) !important;
-  /* Title & link become blue on hover */
-}
-.topic-card.topic-card--gray:hover .topic-card__title,
-.topic-card.topic-card--gray:hover .topic-card__link {
-  color: #1263a0 !important;
-}
-.topic-card .topic-card__link {
-  display: flex !important;
-  align-items: center !important;
-  width: 100% !important;
-  min-height: 180px !important;
-  color: #fff !important;
-  text-decoration: none !important;
-  padding: 2rem !important;
-  position: relative !important;
+.field--name-field-topic-cards .topic-card, .how-we-help-section .topic-cards-row .topic-card {
+  display: flex;
+  position: relative;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  transition: all 0.3s ease;
+  flex: 1;
+  width: 100%;
+  min-height: 220px;
+  border: 6px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 3;
 }
 @media (max-width: 767.98px) {
-  .topic-card .topic-card__link {
-    min-height: 120px !important;
-    padding: 0.75rem !important;
+  .field--name-field-topic-cards .topic-card, .how-we-help-section .topic-cards-row .topic-card {
+    border-width: 3px;
+    max-width: 350px;
+    min-height: 160px;
   }
 }
-.topic-card .topic-card__content {
-  display: block !important;
-  text-align: left !important;
-  width: 100% !important;
+.field--name-field-topic-cards .topic-card--blue, .how-we-help-section .topic-cards-row .topic-card--blue {
+  background-color: #1263a0;
+  color: #ffffff;
 }
-.topic-card .topic-card__title {
-  color: #fff !important;
-  text-transform: uppercase !important;
-  font-size: 2.4rem !important;
-  font-weight: 700 !important;
-  margin: 0 !important;
-  transition: all 0.3s ease !important;
-  text-align: left !important;
+.field--name-field-topic-cards .topic-card--blue .topic-card__title, .how-we-help-section .topic-cards-row .topic-card--blue .topic-card__title,
+.field--name-field-topic-cards .topic-card--blue .topic-card__link,
+.how-we-help-section .topic-cards-row .topic-card--blue .topic-card__link {
+  color: #ffffff;
+}
+.field--name-field-topic-cards .topic-card--blue:hover, .how-we-help-section .topic-cards-row .topic-card--blue:hover {
+  border-color: #1263a0;
+  box-shadow: 0 0 10px 3px rgba(18, 99, 160, 0.4);
+}
+.field--name-field-topic-cards .topic-card--gray, .how-we-help-section .topic-cards-row .topic-card--gray {
+  background-color: #f0f2f5;
+  color: #1263a0;
+  border-color: #1263a0;
+}
+.field--name-field-topic-cards .topic-card--gray .topic-card__title, .how-we-help-section .topic-cards-row .topic-card--gray .topic-card__title,
+.field--name-field-topic-cards .topic-card--gray .topic-card__link,
+.how-we-help-section .topic-cards-row .topic-card--gray .topic-card__link {
+  color: #1263a0;
+}
+.field--name-field-topic-cards .topic-card--gray:hover, .how-we-help-section .topic-cards-row .topic-card--gray:hover {
+  box-shadow: 0 0 10px 3px rgba(90, 90, 90, 0.4);
+}
+.field--name-field-topic-cards .topic-card:hover, .how-we-help-section .topic-cards-row .topic-card:hover {
+  z-index: 10;
+  background-color: #ffffff;
+}
+.field--name-field-topic-cards .topic-card:hover .topic-card__link, .how-we-help-section .topic-cards-row .topic-card:hover .topic-card__link {
+  align-items: flex-start;
+}
+.field--name-field-topic-cards .topic-card:hover .topic-card__title, .how-we-help-section .topic-cards-row .topic-card:hover .topic-card__title {
+  color: #1263a0;
+  margin-bottom: 0.75rem;
+  font-size: 1.7rem;
+}
+.field--name-field-topic-cards .topic-card:hover .topic-card__description, .how-we-help-section .topic-cards-row .topic-card:hover .topic-card__description {
+  max-height: 999px;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  margin-top: 0.5rem;
+  color: #000000;
+}
+.field--name-field-topic-cards .topic-card__link, .how-we-help-section .topic-cards-row .topic-card__link {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 180px;
+  color: inherit;
+  text-decoration: none;
+  padding: 2rem;
+  position: relative;
 }
 @media (max-width: 767.98px) {
-  .topic-card .topic-card__title {
-    font-size: 1.7rem !important;
+  .field--name-field-topic-cards .topic-card__link, .how-we-help-section .topic-cards-row .topic-card__link {
+    min-height: 120px;
+    padding: 0.75rem;
   }
 }
-.topic-card .topic-card__description {
-  position: relative !important;
-  max-height: 0 !important;
-  opacity: 0 !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
+.field--name-field-topic-cards .topic-card__content, .how-we-help-section .topic-cards-row .topic-card__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+  width: 100%;
+}
+.field--name-field-topic-cards .topic-card__title, .how-we-help-section .topic-cards-row .topic-card__title {
+  font-size: 2.4rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin: 0;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+@media (max-width: 767.98px) {
+  .field--name-field-topic-cards .topic-card__title, .how-we-help-section .topic-cards-row .topic-card__title {
+    font-size: 1.7rem;
+  }
+}
+.field--name-field-topic-cards .topic-card__description, .how-we-help-section .topic-cards-row .topic-card__description {
+  position: relative;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
   font-size: 1.2rem;
-  transition: max-height 0.3s ease, opacity 0.3s ease, visibility 0.3s ease !important;
-}
-.topic-card:hover {
-  background-color: #fff !important;
-}
-.topic-card:hover .topic-card__link {
-  align-items: flex-start !important;
-}
-.topic-card:hover .topic-card__title {
-  color: #1263a0 !important;
-  margin-bottom: 0.75rem !important;
-  font-size: 1.7rem !important;
-}
-.topic-card:hover .topic-card__description {
-  max-height: 999px !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: auto !important;
-  margin-top: 0.5rem !important;
-  color: #000 !important;
+  transition: max-height 0.3s ease, opacity 0.3s ease, visibility 0.3s ease;
 }
 
 /***********************************************
@@ -24397,7 +24362,7 @@ html, body {
   margin: 0;
   padding: 0;
 }
-.field--name-field-impact-cards .field__item {
+.field--name-field-impact-cards .field__item, .field--name-field-impact-cards .how-we-help-section .topic-card-col, .how-we-help-section .field--name-field-impact-cards .topic-card-col {
   width: 100%;
   display: block;
   margin: 0;
@@ -24827,13 +24792,20 @@ html, body {
 
 /* Large screen specific adjustments */
 @media (min-width: 992px) {
-  .field--name-field-impact-cards > .field__item:nth-child(odd) {
+  .field--name-field-impact-cards > .field__item:nth-child(odd), .how-we-help-section .field--name-field-impact-cards > .topic-card-col:nth-child(odd) {
     transform: translateY(0.75rem);
   }
 }
 /**
  * Home Page Styles
  */
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /*--------------------------------------*
  * 1) GRAY HERO BANNER - Title with curved background
  *--------------------------------------*/
@@ -25005,8 +24977,6 @@ html, body {
   .how-we-help-section {
     min-height: 500px;
     padding: 1rem 0;
-    display: flex;
-    align-items: center;
     justify-content: center;
   }
 }
@@ -25036,12 +25006,12 @@ html, body {
   position: relative;
   z-index: 1;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 @media (max-width: 767.98px) {
   .how-we-help-section .container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
   }
 }
@@ -25065,40 +25035,12 @@ html, body {
   }
 }
 .how-we-help-section .topic-cards-row {
-  display: flex;
-  margin-top: 0;
-  flex-wrap: wrap;
-  gap: 2rem;
-  justify-content: center;
-  position: relative;
-  z-index: 10;
-}
-@media (max-width: 767.98px) {
-  .how-we-help-section .topic-cards-row {
-    gap: 1.25rem;
-  }
+  max-width: 920px;
+  width: 100%;
 }
 .how-we-help-section .topic-card-col {
-  min-width: 0;
-  width: 100%;
+  flex: 1 1 400px;
   max-width: 450px;
-  position: relative;
-  z-index: 10;
-}
-@media (max-width: 767.98px) {
-  .how-we-help-section .topic-card-col {
-    max-width: 100%;
-    display: flex;
-    justify-content: center;
-  }
-}
-.how-we-help-section .topic-card__description {
-  font-size: 1.5rem;
-}
-@media (max-width: 767.98px) {
-  .how-we-help-section .topic-card__description {
-    font-size: 1rem;
-  }
 }
 
 /*--------------------------------------*
@@ -25673,14 +25615,10 @@ html, body {
   border-color: #1263a0 !important;
 }
 .node--type-donate.donate-page .custom-donation-form .donate-button {
-  display: block;
-  width: 60%;
-  margin: 0 auto;
-  font-size: 1.2rem;
+  margin-top: 1.5rem;
 }
 @media (max-width: 767.98px) {
   .node--type-donate.donate-page .custom-donation-form .donate-button {
-    width: 80%;
     font-size: 1.1rem;
   }
 }
@@ -26229,6 +26167,13 @@ html body .help-overlay.show-overlay .help-panel,
     font-size: 1.1rem;
   }
 }
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /*--------------------------------------*
  * UTILITY BAR SEARCH OVERLAY
  *--------------------------------------*/
@@ -26527,6 +26472,13 @@ html body .help-overlay.show-overlay .help-panel,
  * Most styles now come from standardized components in _layout-components.scss
  * Only page-specific customizations remain here.
  */
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .node--apply-for-help .subtitle-section {
   padding: 2rem 1rem 0.5rem 1rem;
   text-align: center;
@@ -26568,6 +26520,13 @@ html body .help-overlay.show-overlay .help-panel,
  * Specific styles for the office locations map and layout.
  * Uses standard page layout for header/footer.
  */
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .node--office-locations .content-section {
   padding-top: 0;
 }
@@ -26604,6 +26563,13 @@ html body .help-overlay.show-overlay .help-panel,
  * Most styles now come from standardized components in _layout-components.scss
  * The info-card and info-list components handle the layout.
  */
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .node--office-information .content-section {
   padding-top: 0;
 }
@@ -26666,6 +26632,13 @@ html body .help-overlay.show-overlay .help-panel,
   .column-body {
     font-size: 1.1rem;
   }
+}
+
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .accordion-section, .faq-smart-section {
@@ -26866,6 +26839,20 @@ html body .help-overlay.show-overlay .help-panel,
  * - Element: __wrapper, __inner, __toggle, __title, __icon, __content, __item
  * - Modifier: --expanded, --collapsed, --empty
  */
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .accordion-section, .faq-smart-section {
   background-color: #f0f2f5;
   border: 6px solid #1263a0;
@@ -27184,11 +27171,7 @@ html body .help-overlay.show-overlay .help-panel,
 }
 .daa-downloads__item, .pp-button-group-item {
   display: inline-flex;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0.5rem 1.5rem !important;
-  font-size: 1rem !important;
-  white-space: normal;
+  white-space: nowrap;
   overflow-wrap: break-word;
   word-break: break-word;
   align-items: center;
@@ -27196,8 +27179,8 @@ html body .help-overlay.show-overlay .help-panel,
   text-align: center;
   font-family: inherit;
   font-weight: inherit;
-  line-height: 1.4;
-  text-transform: none;
+  line-height: 1.5;
+  text-transform: uppercase;
 }
 @media (min-width: 768px) {
   .daa-downloads__item, .pp-button-group-item {
@@ -27219,6 +27202,20 @@ html body .help-overlay.show-overlay .help-panel,
 .daa-downloads__item .daa-downloads__name, .pp-button-group-item .daa-downloads__name {
   display: block;
   font: inherit;
+}
+
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .accordion-section, .faq-smart-section {
@@ -27869,6 +27866,13 @@ mark.search-highlight, .search-highlight.mark {
  * Premium Employment Application - Multi-Step Wizard
  * Comprehensive styling for accessible, responsive employment application
  */
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .premium-application-page.hide-page-title .page-title {
   display: none;
 }
@@ -29392,7 +29396,7 @@ mark.search-highlight, .search-highlight.mark {
   align-items: center; /* center link & description */
   margin-bottom: 1rem;
 }
-.resource-external .field--name-field-external-title.field__item {
+.resource-external .field--name-field-external-title.field__item, .resource-external .how-we-help-section .field--name-field-external-title.topic-card-col, .how-we-help-section .resource-external .field--name-field-external-title.topic-card-col {
   font-size: 1.9rem;
   font-weight: 600;
   margin-bottom: 0.15rem;
@@ -29401,6 +29405,13 @@ mark.search-highlight, .search-highlight.mark {
   font-size: 1.5rem;
   font-weight: 600;
   text-decoration: none;
+}
+
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /*--------------------------------------*
@@ -29847,6 +29858,13 @@ mark.search-highlight, .search-highlight.mark {
 /* Prevent body scroll when menu is open */
 body.mobile-menu-open {
   overflow: hidden;
+}
+
+.main-content, .page-subheader, .impact-quote, .centered-list-wrapper ul, .centered-list-wrapper ol, .apply-schedule-section, .apply-schedule-section .field--name-field-apply-schedule table,
+.apply-schedule-section table {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .back-to-top {

@@ -32,8 +32,23 @@ $z-layers: (
 }
 
 // ===================================
-// Utility Mixins
+// Utility Mixins & Placeholders
 // ===================================
+
+// Placeholder for centered block elements
+%centered-container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// Mixin for shared card styling (replaces %card-base)
+@mixin card-base {
+  display: flex;
+  position: relative;
+  box-shadow: $box-shadow-sm;
+  transition: all 0.3s ease;
+}
 
 // Full-bleed element base
 @mixin full-bleed-element($position: absolute, $top: 0) {
@@ -45,22 +60,39 @@ $z-layers: (
   margin-left: -50vw;
 }
 
-// Standard Bootstrap breakpoint mixins
+// Standard Bootstrap breakpoint mixins using variables
 @mixin mobile {
-  @media (max-width: 767.98px) {
+  @media (max-width: #{$tablet-breakpoint - 0.02}) {
     @content;
   }
 }
 
 @mixin tablet {
-  @media (min-width: 768px) and (max-width: 991.98px) {
+  @media (min-width: $tablet-breakpoint) and (max-width: #{$desktop-breakpoint - 0.02}) {
     @content;
   }
 }
 
 @mixin desktop {
-  @media (min-width: 992px) {
+  @media (min-width: $desktop-breakpoint) {
     @content;
+  }
+}
+
+// Reusable mixin for responsive typography
+@mixin responsive-typography($desktop-size, $tablet-size: false, $mobile-size: false) {
+  font-size: $desktop-size;
+
+  @if $tablet-size {
+    @include tablet {
+      font-size: $tablet-size;
+    }
+  }
+
+  @if $mobile-size {
+    @include mobile {
+      font-size: $mobile-size;
+    }
   }
 }
 
@@ -82,11 +114,11 @@ $z-layers: (
   min-height: $min-height;
   padding: $padding-desktop;
   z-index: z('default');
-  
+
   @include tablet {
     padding: $padding-tablet;
   }
-  
+
   @include mobile {
     padding: $padding-mobile;
   }
@@ -118,12 +150,12 @@ $z-layers: (
     border-top-left-radius: 50% 100%;
     border-top-right-radius: 50% 100%;
     z-index: $z-index;
-    
+
     @if $border != none {
       border-top: $border;
       box-sizing: border-box;
     }
-    
+
     @include mobile {
       height: $mobile-height;
     }
@@ -141,7 +173,7 @@ $z-layers: (
     height: $blue-curve-bg-height-desktop;
     background-color: $color-primary;
     z-index: z('foreground');
-    
+
     @include mobile {
       height: $blue-curve-bg-height-mobile;
     }
@@ -156,7 +188,7 @@ $z-layers: (
     border-bottom: $curve-border-width solid $color-gray-border;
     box-sizing: border-box;
     z-index: z('foreground');
-    
+
     @include mobile {
       height: $blue-curve-cutout-height-mobile;
     }
@@ -168,11 +200,11 @@ $z-layers: (
     max-width: $blue-curve-container-max-width;
     margin: $blue-curve-container-margin-desktop auto;
     padding: 0 1rem;
-    
+
     @include tablet {
       margin: $blue-curve-container-margin-tablet auto;
     }
-    
+
     @include mobile {
       margin: $blue-curve-container-margin-mobile 1rem;
     }

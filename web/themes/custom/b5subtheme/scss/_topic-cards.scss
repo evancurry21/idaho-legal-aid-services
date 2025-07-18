@@ -1,200 +1,148 @@
-/***********************************************
- * Topic Cards Component
- ***********************************************/
 @import 'variables_theme';
+@import 'mixins';
 
-/* The grid container for the cards */
+/***********************************************
+ * Topic Cards Component (Refactored with CSS Grid)
+ ***********************************************/
+
+// The grid container for the cards
 .field--name-field-topic-cards {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  justify-content: center !important;  // ← centers each “row” of wrapped items
-  gap: 1.25rem !important;
-  width: 100% !important;
-  max-width: none !important;  // Remove any max-width constraints
-  margin: 0 auto !important;   // Center the container, no vertical margins
-  padding: 0 !important;
-  box-sizing: border-box !important;
-  
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  // Remove stretch to allow cards to expand independently
+  align-items: start;
+  gap: 1.25rem;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
   z-index: 3;
-  
-  // Apply consistent mobile padding like other containers
+
   @include mobile {
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
+    padding: 0 0.75rem;
   }
 
   .field__item {
-    // base “card” width
-    flex: 0 1 350px !important;
-    max-width: 350px !important;
-    display: flex !important;  // Make wrapper a flex container
+    display: flex;
+    justify-content: stretch;
+    // Add position relative to create a stacking context for the z-index on hover
+    position: relative;
   }
 
-  @include tablet {
-    .field__item {
-      // two per row
-      flex: 0 1 calc(50% - 1.25rem) !important;
-      max-width: calc(50% - 1.25rem) !important;
-      display: flex !important;
-    }
-  }
-  @include mobile {
-    .field__item {
-      // one per row
-      flex: 0 1 100% !important;
-      max-width: 100% !important;
-      display: flex !important;
-      justify-content: center !important;
-    }
-  }
-}
+  .topic-card {
+    @include card-base;
+    flex: 1;
+    width: 100%;
+    min-height: 220px;
+    border: 6px solid $color-white;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 3;
 
-/* The card styling */
-.topic-card {
-  /* Basic sizing & position */
-  display: flex !important;
-  flex: 1 !important;  // Card fills height of flex container
-  position: relative !important;
-  width: 100% !important;
-  overflow: visible !important;
-  margin: 0 !important;
-  z-index: 3;
-
-  /* Animate border-color & box-shadow for that "jazz" effect */
-  transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
-
-  /* Subtle drop shadow by default */
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2) !important;
-
-  /* Thick white border by default */
-  border: 6px solid $color-white !important;
-  
-  @include mobile {
-    border-width: 3px !important;
-    max-width: 300px !important;
-  }
-
-  /* Blue variant */
-  &.topic-card--blue {
-    background-color: $color-primary !important;
-    color:            #fff     !important;
-
-    /* Title & link default white */
-    .topic-card__title,
-    .topic-card__link {
-      color: #fff !important;
+    @include mobile {
+      border-width: 3px;
+      max-width: 350px;
+      min-height: 160px;
     }
 
-    &:hover {
-      background-color: #fff     !important;
-      border-color:    $color-primary  !important;
-      color:           $color-primary  !important;
-      box-shadow:      0 0 10px 3px rgba(18, 99, 160, 0.4) !important;
+    // --- Variants ---
+    &--blue {
+      background-color: $color-primary;
+      color: $color-white;
 
-      /* Title & link become blue on hover */
       .topic-card__title,
       .topic-card__link {
-        color: $color-primary !important;
+        color: $color-white;
+      }
+
+      &:hover {
+        border-color: $color-primary;
+        box-shadow: 0 0 10px 3px rgba(18, 99, 160, 0.4);
       }
     }
-  }
 
-  /* Gray variant */
-  &.topic-card--gray {
-    background-color: $color-gray-bg !important;
-    color:            $color-primary !important;
-    border-color:     $color-primary !important;
+    &--gray {
+      background-color: $color-gray-bg;
+      color: $color-primary;
+      border-color: $color-primary;
 
-    /* Title & link default blue */
-    .topic-card__title,
-    .topic-card__link {
-      color: $color-primary !important;
-    }
-
-    &:hover {
-      background-color: #fff       !important;
-      box-shadow:      0 0 10px 3px rgba(90, 90, 90, 0.4) !important;
-
-      /* Title & link become blue on hover */
       .topic-card__title,
       .topic-card__link {
-        color: $color-primary !important;
+        color: $color-primary;
+      }
+
+      &:hover {
+        box-shadow: 0 0 10px 3px rgba(90, 90, 90, 0.4);
       }
     }
-  }
 
-  /* Link takes up full card */
-  .topic-card__link {
-    display:        flex      !important;
-    align-items:    center    !important;
-    width:          100%      !important;
-    min-height:     180px     !important;  // Increased minimum height for consistency
-    color:          #fff      !important;
-    text-decoration:none      !important;
-    padding:        2rem      !important;  // Equal padding all sides
-    position:       relative  !important;
-    
-    @include mobile {
-      min-height: 120px !important;
-      padding: 0.75rem !important;
-    }
-  }
+    // --- Shared Hover State ---
+    &:hover {
+      // Lift the card to a new layer on hover, so its growth doesn't affect its neighbors
+      z-index: 10;
+      background-color: $color-white;
 
-  /* Content container: left-aligned */
-  .topic-card__content {
-    display:     block      !important;
-    text-align:  left       !important;
-    width:       100%       !important;
-  }
+      .topic-card__link {
+        align-items: flex-start;
+      }
 
-  /* Title styling */
-  .topic-card__title {
-    color:           #fff    !important;
-    text-transform:  uppercase !important;
-    font-size:       2.4rem  !important;
-    font-weight:     700     !important;
-    margin:          0       !important;
-    transition:      all 0.3s ease !important;
-    text-align:      left    !important;
-    
-    @include mobile {
-      font-size: $font-size-mobile-subheader !important;
-    }
-  }
+      .topic-card__title {
+        color: $color-primary;
+        margin-bottom: 0.75rem;
+        font-size: $font-size-mobile-subheader;
+      }
 
-  /* Description hidden by default => expand on hover */
-  .topic-card__description {
-    position:      relative !important;
-    max-height:    0        !important;
-    opacity:       0        !important;
-    overflow:      hidden   !important;
-    visibility:    hidden   !important;
-    pointer-events:none     !important;
-    font-size:     1.2rem;
-    transition:    max-height 0.3s ease, opacity 0.3s ease, visibility 0.3s ease !important;
-  }
-
-  /* Hover expansion for any variant */
-  &:hover {
-    background-color: #fff     !important;
-
-    .topic-card__link {
-      align-items: flex-start !important;
+      .topic-card__description {
+        max-height: 999px;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        margin-top: 0.5rem;
+        color: $color-black;
+      }
     }
 
-    .topic-card__title {
-      color:         $color-primary  !important;
-      margin-bottom: 0.75rem  !important;
-      font-size:     $font-size-mobile-subheader !important;
+    // --- Card Internals ---
+    &__link {
+      display: flex;
+      align-items: stretch;
+      width: 100%;
+      min-height: 180px;
+      color: inherit;
+      text-decoration: none;
+      padding: 2rem;
+      position: relative;
+
+      @include mobile {
+        min-height: 120px;
+        padding: 0.75rem;
+      }
     }
 
-    .topic-card__description {
-      max-height: 999px        !important;
-      opacity:    1            !important;
-      visibility: visible      !important;
-      pointer-events:auto      !important;
-      margin-top: 0.5rem       !important;
-      color:      #000         !important;
+    &__content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: left;
+      width: 100%;
+    }
+
+    &__title {
+      @include responsive-typography(2.4rem, false, $font-size-mobile-subheader);
+      text-transform: uppercase;
+      font-weight: 700;
+      margin: 0;
+      transition: all 0.3s ease;
+      text-align: left;
+    }
+
+    &__description {
+      position: relative;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      visibility: hidden;
+      pointer-events: none;
+      font-size: 1.2rem;
+      transition: max-height 0.3s ease, opacity 0.3s ease, visibility 0.3s ease;
     }
   }
 }

@@ -125,8 +125,7 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
           '#markup' => '<a href="' . $annual_report_path . '" target="_blank" rel="noopener noreferrer">
                           <img src="/themes/custom/b5subtheme/images/Front Cover.svg" 
                                alt="' . t('ILAS Annual Report Cover') . '" 
-                               class="annual-report-cover img-fluid mb-3" 
-                               style="max-width: 300px;">
+                               class="annual-report-cover img-fluid mb-3">
                         </a>',
         ],
         'button' => [
@@ -142,6 +141,13 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
         ],
       ],
     ];
+    
+    // Add cache invalidation and library attachment
+    $build['#cache'] = [
+      'max-age' => 0,
+    ];
+    
+    $build['#attached']['library'][] = 'ilas_hotspot/hotspot';
     
     return $build;
   }

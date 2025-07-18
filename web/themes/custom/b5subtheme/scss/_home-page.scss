@@ -69,11 +69,7 @@
       text-align: center;
     }
 
-    // Hero button uses standardized button styles
     .btn-hero {
-      // Any hero-specific overrides can go here
-      // For now, it just uses the standard .btn-primary styles
-      
       @include mobile {
         max-width: 250px;
         margin: 0 auto;
@@ -114,10 +110,10 @@
   position: relative;
   background: transparent;
   overflow: visible;
-  
-  // Match height to background SVG for perfect centering
   min-height: 600px;
-  padding: 3.5rem 0 3rem; // Move content up by reducing top padding
+  padding: 3.5rem 0 3rem;
+  display: flex;
+  align-items: center;
   
   @include tablet {
     min-height: 500px;
@@ -125,25 +121,17 @@
   }
   @include mobile {
     min-height: 500px;
-    padding: 1rem 0; // Reduce padding to allow more centering space
-    
-    // Ensure flexbox centering works on mobile too
-    display: flex;
-    align-items: center;
+    padding: 1rem 0;
     justify-content: center;
   }
-
-  // Flexbox container for vertical centering
-  display: flex;
-  align-items: center;
 
   &::before {
     content: '';
     position: absolute;
     left: 50%;
-    top: 0; // Align with section top
+    top: 0;
     width: 100vw;
-    height: 100%; // Match section height
+    height: 100%;
     margin-left: -50vw;
     background-image: url('/themes/custom/b5subtheme/images/curved-background (2400 x 600 px).svg');
     background-repeat: no-repeat;
@@ -163,11 +151,11 @@
     position: relative;
     z-index: 1;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     
     @include mobile {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
       justify-content: center;
     }
   }
@@ -175,7 +163,7 @@
   .section-heading {
     font-size: 2.5rem;
     font-weight: 700;
-    margin: 0 0 3rem 0;  // Remove fixed top margin, add consistent bottom margin
+    margin: 0 0 3rem 0;
     color: $color-white;
     text-align: center;
 
@@ -189,50 +177,27 @@
     }
   }
 
+  // Apply the standard topic card styles to the home page's unique classes
   .topic-cards-row {
-    display: flex;
-    margin-top: 0;  // Remove top margin since heading handles spacing
-    flex-wrap: wrap;
-    gap: 2rem;
-    justify-content: center;
-    position: relative;
-    z-index: 10;
-
-    @include mobile {
-      gap: 1.25rem;
-    }
+    @extend .field--name-field-topic-cards;
+    // Constrain the container to be wide enough for two large cards plus a gap
+    max-width: 920px;
+    width: 100%;
   }
 
   .topic-card-col {
-    min-width: 0;
-    width: 100%;
+    @extend .field__item;
+    // Allow cards to be flexible but aim for a large size
+    flex: 1 1 400px;
     max-width: 450px;
-    position: relative;
-    z-index: z('overlay');
-
-    @include mobile {
-      max-width: 100%;
-      display: flex;
-      justify-content: center;
-    }
   }
-
-  .topic-card__description {
-    font-size: 1.5rem;
-    
-    @include mobile {
-      font-size: 1rem;
-    }
-  }
-
-
 }
 
 /*--------------------------------------*
  * 4) IMPACT SECTION - Impact title, quote and cards
  *--------------------------------------*/
 .impact-section {
-  padding: 1rem 0 1.5rem;  // Minimal top padding for tight integration
+  padding: 1rem 0 1.5rem;
   position: relative;
   z-index: z('content');
 
