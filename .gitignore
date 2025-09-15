@@ -7,7 +7,6 @@
 # Drupal settings (contains database credentials and sensitive data)
 /web/sites/*/settings.local.php
 /web/sites/*/local.settings.php
-/web/sites/default/settings.php
 
 # Backup files
 /web/backups/
@@ -21,8 +20,6 @@
 /web/test_*.sql.gz
 /web/backup-*.sql.gz
 
-# DDEV
-/.ddev/
 
 # Vendor directory (Composer dependencies)
 /vendor/
@@ -114,3 +111,11 @@ access_log
 
 # Dialogflow configuration (may contain API keys)
 /DIALOGFLOW_SETUP.md
+
+/drush/Commands/contrib/
+/web/core/
+/web/modules/contrib/
+/web/themes/contrib/
+/web/profiles/contrib/
+/web/libraries/
+/web/private/scripts/quicksilver

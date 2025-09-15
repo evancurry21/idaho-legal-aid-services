@@ -9,12 +9,16 @@
         "docs": "https://drupal.org/docs/user_guide/en/index.html",
         "chat": "https://drupal.org/node/314178"
     },
-    "repositories": {
-        "drupal": {
+    "repositories": [
+        {
             "type": "composer",
             "url": "https://packages.drupal.org/8"
+        },
+        {
+            "type": "path",
+            "url": "upstream-configuration"
         }
-    },
+    ],
     "require": {
         "civicrm/civicrm-core": "~5.75",
         "civicrm/civicrm-drupal-8": "~5.75",
@@ -51,7 +55,9 @@
         "drupal/tmgmt_google": "^1.2",
         "drupal/twig_tweak": "^3.4",
         "drupal/webform": "@beta",
-        "drush/drush": "^13"
+        "drush/drush": "^13",
+        "pantheon-systems/drupal-integrations": "^11",
+        "pantheon-upstreams/upstream-configuration": "dev-main"
     },
     "conflict": {
         "drupal/drupal": "*"

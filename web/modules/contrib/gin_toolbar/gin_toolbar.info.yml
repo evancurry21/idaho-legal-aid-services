@@ -1,9 +1,0 @@
-type: module
-name: Gin Toolbar
-description: Gin Toolbar for Gin Theme
-core_version_requirement: ^11.2
-
-# Information added by Drupal.org packaging script on 2025-06-20
-version: '3.0.1'
-project: 'gin_toolbar'
-datestamp: 1750417691

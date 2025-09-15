@@ -1,6 +1,0 @@
-agents_form:
-  js:
-    js/agents_form.js: {}
-  css:
-    theme:
-      css/agents_form.css: {}
