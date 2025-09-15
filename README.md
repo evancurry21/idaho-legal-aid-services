@@ -44,7 +44,7 @@ This is a Drupal-based website built with:
    ```bash
    # For main database
    gunzip < backup.sql.gz | drush sql-cli
-   
+
    # For CiviCRM database (if applicable)
    gunzip < civicrm_backup.sql.gz | ddev mysql -d ilas_civicrm
    ```
@@ -90,7 +90,7 @@ cd web
 ilas/
 ├── web/                    # Drupal web root
 │   ├── core/              # Drupal core (do not modify)
-│   ├── modules/           
+│   ├── modules/
 │   │   ├── contrib/       # Contributed modules
 │   │   └── custom/        # Custom modules
 │   ├── themes/
@@ -193,6 +193,7 @@ ddev drush cr
 ## Support
 
 For issues or questions about this codebase, please create an issue in the GitHub repository.
+
 
 ## License
 
