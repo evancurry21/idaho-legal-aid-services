@@ -119,3 +119,4 @@ access_log
 /web/profiles/contrib/
 /web/libraries/
 /web/private/scripts/quicksilver
+/recipes
