@@ -91,7 +91,7 @@
             "web/modules/custom/{$name}": ["type:drupal-custom-module"],
             "web/profiles/custom/{$name}": ["type:drupal-custom-profile"],
             "recipes/{$name}": ["type:drupal-recipe"],
-            "web/themes/custom/{$name}": ["type:drupal-custom-theme"],
+            "web/themes/custom/{$name}": ["type:drupal-custom-theme"]
         },
         "drupal-core-project-message": {
             "include-keys": ["homepage", "support"],
