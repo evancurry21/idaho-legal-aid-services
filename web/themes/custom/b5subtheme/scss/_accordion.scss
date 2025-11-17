@@ -23,16 +23,17 @@
 }
 
 /* This targets the top-level "Accordion Section" title */
-.accordion-section .accordion-section-title {
-  font-size: 2.5rem;
-  color: $color-primary;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 1.5rem;
+.accordion-section .accordion-section-title,
+.accordion-section-title {
+  font-size: 2.5rem !important;
+  color: $color-primary !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  margin-bottom: 1.5rem !important;
   
   @include mobile {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
+    font-size: 1.5rem !important;
+    margin-bottom: 1rem !important;
   }
 }
 

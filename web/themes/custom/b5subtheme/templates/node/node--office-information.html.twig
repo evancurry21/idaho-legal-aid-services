@@ -73,6 +73,13 @@
                 {{ content.field_office_location_map }}
               </div>
             {% endif %}
+            
+            {% if node.field_county.value %}
+              <dl class="info-list mt-3">
+                <dt>Counties Served:</dt>
+                <dd>{{ node.field_county.value }}</dd>
+              </dl>
+            {% endif %}
           </div>
         </div>
 

@@ -373,19 +373,20 @@
   // Multi-step Donation Inquiry Form
   .donation-inquiry-form {
     padding: 3rem 0;
-    background-color: $color-gray-bg;
     
     .multi-step-form {
       max-width: 800px;
       margin: 0 auto;
-      background: $color-white;
+      background: $color-gray-bg;
       padding: 3rem;
+      border: 6px solid $color-primary;
       border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
       position: relative;
       
       @include mobile {
         padding: 2rem 1rem;
+        border: 3px solid $color-primary;
       }
     }
     

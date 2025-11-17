@@ -125,7 +125,7 @@
           <div class="alert alert-success submission-alert" role="alert">
             <h3>Thank you for contacting us!</h3>
             <p>${message || 'We have received your inquiry and will respond soon.'}</p>
-            <p>For immediate assistance, email <a href="mailto:development@idaholegalaid.org">development@idaholegalaid.org</a> or call <a href="tel:+12083453591">(208) 345-3591</a>.</p>
+            <p>For immediate assistance, email <a href="mailto:development@idaholegalaid.org">development@idaholegalaid.org</a> or call <a href="tel:+12088072214">(208) 807-2214</a>.</p>
           </div>
         `);
       }
