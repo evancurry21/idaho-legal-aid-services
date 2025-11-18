@@ -20,9 +20,6 @@
         }
     ],
     "require": {
-        "civicrm/civicrm-core": "~5.75",
-        "civicrm/civicrm-drupal-8": "~5.75",
-        "civicrm/civicrm-packages": "~5.75",
         "composer/installers": "^2.3",
         "drupal/bootstrap5": "^4.0",
         "drupal/bootstrap_layout_builder": "^2.2",
@@ -44,6 +41,8 @@
         "drupal/drupal_cms_project": "~1.1.0",
         "drupal/drupal_cms_seo_tools": "~1.1.0",
         "drupal/drupal_cms_starter": "~1.1.0",
+        "drupal/google_analytics": "^4.0",
+        "drupal/google_tag": "^2.0",
         "drupal/imce": "^3.1",
         "drupal/layout_paragraphs": "^2.1",
         "drupal/paragraphs": "^1.19",
@@ -54,7 +53,7 @@
         "drupal/tmgmt_google": "^1.2",
         "drupal/twig_tweak": "^3.4",
         "drupal/webform": "@beta",
-        "drush/drush": "^13",
+        "drush/drush": "^13.6",
         "pantheon-systems/drupal-integrations": "^11",
         "pantheon-upstreams/upstream-configuration": "dev-main"
     },
@@ -69,9 +68,6 @@
             "drupal/core-composer-scaffold": true,
             "drupal/core-project-message": true,
             "php-http/discovery": true,
-            "civicrm/composer-compile-plugin": true,
-            "civicrm/composer-downloads-plugin": true,
-            "civicrm/civicrm-asset-plugin": true,
             "cweagans/composer-patches": true
         },
         "sort-packages": true,
@@ -89,7 +85,7 @@
         },
         "installer-paths": {
             "web/core": ["type:drupal-core"],
-            "web/libraries/{$name}": ["type:drupal-library", "type:civicrm-ext"],
+            "web/libraries/{$name}": ["type:drupal-library"],
             "web/modules/contrib/{$name}": ["type:drupal-module"],
             "web/profiles/contrib/{$name}": ["type:drupal-profile"],
             "web/themes/contrib/{$name}": ["type:drupal-theme"],
@@ -97,10 +93,7 @@
             "web/modules/custom/{$name}": ["type:drupal-custom-module"],
             "web/profiles/custom/{$name}": ["type:drupal-custom-profile"],
             "recipes/{$name}": ["type:drupal-recipe"],
-            "web/themes/custom/{$name}": ["type:drupal-custom-theme"],
-            "vendor/civicrm/civicrm-core": ["civicrm/civicrm-core"],
-            "vendor/civicrm/civicrm-packages": ["civicrm/civicrm-packages"],
-            "web/modules/contrib/civicrm": ["civicrm/civicrm-drupal-8"]
+            "web/themes/custom/{$name}": ["type:drupal-custom-theme"]
         },
         "drupal-core-project-message": {
             "include-keys": ["homepage", "support"],

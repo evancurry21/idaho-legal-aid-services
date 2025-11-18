@@ -85,12 +85,23 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
       ],
     ];
     
+    // Add header for accessibility
+    $build['header'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'h2',
+      '#value' => t('BY THE NUMBERS'),
+      '#attributes' => [
+        'class' => ['impact-header'],
+      ],
+    ];
+    
     // Add a table for layout
     $build['table'] = [
       '#type' => 'html_tag',
       '#tag' => 'table',
       '#attributes' => [
         'class' => ['ilas-impact-table'],
+        'role' => 'presentation',
       ],
     ];
     

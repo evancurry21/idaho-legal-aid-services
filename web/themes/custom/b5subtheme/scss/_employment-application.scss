@@ -8,6 +8,11 @@
 
 // Application-specific variables
 $wizard-max-width: 900px;
+
+// Employment page field styling to match FAQ titles
+.node--employment .field--name-field-faq-section-title {
+  @extend .accordion-section-title;
+}
 $step-circle-size: 40px;
 $step-circle-size-mobile: 32px;
 $progress-height: 4px;
