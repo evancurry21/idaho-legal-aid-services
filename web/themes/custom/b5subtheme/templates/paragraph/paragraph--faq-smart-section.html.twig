@@ -26,7 +26,7 @@
           "name": {{ item['#paragraph'].field_faq_question.value|json_encode|raw }},
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": {{ item['#paragraph'].field_faq_answer.value|striptags|json_encode|raw }}
+            "text": {{ item['#paragraph'].field_faq_answer.value|json_encode|raw }}
           }
         }{% if not loop.last %},{% endif %}
       {% endif %}
@@ -41,16 +41,16 @@
       {{ content.field_faq_section_title }}
     </h3>
   {% endif %}
-  
+
   {# Search bar with global search capabilities #}
   <div class="faq-search-container mb-4">
     <div class="input-group">
       <span class="input-group-text">
         <i class="fa-solid fa-magnifying-glass"></i>
       </span>
-      <input type="text" 
-             class="form-control faq-search" 
-             id="{{ search_id }}" 
+      <input type="text"
+             class="form-control faq-search"
+             id="{{ search_id }}"
              placeholder="{{ search_placeholder }}"
              aria-label="Search FAQs and resources">
       <button class="btn btn-primary btn-sm" type="button" id="{{ search_id }}-button">
@@ -78,7 +78,7 @@
     {% for item in content.field_faq_items %}
       {% if item['#paragraph'] is defined %}
         {% set item_id = 'faq-' ~ item['#paragraph'].id() %}
-        
+
         <div class="accordion-item faq-item" itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
           <h2 class="accordion-header" id="heading-{{ item_id }}">
             <button class="accordion-button collapsed" type="button"
