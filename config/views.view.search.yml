@@ -237,7 +237,7 @@ display:
           alter:
             alter_text: false
             text: ''
-            make_link: true
+            make_link: false
             path: '{{ uri }}'
             absolute: false
             external: false
@@ -275,8 +275,7 @@ display:
           hide_alter_empty: true
           click_sort_column: value
           type: string
-          settings:
-            link_to_file: 'false'
+          settings: {  }
           group_column: value
           group_columns: {  }
           group_rows: true

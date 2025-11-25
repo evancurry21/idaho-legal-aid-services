@@ -5,13 +5,24 @@ unprotected_forms:
   - search_block_form
   - views_exposed_form
   - honeypot_settings_form
-log: false
+log: true
 element_name: url
 time_limit: 5
 expire: 300
 form_settings:
   user_register_form: true
   user_pass: true
-  feedback_contact_message_form: false
-  _contact_message_form: false
-  comment_comment_form: true
+  node_apply_for_help_form: false
+  node_donate_form: false
+  node_employment_form: false
+  node_employment_application_form: false
+  node_event_form: false
+  node_get_involved_form: false
+  node_home_page_form: false
+  node_legal_content_form: false
+  node_legal_topic_form: false
+  node_news_form: false
+  node_office_information_form: false
+  node_office_locations_form: false
+  node_resource_form: false
+  node_standard_page_form: false
