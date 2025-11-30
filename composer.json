@@ -21,6 +21,7 @@
     ],
     "require": {
         "composer/installers": "^2.3",
+        "drupal/antibot": "^2.0",
         "drupal/bootstrap5": "^4.0",
         "drupal/bootstrap_layout_builder": "^2.2",
         "drupal/bootstrap_styles": "^1.2",
@@ -88,6 +89,9 @@
         "drupal-scaffold": {
             "locations": {
                 "web-root": "web/"
+            },
+            "file-mapping": {
+                "[web-root]/robots.txt": false
             }
         },
         "installer-paths": {
