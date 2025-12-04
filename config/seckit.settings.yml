@@ -2,24 +2,24 @@ _core:
   default_config_hash: zzgpgFFYVnDh4Bu8k2ZNyNtoVeOOmmjTKvv41SWyRXo
 seckit_xss:
   csp:
-    checkbox: false
+    checkbox: true
     vendor-prefix:
       x: false
       webkit: false
-    report-only: false
-    default-src: ''
-    script-src: ''
-    object-src: ''
-    style-src: ''
-    img-src: ''
-    media-src: ''
-    frame-src: ''
-    frame-ancestors: ''
-    child-src: ''
-    font-src: ''
-    connect-src: ''
+    report-only: true
+    default-src: "'self'"
+    script-src: "'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.google.com https://js.stripe.com https://donorbox.org"
+    object-src: "'none'"
+    style-src: "'self' 'unsafe-inline' https://fonts.googleapis.com"
+    img-src: "'self' data: blob: https://www.google-analytics.com https://www.googletagmanager.com"
+    media-src: "'self'"
+    frame-src: "'self' https://js.stripe.com https://donorbox.org https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com"
+    frame-ancestors: "'self'"
+    child-src: "'self'"
+    font-src: "'self' https://fonts.gstatic.com"
+    connect-src: "'self' https://api.stripe.com https://www.google-analytics.com"
     report-uri: /report-csp-violation
-    upgrade-req: false
+    upgrade-req: true
     policy-uri: ''
   x_xss:
     select: 2
@@ -33,9 +33,9 @@ seckit_clickjacking:
   x_frame_allow_from: ''
 seckit_ssl:
   hsts: true
-  hsts_subdomains: false
-  hsts_max_age: 1000
-  hsts_preload: false
+  hsts_subdomains: true
+  hsts_max_age: 31536000
+  hsts_preload: true
 seckit_ct:
   expect_ct: false
   max_age: 86400

@@ -4,11 +4,39 @@ namespace Drupal\ilas_payment\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\ilas_payment\Service\SecureKeyManager;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Configure payment settings.
  */
 class PaymentSettingsForm extends ConfigFormBase {
+
+  /**
+   * The secure key manager service.
+   *
+   * @var \Drupal\ilas_payment\Service\SecureKeyManager
+   */
+  protected $secureKeyManager;
+
+  /**
+   * Constructs a PaymentSettingsForm object.
+   *
+   * @param \Drupal\ilas_payment\Service\SecureKeyManager $secure_key_manager
+   *   The secure key manager service.
+   */
+  public function __construct(SecureKeyManager $secure_key_manager) {
+    $this->secureKeyManager = $secure_key_manager;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('ilas_payment.secure_key_manager')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -89,10 +117,15 @@ class PaymentSettingsForm extends ConfigFormBase {
       ],
     ];
     
+    $test_secret_secure = $this->secureKeyManager->isKeySecurelyStored('stripe_test_secret_key', TRUE);
     $form['stripe']['stripe_test_secret_key'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Test Secret Key'),
-      '#default_value' => $config->get('stripe_test_secret_key'),
+      '#default_value' => $test_secret_secure ? '••••••••••••' : $config->get('stripe_test_secret_key'),
+      '#description' => $test_secret_secure 
+        ? $this->t('<strong>✓ SECURE:</strong> Key loaded from environment variable or Drupal settings.')
+        : $this->t('<strong>⚠ WARNING:</strong> For security, set STRIPE_TEST_SECRET_KEY environment variable instead of storing in database.'),
+      '#disabled' => $test_secret_secure,
       '#states' => [
         'visible' => [
           ':input[name="stripe_enabled"]' => ['checked' => TRUE],
@@ -112,10 +145,15 @@ class PaymentSettingsForm extends ConfigFormBase {
       ],
     ];
     
+    $live_secret_secure = $this->secureKeyManager->isKeySecurelyStored('stripe_live_secret_key', FALSE);
     $form['stripe']['stripe_live_secret_key'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Live Secret Key'),
-      '#default_value' => $config->get('stripe_live_secret_key'),
+      '#default_value' => $live_secret_secure ? '••••••••••••' : $config->get('stripe_live_secret_key'),
+      '#description' => $live_secret_secure 
+        ? $this->t('<strong>✓ SECURE:</strong> Key loaded from environment variable or Drupal settings.')
+        : $this->t('<strong>⚠ WARNING:</strong> For security, set STRIPE_LIVE_SECRET_KEY environment variable instead of storing in database.'),
+      '#disabled' => $live_secret_secure,
       '#states' => [
         'visible' => [
           ':input[name="stripe_enabled"]' => ['checked' => TRUE],
@@ -124,13 +162,20 @@ class PaymentSettingsForm extends ConfigFormBase {
       ],
     ];
     
+    $test_mode = $config->get('test_mode') ?? TRUE;
+    $webhook_secret_secure = $this->secureKeyManager->isKeySecurelyStored('stripe_webhook_secret', $test_mode);
     $form['stripe']['stripe_webhook_secret'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Webhook Signing Secret'),
-      '#description' => $this->t('Stripe webhook endpoint: @url', [
-        '@url' => \Drupal::request()->getSchemeAndHttpHost() . '/payment/stripe/webhook',
-      ]),
-      '#default_value' => $config->get('stripe_webhook_secret'),
+      '#description' => $webhook_secret_secure 
+        ? $this->t('<strong>✓ SECURE:</strong> Key loaded from environment variable or Drupal settings.<br>Stripe webhook endpoint: @url', [
+          '@url' => \Drupal::request()->getSchemeAndHttpHost() . '/payment/stripe/webhook',
+        ])
+        : $this->t('<strong>⚠ WARNING:</strong> For security, set STRIPE_TEST_WEBHOOK_SECRET or STRIPE_LIVE_WEBHOOK_SECRET environment variable.<br>Stripe webhook endpoint: @url', [
+          '@url' => \Drupal::request()->getSchemeAndHttpHost() . '/payment/stripe/webhook',
+        ]),
+      '#default_value' => $webhook_secret_secure ? '••••••••••••' : $config->get('stripe_webhook_secret'),
+      '#disabled' => $webhook_secret_secure,
       '#states' => [
         'visible' => [
           ':input[name="stripe_enabled"]' => ['checked' => TRUE],
@@ -138,6 +183,19 @@ class PaymentSettingsForm extends ConfigFormBase {
       ],
     ];
     
+    // Security Information
+    $env_mapping = $this->secureKeyManager->getEnvironmentVariableMapping();
+    $form['security_info'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Security Information'),
+      '#open' => FALSE,
+    ];
+    
+    $form['security_info']['env_vars'] = [
+      '#type' => 'markup',
+      '#markup' => $this->buildEnvironmentVariableTable($env_mapping),
+    ];
+
     // PayPal settings
     $form['paypal'] = [
       '#type' => 'details',
@@ -280,25 +338,45 @@ class PaymentSettingsForm extends ConfigFormBase {
     $amounts = $form_state->getValue('suggested_amounts');
     $amounts_array = array_map('intval', array_map('trim', explode(',', $amounts)));
     
-    // Save configuration
+    // Save configuration (excluding sensitive keys that are stored securely)
+    $test_mode = $form_state->getValue('test_mode');
     $config
-      ->set('test_mode', $form_state->getValue('test_mode'))
+      ->set('test_mode', $test_mode)
       ->set('suggested_amounts', $amounts_array)
       ->set('minimum_amount', $form_state->getValue('minimum_amount'))
       ->set('receipt_email_from', $form_state->getValue('receipt_email_from'))
       ->set('stripe_enabled', $form_state->getValue('stripe_enabled'))
       ->set('stripe_test_public_key', $form_state->getValue('stripe_test_public_key'))
-      ->set('stripe_test_secret_key', $form_state->getValue('stripe_test_secret_key'))
       ->set('stripe_live_public_key', $form_state->getValue('stripe_live_public_key'))
-      ->set('stripe_live_secret_key', $form_state->getValue('stripe_live_secret_key'))
-      ->set('stripe_webhook_secret', $form_state->getValue('stripe_webhook_secret'))
       ->set('paypal_enabled', $form_state->getValue('paypal_enabled'))
-      ->set('paypal_business_email', $form_state->getValue('paypal_business_email'))
       ->set('default_financial_type', $form_state->getValue('default_financial_type'))
       ->set('send_receipts', $form_state->getValue('send_receipts'))
       ->set('receipt_subject', $form_state->getValue('receipt_subject'))
-      ->set('receipt_template', $form_state->getValue('receipt_template'))
-      ->save();
+      ->set('receipt_template', $form_state->getValue('receipt_template'));
+    
+    // Only save sensitive keys to database if not stored securely elsewhere
+    if (!$this->secureKeyManager->isKeySecurelyStored('stripe_test_secret_key', TRUE)) {
+      $config->set('stripe_test_secret_key', $form_state->getValue('stripe_test_secret_key'));
+      $this->messenger()->addWarning($this->t('Stripe test secret key saved to database. For security, consider using environment variable STRIPE_TEST_SECRET_KEY.'));
+    }
+    
+    if (!$this->secureKeyManager->isKeySecurelyStored('stripe_live_secret_key', FALSE)) {
+      $config->set('stripe_live_secret_key', $form_state->getValue('stripe_live_secret_key'));
+      $this->messenger()->addWarning($this->t('Stripe live secret key saved to database. For security, consider using environment variable STRIPE_LIVE_SECRET_KEY.'));
+    }
+    
+    if (!$this->secureKeyManager->isKeySecurelyStored('stripe_webhook_secret', $test_mode)) {
+      $config->set('stripe_webhook_secret', $form_state->getValue('stripe_webhook_secret'));
+      $env_var = $test_mode ? 'STRIPE_TEST_WEBHOOK_SECRET' : 'STRIPE_LIVE_WEBHOOK_SECRET';
+      $this->messenger()->addWarning($this->t('Stripe webhook secret saved to database. For security, consider using environment variable @env_var.', ['@env_var' => $env_var]));
+    }
+    
+    if (!$this->secureKeyManager->isKeySecurelyStored('paypal_business_email', $test_mode)) {
+      $config->set('paypal_business_email', $form_state->getValue('paypal_business_email'));
+      $this->messenger()->addWarning($this->t('PayPal business email saved to database. For security, consider using environment variable PAYPAL_BUSINESS_EMAIL.'));
+    }
+    
+    $config->save();
     
     // Create financial types if requested
     if ($form_state->getValue('create_financial_types')) {
@@ -315,6 +393,50 @@ class PaymentSettingsForm extends ConfigFormBase {
     }
     
     parent::submitForm($form, $form_state);
+  }
+
+  /**
+   * Builds environment variable table for security information.
+   *
+   * @param array $env_mapping
+   *   The environment variable mapping from SecureKeyManager.
+   *
+   * @return string
+   *   HTML table markup.
+   */
+  protected function buildEnvironmentVariableTable(array $env_mapping) {
+    $header = [
+      'Configuration Key',
+      'Environment Variable',
+      'Description',
+      'Required For',
+      'Status'
+    ];
+    
+    $rows = [];
+    foreach ($env_mapping as $key => $info) {
+      $test_mode = $this->configFactory->get('ilas_payment.settings')->get('test_mode') ?? TRUE;
+      $is_secure = $this->secureKeyManager->isKeySecurelyStored($key, $test_mode);
+      
+      $rows[] = [
+        $key,
+        $info['env_var'],
+        $info['description'],
+        $info['required_for'],
+        $is_secure ? '✓ Secure' : '⚠ Database',
+      ];
+    }
+    
+    $table = [
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#attributes' => ['class' => ['payment-security-table']],
+      '#prefix' => '<div class="security-info"><h4>Environment Variables for Secure Key Storage</h4><p>For maximum security, store sensitive API keys as environment variables or in Drupal settings.php instead of the database.</p>',
+      '#suffix' => '</div>',
+    ];
+    
+    return \Drupal::service('renderer')->render($table);
   }
 
   /**

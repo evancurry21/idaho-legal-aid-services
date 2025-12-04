@@ -4,6 +4,7 @@ namespace Drupal\ilas_payment\Service;
 
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\ilas_payment\Service\SecureKeyManager;
 
 /**
  * Stripe payment processing service.
@@ -32,16 +33,25 @@ class StripePaymentService {
   protected $paymentProcessor;
 
   /**
+   * The secure key manager.
+   *
+   * @var \Drupal\ilas_payment\Service\SecureKeyManager
+   */
+  protected $secureKeyManager;
+
+  /**
    * Constructs a StripePaymentService.
    */
   public function __construct(
     LoggerChannelFactoryInterface $logger_factory,
     ConfigFactoryInterface $config_factory,
-    PaymentProcessor $payment_processor
+    PaymentProcessor $payment_processor,
+    SecureKeyManager $secure_key_manager
   ) {
     $this->logger = $logger_factory->get('ilas_payment.stripe');
     $this->configFactory = $config_factory;
     $this->paymentProcessor = $payment_processor;
+    $this->secureKeyManager = $secure_key_manager;
   }
 
   /**
@@ -52,13 +62,16 @@ class StripePaymentService {
     $test_mode = $config->get('test_mode');
     
     if ($test_mode) {
-      $api_key = $config->get('stripe_test_secret_key');
+      $api_key = $this->secureKeyManager->getSecureKey('stripe_test_secret_key', $test_mode);
     }
     else {
-      $api_key = $config->get('stripe_live_secret_key');
+      $api_key = $this->secureKeyManager->getSecureKey('stripe_live_secret_key', $test_mode);
     }
     
     if (empty($api_key)) {
+      $this->logger->error('Stripe API key not configured for @mode mode', [
+        '@mode' => $test_mode ? 'test' : 'live'
+      ]);
       throw new \Exception('Stripe API key not configured');
     }
     

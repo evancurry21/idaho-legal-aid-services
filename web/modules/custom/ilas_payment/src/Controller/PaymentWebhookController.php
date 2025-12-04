@@ -5,6 +5,7 @@ namespace Drupal\ilas_payment\Controller;
 use Drupal\Core\Controller\ControllerBase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Drupal\ilas_payment\Service\SecureErrorHandler;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\ilas_payment\Service\StripePaymentService;
 use Drupal\ilas_payment\Service\PayPalPaymentService;
@@ -29,11 +30,19 @@ class PaymentWebhookController extends ControllerBase {
   protected $paypalService;
 
   /**
+   * The secure error handler.
+   *
+   * @var \Drupal\ilas_payment\Service\SecureErrorHandler
+   */
+  protected $errorHandler;
+
+  /**
    * Constructs a PaymentWebhookController.
    */
-  public function __construct(StripePaymentService $stripe_service, PayPalPaymentService $paypal_service) {
+  public function __construct(StripePaymentService $stripe_service, PayPalPaymentService $paypal_service, SecureErrorHandler $error_handler) {
     $this->stripeService = $stripe_service;
     $this->paypalService = $paypal_service;
+    $this->errorHandler = $error_handler;
   }
 
   /**
@@ -42,7 +51,8 @@ class PaymentWebhookController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('ilas_payment.stripe'),
-      $container->get('ilas_payment.paypal')
+      $container->get('ilas_payment.paypal'),
+      $container->get('ilas_payment.secure_error_handler')
     );
   }
 
@@ -61,7 +71,10 @@ class PaymentWebhookController extends ControllerBase {
       return new Response('OK', 200);
     }
     else {
-      return new Response('Error: ' . ($result['error'] ?? 'Unknown error'), 400);
+      return $this->errorHandler->createWebhookErrorResponse(
+        $result['error'] ?? 'Unknown webhook processing error',
+        'stripe'
+      );
     }
   }
 
@@ -73,11 +86,23 @@ class PaymentWebhookController extends ControllerBase {
     
     $this->getLogger('ilas_payment')->info('PayPal IPN received');
     
-    if ($this->paypalService->processIpn($post_data)) {
-      return new Response('OK', 200);
+    try {
+      $result = $this->paypalService->processIpn($post_data);
+      if ($result) {
+        return new Response('OK', 200);
+      }
+      else {
+        return $this->errorHandler->createWebhookErrorResponse(
+          'PayPal IPN processing failed',
+          'paypal'
+        );
+      }
     }
-    else {
-      return new Response('IPN processing failed', 400);
+    catch (\Exception $e) {
+      return $this->errorHandler->createWebhookErrorResponse(
+        $e->getMessage(),
+        'paypal'
+      );
     }
   }
 }

@@ -54,6 +54,8 @@ Disallow: /node/add/
 # SECURITY: Block Facet Spam & Search Attacks
 Disallow: /search
 Disallow: /search/
+Disallow: /*/search
+Disallow: /*/search*
 Disallow: /search?*f[*
 Disallow: /search?*f%5B*
 Disallow: /user/register

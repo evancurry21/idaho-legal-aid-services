@@ -28,7 +28,7 @@ ilas_payment.stripe_webhook:
     _controller: '\Drupal\ilas_payment\Controller\PaymentWebhookController::stripeWebhook'
   methods: [POST]
   requirements:
-    _access: 'TRUE'
+    _custom_access: '\Drupal\ilas_payment\Access\WebhookAccessChecker::stripeSignatureAccess'
 
 ilas_payment.paypal_ipn:
   path: '/payment/paypal/ipn'
@@ -36,7 +36,7 @@ ilas_payment.paypal_ipn:
     _controller: '\Drupal\ilas_payment\Controller\PaymentWebhookController::paypalIpn'
   methods: [POST]
   requirements:
-    _access: 'TRUE'
+    _custom_access: '\Drupal\ilas_payment\Access\WebhookAccessChecker::paypalIpnAccess'
 
 ilas_payment.settings:
   path: '/admin/config/ilas/payment'

@@ -6,6 +6,7 @@ use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use GuzzleHttp\ClientInterface;
 use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\ilas_payment\Service\SecureErrorHandler;
 
 /**
  * Main payment processing service.
@@ -41,18 +42,27 @@ class PaymentProcessor {
   protected $messenger;
 
   /**
+   * The secure error handler.
+   *
+   * @var \Drupal\ilas_payment\Service\SecureErrorHandler
+   */
+  protected $errorHandler;
+
+  /**
    * Constructs a PaymentProcessor.
    */
   public function __construct(
     LoggerChannelFactoryInterface $logger_factory,
     ConfigFactoryInterface $config_factory,
     ClientInterface $http_client,
-    MessengerInterface $messenger
+    MessengerInterface $messenger,
+    SecureErrorHandler $error_handler
   ) {
     $this->logger = $logger_factory->get('ilas_payment');
     $this->configFactory = $config_factory;
     $this->httpClient = $http_client;
     $this->messenger = $messenger;
+    $this->errorHandler = $error_handler;
   }
 
   /**
@@ -108,14 +118,19 @@ class PaymentProcessor {
       }
     }
     catch (\Exception $e) {
-      $this->logger->error('Payment processing error: @error', [
-        '@error' => $e->getMessage(),
-      ]);
+      // Determine error type for appropriate user message
+      $error_type = 'general';
+      if (strpos($e->getMessage(), 'declined') !== FALSE) {
+        $error_type = 'payment_declined';
+      }
+      elseif (strpos($e->getMessage(), 'network') !== FALSE || strpos($e->getMessage(), 'timeout') !== FALSE) {
+        $error_type = 'network_error';
+      }
+      elseif (strpos($e->getMessage(), 'validation') !== FALSE || strpos($e->getMessage(), 'invalid') !== FALSE) {
+        $error_type = 'validation_error';
+      }
       
-      return [
-        'success' => FALSE,
-        'error' => $e->getMessage(),
-      ];
+      return $this->errorHandler->createPaymentErrorResponse($e->getMessage(), $error_type);
     }
   }
 

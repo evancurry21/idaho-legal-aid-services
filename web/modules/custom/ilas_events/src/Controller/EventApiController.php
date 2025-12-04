@@ -92,9 +92,18 @@ class EventApiController extends ControllerBase {
       ]);
     }
     catch (\Exception $e) {
+      // Log the detailed error securely
+      \Drupal::logger('ilas_events.api')->error('Events API error: @error', [
+        '@error' => $e->getMessage(),
+        'ip' => \Drupal::request()->getClientIp(),
+        'uri' => \Drupal::request()->getRequestUri(),
+      ]);
+
+      // Return generic error to client
       return new JsonResponse([
         'success' => FALSE,
-        'error' => $e->getMessage(),
+        'error' => 'An error occurred while fetching events. Please try again.',
+        'error_code' => 'ERR_' . strtoupper(substr(md5(microtime()), 0, 8)),
       ], 500);
     }
   }

@@ -11,7 +11,10 @@ database:
     version: "10.11"
 use_dns_when_possible: true
 composer_version: "2"
-web_environment: []
+web_environment: 
+    - STRIPE_LIVE_SECRET_KEY=sk_live_...VQXl
+    - STRIPE_LIVE_PUBLISHABLE_KEY=pk_live_51QyhPtKFQElSbTYhgztgXBqHSNg2vDTTA3nmhsz5fe67wkHHX8X7xgjF4IIZgjDu7pWA4EBMs1yQtGrPgloyV3VT00VzEEpiWe
+    - STRIPE_LIVE_WEBHOOK_SECRET=whsec_ZNKTPY1qjy4CF6wiNvemgq4VNlLMGivZ
 corepack_enable: true
 
 # Key features of DDEV's config.yaml:
