@@ -17,7 +17,6 @@ dependencies:
     - klaro
     - media
     - node
-    - search
     - search_api_autocomplete
     - search_api_page
     - sitemap
@@ -35,7 +34,6 @@ permissions:
   - 'bypass honeypot protection'
   - 'delete own files'
   - 'mark as hidden in editoria11y'
-  - 'search content'
   - 'skip CAPTCHA'
   - 'use klaro'
   - 'use search_api_autocomplete for content_autocomplete'
