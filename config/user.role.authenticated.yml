@@ -18,6 +18,7 @@ dependencies:
     - media
     - node
     - search_api_autocomplete
+    - search_api_page
     - sitemap
     - system
 _core:
@@ -40,4 +41,5 @@ permissions:
   - 'view editoria11y checker'
   - 'view media'
   - 'view own unpublished content'
+  - 'view search api pages'
   - 'view welcome dashboard'

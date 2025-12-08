@@ -8,6 +8,7 @@ dependencies:
     - klaro
     - media
     - search_api_autocomplete
+    - search_api_page
     - sitemap
     - system
 _core:
@@ -22,3 +23,4 @@ permissions:
   - 'use klaro'
   - 'use search_api_autocomplete for content_autocomplete'
   - 'view media'
+  - 'view search api pages'
