@@ -5,10 +5,8 @@ dependencies:
   config:
     - search_api_autocomplete.search.content_autocomplete
   module:
-    - klaro
     - media
     - search_api_autocomplete
-    - search_api_page
     - sitemap
     - system
 _core:
@@ -20,7 +18,5 @@ is_admin: false
 permissions:
   - 'access content'
   - 'access sitemap'
-  - 'use klaro'
   - 'use search_api_autocomplete for content_autocomplete'
   - 'view media'
-  - 'view search api pages'

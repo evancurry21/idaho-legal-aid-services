@@ -14,11 +14,9 @@ dependencies:
     - file
     - filter
     - honeypot
-    - klaro
     - media
     - node
     - search_api_autocomplete
-    - search_api_page
     - sitemap
     - system
 _core:
@@ -35,11 +33,9 @@ permissions:
   - 'delete own files'
   - 'mark as hidden in editoria11y'
   - 'skip CAPTCHA'
-  - 'use klaro'
   - 'use search_api_autocomplete for content_autocomplete'
   - 'use text format webform_default'
   - 'view editoria11y checker'
   - 'view media'
   - 'view own unpublished content'
-  - 'view search api pages'
   - 'view welcome dashboard'
