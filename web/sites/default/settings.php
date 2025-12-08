@@ -38,6 +38,14 @@ $settings['container_yamls'][] = __DIR__ . '/services.yml';
 include __DIR__ . "/settings.pantheon.php";
 
 /**
+ * Google Privacy Sandbox Permissions Policy.
+ * Fixes "fetch failed" console errors for GA4 attribution reporting.
+ */
+if (PHP_SAPI !== 'cli') {
+  header('Permissions-Policy: attribution-reporting=(self "https://www.google-analytics.com" "https://www.google.com" "https://www.googletagmanager.com")');
+}
+
+/**
  * Google Analytics (GA4) tracking ID for Google tag (gtag.js).
  * Only enable this on the live Pantheon environment.
  */
