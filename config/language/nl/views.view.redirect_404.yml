@@ -1,0 +1,10 @@
+display:
+  default:
+    display_options:
+      fields:
+        path:
+          label: Pad
+      filters:
+        path:
+          expose:
+            label: Pad

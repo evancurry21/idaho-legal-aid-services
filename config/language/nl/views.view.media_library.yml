@@ -1,0 +1,27 @@
+display:
+  default:
+    display_options:
+      filters:
+        name:
+          expose:
+            label: Naam
+  page:
+    display_options:
+      fields:
+        edit_media:
+          text: Bewerken
+  widget:
+    display_options:
+      filters:
+        name:
+          expose:
+            label: Naam
+  widget_table:
+    display_options:
+      fields:
+        name:
+          label: Naam
+      filters:
+        name:
+          expose:
+            label: Naam

@@ -1,0 +1,11 @@
+display:
+  default:
+    display_options:
+      fields:
+        id:
+          label: ID
+  pages__page:
+    display_options:
+      fields:
+        page_path:
+          label: Pad

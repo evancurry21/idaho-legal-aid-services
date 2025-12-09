@@ -1,0 +1,11 @@
+consentNotice:
+  learnMore: Aanpassen
+ok: Accepteren
+save: Opslaan
+decline: Afwijzen
+close: Sluiten
+acceptAll: 'Alles accepteren'
+service:
+  purpose: Doel
+contextualConsent:
+  acceptAlways: Altijd

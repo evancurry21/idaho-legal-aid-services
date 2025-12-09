@@ -1,0 +1,11 @@
+display:
+  default:
+    display_options:
+      fields:
+        label:
+          label: Label
+  checkout:
+    display_options:
+      fields:
+        label:
+          label: Label
