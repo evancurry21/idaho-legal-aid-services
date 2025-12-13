@@ -4,11 +4,14 @@ status: true
 dependencies:
   config:
     - field.field.node.office_information.field_address
+    - field.field.node.office_information.field_address_city
     - field.field.node.office_information.field_county
     - field.field.node.office_information.field_legal_advice_line
     - field.field.node.office_information.field_office_hours
     - field.field.node.office_information.field_office_location_map
     - field.field.node.office_information.field_phone_number
+    - field.field.node.office_information.field_postal_code
+    - field.field.node.office_information.field_street_address
     - node.type.office_information
   module:
     - leaflet
@@ -164,5 +167,8 @@ content:
     weight: 5
     region: content
 hidden:
+  field_address_city: true
+  field_postal_code: true
+  field_street_address: true
   langcode: true
   search_api_excerpt: true

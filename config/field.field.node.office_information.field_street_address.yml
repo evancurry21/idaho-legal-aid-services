@@ -1,0 +1,19 @@
+uuid: d4e5f6a7-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_street_address
+    - node.type.office_information
+id: node.office_information.field_street_address
+field_name: field_street_address
+entity_type: node
+bundle: office_information
+label: 'Street Address (Schema)'
+description: 'Street address for structured data/SEO schema. Not displayed to users.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

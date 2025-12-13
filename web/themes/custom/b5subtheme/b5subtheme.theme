@@ -286,18 +286,12 @@ function _b5subtheme_add_breadcrumb_schema(array &$variables) {
   $breadcrumb_items = [];
   $position = 1;
 
+  // Track last valid URL to prevent duplicate current page entries.
+  $last_valid_url = '';
+
   foreach ($links as $link) {
     $url = $link->getUrl();
     $text = $link->getText();
-
-    // Get the absolute URL.
-    if ($url->isRouted()) {
-      $absolute_url = $url->setAbsolute()->toString();
-    }
-    else {
-      $uri = $url->toString();
-      $absolute_url = (strpos($uri, 'http') === 0) ? $uri : $base_url . $uri;
-    }
 
     // Handle string or TranslatableMarkup text.
     $name = is_object($text) ? $text->__toString() : (string) $text;
@@ -307,16 +301,39 @@ function _b5subtheme_add_breadcrumb_schema(array &$variables) {
       continue;
     }
 
+    // Get the absolute URL, handling special Drupal route types.
+    $absolute_url = '';
+    if ($url->isRouted()) {
+      // Skip placeholder menu items (<nolink>) that have no actual URL.
+      $route_name = $url->getRouteName();
+      if (in_array($route_name, ['<nolink>', '<none>', '<button>'], TRUE)) {
+        continue;
+      }
+      $absolute_url = $url->setAbsolute()->toString();
+    }
+    else {
+      $uri = $url->toString();
+      if (!empty($uri)) {
+        $absolute_url = (strpos($uri, 'http') === 0) ? $uri : $base_url . $uri;
+      }
+    }
+
+    // Google requires 'item' URL - skip entries without valid URLs.
+    if (empty($absolute_url)) {
+      continue;
+    }
+
     $breadcrumb_items[] = [
       '@type' => 'ListItem',
       'position' => $position,
       'name' => $name,
       'item' => $absolute_url,
     ];
+    $last_valid_url = $absolute_url;
     $position++;
   }
 
-  // Add current page as final breadcrumb item with URL.
+  // Get current page title for potential final breadcrumb item.
   $current_title = '';
   if (isset($variables['head_title']['title'])) {
     $title = $variables['head_title']['title'];
@@ -327,7 +344,9 @@ function _b5subtheme_add_breadcrumb_schema(array &$variables) {
     $current_title = preg_replace('/\s*\|\s*[^|]+$/', '', $current_title);
   }
 
-  if (!empty($current_title)) {
+  // Only add current page if it's not already the last breadcrumb item.
+  // This prevents duplicates when breadcrumb manager includes current page.
+  if (!empty($current_title) && $last_valid_url !== $current_url) {
     $breadcrumb_items[] = [
       '@type' => 'ListItem',
       'position' => $position,

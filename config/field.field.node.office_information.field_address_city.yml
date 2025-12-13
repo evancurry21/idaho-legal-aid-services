@@ -1,0 +1,19 @@
+uuid: e5f6a7b8-9c0d-1e2f-3a4b-5c6d7e8f9a0b
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_address_city
+    - node.type.office_information
+id: node.office_information.field_address_city
+field_name: field_address_city
+entity_type: node
+bundle: office_information
+label: 'City (Schema)'
+description: 'City for structured data/SEO schema. Not displayed to users.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string
