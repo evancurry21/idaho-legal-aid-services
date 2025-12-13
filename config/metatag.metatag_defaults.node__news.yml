@@ -1,16 +1,18 @@
-uuid: 502d7d33-7ec1-4a08-b358-bf5e0522cdb6
+uuid: 9e3f4a2b-8c5d-4e7f-b1a9-2d6c8e4f5a3b
 langcode: en
 status: true
 dependencies: {  }
-id: node__resource
-label: 'Content: Resource'
+id: node__news
+label: 'Content: News'
 tags:
-  article_section: '[node:field_service_areas:entity:name]'
-  schema_article_type: Article
+  og_type: article
+  title: '[node:title] | News | [site:name]'
+  description: '[node:field_seo_description|node:field_description]'
+  schema_article_type: NewsArticle
   schema_article_id: '[node:url]'
   schema_article_name: '[node:title]'
   schema_article_headline: '[node:title]'
-  schema_article_description: '[node:field_seo_description|node:field_main_content:summary]'
+  schema_article_description: '[node:field_seo_description|node:field_description]'
   schema_article_image: '[node:field_seo_image:entity:field_media_image:url|node:field_featured_image:entity:field_media_image:url]'
   schema_article_date_published: '[node:created:custom:c]'
   schema_article_date_modified: '[node:changed:custom:c]'
@@ -18,4 +20,3 @@ tags:
   schema_article_publisher: 'a:3:{s:5:"@type";s:3:"NGO";s:4:"name";s:24:"Idaho Legal Aid Services";s:4:"logo";a:2:{s:5:"@type";s:11:"ImageObject";s:3:"url";s:57:"https://idaholegalaid.org/themes/custom/b5subtheme/logo.svg";}}'
   schema_article_main_entity_of_page: '[node:url]'
   schema_article_is_accessible_for_free: 'True'
-  schema_article_about: '[node:field_service_areas:entity:name]'

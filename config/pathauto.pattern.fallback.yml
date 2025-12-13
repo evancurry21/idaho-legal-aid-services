@@ -1,0 +1,14 @@
+uuid: 7a3b4c5d-6e7f-8a9b-0c1d-2e3f4a5b6c7d
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+id: fallback
+label: 'Fallback Pattern'
+type: 'canonical_entities:node'
+pattern: '/page/[node:title]'
+selection_criteria: {  }
+selection_logic: and
+weight: 10
+relationships: {  }

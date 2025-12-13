@@ -11,6 +11,98 @@ use Drupal\Core\Url;
 use Drupal\Core\Site\Settings;
 
 /**
+ * Implements hook_preprocess_image().
+ *
+ * Adds native lazy loading to images for better Core Web Vitals.
+ * Skips hero images and above-the-fold content to preserve LCP.
+ */
+function b5subtheme_preprocess_image(&$variables) {
+  _b5subtheme_add_lazy_loading($variables);
+}
+
+/**
+ * Implements hook_preprocess_responsive_image().
+ *
+ * Adds native lazy loading to responsive images.
+ */
+function b5subtheme_preprocess_responsive_image(&$variables) {
+  _b5subtheme_add_lazy_loading($variables);
+}
+
+/**
+ * Helper function to add lazy loading attributes to images.
+ *
+ * @param array $variables
+ *   The image variables array.
+ */
+function _b5subtheme_add_lazy_loading(array &$variables) {
+  // Skip if loading attribute already set.
+  if (!empty($variables['attributes']['loading'])) {
+    return;
+  }
+
+  // Skip hero images (preserve LCP - Largest Contentful Paint).
+  $skip_classes = ['hero-image', 'hero__image', 'above-fold', 'no-lazy'];
+  if (!empty($variables['attributes']['class'])) {
+    $classes = (array) $variables['attributes']['class'];
+    foreach ($skip_classes as $skip_class) {
+      if (in_array($skip_class, $classes)) {
+        // Explicitly set eager loading for above-fold images.
+        $variables['attributes']['loading'] = 'eager';
+        $variables['attributes']['fetchpriority'] = 'high';
+        return;
+      }
+    }
+  }
+
+  // Skip images with fetchpriority="high" (explicitly marked as important).
+  if (!empty($variables['attributes']['fetchpriority']) && $variables['attributes']['fetchpriority'] === 'high') {
+    $variables['attributes']['loading'] = 'eager';
+    return;
+  }
+
+  // Add native lazy loading.
+  $variables['attributes']['loading'] = 'lazy';
+
+  // Add decoding="async" for better performance (non-blocking decode).
+  if (empty($variables['attributes']['decoding'])) {
+    $variables['attributes']['decoding'] = 'async';
+  }
+}
+
+/**
+ * Implements hook_preprocess_field().
+ *
+ * Marks hero/featured images as high priority (no lazy loading).
+ */
+function b5subtheme_preprocess_field__image(&$variables) {
+  $field_name = $variables['field_name'] ?? '';
+
+  // Hero and featured images should load immediately (above the fold).
+  $priority_fields = [
+    'field_hero_image',
+    'field_featured_image',
+    'field_banner_image',
+    'field_logo',
+  ];
+
+  if (in_array($field_name, $priority_fields)) {
+    // Mark all images in this field as high priority.
+    foreach ($variables['items'] as &$item) {
+      if (isset($item['content']['#item_attributes'])) {
+        $item['content']['#item_attributes']['loading'] = 'eager';
+        $item['content']['#item_attributes']['fetchpriority'] = 'high';
+      }
+      // For responsive images.
+      if (isset($item['content']['#attributes'])) {
+        $item['content']['#attributes']['loading'] = 'eager';
+        $item['content']['#attributes']['fetchpriority'] = 'high';
+      }
+    }
+  }
+}
+
+/**
  * Implements hook_theme_suggestions_HOOK_alter().
  */
 function b5subtheme_theme_suggestions_page_alter(array &$suggestions, array $variables) {
@@ -157,4 +249,107 @@ function b5subtheme_preprocess_html(&$variables) {
 
   // Expose Google Analytics (GA4) ID from settings.php to Twig.
   $variables['google_tag_id'] = Settings::get('google_tag_id');
+
+  // Add invisible JSON-LD BreadcrumbList schema for SEO.
+  _b5subtheme_add_breadcrumb_schema($variables);
+}
+
+/**
+ * Adds BreadcrumbList JSON-LD schema to the page head.
+ *
+ * This is invisible to users - only search engines read it.
+ * Helps Google understand site hierarchy for rich search results.
+ *
+ * @param array $variables
+ *   The variables array from hook_preprocess_html.
+ */
+function _b5subtheme_add_breadcrumb_schema(array &$variables) {
+  // Skip on admin pages.
+  if (\Drupal::service('router.admin_context')->isAdminRoute()) {
+    return;
+  }
+
+  // Get the breadcrumb from Drupal's breadcrumb manager.
+  $breadcrumb_manager = \Drupal::service('breadcrumb');
+  $route_match = \Drupal::routeMatch();
+  $breadcrumb = $breadcrumb_manager->build($route_match);
+  $links = $breadcrumb->getLinks();
+
+  // Need at least 2 items for a meaningful breadcrumb.
+  if (count($links) < 2) {
+    return;
+  }
+
+  // Build the BreadcrumbList schema.
+  $breadcrumb_items = [];
+  $position = 1;
+  $base_url = \Drupal::request()->getSchemeAndHttpHost();
+
+  foreach ($links as $link) {
+    $url = $link->getUrl();
+    $text = $link->getText();
+
+    // Get the absolute URL.
+    if ($url->isRouted()) {
+      $absolute_url = $url->setAbsolute()->toString();
+    }
+    else {
+      $absolute_url = $base_url . $url->toString();
+    }
+
+    // Handle string or TranslatableMarkup text.
+    $name = is_object($text) ? $text->__toString() : (string) $text;
+
+    // Skip empty names.
+    if (empty($name)) {
+      continue;
+    }
+
+    $breadcrumb_items[] = [
+      '@type' => 'ListItem',
+      'position' => $position,
+      'name' => $name,
+      'item' => $absolute_url,
+    ];
+    $position++;
+  }
+
+  // Add current page as final breadcrumb item (without 'item' URL per Google spec).
+  $current_title = '';
+  if (isset($variables['head_title']['title'])) {
+    $title = $variables['head_title']['title'];
+    $current_title = is_object($title) ? $title->__toString() : (string) $title;
+    // Remove site name suffix if present.
+    $current_title = preg_replace('/\s*\|\s*Idaho Legal Aid Services$/', '', $current_title);
+  }
+
+  if (!empty($current_title)) {
+    $breadcrumb_items[] = [
+      '@type' => 'ListItem',
+      'position' => $position,
+      'name' => $current_title,
+    ];
+  }
+
+  // Only output if we have valid breadcrumb items.
+  if (count($breadcrumb_items) < 2) {
+    return;
+  }
+
+  $schema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'BreadcrumbList',
+    'itemListElement' => $breadcrumb_items,
+  ];
+
+  // Attach JSON-LD to the page head (invisible to users).
+  $variables['page']['#attached']['html_head'][] = [
+    [
+      '#type' => 'html_tag',
+      '#tag' => 'script',
+      '#attributes' => ['type' => 'application/ld+json'],
+      '#value' => json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
+    ],
+    'breadcrumb_schema',
+  ];
 }

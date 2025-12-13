@@ -5,4 +5,19 @@ dependencies: {  }
 id: node__legal_topic
 label: 'Content: Legal Topic'
 tags:
-  schema_web_page_type: WebPage
+  title: '[node:title] | Legal Help | [site:name]'
+  description: 'Get free legal help with [node:title] issues in Idaho. Idaho Legal Aid Services provides resources and assistance for low-income Idahoans.'
+  og_type: website
+  schema_web_page_type: CollectionPage
+  schema_web_page_id: '[node:url]'
+  schema_web_page_name: '[node:title]'
+  schema_web_page_description: 'Legal resources and information about [node:title] for low-income Idahoans.'
+  schema_web_page_is_part_of: 'a:2:{s:5:"@type";s:7:"WebSite";s:3:"@id";s:38:"https://idaholegalaid.org/#website";}'
+  schema_service_type: LegalService
+  schema_service_id: '[node:url]#service'
+  schema_service_name: '[node:title] Legal Assistance'
+  schema_service_description: 'Free legal assistance and resources for [node:title] issues provided by Idaho Legal Aid Services to eligible low-income Idahoans.'
+  schema_service_provider: 'a:3:{s:5:"@type";s:3:"NGO";s:4:"name";s:24:"Idaho Legal Aid Services";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'
+  schema_service_area_served: 'a:2:{s:5:"@type";s:5:"State";s:4:"name";s:5:"Idaho";}'
+  schema_service_audience: 'a:2:{s:5:"@type";s:13:"PeopleAudience";s:4:"name";s:19:"Low-income Idahoans";}'
+  schema_service_service_type: 'Legal Aid'

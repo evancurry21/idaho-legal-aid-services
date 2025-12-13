@@ -1,0 +1,37 @@
+uuid: 8b4c2a1f-9d5e-4f3a-b7c6-1e2d3f4a5b6c
+langcode: en
+status: true
+dependencies: {  }
+id: node__home_page
+label: 'Content: Home Page'
+tags:
+  title: '[node:field_hero_title] | [site:name]'
+  description: '[node:field_hero_subtitle]'
+  og_type: website
+  og_title: '[node:field_hero_title]'
+  og_description: '[node:field_hero_subtitle]'
+  og_image: '[node:field_hero_image:entity:field_media_image:social_media_facebook]'
+  og_image_alt: '[node:field_hero_image:entity:field_media_image:alt]'
+  twitter_cards_title: '[node:field_hero_title]'
+  twitter_cards_description: '[node:field_hero_subtitle]'
+  twitter_cards_image: '[node:field_hero_image:entity:field_media_image:social_media_x:url]'
+  twitter_cards_image_alt: '[node:field_hero_image:entity:field_media_image:alt]'
+  schema_organization_type: NGO
+  schema_organization_additional_type: LegalService
+  schema_organization_id: 'https://idaholegalaid.org/#organization'
+  schema_organization_name: 'Idaho Legal Aid Services'
+  schema_organization_description: '[node:field_hero_subtitle]'
+  schema_organization_url: 'https://idaholegalaid.org'
+  schema_organization_logo: 'https://idaholegalaid.org/themes/custom/b5subtheme/logo.svg'
+  schema_organization_image: '[node:field_hero_image:entity:field_media_image:url]'
+  schema_organization_same_as: 'https://www.linkedin.com/company/idaho-legal-aid-services-inc.,https://twitter.com/IdahoLegalAid'
+  schema_organization_telephone: '208-746-7541'
+  schema_organization_contact_point: 'a:4:{s:5:"@type";s:12:"ContactPoint";s:9:"telephone";s:12:"208-746-7541";s:11:"contactType";s:20:"Legal Advice Hotline";s:14:"availableLanguage";a:2:{i:0;s:7:"English";i:1;s:7:"Spanish";}}'
+  schema_organization_address: 'a:6:{s:5:"@type";s:13:"PostalAddress";s:13:"streetAddress";s:16:"1447 S Tyrell Ln";s:15:"addressLocality";s:5:"Boise";s:13:"addressRegion";s:2:"ID";s:10:"postalCode";s:5:"83706";s:14:"addressCountry";s:2:"US";}'
+  schema_web_site_type: WebSite
+  schema_web_site_id: 'https://idaholegalaid.org/#website'
+  schema_web_site_name: 'Idaho Legal Aid Services'
+  schema_web_site_url: 'https://idaholegalaid.org'
+  schema_web_site_publisher: 'a:2:{s:5:"@type";s:3:"NGO";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'
+  schema_web_site_in_language: 'en,es'
+  schema_web_site_potential_action: 'a:3:{s:5:"@type";s:12:"SearchAction";s:6:"target";s:54:"https://idaholegalaid.org/search?keys={search_term_string}";s:14:"query-input";s:32:"required name=search_term_string";}'

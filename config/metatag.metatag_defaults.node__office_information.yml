@@ -5,11 +5,20 @@ dependencies: {  }
 id: node__office_information
 label: 'Content: Office Information'
 tags:
-  schema_organization_additional_type: Organization
-  schema_organization_geo: 'a:3:{s:5:"@type";s:14:"GeoCoordinates";s:8:"latitude";s:36:"[node:field_office_location_map:lat]";s:9:"longitude";s:36:"[node:field_office_location_map:lon]";}'
-  schema_organization_id: '[node:url]'
-  schema_organization_name: '[node:title]'
-  schema_organization_opening_hours_specification: 'a:2:{s:5:"@type";s:25:"OpeningHoursSpecification";s:9:"dayOfWeek";s:31:"[node:field_office_hours:value]";}'
-  schema_organization_telephone: '[node:field_phone_number]'
+  title: '[node:title] | Office Locations | [site:name]'
+  description: 'Contact Idaho Legal Aid Services [node:title] office for free legal assistance. [node:field_office_hours:value]'
   schema_organization_type: LegalService
+  schema_organization_additional_type: Organization
+  schema_organization_id: '[node:url]'
+  schema_organization_name: '[node:title] - Idaho Legal Aid Services'
+  schema_organization_description: 'Idaho Legal Aid Services office providing free civil legal assistance to low-income Idahoans in [node:field_county] County and surrounding areas.'
   schema_organization_url: '[node:url]'
+  schema_organization_telephone: '[node:field_phone_number]'
+  schema_organization_address: '[node:field_address]'
+  schema_organization_geo: 'a:3:{s:5:"@type";s:14:"GeoCoordinates";s:8:"latitude";s:36:"[node:field_office_location_map:lat]";s:9:"longitude";s:36:"[node:field_office_location_map:lon]";}'
+  schema_organization_opening_hours_specification: 'a:2:{s:5:"@type";s:25:"OpeningHoursSpecification";s:9:"dayOfWeek";s:31:"[node:field_office_hours:value]";}'
+  schema_organization_logo: 'https://idaholegalaid.org/themes/custom/b5subtheme/logo.svg'
+  schema_organization_same_as: 'https://www.linkedin.com/company/idaho-legal-aid-services-inc.,https://twitter.com/IdahoLegalAid'
+  schema_organization_member_of: 'a:2:{s:5:"@type";s:3:"NGO";s:4:"name";s:24:"Idaho Legal Aid Services";}'
+  schema_web_page_type: ContactPage
+  schema_web_page_description: 'Contact information and office hours for Idaho Legal Aid Services [node:title] office.'

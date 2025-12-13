@@ -10,8 +10,17 @@ tags:
   canonical_url: '[current-page:url:absolute]'
   og_site_name: '[site:name]'
   og_url: '[current-page:url:absolute]'
-  referrer: unsafe-url
-  rights: 'Copyright ©[date:html_year] All rights reserved.'
+  referrer: strict-origin-when-cross-origin
+  rights: 'Copyright ©[date:html_year] Idaho Legal Aid Services. All rights reserved.'
   shortlink: '[current-page:url:unaliased]'
   title: '[current-page:title] | [site:name]'
   twitter_cards_type: summary
+  schema_organization_type: NGO
+  schema_organization_id: 'https://idaholegalaid.org/#organization'
+  schema_organization_name: 'Idaho Legal Aid Services'
+  schema_organization_url: 'https://idaholegalaid.org'
+  schema_organization_logo: 'https://idaholegalaid.org/themes/custom/b5subtheme/logo.svg'
+  schema_organization_same_as: 'https://www.linkedin.com/company/idaho-legal-aid-services-inc.,https://twitter.com/IdahoLegalAid'
+  schema_organization_telephone: '208-746-7541'
+  schema_organization_contact_point: 'a:4:{s:5:"@type";s:12:"ContactPoint";s:9:"telephone";s:12:"208-746-7541";s:11:"contactType";s:20:"Legal Advice Hotline";s:14:"availableLanguage";a:2:{i:0;s:7:"English";i:1;s:7:"Spanish";}}'
+  schema_organization_address: 'a:6:{s:5:"@type";s:13:"PostalAddress";s:13:"streetAddress";s:16:"1447 S Tyrell Ln";s:15:"addressLocality";s:5:"Boise";s:13:"addressRegion";s:2:"ID";s:10:"postalCode";s:5:"83706";s:14:"addressCountry";s:2:"US";}'
