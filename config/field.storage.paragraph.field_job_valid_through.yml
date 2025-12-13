@@ -1,0 +1,20 @@
+uuid: 8b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e
+langcode: en
+status: true
+dependencies:
+  module:
+    - datetime
+    - paragraphs
+id: paragraph.field_job_valid_through
+field_name: field_job_valid_through
+entity_type: paragraph
+type: datetime
+settings:
+  datetime_type: date
+module: datetime
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

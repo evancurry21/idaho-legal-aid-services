@@ -21,3 +21,7 @@ tags:
   schema_service_area_served: 'a:2:{s:5:"@type";s:5:"State";s:4:"name";s:5:"Idaho";}'
   schema_service_audience: 'a:2:{s:5:"@type";s:13:"PeopleAudience";s:4:"name";s:19:"Low-income Idahoans";}'
   schema_service_service_type: 'Legal Aid'
+  schema_service_offers: 'a:3:{s:5:"@type";s:5:"Offer";s:5:"price";s:1:"0";s:13:"priceCurrency";s:3:"USD";}'
+  schema_service_hours_available: 'a:4:{s:5:"@type";s:25:"OpeningHoursSpecification";s:9:"dayOfWeek";a:5:{i:0;s:6:"Monday";i:1;s:7:"Tuesday";i:2;s:9:"Wednesday";i:3;s:8:"Thursday";i:4;s:6:"Friday";};s:5:"opens";s:5:"08:30";s:6:"closes";s:5:"16:30";}'
+  schema_service_available_channel: 'a:3:{s:5:"@type";s:14:"ServiceChannel";s:12:"servicePhone";s:12:"208-746-7541";s:10:"serviceUrl";s:25:"https://idaholegalaid.org";}'
+  schema_service_terms_of_service: 'https://idaholegalaid.org/apply-for-help'

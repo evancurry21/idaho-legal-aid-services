@@ -5,4 +5,14 @@ dependencies: {  }
 id: node__standard_page
 label: 'Content: Standard Page'
 tags:
+  title: '[node:title] | [site:name]'
+  description: '[node:field_main_content:summary]'
+  og_type: website
   schema_web_page_type: WebPage
+  schema_web_page_id: '[node:url]'
+  schema_web_page_name: '[node:title]'
+  schema_web_page_description: '[node:field_main_content:summary]'
+  schema_web_page_is_part_of: 'a:2:{s:5:"@type";s:7:"WebSite";s:3:"@id";s:38:"https://idaholegalaid.org/#website";}'
+  schema_web_page_about: 'a:3:{s:5:"@type";s:3:"NGO";s:4:"name";s:24:"Idaho Legal Aid Services";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'
+  schema_web_page_date_published: '[node:created:custom:c]'
+  schema_web_page_date_modified: '[node:changed:custom:c]'

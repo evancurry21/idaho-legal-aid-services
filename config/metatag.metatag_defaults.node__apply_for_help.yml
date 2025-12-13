@@ -5,5 +5,23 @@ dependencies: {  }
 id: node__apply_for_help
 label: 'Content: Apply for Help'
 tags:
-  schema_web_page_description: '[node:field_body:summary]'
+  title: '[node:title] | [site:name]'
+  description: 'Apply for free legal help from Idaho Legal Aid Services. We provide civil legal assistance to low-income Idahoans.'
+  og_type: website
   schema_web_page_type: ContactPage
+  schema_web_page_id: '[node:url]'
+  schema_web_page_name: '[node:title]'
+  schema_web_page_description: '[node:field_body:summary]'
+  schema_web_page_is_part_of: 'a:2:{s:5:"@type";s:7:"WebSite";s:3:"@id";s:38:"https://idaholegalaid.org/#website";}'
+  schema_web_page_about: 'a:3:{s:5:"@type";s:3:"NGO";s:4:"name";s:24:"Idaho Legal Aid Services";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'
+  schema_service_type: LegalService
+  schema_service_id: '[node:url]#service'
+  schema_service_name: 'Free Legal Assistance Application'
+  schema_service_description: 'Apply for free civil legal assistance from Idaho Legal Aid Services. We help low-income Idahoans with housing, family law, public benefits, and other civil legal matters.'
+  schema_service_provider: 'a:3:{s:5:"@type";s:3:"NGO";s:4:"name";s:24:"Idaho Legal Aid Services";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'
+  schema_service_area_served: 'a:2:{s:5:"@type";s:5:"State";s:4:"name";s:5:"Idaho";}'
+  schema_service_audience: 'a:2:{s:5:"@type";s:13:"PeopleAudience";s:4:"name";s:19:"Low-income Idahoans";}'
+  schema_service_service_type: 'Legal Aid'
+  schema_service_offers: 'a:3:{s:5:"@type";s:5:"Offer";s:5:"price";s:1:"0";s:13:"priceCurrency";s:3:"USD";}'
+  schema_service_hours_available: 'a:4:{s:5:"@type";s:25:"OpeningHoursSpecification";s:9:"dayOfWeek";a:5:{i:0;s:6:"Monday";i:1;s:7:"Tuesday";i:2;s:9:"Wednesday";i:3;s:8:"Thursday";i:4;s:6:"Friday";};s:5:"opens";s:5:"08:30";s:6:"closes";s:5:"16:30";}'
+  schema_service_available_channel: 'a:4:{s:5:"@type";s:14:"ServiceChannel";s:4:"name";s:20:"Legal Advice Hotline";s:12:"servicePhone";s:12:"208-746-7541";s:10:"serviceUrl";s:25:"https://idaholegalaid.org";}'

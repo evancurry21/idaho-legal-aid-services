@@ -6,9 +6,15 @@ dependencies:
     - field.field.paragraph.accordion_item.field_accordion_body
     - field.field.paragraph.accordion_item.field_accordion_file
     - field.field.paragraph.accordion_item.field_accordion_title
+    - field.field.paragraph.accordion_item.field_job_date_posted
+    - field.field.paragraph.accordion_item.field_job_valid_through
+    - field.field.paragraph.accordion_item.field_job_location
+    - field.field.paragraph.accordion_item.field_job_employment_type
     - paragraphs.paragraphs_type.accordion_item
   module:
+    - datetime
     - media_library
+    - options
     - text
 id: paragraph.accordion_item.default
 targetEntityType: paragraph
@@ -37,6 +43,32 @@ content:
     settings:
       size: 60
       placeholder: ''
+    third_party_settings: {  }
+  field_job_date_posted:
+    type: datetime_default
+    weight: 10
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_job_valid_through:
+    type: datetime_default
+    weight: 11
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_job_location:
+    type: string_textfield
+    weight: 12
+    region: content
+    settings:
+      size: 60
+      placeholder: 'e.g., Boise, ID or Remote'
+    third_party_settings: {  }
+  field_job_employment_type:
+    type: options_select
+    weight: 13
+    region: content
+    settings: {  }
     third_party_settings: {  }
 hidden:
   created: true

@@ -25,6 +25,7 @@
 {
   "@context": "https://schema.org",
   "@type": "FAQPage",
+  "@id": "{{ url('<current>')|render ~ '#faq-' ~ paragraph_id }}",
   "mainEntity": [
     {% for faq in faq_items %}
         {

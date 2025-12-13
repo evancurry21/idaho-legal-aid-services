@@ -2,9 +2,10 @@
 /**
  * @file
  * Template for Employment content type.
- * 
+ *
  * Uses standard page layout with curved header and footer.
- * 
+ * Includes JobPosting schema for Google Jobs rich results.
+ *
  * Available variables:
  * - content: Rendered content fields
  * - attributes: HTML attributes for the article element
@@ -12,6 +13,67 @@
  */
 #}
 
+{# Build JobPosting schema for accordion items with job data #}
+{% set job_postings = [] %}
+{% for section in node.field_job_listings %}
+  {% if section.entity %}
+    {% for item_ref in section.entity.field_accordion_items %}
+      {% if item_ref.entity and item_ref.entity.field_job_date_posted.value %}
+        {% set job_item = item_ref.entity %}
+        {% set job_posting = {
+          '@type': 'JobPosting',
+          'title': job_item.field_accordion_title.value,
+          'description': job_item.field_accordion_body.value|striptags,
+          'datePosted': job_item.field_job_date_posted.value,
+          'hiringOrganization': {
+            '@type': 'NGO',
+            '@id': 'https://idaholegalaid.org/#organization',
+            'name': 'Idaho Legal Aid Services',
+            'sameAs': 'https://idaholegalaid.org',
+            'logo': 'https://idaholegalaid.org/themes/custom/b5subtheme/logo.svg'
+          },
+          'jobLocationType': 'TELECOMMUTE',
+          'applicantLocationRequirements': {
+            '@type': 'State',
+            'name': 'Idaho'
+          }
+        } %}
+
+        {# Add optional fields if populated #}
+        {% if job_item.field_job_valid_through.value %}
+          {% set job_posting = job_posting|merge({'validThrough': job_item.field_job_valid_through.value}) %}
+        {% endif %}
+
+        {% if job_item.field_job_location.value %}
+          {% set job_posting = job_posting|merge({
+            'jobLocation': {
+              '@type': 'Place',
+              'address': {
+                '@type': 'PostalAddress',
+                'addressLocality': job_item.field_job_location.value,
+                'addressRegion': 'ID',
+                'addressCountry': 'US'
+              }
+            }
+          }) %}
+        {% endif %}
+
+        {% if job_item.field_job_employment_type.value %}
+          {% set job_posting = job_posting|merge({'employmentType': job_item.field_job_employment_type.value}) %}
+        {% endif %}
+
+        {% set job_postings = job_postings|merge([job_posting]) %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+
+{# Output JobPosting schema if we have any job listings #}
+{% if job_postings|length > 0 %}
+<script type="application/ld+json">
+{{ job_postings|json_encode(constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_PRETTY_PRINT'))|raw }}
+</script>
+{% endif %}
 
 <article{{ attributes.addClass('node', 'node--employment') }}>
   <div class="container">

@@ -1,0 +1,31 @@
+uuid: 0d4e5f6a-7b8c-9d0e-1f2a-3b4c5d6e7f8a
+langcode: en
+status: true
+dependencies:
+  module:
+    - options
+    - paragraphs
+id: paragraph.field_job_employment_type
+field_name: field_job_employment_type
+entity_type: paragraph
+type: list_string
+settings:
+  allowed_values:
+    - label: Full-time
+      value: FULL_TIME
+    - label: Part-time
+      value: PART_TIME
+    - label: Contract
+      value: CONTRACTOR
+    - label: Temporary
+      value: TEMPORARY
+    - label: Intern
+      value: INTERN
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

@@ -1,0 +1,19 @@
+uuid: 3a7b8c9d-0e1f-2a3b-4c5d-6e7f8a9b0c1d
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_job_location
+    - paragraphs.paragraphs_type.accordion_item
+id: paragraph.accordion_item.field_job_location
+field_name: field_job_location
+entity_type: paragraph
+bundle: accordion_item
+label: 'Job: Location'
+description: 'For job listings only. Office location (e.g., "Boise, ID" or "Remote"). Used for Google Jobs.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

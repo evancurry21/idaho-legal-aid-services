@@ -1,0 +1,21 @@
+uuid: 2f6a7b8c-9d0e-1f2a-3b4c-5d6e7f8a9b0c
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_job_valid_through
+    - paragraphs.paragraphs_type.accordion_item
+  module:
+    - datetime
+id: paragraph.accordion_item.field_job_valid_through
+field_name: field_job_valid_through
+entity_type: paragraph
+bundle: accordion_item
+label: 'Job: Application Deadline'
+description: 'For job listings only. The date when this job posting expires or applications close.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: datetime

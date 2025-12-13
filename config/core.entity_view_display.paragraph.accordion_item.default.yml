@@ -6,6 +6,10 @@ dependencies:
     - field.field.paragraph.accordion_item.field_accordion_body
     - field.field.paragraph.accordion_item.field_accordion_file
     - field.field.paragraph.accordion_item.field_accordion_title
+    - field.field.paragraph.accordion_item.field_job_date_posted
+    - field.field.paragraph.accordion_item.field_job_valid_through
+    - field.field.paragraph.accordion_item.field_job_location
+    - field.field.paragraph.accordion_item.field_job_employment_type
     - paragraphs.paragraphs_type.accordion_item
   module:
     - text
@@ -39,4 +43,8 @@ content:
     weight: 0
     region: content
 hidden:
+  field_job_date_posted: true
+  field_job_employment_type: true
+  field_job_location: true
+  field_job_valid_through: true
   search_api_excerpt: true
