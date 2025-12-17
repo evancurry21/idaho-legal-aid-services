@@ -1,0 +1,52 @@
+{#
+/**
+ * @file
+ * Theme override for the Forms landing page view.
+ * Displays form categories as clickable cards.
+ */
+#}
+
+{{ attach_library('b5subtheme/forms') }}
+
+<div{{ attributes.addClass('view', 'forms-view', 'forms-landing') }}>
+
+  {# Page header with intro text #}
+  <div class="forms-page-header">
+    <div class="container">
+      {% if header %}
+        {{ header }}
+      {% endif %}
+    </div>
+  </div>
+
+  {# Category cards grid #}
+  <div class="forms-content">
+    <div class="container">
+      {% if rows %}
+        <div class="forms-category-grid" role="list" aria-label="Form categories">
+          {{ rows }}
+        </div>
+      {% elseif empty %}
+        <div class="forms-empty-state">
+          {{ empty }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if pager %}
+    <div class="forms-pager">
+      <div class="container">
+        {{ pager }}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if footer %}
+    <div class="forms-footer">
+      <div class="container">
+        {{ footer }}
+      </div>
+    </div>
+  {% endif %}
+</div>

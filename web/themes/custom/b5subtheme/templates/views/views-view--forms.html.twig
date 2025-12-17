@@ -1,0 +1,62 @@
+{#
+/**
+ * @file
+ * Theme override for the Forms by Topic view.
+ * Displays forms within a specific category with search.
+ */
+#}
+
+{{ attach_library('b5subtheme/forms') }}
+
+<div{{ attributes.addClass('view', 'forms-view', 'forms-by-topic') }}>
+
+  {# Back link and search #}
+  <div class="forms-toolbar">
+    <div class="container">
+      <div class="forms-toolbar-inner">
+        {% if header %}
+          <div class="forms-back-nav">
+            {{ header }}
+          </div>
+        {% endif %}
+
+        {% if exposed %}
+          <div class="forms-search">
+            {{ exposed }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# Form items listing #}
+  <div class="forms-content">
+    <div class="container">
+      {% if rows %}
+        <div class="forms-item-list" role="list" aria-label="Forms in this category">
+          {{ rows }}
+        </div>
+      {% elseif empty %}
+        <div class="forms-empty-state">
+          {{ empty }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if pager %}
+    <div class="forms-pager">
+      <div class="container">
+        {{ pager }}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if footer %}
+    <div class="forms-footer">
+      <div class="container">
+        {{ footer }}
+      </div>
+    </div>
+  {% endif %}
+</div>

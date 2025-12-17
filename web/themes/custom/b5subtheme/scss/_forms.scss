@@ -1,0 +1,457 @@
+/*---------------------------------------------------
+  FORMS PAGE
+  Landing page and topic-specific form listings
+---------------------------------------------------*/
+
+/*──────────── Forms CSS Custom Properties ────────────*/
+:root {
+  // Colors
+  --forms-primary: #{$color-primary};
+  --forms-primary-dark: #{darken($color-primary, 10%)};
+  --forms-bg: #{$color-white};
+  --forms-bg-alt: #{$color-gray-bg};
+  --forms-text: #{$color-black};
+  --forms-text-muted: #{$color-gray-text};
+  --forms-border: #e9ecef;
+
+  // Spacing
+  --forms-gap: 1.5rem;
+  --forms-card-padding: 1.5rem;
+
+  // Borders & Shadows
+  --forms-card-radius: #{$border-radius};
+  --forms-shadow-sm: #{$box-shadow-sm};
+  --forms-shadow-hover: #{$card-hover-shadow};
+
+  // Transitions
+  --forms-transition: #{$transition-base};
+}
+
+
+/*──────────── 1) Forms View Container ────────────*/
+.forms-view {
+  padding-bottom: 3rem;
+}
+
+.forms-page-header {
+  background: var(--forms-bg-alt);
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+
+  .forms-intro {
+    max-width: 800px;
+
+    p {
+      font-size: 1.125rem;
+      line-height: 1.6;
+      color: var(--forms-text);
+      margin: 0;
+    }
+  }
+}
+
+
+/*──────────── 2) Category Cards (Landing Page) ────────────*/
+.forms-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--forms-gap);
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-category-card {
+  background: var(--forms-bg);
+  border: 3px solid var(--forms-primary);
+  border-radius: var(--forms-card-radius);
+  padding: var(--forms-card-padding);
+  box-shadow: var(--forms-shadow-sm);
+  transition: var(--forms-transition);
+  display: flex;
+  flex-direction: column;
+
+  &:hover,
+  &:focus-within {
+    box-shadow: var(--forms-shadow-hover);
+    transform: translateY(-2px);
+    border-color: var(--forms-primary-dark);
+  }
+
+  .form-category-title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    margin: 0 0 0.75rem;
+    line-height: 1.3;
+
+    .form-category-link {
+      color: var(--forms-primary);
+      text-decoration: none;
+
+      &:hover,
+      &:focus {
+        color: var(--forms-primary-dark);
+        text-decoration: underline;
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--forms-primary);
+        outline-offset: 2px;
+      }
+    }
+  }
+
+  .form-category-description {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--forms-text);
+    margin: 0;
+    flex-grow: 1;
+  }
+}
+
+
+/*──────────── 3) Toolbar (Topic Page) ────────────*/
+.forms-toolbar {
+  background: var(--forms-bg-alt);
+  padding: 1.5rem 0;
+  margin-bottom: 2rem;
+
+  .forms-toolbar-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+
+    @include mobile {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+}
+
+.forms-back-nav {
+  .forms-back-link {
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--forms-primary);
+      font-weight: 600;
+      text-decoration: none;
+
+      &:hover,
+      &:focus {
+        color: var(--forms-primary-dark);
+        text-decoration: underline;
+      }
+
+      i {
+        font-size: 0.875rem;
+      }
+    }
+  }
+}
+
+.forms-search {
+  flex: 0 1 400px;
+
+  @include mobile {
+    flex: 1 1 100%;
+  }
+
+  .views-exposed-form {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+
+    @include mobile {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .form-item {
+      flex: 1;
+      margin: 0;
+
+      label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--forms-text);
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 0.625rem 1rem;
+        border: 1px solid var(--forms-border);
+        border-radius: var(--forms-card-radius);
+        font-size: 1rem;
+
+        &:focus {
+          border-color: var(--forms-primary);
+          outline: none;
+          box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+        }
+
+        &::placeholder {
+          color: var(--forms-text-muted);
+        }
+      }
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 0.5rem;
+
+      @include mobile {
+        justify-content: flex-end;
+      }
+
+      button,
+      input[type="submit"] {
+        padding: 0.625rem 1.25rem;
+        border-radius: var(--forms-card-radius);
+        font-weight: 600;
+        font-size: 0.9375rem;
+        cursor: pointer;
+        transition: var(--forms-transition);
+
+        &[value="Search"],
+        &.button--primary {
+          background: var(--forms-primary);
+          color: var(--forms-bg);
+          border: 2px solid var(--forms-primary);
+
+          &:hover,
+          &:focus {
+            background: var(--forms-primary-dark);
+            border-color: var(--forms-primary-dark);
+          }
+        }
+
+        &[value="Clear"],
+        &[value="Reset"],
+        &.button--secondary {
+          background: var(--forms-bg);
+          color: var(--forms-primary);
+          border: 2px solid var(--forms-primary);
+
+          &:hover,
+          &:focus {
+            background: var(--forms-primary);
+            color: var(--forms-bg);
+          }
+        }
+      }
+    }
+  }
+}
+
+
+/*──────────── 4) Form Item Cards (Topic Page) ────────────*/
+.forms-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--forms-gap);
+}
+
+.form-item-card {
+  background: var(--forms-bg);
+  border: 1px solid var(--forms-border);
+  border-left: 6px solid var(--forms-primary);
+  border-radius: var(--forms-card-radius);
+  padding: var(--forms-card-padding);
+  box-shadow: var(--forms-shadow-sm);
+  transition: var(--forms-transition);
+
+  &:hover,
+  &:focus-within {
+    box-shadow: var(--forms-shadow-hover);
+    border-left-color: var(--forms-primary-dark);
+  }
+
+  .form-item-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--forms-primary);
+    margin: 0 0 0.5rem;
+    line-height: 1.3;
+  }
+
+  .form-item-description {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--forms-text);
+    margin: 0 0 1rem;
+  }
+
+  .form-item-download {
+    margin-bottom: 0.75rem;
+
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--forms-primary);
+      color: var(--forms-bg);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--forms-card-radius);
+      font-weight: 600;
+      font-size: 0.9375rem;
+      text-decoration: none;
+      transition: var(--forms-transition);
+
+      &:hover,
+      &:focus {
+        background: var(--forms-primary-dark);
+        transform: translateY(-1px);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--forms-primary);
+        outline-offset: 2px;
+      }
+
+      // File type indicator
+      &::before {
+        font-family: "Font Awesome 6 Free";
+        font-weight: 900;
+        content: "\f019"; // Download icon
+      }
+    }
+
+    // File type specific icons
+    a[href$=".pdf"]::before {
+      content: "\f1c1"; // PDF icon
+    }
+
+    a[href$=".doc"]::before,
+    a[href$=".docx"]::before {
+      content: "\f1c2"; // Word icon
+    }
+
+    a[href$=".xls"]::before,
+    a[href$=".xlsx"]::before {
+      content: "\f1c3"; // Excel icon
+    }
+  }
+
+  .form-item-meta {
+    font-size: 0.875rem;
+    color: var(--forms-text-muted);
+
+    .form-item-label {
+      font-weight: 600;
+      color: var(--forms-text);
+    }
+
+    .form-item-updated {
+      color: var(--forms-text-muted);
+    }
+  }
+}
+
+
+/*──────────── 5) Empty State ────────────*/
+.forms-empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+
+  .forms-empty {
+    font-size: 1.125rem;
+    color: var(--forms-text-muted);
+
+    a {
+      color: var(--forms-primary);
+      font-weight: 600;
+
+      &:hover,
+      &:focus {
+        color: var(--forms-primary-dark);
+      }
+    }
+  }
+}
+
+
+/*──────────── 6) Pager ────────────*/
+.forms-pager {
+  margin-top: 2rem;
+
+  .pager {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    .pager__item {
+      a,
+      span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        height: 40px;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--forms-border);
+        border-radius: var(--forms-card-radius);
+        color: var(--forms-primary);
+        font-weight: 600;
+        text-decoration: none;
+        transition: var(--forms-transition);
+
+        &:hover,
+        &:focus {
+          background: var(--forms-primary);
+          color: var(--forms-bg);
+          border-color: var(--forms-primary);
+        }
+      }
+
+      &.is-active span {
+        background: var(--forms-primary);
+        color: var(--forms-bg);
+        border-color: var(--forms-primary);
+      }
+
+      &.pager__item--previous,
+      &.pager__item--next,
+      &.pager__item--first,
+      &.pager__item--last {
+        a {
+          font-size: 0.875rem;
+        }
+      }
+    }
+  }
+}
+
+
+/*──────────── 7) Print Styles ────────────*/
+@media print {
+  .forms-toolbar,
+  .forms-pager,
+  .forms-back-nav,
+  .form-item-download a::before {
+    display: none !important;
+  }
+
+  .form-item-card {
+    border: 1px solid #000;
+    page-break-inside: avoid;
+    box-shadow: none;
+  }
+
+  .form-category-card {
+    border: 1px solid #000;
+    page-break-inside: avoid;
+    box-shadow: none;
+  }
+}

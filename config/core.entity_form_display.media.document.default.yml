@@ -3,10 +3,13 @@ langcode: en
 status: true
 dependencies:
   config:
+    - field.field.media.document.field_document_topics
+    - field.field.media.document.field_document_type
     - field.field.media.document.field_media_document
     - media.type.document
   module:
     - file
+    - options
     - path
 _core:
   default_config_hash: j3PwHXJrIDYYTMBtwbGTChh6m3fzbh9KJyHZ4wJdb1U
@@ -18,6 +21,22 @@ content:
   created:
     type: datetime_timestamp
     weight: 10
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_document_topics:
+    type: entity_reference_autocomplete
+    weight: 2
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: 'Start typing to find topics...'
+    third_party_settings: {  }
+  field_document_type:
+    type: options_select
+    weight: 1
     region: content
     settings: {  }
     third_party_settings: {  }

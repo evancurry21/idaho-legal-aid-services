@@ -1,0 +1,13 @@
+{#
+/**
+ * @file
+ * Theme override for form item cards on the topic page.
+ * Each row is a downloadable form.
+ */
+#}
+
+{% for row in rows %}
+  <article{{ row.attributes.addClass('form-item-card') }} role="listitem">
+    {{ row.content }}
+  </article>
+{% endfor %}

@@ -1,0 +1,25 @@
+uuid: a1b2c3d4-1234-5678-9abc-def012345678
+langcode: en
+status: true
+dependencies:
+  module:
+    - media
+    - options
+id: media.field_document_type
+field_name: field_document_type
+entity_type: media
+type: list_string
+settings:
+  allowed_values:
+    - value: form
+      label: Form
+    - value: guide
+      label: Guide
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

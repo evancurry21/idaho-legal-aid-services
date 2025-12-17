@@ -1,0 +1,22 @@
+uuid: c3d4e5f6-a7b8-9012-cdef-345678901234
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.taxonomy_term.field_show_on_forms_page
+    - taxonomy.vocabulary.topics
+id: taxonomy_term.topics.field_show_on_forms_page
+field_name: field_show_on_forms_page
+entity_type: taxonomy_term
+bundle: topics
+label: 'Show on Forms Page'
+description: 'Check this box to display this topic category on the public Forms page. Only topics with this checked AND at least one associated form will appear.'
+required: false
+translatable: false
+default_value:
+  - value: 0
+default_value_callback: ''
+settings:
+  on_label: 'Yes - Show as Forms category'
+  off_label: 'No - Do not show on Forms page'
+field_type: boolean
