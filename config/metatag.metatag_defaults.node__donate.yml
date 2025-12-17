@@ -16,5 +16,5 @@ tags:
   schema_web_page_about: 'a:3:{s:5:"@type";s:3:"NGO";s:4:"name";s:24:"Idaho Legal Aid Services";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'
   schema_organization_additional_type: 'Nonprofit501c3,LegalService'
   schema_organization_description: 'Idaho Legal Aid Services is a nonprofit statewide law firm providing free civil legal assistance to low-income Idahoans since 1967.'
-  schema_organization_nonprofit_status: 'Nonprofit501c3'
-  schema_organization_tax_id: '82-0293641'
+  schema_organization_nonprofit_status: Nonprofit501c3
+  schema_organization_tax_id: 82-0293641

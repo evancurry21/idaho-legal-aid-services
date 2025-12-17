@@ -383,3 +383,99 @@ function _b5subtheme_add_breadcrumb_schema(array &$variables) {
     'breadcrumb_schema',
   ];
 }
+
+/**
+ * Implements hook_preprocess_views_view_field().
+ *
+ * Converts media file URIs to download links in search results.
+ */
+function b5subtheme_preprocess_views_view_field(&$variables) {
+  $view = $variables['view'];
+  $field = $variables['field'];
+
+  // Only process the 'name' field in the 'search' view.
+  if ($view->id() !== 'search' || $field->options['id'] !== 'name') {
+    return;
+  }
+
+  // Get the search result item to access raw indexed data.
+  $row = $variables['row'];
+  if (!isset($row->_item)) {
+    return;
+  }
+
+  /** @var \Drupal\search_api\Item\ItemInterface $item */
+  $item = $row->_item;
+
+  // Only process media entities.
+  if ($item->getDatasourceId() !== 'entity:media') {
+    return;
+  }
+
+  // Get the file URI from the indexed field.
+  $uri_field = $item->getField('media_file_url');
+  if (!$uri_field) {
+    return;
+  }
+
+  $values = $uri_field->getValues();
+  if (empty($values)) {
+    return;
+  }
+
+  $uri = reset($values);
+  if (empty($uri) || strpos($uri, 'public://') !== 0) {
+    return;
+  }
+
+  // Convert URI to URL.
+  $url = \Drupal::service('file_url_generator')->generateString($uri);
+
+  // Get the current output (media name).
+  $name = $variables['output'];
+  if (is_object($name) && method_exists($name, '__toString')) {
+    $name = $name->__toString();
+  }
+
+  // Build the link markup directly to avoid double-encoding.
+  $variables['output'] = new \Drupal\Component\Render\FormattableMarkup(
+    '<a href="@url" class="file-download-link" target="_blank">@name</a>',
+    ['@url' => $url, '@name' => $name]
+  );
+}
+
+/**
+ * Implements hook_preprocess_views_view().
+ *
+ * Adds "Page X of Y" pager info for the search view.
+ */
+function b5subtheme_preprocess_views_view(&$variables) {
+  $view = $variables['view'];
+
+  // Only process the search view.
+  if ($view->id() !== 'search') {
+    return;
+  }
+
+  // Get pager information.
+  $pager = $view->getPager();
+  if (!$pager) {
+    return;
+  }
+
+  $current_page = $pager->getCurrentPage();
+  $items_per_page = $pager->getItemsPerPage();
+  $total_items = $pager->getTotalItems();
+
+  // Calculate total pages.
+  if ($items_per_page > 0 && $total_items > 0) {
+    $total_pages = (int) ceil($total_items / $items_per_page);
+    $current_page_display = $current_page + 1; // Pages are 0-indexed.
+
+    $variables['pager_info'] = [
+      'current' => $current_page_display,
+      'total' => $total_pages,
+      'total_items' => $total_items,
+    ];
+  }
+}

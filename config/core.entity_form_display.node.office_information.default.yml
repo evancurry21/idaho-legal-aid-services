@@ -45,22 +45,6 @@ content:
       size: 60
       placeholder: 'e.g., Boise'
     third_party_settings: {  }
-  field_postal_code:
-    type: string_textfield
-    weight: 133
-    region: content
-    settings:
-      size: 20
-      placeholder: 'e.g., 83706'
-    third_party_settings: {  }
-  field_street_address:
-    type: string_textfield
-    weight: 131
-    region: content
-    settings:
-      size: 60
-      placeholder: 'e.g., 1447 S Tyrell Lane'
-    third_party_settings: {  }
   field_county:
     type: string_textarea
     weight: 130
@@ -99,6 +83,22 @@ content:
     settings:
       size: 60
       placeholder: ''
+    third_party_settings: {  }
+  field_postal_code:
+    type: string_textfield
+    weight: 133
+    region: content
+    settings:
+      size: 20
+      placeholder: 'e.g., 83706'
+    third_party_settings: {  }
+  field_street_address:
+    type: string_textfield
+    weight: 131
+    region: content
+    settings:
+      size: 60
+      placeholder: 'e.g., 1447 S Tyrell Lane'
     third_party_settings: {  }
   langcode:
     type: language_select

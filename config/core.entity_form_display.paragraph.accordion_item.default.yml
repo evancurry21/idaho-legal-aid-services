@@ -50,9 +50,9 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
-  field_job_valid_through:
-    type: datetime_default
-    weight: 11
+  field_job_employment_type:
+    type: options_select
+    weight: 13
     region: content
     settings: {  }
     third_party_settings: {  }
@@ -64,9 +64,14 @@ content:
       size: 60
       placeholder: 'e.g., Boise, ID or Remote'
     third_party_settings: {  }
-  field_job_employment_type:
-    type: options_select
-    weight: 13
+  field_job_valid_through:
+    type: datetime_default
+    weight: 11
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  translation:
+    weight: 10
     region: content
     settings: {  }
     third_party_settings: {  }

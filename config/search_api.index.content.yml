@@ -7,7 +7,6 @@ dependencies:
     - field.storage.node.field_body
     - search_api.server.database
   module:
-    - file
     - media
     - node
     - search_api_exclude
@@ -26,14 +25,22 @@ field_settings:
     dependencies:
       config:
         - field.storage.node.field_body
-  filename:
-    label: Filename
-    datasource_id: 'entity:file'
-    property_path: filename
+  media_file_url:
+    label: 'Media File URL'
+    datasource_id: 'entity:media'
+    property_path: 'field_media_document:entity:uri'
+    type: string
+    dependencies:
+      module:
+        - media
+  name:
+    label: 'Media Name'
+    datasource_id: 'entity:media'
+    property_path: name
     type: text
     dependencies:
       module:
-        - file
+        - media
   rendered_item:
     label: 'Rendered HTML output'
     property_path: rendered_item
@@ -42,8 +49,6 @@ field_settings:
       roles:
         - anonymous
       view_mode:
-        'entity:file':
-          ':default': default
         'entity:media':
           ':default': default
         'entity:node':
@@ -65,16 +70,7 @@ field_settings:
     dependencies:
       module:
         - node
-  uri:
-    label: URI
-    datasource_id: 'entity:file'
-    property_path: uri
-    type: string
-    dependencies:
-      module:
-        - file
 datasource_settings:
-  'entity:file': {  }
   'entity:media':
     bundles:
       default: true

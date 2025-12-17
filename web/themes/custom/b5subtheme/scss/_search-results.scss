@@ -1,0 +1,341 @@
+// =============================================================================
+// SEARCH RESULTS PAGE
+// Styling for the search view pager and exposed form
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Search Exposed Form (targeting actual Drupal classes)
+// -----------------------------------------------------------------------------
+.views-exposed-form-search-page-1,
+form[data-drupal-selector="views-exposed-form-search-page-1"] {
+  max-width: 800px;
+  margin: 0 auto 2rem;
+  padding: $spacer;
+  background-color: $color-gray-bg;
+  border-radius: $border-radius-lg;
+  box-shadow: $box-shadow-sm;
+  border: 3px solid $color-primary;
+  position: relative;
+
+  // Label - absolutely positioned to center within form
+  .form-item-keys label {
+    position: absolute;
+    top: $spacer;
+    left: 0;
+    right: 0;
+    font-size: 1.75rem;
+    color: $color-primary;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+
+    @include mobile {
+      font-size: 1.25rem;
+    }
+  }
+
+  // Form layout - add top padding to make room for label
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: $spacer-sm;
+    align-items: stretch;
+    padding-top: 3rem;
+
+    @media (min-width: $tablet-breakpoint) {
+      flex-direction: row;
+      align-items: flex-end;
+      gap: $spacer-sm;
+    }
+
+    @include mobile {
+      padding-top: 2.5rem;
+    }
+  }
+
+  // Search input field
+  .form-item-keys {
+    flex: 1;
+    margin: 0;
+
+    input.form-text,
+    input.form-autocomplete {
+      width: 100%;
+      padding: 0.625rem 1rem;
+      font-size: 1rem;
+      border: 2px solid $color-gray-border;
+      border-radius: $border-radius;
+      transition: $transition-fast;
+      height: auto;
+
+      &:focus {
+        border-color: $color-primary;
+        box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+        outline: none;
+      }
+
+      &::placeholder {
+        color: $color-gray-text;
+      }
+    }
+  }
+
+  // Submit button - match btn-primary style
+  .form-actions {
+    margin: 0;
+    flex-shrink: 0;
+
+    @media (min-width: $tablet-breakpoint) {
+      align-self: flex-end;
+    }
+
+    .button,
+    input[type="submit"] {
+      display: inline-block;
+      font-family: $font-family-sans-serif;
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+      border: 2px solid $color-primary;
+      padding: 0.625rem 1.25rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      border-radius: 4px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      background-color: $color-primary;
+      color: $color-white;
+
+      &:hover,
+      &:focus {
+        background-color: $color-white;
+        border-color: $color-primary;
+        color: $color-primary;
+        text-decoration: none;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      &:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      &:focus-visible {
+        outline: 2px solid $color-primary;
+        outline-offset: 2px;
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Pager Styling (global - works for search and other views)
+// -----------------------------------------------------------------------------
+.pager {
+  margin-top: 2rem;
+  padding-top: $spacer-lg;
+  border-top: 1px solid #dee2e6;
+}
+
+// Remove all list styling from pager
+.pager__items,
+.pager__items.pagination,
+ul.pager__items {
+  list-style: none !important;
+  padding-left: 0 !important;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: $spacer-sm;
+}
+
+// Remove bullets/markers from all pager list items
+.pager__items > li,
+.pager__item,
+.page-item {
+  list-style: none !important;
+  list-style-type: none !important;
+  margin: 0;
+  padding: 0;
+
+  &::marker {
+    content: none;
+    display: none;
+  }
+
+  &::before {
+    content: none;
+    display: none;
+  }
+}
+
+// Base pager link styling - match btn-primary hover style
+.pager__item a,
+.page-item a,
+.page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: $spacer-sm $spacer;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: $color-primary;
+  background-color: $color-white;
+  border: 2px solid $color-primary;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: $color-primary;
+    border-color: $color-primary;
+    color: $color-white;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Active page
+.pager__item.is-active a,
+.pager__item--current a,
+.page-item.active a,
+.page-item.active .page-link,
+.page-link.active {
+  color: $color-white;
+  background-color: $color-primary;
+  border-color: $color-primary;
+  font-weight: 600;
+}
+
+// Previous and Next buttons - styled as prominent buttons
+.pager__item--previous a,
+.pager__item--next a {
+  padding: $spacer-sm 1.25rem;
+  font-weight: 600;
+  background-color: $color-primary;
+  color: $color-white;
+  border-color: $color-primary;
+
+  &:hover {
+    background-color: $color-white;
+    border-color: $color-primary;
+    color: $color-primary;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Disabled state
+.pager__item--disabled a,
+.page-item.disabled a,
+.page-link.disabled {
+  color: $color-gray-text;
+  background-color: $color-gray-bg;
+  border-color: #dee2e6;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+// ---------------------------------------------------------------------------
+// Page Info Display (Page X of Y)
+// ---------------------------------------------------------------------------
+.pager-info {
+  display: flex;
+  justify-content: center;
+  margin-top: $spacer;
+  font-size: 0.9375rem;
+  color: $color-black;
+
+  &__current {
+    font-weight: 600;
+    color: $color-primary;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Search Results Items
+// -----------------------------------------------------------------------------
+.views-element-container {
+  // Result title styling
+  .views-row {
+    padding: 1.25rem 0;
+    border-bottom: 1px solid $color-gray-bg;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    h2,
+    .node__title,
+    .media__title {
+      font-size: 1.5rem;
+      margin: 0 0 $spacer-sm;
+
+      a {
+        color: $color-primary;
+        text-decoration: none;
+        transition: color 0.2s ease;
+
+        &:hover {
+          color: darken($color-primary, 10%);
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+
+  // File download links
+  .file-download-link {
+    color: $color-primary;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: $spacer-sm;
+
+    &:hover {
+      color: darken($color-primary, 10%);
+      text-decoration: underline;
+    }
+
+    &::before {
+      content: "\f019"; // Font Awesome download icon
+      font-family: "Font Awesome 6 Free";
+      font-weight: 900;
+      font-size: 0.875em;
+    }
+  }
+
+  // Excerpt/snippet styling
+  .search-api-excerpt {
+    color: #495057;
+    line-height: 1.6;
+    margin-top: $spacer-sm;
+
+    strong {
+      color: $color-primary;
+      background-color: rgba($color-primary, 0.1);
+      padding: 0.1em 0.2em;
+      border-radius: 2px;
+    }
+  }
+
+  // No Results Message
+  .view-empty {
+    text-align: center;
+    padding: 3rem $spacer;
+    color: $color-gray-text;
+
+    p {
+      font-size: 1.125rem;
+      margin-bottom: $spacer;
+    }
+  }
+}

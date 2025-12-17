@@ -16,7 +16,8 @@ description: 'For job listings only. Select the type of employment for this posi
 required: false
 translatable: true
 default_value:
-  - value: FULL_TIME
+  -
+    value: FULL_TIME
 default_value_callback: ''
 settings: {  }
 field_type: list_string

@@ -360,13 +360,14 @@
   .sidebar-card {
     max-width: 100%; // Increased from 80% to give more room
     margin: 0 auto;
-    border: 3px solid $color-gray-border; // Use SCSS variable
+    border: 3px solid $color-primary;
     text-align: center;
     background-color: $color-white; // Explicit background
 
     .card-header {
       padding: 1rem 1.5rem; // Increased padding for more room
       background-color: $color-gray-bg; // Primary gray background
+      border-bottom: 1px solid #868e96;
 
       h3 {
         font-size: 1.25rem; // Slightly larger
@@ -415,23 +416,23 @@
       /* Topics - matching resource card style with pipe separators */
       .resource-topics {
         margin-bottom: 1.5rem;
-        
+
         h4 {
           margin-bottom: 0.25rem; // Reduced margin between header and topics
         }
         
         .topics-items {
           line-height: 1.6;
-          
+
           .topic-item {
             color: $color-black;
             font-size: 0.875rem;
-            margin: 0 0.125rem; // 2px each side
+            margin: 0 0.125rem;
           }
-          
+
           .topic-separator {
             color: $color-gray-border;
-            margin: 0 0.125rem; // 2px each side
+            margin: 0 0.125rem;
             font-weight: 300;
           }
         }
@@ -459,7 +460,7 @@
     .card-footer {
       padding: 0.75rem; // Consistent padding
       text-align: right;
-      background-color: transparent; // Ensure no Bootstrap default bg interferes
+      background-color: #f0f2f5;
       border-top: 1px solid $color-gray-border; // Match card border, or use var(--resource-border)
 
       // Sidebar buttons use standardized primary button style

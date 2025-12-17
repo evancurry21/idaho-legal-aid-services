@@ -11,16 +11,21 @@ entity_type: paragraph
 type: list_string
 settings:
   allowed_values:
-    - label: Full-time
+    -
       value: FULL_TIME
-    - label: Part-time
+      label: Full-time
+    -
       value: PART_TIME
-    - label: Contract
+      label: Part-time
+    -
       value: CONTRACTOR
-    - label: Temporary
+      label: Contract
+    -
       value: TEMPORARY
-    - label: Intern
+      label: Temporary
+    -
       value: INTERN
+      label: Intern
   allowed_values_function: ''
 module: options
 locked: false
