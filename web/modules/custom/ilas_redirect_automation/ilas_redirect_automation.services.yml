@@ -1,0 +1,36 @@
+services:
+  ilas_redirect_automation.path_matcher:
+    class: Drupal\ilas_redirect_automation\Service\PathMatcherService
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
+      - '@logger.factory'
+
+  ilas_redirect_automation.file_matcher:
+    class: Drupal\ilas_redirect_automation\Service\FileMatcherService
+    arguments:
+      - '@file_system'
+      - '@logger.factory'
+
+  ilas_redirect_automation.analyzer:
+    class: Drupal\ilas_redirect_automation\Service\RedirectAnalyzerService
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
+      - '@logger.factory'
+      - '@ilas_redirect_automation.path_matcher'
+      - '@ilas_redirect_automation.file_matcher'
+      - '@config.factory'
+
+  ilas_redirect_automation.csv_export:
+    class: Drupal\ilas_redirect_automation\Service\CsvExportService
+    arguments:
+      - '@file_system'
+      - '@logger.factory'
+
+  ilas_redirect_automation.applier:
+    class: Drupal\ilas_redirect_automation\Service\RedirectApplierService
+    arguments:
+      - '@entity_type.manager'
+      - '@database'
+      - '@logger.factory'

@@ -1,0 +1,41 @@
+ilas_redirect_automation.settings:
+  type: config_object
+  label: 'ILAS Redirect Automation settings'
+  mapping:
+    file_directories:
+      type: sequence
+      label: 'File directories to search'
+      sequence:
+        type: string
+        label: 'Directory path'
+    ignore_patterns:
+      type: sequence
+      label: 'Path patterns to ignore'
+      sequence:
+        type: string
+        label: 'Pattern'
+    confidence_thresholds:
+      type: mapping
+      label: 'Confidence thresholds'
+      mapping:
+        high:
+          type: integer
+          label: 'High confidence threshold'
+        medium:
+          type: integer
+          label: 'Medium confidence threshold'
+        low:
+          type: integer
+          label: 'Low confidence threshold'
+    default_status_code:
+      type: integer
+      label: 'Default HTTP status code'
+    export_directory:
+      type: string
+      label: 'Export directory for CSV files'
+    min_hit_count:
+      type: integer
+      label: 'Minimum hit count to process'
+    enable_logging:
+      type: boolean
+      label: 'Enable detailed logging'

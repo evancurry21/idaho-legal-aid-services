@@ -1,0 +1,11 @@
+services:
+  ilas_redirect_automation.commands:
+    class: Drupal\ilas_redirect_automation\Commands\RedirectAutomationCommands
+    arguments:
+      - '@ilas_redirect_automation.analyzer'
+      - '@ilas_redirect_automation.applier'
+      - '@ilas_redirect_automation.csv_export'
+      - '@config.factory'
+      - '@logger.factory'
+    tags:
+      - { name: drush.command }

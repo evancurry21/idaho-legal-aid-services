@@ -1,0 +1,41 @@
+# File paths to search for file redirects
+file_directories:
+  - 'sites/default/files/2025-12'
+  - 'sites/default/files/2025-11'
+  - 'sites/default/files/2025-06'
+  - 'sites/default/files/2024-12'
+
+# Patterns to ignore (bots, attacks, etc.)
+ignore_patterns:
+  - '/wp-login'
+  - '/wp-admin'
+  - '/wp-content'
+  - '/wp-includes'
+  - '/xmlrpc.php'
+  - '/.env'
+  - '/.git'
+  - '/phpmyadmin'
+  - '/administrator'
+  - '/cgi-bin'
+  - '.asp'
+  - '.aspx'
+  - '/.well-known'
+  - '/wordpress'
+
+# Confidence thresholds
+confidence_thresholds:
+  high: 90
+  medium: 70
+  low: 50
+
+# Default status code for redirects
+default_status_code: 301
+
+# Export directory for CSV files
+export_directory: 'private://redirect_automation'
+
+# Minimum hit count to consider for processing
+min_hit_count: 1
+
+# Enable logging
+enable_logging: true

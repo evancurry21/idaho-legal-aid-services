@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * @file
+ * ILAS Redirect Automation module.
+ *
+ * Provides Drush commands for automating 404 redirect resolution.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function ilas_redirect_automation_help($route_name, $route_match) {
+  switch ($route_name) {
+    case 'help.page.ilas_redirect_automation':
+      return '<p>' . t('Provides tools for automating 404 redirect resolution with preview and approval workflow.') . '</p>';
+  }
+}
