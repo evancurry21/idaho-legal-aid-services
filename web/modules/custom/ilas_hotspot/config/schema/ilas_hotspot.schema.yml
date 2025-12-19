@@ -5,6 +5,9 @@ ilas_hotspot.settings:
     hotspot_image:
       type: string
       label: 'Hotspot base image path'
+    annual_report_media:
+      type: string
+      label: 'Annual report media entity ID'
     hotspot_data:
       type: sequence
       label: 'Hotspot configurations'

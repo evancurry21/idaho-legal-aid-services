@@ -38,8 +38,8 @@ content:
       placeholder: ''
     third_party_settings: {  }
 hidden:
-  field_document_topics: true
   created: true
+  field_document_topics: true
   field_media_document: true
   path: true
   publish_on: true

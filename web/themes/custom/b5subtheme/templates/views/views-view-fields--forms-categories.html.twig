@@ -1,0 +1,22 @@
+{#
+/**
+ * @file
+ * Theme override for form category card fields.
+ * Makes the entire card clickable with proper URL slug formatting.
+ */
+#}
+
+{# Extract the term name and create URL-safe slug #}
+{% set term_name = fields.name.content|render|striptags|trim %}
+{% set term_slug = term_name|lower|replace({' ': '-', "'": '', '"': ''}) %}
+{% set term_url = '/forms/' ~ term_slug %}
+
+{# Get description if available #}
+{% set term_description = fields.description__value.content|render|striptags|trim %}
+
+<a href="{{ term_url }}" class="form-category-card-link" aria-label="{{ term_name }} forms">
+  <h3 class="form-category-title">{{ term_name }}</h3>
+  {% if term_description %}
+    <p class="form-category-description">{{ term_description }}</p>
+  {% endif %}
+</a>

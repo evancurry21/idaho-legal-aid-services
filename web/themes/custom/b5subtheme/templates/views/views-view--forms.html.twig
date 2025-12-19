@@ -2,7 +2,7 @@
 /**
  * @file
  * Theme override for the Forms by Topic view.
- * Displays forms within a specific category with search.
+ * Displays forms within a specific category.
  */
 #}
 
@@ -10,37 +10,34 @@
 
 <div{{ attributes.addClass('view', 'forms-view', 'forms-by-topic') }}>
 
-  {# Back link and search #}
-  <div class="forms-toolbar">
+  {# Curved page header with title #}
+  <section class="curved-page-header forms-curved-header">
     <div class="container">
-      <div class="forms-toolbar-inner">
-        {% if header %}
-          <div class="forms-back-nav">
-            {{ header }}
-          </div>
-        {% endif %}
-
-        {% if exposed %}
-          <div class="forms-search">
-            {{ exposed }}
-          </div>
-        {% endif %}
-      </div>
+      <h1 class="curved-page-header-title">{{ view.getTitle() }}</h1>
     </div>
-  </div>
+  </section>
 
   {# Form items listing #}
   <div class="forms-content">
     <div class="container">
-      {% if rows %}
-        <div class="forms-item-list" role="list" aria-label="Forms in this category">
-          {{ rows }}
+      <div class="forms-main-content">
+        {% if rows %}
+          <div class="forms-item-list" role="list" aria-label="Forms in this category">
+            {{ rows }}
+          </div>
+        {% elseif empty %}
+          <div class="forms-empty-state">
+            {{ empty }}
+          </div>
+        {% endif %}
+
+        {# Back button at bottom left #}
+        <div class="forms-back-nav">
+          <a href="/forms" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back
+          </a>
         </div>
-      {% elseif empty %}
-        <div class="forms-empty-state">
-          {{ empty }}
-        </div>
-      {% endif %}
+      </div>
     </div>
   </div>
 
@@ -48,14 +45,6 @@
     <div class="forms-pager">
       <div class="container">
         {{ pager }}
-      </div>
-    </div>
-  {% endif %}
-
-  {% if footer %}
-    <div class="forms-footer">
-      <div class="container">
-        {{ footer }}
       </div>
     </div>
   {% endif %}

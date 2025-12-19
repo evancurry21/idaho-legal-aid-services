@@ -2,7 +2,7 @@
 /**
  * @file
  * Theme override for the Forms landing page view.
- * Displays form categories as clickable cards.
+ * Displays form categories as clickable cards with curved header.
  */
 #}
 
@@ -10,27 +10,38 @@
 
 <div{{ attributes.addClass('view', 'forms-view', 'forms-landing') }}>
 
-  {# Page header with intro text #}
-  <div class="forms-page-header">
+  {# Curved page header matching site style #}
+  <section class="curved-page-header forms-curved-header">
     <div class="container">
-      {% if header %}
-        {{ header }}
-      {% endif %}
+      <h1 class="curved-page-header-title">Forms & Documents</h1>
     </div>
-  </div>
+  </section>
+
+  {# Intro text below curved header #}
+  {% if header %}
+    <div class="forms-intro-section">
+      <div class="container">
+        <div class="forms-intro">
+          {{ header }}
+        </div>
+      </div>
+    </div>
+  {% endif %}
 
   {# Category cards grid #}
   <div class="forms-content">
     <div class="container">
-      {% if rows %}
-        <div class="forms-category-grid" role="list" aria-label="Form categories">
-          {{ rows }}
-        </div>
-      {% elseif empty %}
-        <div class="forms-empty-state">
-          {{ empty }}
-        </div>
-      {% endif %}
+      <div class="forms-main-content">
+        {% if rows %}
+          <div class="forms-category-grid" role="list" aria-label="Form categories">
+            {{ rows }}
+          </div>
+        {% elseif empty %}
+          <div class="forms-empty-state">
+            {{ empty }}
+          </div>
+        {% endif %}
+      </div>
     </div>
   </div>
 

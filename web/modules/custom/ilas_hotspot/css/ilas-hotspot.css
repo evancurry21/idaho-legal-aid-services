@@ -46,6 +46,8 @@
 .hotspot-item {
   position: absolute;
   z-index: 10;
+  /* Ensure hotspots and their children don't create conflicting stacking contexts */
+  isolation: isolate;
 }
 
 .hotspot-trigger {
@@ -87,9 +89,30 @@
 }
 
 /* Popover styling to match theme */
+/* Override Bootstrap's CSS custom property for z-index */
+:root {
+  --bs-popover-zindex: 99999;
+}
+
 .popover {
   font-family: inherit;
   max-width: 350px;
+  background-color: #fff !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Comprehensive z-index fix for all popover states */
+.popover,
+.popover.show,
+.popover[data-popper-placement],
+.popover.bs-popover-auto,
+.popover.bs-popover-top,
+.popover.bs-popover-bottom,
+.popover.bs-popover-start,
+.popover.bs-popover-end,
+body > .popover {
+  z-index: 99999 !important;
+  position: absolute !important;
 }
 
 .popover-header {
@@ -117,6 +140,8 @@
   font-size: 1rem;
   line-height: 1.5;
   text-align: center;
+  background-color: #fff;
+  color: #212529;
 }
 
 /* Mobile font scaling for popover body */
@@ -203,6 +228,8 @@
   align-items: center;
   justify-content: center;
   min-height: 400px;
+  /* Isolate stacking context to prevent z-index conflicts */
+  isolation: isolate;
 }
 
 .ilas-impact-table {
@@ -226,6 +253,9 @@
 .hotspot-cell {
   text-align: center;
   padding-left: 0;
+  /* Higher z-index than annual-report-cell, but popover at body level still wins */
+  z-index: 2;
+  position: relative;
 }
 
 .hotspot-cell .ilas-hotspot-container {
@@ -240,6 +270,9 @@
   justify-content: center;
   align-items: center;
   padding-right: 0;
+  /* Ensure this cell doesn't compete with popover z-index */
+  z-index: 1;
+  position: relative;
 }
 
 .annual-report-content {
@@ -371,7 +404,7 @@
     text-align: center !important;
     width: 100% !important;
   }
-  
+
   .ilas-impact-table {
     display: flex !important;
     flex-direction: column !important;
@@ -380,7 +413,7 @@
     width: 100% !important;
     margin: 0 auto !important;
   }
-  
+
   .hotspot-cell {
     display: flex !important;
     justify-content: center !important;
@@ -390,7 +423,8 @@
     margin: 0 auto 1rem auto !important;
     padding: 0 !important;
   }
-  
+
+  /* Use flexbox centering instead of transform to avoid stacking context issues */
   .ilas-hotspot-container {
     margin: 0 auto !important;
     display: flex !important;
@@ -398,22 +432,23 @@
     align-items: center !important;
     width: 100% !important;
     position: relative !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+    /* Remove transform-based centering - it creates stacking context issues */
+    left: auto !important;
+    transform: none !important;
   }
-  
+
   .hotspot-background {
     margin: 0 auto !important;
     display: block !important;
     width: auto !important;
     max-width: 100% !important;
   }
-  
+
   .annual-report-cell {
     margin-top: 1rem;
     padding: 0 !important;
   }
-  
+
   .annual-report-content {
     max-width: 320px;
     width: 320px;
@@ -423,12 +458,12 @@
     align-items: center;
     justify-content: center;
   }
-  
+
   .annual-report-cover {
     width: 100%;
     max-width: 240px;
   }
-  
+
   /* Use standard mobile button sizing */
   .annual-report-content .btn,
   .annual-report-content button,

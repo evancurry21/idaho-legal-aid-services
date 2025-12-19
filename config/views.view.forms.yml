@@ -276,7 +276,7 @@ display:
           plugin_id: text
           empty: true
           content:
-            value: '<p class="forms-empty">No forms found in this category. Try searching or <a href="/forms">browse all categories</a>.</p>'
+            value: '<p class="forms-empty">No forms found in this category. <a href="/forms">Browse all categories</a>.</p>'
             format: basic_html
           tokenize: false
       sorts:
@@ -296,21 +296,23 @@ display:
             field_identifier: name
           exposed: false
       arguments:
-        field_document_topics_target_id:
-          id: field_document_topics_target_id
-          table: media__field_document_topics
-          field: field_document_topics_target_id
-          relationship: none
+        name:
+          id: name
+          table: taxonomy_term_field_data
+          field: name
+          relationship: field_document_topics
           group_type: group
           admin_label: ''
-          plugin_id: entity_target_id
+          entity_type: taxonomy_term
+          entity_field: name
+          plugin_id: string
           default_action: 'not found'
           exception:
             value: all
             title_enable: false
             title: All
           title_enable: true
-          title: '{{ arguments.field_document_topics_target_id }} Forms'
+          title: '{{ arguments.name }} Forms'
           default_argument_type: fixed
           default_argument_options:
             argument: ''
@@ -323,18 +325,16 @@ display:
             sort_order: asc
             number_of_records: 0
             format: default_summary
-          specify_validation: true
+          specify_validation: false
           validate:
-            type: 'entity:taxonomy_term'
+            type: none
             fail: 'not found'
-          validate_options:
-            bundles:
-              topics: topics
-            access: true
-            operation: view
-            multiple: 0
+          glossary: false
+          limit: 0
+          case: none
+          path_case: lower
+          transform_dash: true
           break_phrase: false
-          not: false
       filters:
         status:
           id: status
@@ -369,9 +369,10 @@ display:
           relationship: none
           group_type: group
           admin_label: ''
-          plugin_id: string
-          operator: '='
-          value: form
+          plugin_id: list_field
+          operator: or
+          value:
+            form: form
           group: 1
           exposed: false
           expose:
@@ -388,50 +389,6 @@ display:
             multiple: false
             remember_roles:
               authenticated: authenticated
-          is_grouped: false
-          group_info:
-            label: ''
-            description: ''
-            identifier: ''
-            optional: true
-            widget: select
-            multiple: false
-            remember: false
-            default_group: All
-            default_group_multiple: {  }
-            group_items: {  }
-        name:
-          id: name
-          table: media_field_data
-          field: name
-          relationship: none
-          group_type: group
-          admin_label: ''
-          entity_type: media
-          entity_field: name
-          plugin_id: string
-          operator: contains
-          value: ''
-          group: 1
-          exposed: true
-          expose:
-            operator_id: name_op
-            label: 'Search forms'
-            description: ''
-            use_operator: false
-            operator: name_op
-            operator_limit_selection: false
-            operator_list: {  }
-            identifier: keyword
-            required: false
-            remember: false
-            multiple: false
-            remember_roles:
-              authenticated: authenticated
-              anonymous: '0'
-              administrator: '0'
-              content_editor: '0'
-            placeholder: 'Enter keyword...'
           is_grouped: false
           group_info:
             label: ''
@@ -469,22 +426,18 @@ display:
           distinct: true
           replica: false
           query_tags: {  }
-      relationships: {  }
-      group_by: false
-      header:
-        area:
-          id: area
-          table: views
-          field: area
+      relationships:
+        field_document_topics:
+          id: field_document_topics
+          table: media__field_document_topics
+          field: field_document_topics
           relationship: none
           group_type: group
-          admin_label: ''
-          plugin_id: text
-          empty: false
-          content:
-            value: '<p class="forms-back-link"><a href="/forms"><i class="fas fa-arrow-left"></i> Back to all categories</a></p>'
-            format: basic_html
-          tokenize: false
+          admin_label: 'Topic Term'
+          plugin_id: standard
+          required: true
+      group_by: false
+      header: {  }
       footer: {  }
       display_extenders: {  }
     cache_metadata:
@@ -503,8 +456,8 @@ display:
     position: 1
     display_options:
       display_description: 'Forms filtered by topic category'
-      path: 'forms/%'
       display_extenders: {  }
+      path: forms/%
     cache_metadata:
       max-age: -1
       contexts:

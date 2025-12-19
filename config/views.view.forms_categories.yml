@@ -3,9 +3,12 @@ langcode: en
 status: true
 dependencies:
   config:
+    - field.storage.media.field_document_topics
+    - field.storage.media.field_document_type
     - field.storage.taxonomy_term.field_show_on_forms_page
     - taxonomy.vocabulary.topics
   module:
+    - media
     - taxonomy
     - user
 id: forms_categories
@@ -24,6 +27,72 @@ display:
     display_options:
       title: 'Forms & Documents'
       fields:
+        tid:
+          id: tid
+          table: taxonomy_term_field_data
+          field: tid
+          relationship: none
+          group_type: group
+          admin_label: ''
+          entity_type: taxonomy_term
+          entity_field: tid
+          plugin_id: field
+          label: ''
+          exclude: true
+          alter:
+            alter_text: false
+            text: ''
+            make_link: false
+            path: ''
+            absolute: false
+            external: false
+            replace_spaces: false
+            path_case: none
+            trim_whitespace: false
+            alt: ''
+            rel: ''
+            link_class: ''
+            prefix: ''
+            suffix: ''
+            target: ''
+            nl2br: false
+            max_length: 0
+            word_boundary: true
+            ellipsis: true
+            more_link: false
+            more_link_text: ''
+            more_link_path: ''
+            strip_tags: false
+            trim: false
+            preserve_tags: ''
+            html: false
+          element_type: ''
+          element_class: ''
+          element_label_type: ''
+          element_label_class: ''
+          element_label_colon: false
+          element_wrapper_type: ''
+          element_wrapper_class: ''
+          element_default_classes: true
+          empty: ''
+          hide_empty: false
+          empty_zero: false
+          hide_alter_empty: true
+          click_sort_column: value
+          type: number_integer
+          settings:
+            thousand_separator: ''
+            prefix_suffix: true
+          group_column: value
+          group_columns: {  }
+          group_rows: true
+          delta_limit: 0
+          delta_offset: 0
+          delta_reversed: false
+          delta_first_last: false
+          multi_type: separator
+          separator: ', '
+          field_api_classes: false
         name:
           id: name
           table: taxonomy_term_field_data
@@ -39,16 +108,16 @@ display:
           alter:
             alter_text: false
             text: ''
-            make_link: true
-            path: '/forms/{{ tid }}'
+            make_link: false
+            path: ''
             absolute: false
             external: false
             replace_spaces: false
             path_case: none
             trim_whitespace: false
-            alt: 'View {{ name }} forms'
+            alt: ''
             rel: ''
-            link_class: form-category-link
+            link_class: ''
             prefix: ''
             suffix: ''
             target: ''
@@ -144,72 +213,6 @@ display:
           click_sort_column: value
           type: text_default
           settings: {  }
-          group_column: value
-          group_columns: {  }
-          group_rows: true
-          delta_limit: 0
-          delta_offset: 0
-          delta_reversed: false
-          delta_first_last: false
-          multi_type: separator
-          separator: ', '
-          field_api_classes: false
-        tid:
-          id: tid
-          table: taxonomy_term_field_data
-          field: tid
-          relationship: none
-          group_type: group
-          admin_label: ''
-          entity_type: taxonomy_term
-          entity_field: tid
-          plugin_id: field
-          label: ''
-          exclude: true
-          alter:
-            alter_text: false
-            text: ''
-            make_link: false
-            path: ''
-            absolute: false
-            external: false
-            replace_spaces: false
-            path_case: none
-            trim_whitespace: false
-            alt: ''
-            rel: ''
-            link_class: ''
-            prefix: ''
-            suffix: ''
-            target: ''
-            nl2br: false
-            max_length: 0
-            word_boundary: true
-            ellipsis: true
-            more_link: false
-            more_link_text: ''
-            more_link_path: ''
-            strip_tags: false
-            trim: false
-            preserve_tags: ''
-            html: false
-          element_type: ''
-          element_class: ''
-          element_label_type: ''
-          element_label_class: ''
-          element_label_colon: false
-          element_wrapper_type: ''
-          element_wrapper_class: ''
-          element_default_classes: true
-          empty: ''
-          hide_empty: false
-          empty_zero: false
-          hide_alter_empty: true
-          click_sort_column: value
-          type: number_integer
-          settings:
-            thousand_separator: ''
-            prefix_suffix: true
           group_column: value
           group_columns: {  }
           group_rows: true
@@ -337,6 +340,77 @@ display:
             default_group: All
             default_group_multiple: {  }
             group_items: {  }
+        media_status:
+          id: media_status
+          table: media_field_data
+          field: status
+          relationship: reverse__media__field_document_topics
+          group_type: group
+          admin_label: ''
+          entity_type: media
+          entity_field: status
+          plugin_id: boolean
+          value: '1'
+          group: 1
+          expose:
+            operator: ''
+            operator_limit_selection: false
+            operator_list: {  }
+        media_bundle:
+          id: media_bundle
+          table: media_field_data
+          field: bundle
+          relationship: reverse__media__field_document_topics
+          group_type: group
+          admin_label: ''
+          entity_type: media
+          entity_field: bundle
+          plugin_id: bundle
+          value:
+            document: document
+          group: 1
+          expose:
+            operator_limit_selection: false
+            operator_list: {  }
+        media_document_type:
+          id: media_document_type
+          table: media__field_document_type
+          field: field_document_type_value
+          relationship: reverse__media__field_document_topics
+          group_type: group
+          admin_label: ''
+          plugin_id: list_field
+          operator: or
+          value:
+            form: form
+          group: 1
+          exposed: false
+          expose:
+            operator_id: ''
+            label: ''
+            description: ''
+            use_operator: false
+            operator: ''
+            operator_limit_selection: false
+            operator_list: {  }
+            identifier: ''
+            required: false
+            remember: false
+            multiple: false
+            remember_roles:
+              authenticated: authenticated
+          is_grouped: false
+          group_info:
+            label: ''
+            description: ''
+            identifier: ''
+            optional: true
+            widget: select
+            multiple: false
+            remember: false
+            default_group: All
+            default_group_multiple: {  }
+            group_items: {  }
       filter_groups:
         operator: AND
         groups:
@@ -362,8 +436,18 @@ display:
           distinct: true
           replica: false
           query_tags: {  }
-      relationships: {  }
-      group_by: false
+      relationships:
+        reverse__media__field_document_topics:
+          id: reverse__media__field_document_topics
+          table: taxonomy_term_field_data
+          field: reverse__media__field_document_topics
+          relationship: none
+          group_type: group
+          admin_label: 'Form Documents'
+          entity_type: taxonomy_term
+          plugin_id: entity_reverse
+          required: true
+      group_by: true
       header:
         area:
           id: area
@@ -394,8 +478,8 @@ display:
     position: 1
     display_options:
       display_description: 'Forms landing page showing categories'
-      path: forms
       display_extenders: {  }
+      path: forms
     cache_metadata:
       max-age: -1
       contexts:

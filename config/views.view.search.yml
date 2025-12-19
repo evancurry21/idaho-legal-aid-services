@@ -151,8 +151,8 @@ display:
           click_sort_column: value
           type: file_uri
           settings:
-            file_download_path: true
             link_to_file: false
+            file_download_path: true
           group_column: value
           group_columns: {  }
           group_rows: true

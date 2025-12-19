@@ -5,3 +5,5 @@ package: ILAS Custom
 core_version_requirement: ^9 || ^10 || ^11
 dependencies:
   - drupal:block
+  - drupal:media
+  - media_library_form_element:media_library_form_element

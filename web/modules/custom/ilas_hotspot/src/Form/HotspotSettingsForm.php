@@ -38,6 +38,15 @@ class HotspotSettingsForm extends ConfigFormBase {
       '#required' => TRUE,
     ];
 
+    $form['annual_report_media'] = [
+      '#type' => 'media_library',
+      '#allowed_bundles' => ['document'],
+      '#title' => $this->t('Annual Report PDF'),
+      '#description' => $this->t('Select the annual report PDF from the media library.'),
+      '#default_value' => $config->get('annual_report_media'),
+      '#cardinality' => 1,
+    ];
+
     $form['hotspot_data'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Hotspot Configuration'),
@@ -92,6 +101,7 @@ class HotspotSettingsForm extends ConfigFormBase {
 
     $config
       ->set('hotspot_image', $form_state->getValue('hotspot_image'))
+      ->set('annual_report_media', $form_state->getValue('annual_report_media'))
       ->set('hotspot_data', $hotspot_data_array)
       ->set('enable_analytics', $form_state->getValue('enable_analytics'))
       ->save();

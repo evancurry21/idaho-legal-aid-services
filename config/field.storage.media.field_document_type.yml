@@ -11,9 +11,11 @@ entity_type: media
 type: list_string
 settings:
   allowed_values:
-    - value: form
+    -
+      value: form
       label: Form
-    - value: guide
+    -
+      value: guide
       label: Guide
   allowed_values_function: ''
 module: options
