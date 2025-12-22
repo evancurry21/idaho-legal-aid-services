@@ -1,0 +1,13 @@
+{#
+/**
+ * @file
+ * Theme override for guide category cards on the landing page.
+ * Each row is a topic/category card.
+ */
+#}
+
+{% for row in rows %}
+  <article{{ row.attributes.addClass('guide-category-card') }} role="listitem">
+    {{ row.content }}
+  </article>
+{% endfor %}

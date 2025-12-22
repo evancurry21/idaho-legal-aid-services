@@ -1,0 +1,51 @@
+{#
+/**
+ * @file
+ * Theme override for the Guides by Topic view.
+ * Displays guides within a specific category.
+ */
+#}
+
+{{ attach_library('b5subtheme/guides') }}
+
+<div{{ attributes.addClass('view', 'guides-view', 'guides-by-topic') }}>
+
+  {# Curved page header with title #}
+  <section class="curved-page-header guides-curved-header">
+    <div class="container">
+      <h1 class="curved-page-header-title">{{ view.getTitle() }}</h1>
+    </div>
+  </section>
+
+  {# Guide items listing #}
+  <div class="guides-content">
+    <div class="container">
+      <div class="guides-main-content">
+        {% if rows %}
+          <div class="guides-item-list" role="list" aria-label="Guides in this category">
+            {{ rows }}
+          </div>
+        {% elseif empty %}
+          <div class="guides-empty-state">
+            {{ empty }}
+          </div>
+        {% endif %}
+
+        {# Back button at bottom left #}
+        <div class="guides-back-nav">
+          <a href="/guides" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if pager %}
+    <div class="guides-pager">
+      <div class="container">
+        {{ pager }}
+      </div>
+    </div>
+  {% endif %}
+</div>

@@ -1,0 +1,33 @@
+{#
+/**
+ * @file
+ * Theme override for guide item fields on the topic page.
+ * Formats the title nicely (removes extension, title case).
+ */
+#}
+
+{# Get the raw name and clean it up #}
+{% set raw_name = fields.name.content|render|striptags|trim %}
+
+{# Remove file extension and format as title case #}
+{% set clean_name = raw_name|replace({'.pdf': '', '.doc': '', '.docx': '', '.xls': '', '.xlsx': '', '.txt': '', '.rtf': ''}) %}
+{% set clean_name = clean_name|replace({'-': ' ', '_': ' '}) %}
+{% set clean_name = clean_name|title %}
+
+{# Title #}
+<h3 class="guide-item-title">{{ clean_name }}</h3>
+
+{# Download link #}
+{% if fields.field_media_document is defined %}
+  <div class="guide-item-download">
+    {{ fields.field_media_document.content }}
+  </div>
+{% endif %}
+
+{# Last updated #}
+{% if fields.changed is defined %}
+  <div class="guide-item-meta">
+    <span class="guide-item-label">Last updated:</span>
+    <span class="guide-item-updated">{{ fields.changed.content|render|striptags|trim }}</span>
+  </div>
+{% endif %}

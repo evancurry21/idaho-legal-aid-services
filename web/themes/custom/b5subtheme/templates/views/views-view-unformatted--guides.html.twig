@@ -1,0 +1,13 @@
+{#
+/**
+ * @file
+ * Theme override for guide item cards on the topic page.
+ * Each row is a guide.
+ */
+#}
+
+{% for row in rows %}
+  <article{{ row.attributes.addClass('guide-item-card') }} role="listitem">
+    {{ row.content }}
+  </article>
+{% endfor %}

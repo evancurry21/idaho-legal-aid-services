@@ -1,0 +1,63 @@
+{#
+/**
+ * @file
+ * Theme override for the Guides landing page view.
+ * Displays guide categories as clickable cards with curved header.
+ */
+#}
+
+{{ attach_library('b5subtheme/guides') }}
+
+<div{{ attributes.addClass('view', 'guides-view', 'guides-landing') }}>
+
+  {# Curved page header matching site style #}
+  <section class="curved-page-header guides-curved-header">
+    <div class="container">
+      <h1 class="curved-page-header-title">Guides</h1>
+    </div>
+  </section>
+
+  {# Intro text below curved header #}
+  {% if header %}
+    <div class="guides-intro-section">
+      <div class="container">
+        <div class="guides-intro">
+          {{ header }}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {# Category cards grid #}
+  <div class="guides-content">
+    <div class="container">
+      <div class="guides-main-content">
+        {% if rows %}
+          <div class="guides-category-grid" role="list" aria-label="Guide categories">
+            {{ rows }}
+          </div>
+        {% elseif empty %}
+          <div class="guides-empty-state">
+            {{ empty }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if pager %}
+    <div class="guides-pager">
+      <div class="container">
+        {{ pager }}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if footer %}
+    <div class="guides-footer">
+      <div class="container">
+        {{ footer }}
+      </div>
+    </div>
+  {% endif %}
+</div>

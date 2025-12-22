@@ -1,42 +1,42 @@
 /*---------------------------------------------------
-  FORMS PAGE
-  Landing page and topic-specific form listings
+  GUIDES PAGE
+  Landing page and topic-specific guide listings
   Now with curved header matching site style
 ---------------------------------------------------*/
 
-/*──────────── Forms CSS Custom Properties ────────────*/
+/*──────────── Guides CSS Custom Properties ────────────*/
 :root {
   // Colors
-  --forms-primary: #{$color-primary};
-  --forms-primary-dark: #{darken($color-primary, 10%)};
-  --forms-bg: #{$color-white};
-  --forms-bg-alt: #{$color-gray-bg};
-  --forms-text: #{$color-black};
-  --forms-text-muted: #{$color-gray-text};
-  --forms-border: #e9ecef;
+  --guides-primary: #{$color-primary};
+  --guides-primary-dark: #{darken($color-primary, 10%)};
+  --guides-bg: #{$color-white};
+  --guides-bg-alt: #{$color-gray-bg};
+  --guides-text: #{$color-black};
+  --guides-text-muted: #{$color-gray-text};
+  --guides-border: #e9ecef;
 
   // Spacing
-  --forms-gap: 1.5rem;
-  --forms-card-padding: 1.5rem;
+  --guides-gap: 1.5rem;
+  --guides-card-padding: 1.5rem;
 
   // Borders & Shadows
-  --forms-card-radius: #{$border-radius};
-  --forms-shadow-sm: #{$box-shadow-sm};
-  --forms-shadow-hover: #{$card-hover-shadow};
+  --guides-card-radius: #{$border-radius};
+  --guides-shadow-sm: #{$box-shadow-sm};
+  --guides-shadow-hover: #{$card-hover-shadow};
 
   // Transitions
-  --forms-transition: #{$transition-base};
+  --guides-transition: #{$transition-base};
 }
 
 
-/*──────────── 1) Forms View Container ────────────*/
-.forms-view {
+/*──────────── 1) Guides View Container ────────────*/
+.guides-view {
   padding-bottom: 3rem;
 }
 
 
 /*──────────── 2) Curved Header (matches site style) ────────────*/
-.forms-curved-header {
+.guides-curved-header {
   // Uses the existing .curved-page-header styles from _layout-components.scss
   // This class is added alongside .curved-page-header in the template
   // No additional styles needed here - inherits from base
@@ -45,12 +45,12 @@
 
 /*──────────── 3) Intro Section (below curved header) ────────────*/
 // Matches .main-content styling from _layout-components.scss
-.forms-intro-section {
+.guides-intro-section {
   position: relative;
   z-index: z('overlay');
   padding: 0;
 
-  .forms-intro {
+  .guides-intro {
     @extend %centered-container;
     position: relative;
     z-index: z('overlay');
@@ -89,7 +89,7 @@
 
 
 /*──────────── 4) Main Content Area (matches main-content style) ────────────*/
-.forms-main-content {
+.guides-main-content {
   @extend %centered-container;
   position: relative;
   z-index: z('overlay');
@@ -135,14 +135,14 @@
   }
 }
 
-.forms-content {
+.guides-content {
   padding: 2rem 0 3rem;
 }
 
 
 /*──────────── 5) Category Cards (Landing Page) ────────────*/
 // Matches .topic-card--gray styling from home page
-.forms-category-grid {
+.guides-category-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.25rem;
@@ -159,7 +159,7 @@
   }
 }
 
-.form-category-card {
+.guide-category-card {
   // Base card styling (matches @include card-base)
   @include card-base;
   width: 100%;
@@ -202,7 +202,7 @@
   }
 
   // The clickable link that fills the entire card
-  .form-category-card-link {
+  .guide-category-card-link {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -230,7 +230,7 @@
   }
 
   // Title styling - centered
-  .form-category-title {
+  .guide-category-title {
     font-size: 1.375rem;
     font-weight: 700;
     margin: 0;
@@ -241,7 +241,7 @@
   }
 
   // Description styling - centered
-  .form-category-description {
+  .guide-category-description {
     font-size: 0.95rem;
     line-height: 1.5;
     color: $color-black;
@@ -252,7 +252,7 @@
 
 
 /*──────────── 6) Topic Page Back Button ────────────*/
-.forms-back-nav {
+.guides-back-nav {
   margin-top: 2rem;
   text-align: left;
 
@@ -269,45 +269,45 @@
 
 
 
-/*──────────── 7) Form Item Cards (Topic Page) ────────────*/
-.forms-item-list {
+/*──────────── 7) Guide Item Cards (Topic Page) ────────────*/
+.guides-item-list {
   display: flex;
   flex-direction: column;
-  gap: var(--forms-gap);
+  gap: var(--guides-gap);
 }
 
-.form-item-card {
+.guide-item-card {
   background: $color-gray-bg;
   border: 3px solid $color-gray-border;
-  border-left: 6px solid var(--forms-primary);
-  border-radius: var(--forms-card-radius);
-  padding: var(--forms-card-padding);
-  box-shadow: var(--forms-shadow-sm);
-  transition: var(--forms-transition);
+  border-left: 6px solid var(--guides-primary);
+  border-radius: var(--guides-card-radius);
+  padding: var(--guides-card-padding);
+  box-shadow: var(--guides-shadow-sm);
+  transition: var(--guides-transition);
 
   &:hover,
   &:focus-within {
     background: $color-white;
-    box-shadow: var(--forms-shadow-hover);
-    border-left-color: var(--forms-primary-dark);
+    box-shadow: var(--guides-shadow-hover);
+    border-left-color: var(--guides-primary-dark);
   }
 
-  .form-item-title {
+  .guide-item-title {
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--forms-primary);
+    color: var(--guides-primary);
     margin: 0 0 0.5rem;
     line-height: 1.3;
   }
 
-  .form-item-description {
+  .guide-item-description {
     font-size: 0.95rem;
     line-height: 1.5;
-    color: var(--forms-text);
+    color: var(--guides-text);
     margin: 0 0 1rem;
   }
 
-  .form-item-download {
+  .guide-item-download {
     margin-bottom: 0.75rem;
 
     // Hide Drupal's default file icon (we use Font Awesome instead)
@@ -368,38 +368,38 @@
     }
   }
 
-  .form-item-meta {
+  .guide-item-meta {
     font-size: 0.875rem;
-    color: var(--forms-text-muted);
+    color: var(--guides-text-muted);
 
-    .form-item-label {
+    .guide-item-label {
       font-weight: 600;
-      color: var(--forms-text);
+      color: var(--guides-text);
     }
 
-    .form-item-updated {
-      color: var(--forms-text-muted);
+    .guide-item-updated {
+      color: var(--guides-text-muted);
     }
   }
 }
 
 
 /*──────────── 8) Empty State ────────────*/
-.forms-empty-state {
+.guides-empty-state {
   text-align: center;
   padding: 3rem 1rem;
 
-  .forms-empty {
+  .guides-empty {
     font-size: 1.125rem;
-    color: var(--forms-text-muted);
+    color: var(--guides-text-muted);
 
     a {
-      color: var(--forms-primary);
+      color: var(--guides-primary);
       font-weight: 600;
 
       &:hover,
       &:focus {
-        color: var(--forms-primary-dark);
+        color: var(--guides-primary-dark);
       }
     }
   }
@@ -407,7 +407,7 @@
 
 
 /*──────────── 9) Pager ────────────*/
-.forms-pager {
+.guides-pager {
   margin-top: 2rem;
 
   .pager {
@@ -428,25 +428,25 @@
         min-width: 40px;
         height: 40px;
         padding: 0.5rem 0.75rem;
-        border: 1px solid var(--forms-border);
-        border-radius: var(--forms-card-radius);
-        color: var(--forms-primary);
+        border: 1px solid var(--guides-border);
+        border-radius: var(--guides-card-radius);
+        color: var(--guides-primary);
         font-weight: 600;
         text-decoration: none;
-        transition: var(--forms-transition);
+        transition: var(--guides-transition);
 
         &:hover,
         &:focus {
-          background: var(--forms-primary);
-          color: var(--forms-bg);
-          border-color: var(--forms-primary);
+          background: var(--guides-primary);
+          color: var(--guides-bg);
+          border-color: var(--guides-primary);
         }
       }
 
       &.is-active span {
-        background: var(--forms-primary);
-        color: var(--forms-bg);
-        border-color: var(--forms-primary);
+        background: var(--guides-primary);
+        color: var(--guides-bg);
+        border-color: var(--guides-primary);
       }
 
       &.pager__item--previous,
@@ -464,20 +464,20 @@
 
 /*──────────── 10) Print Styles ────────────*/
 @media print {
-  .forms-toolbar,
-  .forms-pager,
-  .forms-back-nav,
-  .form-item-download a::before {
+  .guides-toolbar,
+  .guides-pager,
+  .guides-back-nav,
+  .guide-item-link a::before {
     display: none !important;
   }
 
-  .form-item-card {
+  .guide-item-card {
     border: 1px solid #000;
     page-break-inside: avoid;
     box-shadow: none;
   }
 
-  .form-category-card {
+  .guide-category-card {
     border: 2px solid #000;
     page-break-inside: avoid;
     box-shadow: none;

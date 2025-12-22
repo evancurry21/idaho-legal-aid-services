@@ -147,3 +147,11 @@ forms:
       css/style.css: {}
   dependencies:
     - b5subtheme/global-styling
+
+guides:
+  version: 1.0
+  css:
+    theme:
+      css/style.css: {}
+  dependencies:
+    - b5subtheme/global-styling
