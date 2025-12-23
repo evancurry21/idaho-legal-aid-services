@@ -217,15 +217,25 @@ function _b5subtheme_preprocess_home_page_hero(array &$variables, $node) {
     }
 
     $uri = $file->getFileUri();
+    $mime_type = $file->getMimeType();
 
-    // Get the styled image URL.
-    $styled_url = '';
-    if ($image_style) {
-      $styled_url = $image_style->buildUrl($uri);
+    // Get the image URL.
+    // SVGs are vector graphics and cannot be processed by image styles.
+    // Use the original file URL for SVGs, styled URL for raster images.
+    $image_url = '';
+    $is_svg = ($mime_type === 'image/svg+xml');
+
+    if ($is_svg) {
+      // SVGs: use original file URL (no image style processing).
+      $image_url = $file_url_generator->generateAbsoluteString($uri);
+    }
+    elseif ($image_style) {
+      // Raster images: use styled URL.
+      $image_url = $image_style->buildUrl($uri);
     }
     else {
       // Fallback to original file URL if style doesn't exist.
-      $styled_url = $file_url_generator->generateAbsoluteString($uri);
+      $image_url = $file_url_generator->generateAbsoluteString($uri);
     }
 
     // Get alt text from the image field.
@@ -237,10 +247,11 @@ function _b5subtheme_preprocess_home_page_hero(array &$variables, $node) {
 
     // Add to hero images array.
     $hero_images[] = [
-      'url' => $styled_url,
+      'url' => $image_url,
       'alt' => $alt,
       'width' => $width,
       'height' => $height,
+      'is_svg' => $is_svg,
     ];
   }
 
