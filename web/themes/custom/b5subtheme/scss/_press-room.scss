@@ -1,0 +1,701 @@
+// =============================================================================
+// PRESS ROOM PAGE
+// Styling for the Press Room hub page and press entry listings
+// Layout: Left-aligned with optional floating thumbnail images
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Press Room Page Overrides
+// -----------------------------------------------------------------------------
+.node--press-room {
+  // Reduce margin on main content for Press Room
+  .main-content {
+    margin-bottom: 2rem !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Press Room Listing Section
+// -----------------------------------------------------------------------------
+.press-room-listing-section {
+  padding: 1.5rem 0 3rem;
+
+  @include mobile {
+    padding: 1rem 0 2rem;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Press Room Filter Form - Remove styling from outer Views wrapper
+// -----------------------------------------------------------------------------
+.view-press-room-listing .views-exposed-form,
+.view-press-room-listing form {
+  // RESET all styling on the outer form wrapper
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 auto 1.5rem !important;
+  max-width: 500px;
+  border-radius: 0 !important;
+
+  @include mobile {
+    max-width: 100%;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Press Room Filter Form - Custom Template Version
+// -----------------------------------------------------------------------------
+.press-room-filter {
+  // Outer wrapper - NO styling, just transparent container
+  max-width: 500px;
+  margin: 0 auto;
+
+  @include mobile {
+    max-width: 100%;
+  }
+
+  // Inner container - THIS gets all the styling
+  &__inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacer-sm;
+    align-items: flex-end;
+    justify-content: center;
+    padding: $spacer;
+    background-color: $color-gray-bg;
+    border-radius: $border-radius-lg;
+    box-shadow: $box-shadow-sm;
+    border: 2px solid $color-primary;
+
+    @include mobile {
+      flex-direction: column;
+      padding: $spacer-sm;
+    }
+  }
+
+  &__select {
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+
+    .form-item {
+      margin: 0;
+    }
+
+    label {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: $color-primary;
+      margin-bottom: $spacer-sm;
+      display: block;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+
+      @include mobile {
+        font-size: 1rem;
+      }
+    }
+
+    select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      font-size: 1rem;
+      border: 2px solid $color-gray-border;
+      border-radius: $border-radius;
+      background-color: $color-white;
+      transition: $transition-fast;
+      cursor: pointer;
+
+      &:focus {
+        border-color: $color-primary;
+        box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+        outline: none;
+      }
+    }
+  }
+
+  &__actions {
+    flex-shrink: 0;
+
+    @include mobile {
+      width: 100%;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: $spacer-sm;
+      margin: 0;
+
+      @include mobile {
+        justify-content: center;
+      }
+    }
+
+    // Primary button (Filter)
+    .button,
+    input[type="submit"] {
+      display: inline-block;
+      font-family: $font-family-sans-serif;
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+      border: 2px solid $color-primary;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      border-radius: $border-radius;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      background-color: $color-primary;
+      color: $color-white;
+
+      &:hover,
+      &:focus {
+        background-color: $color-white;
+        border-color: $color-primary;
+        color: $color-primary;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Press Entry Row Styling (listing view) - LEFT ALIGNED WITH FLOATING IMAGE
+// -----------------------------------------------------------------------------
+.press-entry-row {
+  border-bottom: 2px solid $color-gray-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.press-entry {
+  padding: 1.5rem 0;
+
+  @include mobile {
+    padding: 1.25rem 0;
+  }
+
+  // Title - LEFT ALIGNED
+  &__title {
+    @include responsive-typography(1.75rem, 1.5rem, 1.35rem);
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    line-height: 1.3;
+    text-align: left;
+
+    a {
+      color: $color-primary;
+      text-decoration: none;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: darken($color-primary, 15%);
+        text-decoration: underline;
+      }
+    }
+  }
+
+  // Meta line: date + author - LEFT ALIGNED
+  &__meta {
+    font-size: 0.9375rem;
+    color: $color-gray-text;
+    margin-bottom: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    text-align: left;
+
+    @include mobile {
+      font-size: 0.875rem;
+    }
+  }
+
+  &__date {
+    font-weight: 500;
+  }
+
+  &__separator {
+    color: $color-gray-border;
+  }
+
+  &__author {
+    font-style: italic;
+  }
+
+  // Content wrapper for image + text
+  &__content {
+    overflow: hidden; // Contain floats
+  }
+
+  // Thumbnail image - floats left
+  &__image {
+    float: left;
+    width: 200px;
+    margin: 0 1.25rem 0.75rem 0;
+    border-radius: $border-radius;
+    overflow: hidden;
+
+    @include mobile {
+      float: none;
+      width: 100%;
+      max-width: 300px;
+      margin: 0 0 1rem 0;
+    }
+
+    a {
+      display: block;
+    }
+
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: $border-radius;
+      transition: transform 0.2s ease;
+    }
+
+    a:hover img {
+      transform: scale(1.02);
+    }
+  }
+
+  // Text content wrapper
+  &__text {
+    overflow: hidden; // Creates block formatting context
+  }
+
+  // Excerpt - LEFT ALIGNED
+  &__excerpt {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #495057;
+    margin-bottom: 0.75rem;
+    text-align: left;
+
+    // Use line-clamp for clean truncation with ellipsis
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    // Clean up paragraph margins from rendered body
+    p {
+      margin: 0;
+      display: inline;
+
+      &::after {
+        content: ' ';
+      }
+
+      &:last-child::after {
+        content: '';
+      }
+    }
+
+    @include mobile {
+      font-size: 0.9375rem;
+      -webkit-line-clamp: 3;
+    }
+  }
+
+  // Read More link - LEFT ALIGNED
+  &__cta {
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+    text-align: left;
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: $color-primary;
+    text-decoration: none !important;
+    border-bottom: none !important;
+    transition: all 0.2s ease;
+
+    &,
+    &:link,
+    &:visited {
+      text-decoration: none !important;
+      border-bottom: none !important;
+    }
+
+    span {
+      text-decoration: none !important;
+      border-bottom: none !important;
+    }
+
+    i {
+      font-size: 0.875rem;
+      transition: transform 0.2s ease;
+    }
+
+    &:hover,
+    &:focus {
+      color: darken($color-primary, 15%);
+
+      span {
+        text-decoration: underline !important;
+      }
+
+      i {
+        transform: translateX(3px);
+      }
+    }
+  }
+
+  // Topic line - LEFT ALIGNED
+  &__topic {
+    font-size: 0.9375rem;
+    margin-top: 0.5rem;
+    text-align: left;
+
+    @include mobile {
+      font-size: 0.875rem;
+    }
+  }
+
+  &__topic-label {
+    color: $color-gray-text;
+    font-weight: 600;
+    margin-right: 0.25rem;
+  }
+
+  // Topic link styling
+  &__topic a {
+    color: $color-primary;
+    text-decoration: none;
+    font-weight: 500;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // Clear float
+  &__clear {
+    clear: both;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Press Room Empty State
+// -----------------------------------------------------------------------------
+.press-room-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  font-size: 1.125rem;
+  color: $color-gray-text;
+  background-color: $color-gray-bg;
+  border-radius: $border-radius-lg;
+}
+
+// -----------------------------------------------------------------------------
+// Press Room Load More Button (Views Infinite Scroll)
+// -----------------------------------------------------------------------------
+.view-press-room-listing {
+  .views-infinite-scroll-content-wrapper {
+    // Wrapper for the content that gets appended to
+  }
+
+  .pager,
+  .pager--infinite-scroll {
+    margin-top: 2rem;
+    padding-top: $spacer-lg;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    .pager__items {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    .pager__item {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    // Load More button styling
+    a[rel="next"],
+    .button {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      font-family: $font-family-sans-serif;
+      font-weight: 600;
+      text-align: center;
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      border: 2px solid $color-primary;
+      padding: 0.75rem 2rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      border-radius: $border-radius;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      background-color: $color-primary;
+      color: $color-white;
+
+      &:hover,
+      &:focus {
+        background-color: $color-white;
+        border-color: $color-primary;
+        color: $color-primary;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        text-decoration: none;
+      }
+    }
+  }
+
+  // Loading indicator
+  .views-infinite-scroll-loading {
+    text-align: center;
+    padding: 1rem;
+    color: $color-gray-text;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Press Entry Node Page (full view) - LEFT ALIGNED WITH FLOATING IMAGE
+// -----------------------------------------------------------------------------
+.node--type-press-entry {
+  // Hide unwanted elements
+  .node__meta,
+  .node__submitted,
+  .author-info,
+  .field--name-uid,
+  .user-picture {
+    display: none !important;
+  }
+
+  &.node--view-mode-full {
+    // Title - LEFT ALIGNED, primary color
+    .press-entry-title {
+      @include responsive-typography(2rem, 1.75rem, 1.5rem);
+      font-weight: 700;
+      color: $color-primary;
+      margin: 0 0 0.75rem;
+      line-height: 1.3;
+      text-align: left;
+    }
+
+    // Meta info (date + author) - LEFT ALIGNED, above body
+    .press-entry-meta {
+      font-size: 1rem;
+      color: $color-gray-text;
+      margin-bottom: 1.5rem;
+      text-align: left;
+
+      .press-entry-date {
+        font-weight: 500;
+      }
+
+      .press-entry-separator {
+        margin: 0 0.5rem;
+        color: $color-gray-border;
+      }
+
+      .press-entry-author {
+        font-style: italic;
+      }
+    }
+
+    // Body wrapper - contains float
+    .press-entry-body-wrapper {
+      overflow: hidden; // Contain floats
+      margin-bottom: 1.5rem;
+    }
+
+    // Featured image - floats left
+    .press-entry-image {
+      float: left;
+      width: 300px;
+      margin: 0 1.5rem 1rem 0;
+      border-radius: $border-radius;
+      overflow: hidden;
+
+      @include tablet {
+        width: 250px;
+        margin-right: 1.25rem;
+      }
+
+      @include mobile {
+        float: none;
+        width: 100%;
+        max-width: 100%;
+        margin: 0 0 1.25rem 0;
+      }
+
+      img {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: $border-radius;
+      }
+
+      // Clean up Drupal field wrappers
+      .field,
+      .field__item {
+        margin: 0;
+        padding: 0;
+      }
+    }
+
+    // Body content
+    .press-entry-body {
+      @include responsive-typography(1.25rem, 1.125rem, 1rem);
+      line-height: 1.7;
+      color: $color-black;
+      text-align: left;
+
+      p {
+        margin-bottom: 1.25rem;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      a {
+        color: $color-primary;
+        text-decoration: underline;
+
+        &:hover {
+          text-decoration: none;
+        }
+      }
+    }
+
+    // Clear float
+    .press-entry-clear {
+      clear: both;
+    }
+
+    // Footer section with topic and back button
+    .press-entry-footer {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 2px solid $color-gray-border;
+    }
+
+    // Topic - LEFT ALIGNED
+    .press-entry-topic,
+    .field--name-field-press-topic {
+      font-size: 1rem;
+      margin-bottom: 1.5rem;
+      text-align: left;
+
+      .field__label,
+      .press-entry-topic-label {
+        display: inline;
+        font-weight: 600;
+        color: $color-gray-text;
+
+        &::after {
+          content: ':';
+          margin-right: 0.35rem;
+        }
+      }
+
+      .field__item,
+      .press-entry-topic-value {
+        display: inline;
+
+        a {
+          color: $color-primary;
+          text-decoration: none;
+          font-weight: 600;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+
+    // Back button - LEFT ALIGNED
+    .press-entry-back {
+      margin-top: 1rem;
+      text-align: left;
+
+      .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-family: $font-family-sans-serif;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 0.625rem 1.25rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        border-radius: 4px;
+        border: 2px solid $color-primary;
+        background-color: $color-primary;
+        color: $color-white;
+        transition: all 0.3s ease;
+        cursor: pointer;
+
+        i {
+          font-size: 0.875rem;
+          transition: transform 0.2s ease;
+        }
+
+        &:hover,
+        &:focus {
+          background-color: $color-white;
+          border-color: $color-primary;
+          color: $color-primary;
+          text-decoration: none;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+          i {
+            transform: translateX(-3px);
+          }
+        }
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Press Entry Page - Slim Curved Header Override
+// -----------------------------------------------------------------------------
+.page-node-type-press-entry {
+  // Make the curved header slimmer
+  .curved-page-header {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+
+    @include mobile {
+      padding-top: 2rem;
+      padding-bottom: 2rem;
+    }
+  }
+
+  // Hide the title in the curved header (we show it in content)
+  .curved-page-header-title {
+    display: none;
+  }
+}

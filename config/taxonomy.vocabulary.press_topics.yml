@@ -1,0 +1,9 @@
+uuid: f9d9fc55-961c-447d-bfbd-0135dc751211
+langcode: en
+status: true
+dependencies: {  }
+name: 'Press Topics'
+vid: press_topics
+description: 'Topics for categorizing Press Room content including news, press releases, and stories.'
+weight: 0
+new_revision: false

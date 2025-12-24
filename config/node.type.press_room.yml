@@ -1,0 +1,18 @@
+uuid: 37743d9c-866b-4934-b16b-8206ac86eb14
+langcode: en
+status: true
+dependencies:
+  module:
+    - menu_ui
+third_party_settings:
+  menu_ui:
+    available_menus:
+      - main
+    parent: 'main:'
+name: 'Press Room'
+type: press_room
+description: 'Hub page for Idaho Legal Aid Services news coverage, reports, publications, and related content. Displays a filterable listing of press entries and events.'
+help: ''
+new_revision: true
+preview_mode: 1
+display_submitted: false

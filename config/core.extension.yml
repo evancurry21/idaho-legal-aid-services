@@ -70,10 +70,10 @@ module:
   google_translator: 0
   honeypot: 0
   hreflang: 0
+  ilas_announcement_overlay: 0
   ilas_chatbot: 0
   ilas_donation_inquiry: 0
   ilas_hotspot: 0
-  ilas_announcement_overlay: 0
   ilas_redirect_automation: 0
   ilas_resources: 0
   ilas_seo: 0
@@ -164,6 +164,7 @@ module:
   twig_tweak: 0
   update: 0
   user: 0
+  views_infinite_scroll: 0
   views_ui: 0
   webform: 0
   webform_ui: 0

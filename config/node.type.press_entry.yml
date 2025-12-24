@@ -1,0 +1,31 @@
+uuid: d4aac661-6e3f-4f7d-81de-58049f3de361
+langcode: en
+status: true
+dependencies:
+  module:
+    - menu_ui
+    - scheduler
+third_party_settings:
+  scheduler:
+    expand_fieldset: when_required
+    fields_display_mode: vertical_tab
+    publish_enable: true
+    publish_past_date: error
+    publish_past_date_created: false
+    publish_required: false
+    publish_revision: true
+    publish_touch: true
+    show_message_after_update: true
+    unpublish_enable: true
+    unpublish_required: false
+    unpublish_revision: true
+  menu_ui:
+    available_menus: {  }
+    parent: ''
+name: 'Press Entry'
+type: press_entry
+description: 'Individual press entries including news articles, press releases, stories of justice, and other media content that appears in the Press Room listing.'
+help: ''
+new_revision: true
+preview_mode: 1
+display_submitted: true

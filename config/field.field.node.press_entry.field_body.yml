@@ -1,0 +1,22 @@
+uuid: 6565d492-6912-4620-953d-8ae7c5f5f268
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_body
+    - node.type.press_entry
+  module:
+    - text
+id: node.press_entry.field_body
+field_name: field_body
+entity_type: node
+bundle: press_entry
+label: Body
+description: 'The main content of this press entry.'
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  allowed_formats: {  }
+field_type: text_long

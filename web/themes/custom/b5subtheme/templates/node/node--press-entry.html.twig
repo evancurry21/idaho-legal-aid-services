@@ -1,0 +1,95 @@
+{#
+/**
+ * @file
+ * Template for Press Entry content type (full view).
+ *
+ * Displays the press entry with:
+ * - Title (left-aligned)
+ * - Date and author (left-aligned)
+ * - Featured image (floats left, text wraps)
+ * - Body content
+ * - Topic with link
+ * - Back button
+ *
+ * Available variables:
+ * - content: Rendered content fields
+ * - attributes: HTML attributes for the article element
+ * - node: The node entity
+ */
+#}
+
+{# Get field values #}
+{% set pub_date = node.field_publication_date.value ? node.field_publication_date.value|date('F j, Y') : '' %}
+{% set byline = node.field_byline.value|default('ILAS Communications') %}
+{% set topic_name = node.field_press_topic.entity ? node.field_press_topic.entity.name.value : '' %}
+{% set topic_url = node.field_press_topic.entity ? path('entity.taxonomy_term.canonical', {'taxonomy_term': node.field_press_topic.entity.id}) : '' %}
+{% set has_image = node.field_featured_image.entity is not null %}
+
+<article{{ attributes.addClass('node', 'node--type-press-entry', 'node--view-mode-full') }}>
+
+  <div class="container">
+    <div class="press-entry-content">
+      {# Title - left aligned #}
+      <h1 class="press-entry-title">{{ node.getTitle() }}</h1>
+
+      {# Date and Author - left aligned #}
+      <div class="press-entry-meta">
+        {% if pub_date %}
+          <span class="press-entry-date">{{ pub_date }}</span>
+        {% endif %}
+        {% if pub_date and byline %}
+          <span class="press-entry-separator">|</span>
+        {% endif %}
+        {% if byline %}
+          <span class="press-entry-author">{{ byline }}</span>
+        {% endif %}
+      </div>
+
+      {# Body content with optional floating image #}
+      <div class="press-entry-body-wrapper{{ has_image ? ' has-image' : '' }}">
+        {# Featured image - floats left #}
+        {% if has_image %}
+          <div class="press-entry-image">
+            {{ content.field_featured_image }}
+          </div>
+        {% endif %}
+
+        {# Body content #}
+        {% if content.field_body %}
+          <div class="press-entry-body">
+            {{ content.field_body }}
+          </div>
+        {% endif %}
+
+        {# Clear float #}
+        <div class="press-entry-clear"></div>
+      </div>
+
+      {# Footer section with topic and back button #}
+      <div class="press-entry-footer">
+        {# Topic - left aligned #}
+        {% if topic_name %}
+          <div class="press-entry-topic">
+            <span class="press-entry-topic-label">{{ 'Topic'|t }}</span>
+            <span class="press-entry-topic-value">
+              {% if topic_url %}
+                <a href="{{ topic_url }}">{{ topic_name }}</a>
+              {% else %}
+                {{ topic_name }}
+              {% endif %}
+            </span>
+          </div>
+        {% endif %}
+
+        {# Back button #}
+        <div class="press-entry-back">
+          <a href="/press-room" class="btn-back">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+            <span>{{ 'Back to Press Room'|t }}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</article>

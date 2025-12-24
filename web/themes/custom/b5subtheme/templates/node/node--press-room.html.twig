@@ -1,0 +1,33 @@
+{#
+/**
+ * @file
+ * Template for Press Room content type.
+ *
+ * Displays the main content followed by the filterable press entries listing.
+ * Uses standard page layout with curved header and footer (handled by page.html.twig).
+ *
+ * Available variables:
+ * - content: Rendered content fields
+ * - attributes: HTML attributes for the article element
+ * - node: The node entity
+ */
+#}
+
+<article{{ attributes.addClass('node', 'node--press-room') }}>
+
+  {# Main content using standard .main-content class for consistent styling #}
+  {% if content.field_main_content %}
+    <div class="main-content">
+      {{ content.field_main_content }}
+    </div>
+  {% endif %}
+
+  {# Press Room Listing Section #}
+  <section class="press-room-listing-section">
+    <div class="container">
+      {# Embed the Press Room Listing view #}
+      {{ drupal_view('press_room_listing', 'block_1') }}
+    </div>
+  </section>
+
+</article>

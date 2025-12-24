@@ -113,11 +113,13 @@
   {% if node is defined and node.getType is defined %}
     {% set custom_types = [
       'apply_for_help',
-      'donate', 
+      'donate',
       'employment_application',
       'employment',
       'office_information',
       'office_locations',
+      'press_entry',
+      'press_room',
       'resource'
     ] %}
     {% if node.getType() in custom_types %}

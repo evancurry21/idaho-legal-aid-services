@@ -62,6 +62,7 @@
         "drupal/tmgmt_google": "^1.2",
         "drupal/turnstile": "^1.1",
         "drupal/twig_tweak": "^3.4",
+        "drupal/views_infinite_scroll": "^2.0",
         "drupal/webform": "@beta",
         "drush/drush": "^13.6",
         "pantheon-systems/drupal-integrations": "^11",

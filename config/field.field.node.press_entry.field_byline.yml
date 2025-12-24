@@ -1,0 +1,19 @@
+uuid: 73edef2f-ad15-4b88-a928-9806bed36804
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_byline
+    - node.type.press_entry
+id: node.press_entry.field_byline
+field_name: field_byline
+entity_type: node
+bundle: press_entry
+label: 'Author / Byline'
+description: "Optional author name or byline to display. If left empty, the content author's display name will be used."
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

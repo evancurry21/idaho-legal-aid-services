@@ -1,0 +1,29 @@
+uuid: 7a2e8f5c-3d1b-4e9a-b8c7-2f5a9d3e1c4b
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_featured_image
+    - media.type.image
+    - node.type.press_entry
+id: node.press_entry.field_featured_image
+field_name: field_featured_image
+entity_type: node
+bundle: press_entry
+label: 'Featured Image'
+description: 'Optional thumbnail image for this press entry. Used in the Press Room listing and on the full page.'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:media'
+  handler_settings:
+    target_bundles:
+      image: image
+    sort:
+      field: _none
+      direction: ASC
+    auto_create: false
+    auto_create_bundle: ''
+field_type: entity_reference

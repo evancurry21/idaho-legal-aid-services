@@ -1,0 +1,21 @@
+uuid: 93a31699-7899-4fe4-afa3-a20da6b5e903
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+id: press_entry
+label: 'Press Entry'
+type: 'canonical_entities:node'
+pattern: '/press-room/[node:title]'
+selection_criteria:
+  press_entry_bundle:
+    id: 'entity_bundle:node'
+    negate: false
+    context_mapping:
+      node: node
+    bundles:
+      press_entry: press_entry
+selection_logic: and
+weight: -4
+relationships: {  }

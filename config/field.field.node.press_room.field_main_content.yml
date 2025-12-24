@@ -1,0 +1,22 @@
+uuid: 0480d23f-1d88-449b-9e02-763000d71e30
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_main_content
+    - node.type.press_room
+  module:
+    - text
+id: node.press_room.field_main_content
+field_name: field_main_content
+entity_type: node
+bundle: press_room
+label: 'Main Content'
+description: 'Introductory content that appears above the press entries listing.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  allowed_formats: {  }
+field_type: text_long

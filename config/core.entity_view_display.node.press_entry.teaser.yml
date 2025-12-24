@@ -1,0 +1,60 @@
+uuid: 82ac3b96-1fef-4ac5-a8a4-ba0c91f2e7f4
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_view_mode.node.teaser
+    - field.field.node.press_entry.field_body
+    - field.field.node.press_entry.field_byline
+    - field.field.node.press_entry.field_press_topic
+    - field.field.node.press_entry.field_publication_date
+    - node.type.press_entry
+  module:
+    - datetime
+    - text
+    - user
+id: node.press_entry.teaser
+targetEntityType: node
+bundle: press_entry
+mode: teaser
+content:
+  field_body:
+    type: text_trimmed
+    label: hidden
+    settings:
+      trim_length: 450
+    third_party_settings: {  }
+    weight: 2
+    region: content
+  field_byline:
+    type: string
+    label: hidden
+    settings:
+      link_to_entity: false
+    third_party_settings: {  }
+    weight: 1
+    region: content
+  field_press_topic:
+    type: entity_reference_label
+    label: inline
+    settings:
+      link: true
+    third_party_settings: {  }
+    weight: 3
+    region: content
+  field_publication_date:
+    type: datetime_default
+    label: hidden
+    settings:
+      timezone_override: ''
+      format_type: medium
+    third_party_settings: {  }
+    weight: 0
+    region: content
+hidden:
+  entity_print_view_epub: true
+  entity_print_view_pdf: true
+  entity_print_view_word_docx: true
+  langcode: true
+  links: true
+  search_api_excerpt: true

@@ -1,0 +1,28 @@
+uuid: b64923c1-7c86-42da-9a79-38aed6376ec3
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_press_topic
+    - node.type.event
+    - taxonomy.vocabulary.press_topics
+id: node.event.field_press_topic
+field_name: field_press_topic
+entity_type: node
+bundle: event
+label: 'Press Room Topic'
+description: 'Optional: Select a topic to have this event appear in the Press Room listing. Leave empty if this event should not appear in Press Room.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:taxonomy_term'
+  handler_settings:
+    target_bundles:
+      press_topics: press_topics
+    sort:
+      field: name
+      direction: asc
+    auto_create: false
+field_type: entity_reference
