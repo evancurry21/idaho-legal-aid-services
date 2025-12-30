@@ -97,3 +97,6 @@
 #/.env
 
 .ddev/traefik/
+
+# Ignore runtime logs
+logs/
