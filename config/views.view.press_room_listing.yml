@@ -32,7 +32,6 @@ display:
     position: 0
     display_options:
       title: ''
-      use_ajax: true
       fields:
         title:
           id: title
@@ -453,10 +452,10 @@ display:
       pager:
         type: infinite_scroll
         options:
-          items_per_page: 10
           offset: 0
-          id: 0
+          items_per_page: 10
           total_pages: null
+          id: 0
           views_infinite_scroll:
             button_text: 'Load More'
             automatically_load_content: false
@@ -638,6 +637,48 @@ display:
           hierarchy: false
           limit: true
           error_message: true
+        langcode:
+          id: langcode
+          table: node_field_data
+          field: langcode
+          relationship: none
+          group_type: group
+          admin_label: ''
+          entity_type: node
+          entity_field: langcode
+          plugin_id: language
+          operator: in
+          value:
+            '***LANGUAGE_language_content***': '***LANGUAGE_language_content***'
+          group: 1
+          exposed: false
+          expose:
+            operator_id: ''
+            label: ''
+            description: ''
+            use_operator: false
+            operator: ''
+            operator_limit_selection: false
+            operator_list: {  }
+            identifier: ''
+            required: false
+            remember: false
+            multiple: false
+            remember_roles:
+              authenticated: authenticated
+            reduce: false
+          is_grouped: false
+          group_info:
+            label: ''
+            description: ''
+            identifier: ''
+            optional: true
+            widget: select
+            multiple: false
+            remember: false
+            default_group: All
+            default_group_multiple: {  }
+            group_items: {  }
       filter_groups:
         operator: AND
         groups:
@@ -659,6 +700,7 @@ display:
           replica: false
           query_tags: {  }
       relationships: {  }
+      use_ajax: true
       group_by: false
       header: {  }
       footer: {  }
