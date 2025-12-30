@@ -595,3 +595,30 @@ function b5subtheme_preprocess_views_view(&$variables) {
     ];
   }
 }
+
+/**
+ * Implements hook_theme_registry_alter().
+ *
+ * Override the navigation template path to use our theme's template.
+ * This fixes the Gin toolbar not appearing on front-end pages because
+ * the @gin Twig namespace doesn't resolve when b5subtheme is active.
+ */
+function b5subtheme_theme_registry_alter(&$theme_registry) {
+  $theme_path = \Drupal::service('extension.list.theme')->getPath('b5subtheme');
+
+  // Override navigation template path if it exists in our theme.
+  if (isset($theme_registry['navigation'])) {
+    $template_path = $theme_path . '/templates/navigation';
+    if (file_exists($template_path . '/navigation.html.twig')) {
+      $theme_registry['navigation']['path'] = $template_path;
+    }
+  }
+
+  // Also override the navigation--gin suggestion.
+  if (isset($theme_registry['navigation__gin'])) {
+    $template_path = $theme_path . '/templates/navigation';
+    if (file_exists($template_path . '/navigation--gin.html.twig')) {
+      $theme_registry['navigation__gin']['path'] = $template_path;
+    }
+  }
+}
