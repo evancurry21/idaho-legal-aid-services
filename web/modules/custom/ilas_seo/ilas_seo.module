@@ -25,15 +25,14 @@ function ilas_seo_page_attachments_alter(array &$attachments) {
   $route_name = $route_match->getRouteName();
 
   // Routes that should always be noindex.
+  // Note: /forms and /guides main pages are indexed (in sitemap).
+  // Only search pages and their filtered/paginated variants get noindex.
   $noindex_routes = [
     // Search pages.
     'view.search.page_1',
     'view.site_search.page_1',
     'search.view_node_search',
     'search.view',
-    // Filtered views (category pages with arguments).
-    'view.forms.page_1',
-    'view.guides.page_1',
   ];
 
   // Check if current route is in noindex list.
@@ -95,11 +94,10 @@ function ilas_seo_metatags_alter(array &$metatags, array &$context) {
   $route_name = \Drupal::routeMatch()->getRouteName();
 
   // Same logic as above - check if we should noindex.
+  // Note: /forms and /guides main pages are indexed (in sitemap).
   $noindex_routes = [
     'view.search.page_1',
     'view.site_search.page_1',
-    'view.forms.page_1',
-    'view.guides.page_1',
   ];
 
   $should_noindex = in_array($route_name, $noindex_routes);

@@ -22,3 +22,4 @@ tags:
   schema_article_publisher: 'a:3:{s:5:"@type";s:3:"NGO";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";s:4:"logo";a:2:{s:5:"@type";s:11:"ImageObject";s:3:"url";s:57:"https://idaholegalaid.org/themes/custom/b5subtheme/logo.svg";}}'
   schema_article_main_entity_of_page: '[node:url]'
   schema_article_is_accessible_for_free: 'True'
+  schema_article_article_section: 'Press Room'
