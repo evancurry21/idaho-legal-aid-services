@@ -1,8 +1,0 @@
-name: 'ILAS CiviCRM Sync'
-type: module
-description: 'Synchronizes Drupal users and entities with CiviCRM contacts and data.'
-package: ILAS
-core_version_requirement: ^11
-dependencies:
-  - drupal:user
-  - civicrm:civicrm

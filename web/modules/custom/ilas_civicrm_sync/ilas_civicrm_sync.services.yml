@@ -1,8 +1,0 @@
-services:
-  ilas_civicrm_sync.taxonomy_sync:
-    class: Drupal\ilas_civicrm_sync\Service\TaxonomySyncService
-    arguments: ['@entity_type.manager', '@logger.factory']
-  
-  ilas_civicrm_sync.contact_sync:
-    class: Drupal\ilas_civicrm_sync\Service\ContactSyncService
-    arguments: ['@entity_type.manager', '@logger.factory', '@database']

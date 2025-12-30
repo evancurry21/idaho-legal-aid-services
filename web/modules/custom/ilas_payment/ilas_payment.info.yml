@@ -1,9 +1,0 @@
-name: 'ILAS Payment Processing'
-type: module
-description: 'Payment processing and donation management for Idaho Legal Aid Services.'
-package: ILAS
-core_version_requirement: ^11
-dependencies:
-  - drupal:system
-  - civicrm:civicrm
-  - ilas_civicrm:ilas_civicrm

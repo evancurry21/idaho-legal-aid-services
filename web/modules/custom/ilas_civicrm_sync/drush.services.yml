@@ -1,6 +1,0 @@
-services:
-  ilas_civicrm_sync.commands:
-    class: Drupal\ilas_civicrm_sync\Commands\IlasCiviCrmSyncCommands
-    arguments: ['@entity_type.manager', '@ilas_civicrm_sync.taxonomy_sync']
-    tags:
-      - { name: drush.command }
