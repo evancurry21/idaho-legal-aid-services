@@ -599,10 +599,10 @@ display:
           group_type: group
           admin_label: 'Exclude Reports/Publications'
           plugin_id: taxonomy_index_tid
-          operator: 'not'
+          operator: not
           value:
-            120: '120'
-            121: '121'
+            120: 120
+            121: 121
           group: 1
           exposed: false
           expose:
@@ -687,7 +687,7 @@ display:
                 value:
                   114: '114'
               3:
-                title: 'News'
+                title: News
                 operator: or
                 value:
                   115: '115'

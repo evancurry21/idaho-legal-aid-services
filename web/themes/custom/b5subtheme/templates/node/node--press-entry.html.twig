@@ -19,7 +19,7 @@
 #}
 
 {# Get field values #}
-{% set pub_date = node.field_publication_date.value ? node.field_publication_date.value|date('F j, Y') : '' %}
+{% set pub_date = node.field_publication_date.date ? node.field_publication_date.date|date('F j, Y') : '' %}
 {% set byline = node.field_byline.value|default('ILAS Communications') %}
 {% set topic_name = node.field_press_topic.entity ? node.field_press_topic.entity.name.value : '' %}
 {% set topic_url = node.field_press_topic.entity ? path('entity.taxonomy_term.canonical', {'taxonomy_term': node.field_press_topic.entity.id}) : '' %}

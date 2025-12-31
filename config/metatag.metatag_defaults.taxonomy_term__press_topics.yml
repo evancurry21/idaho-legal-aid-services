@@ -1,7 +1,7 @@
 uuid: c8d9e0f1-a2b3-4c5d-6e7f-8a9b0c1d2e3f
 langcode: en
 status: true
-dependencies: {}
+dependencies: {  }
 id: taxonomy_term__press_topics
 label: 'Taxonomy term: Press Topics'
 tags:

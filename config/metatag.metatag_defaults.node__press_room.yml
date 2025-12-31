@@ -1,7 +1,7 @@
 uuid: b7c8d9e0-f1a2-4b3c-5d6e-7f8a9b0c1d2e
 langcode: en
 status: true
-dependencies: {}
+dependencies: {  }
 id: node__press_room
 label: 'Content: Press Room'
 tags:

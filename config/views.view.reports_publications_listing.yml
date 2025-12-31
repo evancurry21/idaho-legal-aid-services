@@ -1,4 +1,4 @@
-uuid: null
+uuid: bcefc0d6-9d0c-46de-b3a8-164a694c5664
 langcode: en
 status: true
 dependencies:
@@ -601,8 +601,8 @@ display:
           plugin_id: taxonomy_index_tid
           operator: or
           value:
-            120: '120'
-            121: '121'
+            120: 120
+            121: 121
           group: 1
           exposed: false
           expose:
@@ -677,12 +677,12 @@ display:
             default_group_multiple: {  }
             group_items:
               1:
-                title: 'Reports'
+                title: Reports
                 operator: or
                 value:
                   120: '120'
               2:
-                title: 'Publications'
+                title: Publications
                 operator: or
                 value:
                   121: '121'

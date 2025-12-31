@@ -1,10 +1,9 @@
-uuid: null
+uuid: 5b72e2cd-5d11-42ca-b7ba-33a545bdc371
 langcode: en
 status: true
 dependencies:
   config:
     - node.type.reports_publications
-third_party_settings: {  }
 id: node.reports_publications
 target_entity_type_id: node
 target_bundle: reports_publications
