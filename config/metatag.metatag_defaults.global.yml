@@ -18,6 +18,7 @@ tags:
   twitter_cards_type: summary
   twitter_cards_site: '@IdahoLegalAid'
   schema_organization_type: NGO
+  schema_organization_additional_type: LegalService
   schema_organization_id: 'https://idaholegalaid.org/#organization'
   schema_organization_name: 'Idaho Legal Aid Services'
   schema_organization_url: 'https://idaholegalaid.org'

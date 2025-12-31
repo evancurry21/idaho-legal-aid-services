@@ -1,0 +1,27 @@
+uuid: b7c8d9e0-f1a2-4b3c-5d6e-7f8a9b0c1d2e
+langcode: en
+status: true
+dependencies: {}
+id: node__press_room
+label: 'Content: Press Room'
+tags:
+  title: '[node:title] | [site:name]'
+  description: 'News, announcements, and press releases from Idaho Legal Aid Services. Stay informed about our work providing free civil legal assistance to low-income Idahoans.'
+  canonical_url: '[current-page:url:absolute]'
+  robots: 'index, follow'
+  og_type: website
+  og_site_name: '[site:name]'
+  og_title: '[node:title]'
+  og_description: 'News, announcements, and press releases from Idaho Legal Aid Services.'
+  og_url: '[current-page:url:absolute]'
+  twitter_cards_type: summary
+  twitter_cards_title: '[node:title] | Idaho Legal Aid'
+  twitter_cards_description: 'News and press releases from Idaho Legal Aid Services.'
+  schema_web_page_type: CollectionPage
+  schema_web_page_id: '[node:url]#collection'
+  schema_web_page_name: '[node:title]'
+  schema_web_page_description: 'News, announcements, and press releases from Idaho Legal Aid Services.'
+  schema_web_page_is_part_of: 'a:2:{s:5:"@type";s:7:"WebSite";s:3:"@id";s:38:"https://idaholegalaid.org/#website";}'
+  schema_web_page_about: 'a:3:{s:5:"@type";s:12:"LegalService";s:4:"name";s:24:"Idaho Legal Aid Services";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'
+  schema_web_page_date_published: '[node:created:custom:c]'
+  schema_web_page_date_modified: '[node:changed:custom:c]'
