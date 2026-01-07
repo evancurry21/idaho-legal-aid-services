@@ -129,10 +129,11 @@
     position: absolute;
     left: 50%;
     top: 0;
-    // Compensate for scrollbar width to prevent horizontal overflow
+    // Compensate for scrollbar width and Gin toolbar offset to prevent horizontal overflow
+    // True full bleed: spans full viewport including behind admin toolbar
     width: calc(100vw - var(--scrollbar-width, 0px));
     height: 100%;
-    margin-left: calc(-50vw + var(--scrollbar-width, 0px) / 2);
+    margin-left: calc(-50vw + var(--scrollbar-width, 0px) / 2 - var(--gin-toolbar-x-offset, 0px) / 2);
     background-image: url('/themes/custom/b5subtheme/images/curved-background (2400 x 600 px).svg');
     background-repeat: no-repeat;
     background-size: cover;

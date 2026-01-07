@@ -37,11 +37,15 @@ footer {
   a:not(.btn) {
     color: $color-white;
     text-decoration: none;
-    padding: 0rem 0.5rem;
+    padding: 0.5rem 0.5rem;
+    line-height: 1.15;
     border-radius: 4px;
     transition: background-color 0.3s ease, color 0.3s ease;
     display: inline-block;
+    font-family: $font-family-sans-serif;
     font-size: 1rem;
+    font-weight: $font-weight-medium;
+    letter-spacing: 0.02em;
 
     &:hover {
       background-color: $color-white;
@@ -164,12 +168,6 @@ footer {
 
   .footer-bottom {
     margin-top: 0; /* Remove the excessive margin */
-  }
-
-  // Fighting Bootstrap .mt-5 utility - requires !important
-  // Alternative: Remove .mt-5 class from footer.html.twig
-  .col-md-4 .footer-bottom.mt-5 {
-    margin-top: 0 !important;
   }
 }
 
@@ -398,9 +396,10 @@ footer {
       gap: 0.25rem 0.5rem; /* row-gap column-gap */
 
       /* Separator styling */
-      span.text-white {
-        margin: 0 0.25rem;
+      .footer-separator {
+        margin: 0 0.5rem;
         font-size: 0.8rem;
+        color: $color-gray-border;
       }
 
       a {
@@ -413,11 +412,8 @@ footer {
       @media (max-width: 400px) {
         gap: 0.125rem 0.25rem;
 
-        // Fighting Bootstrap .mx-2 utility - requires !important
-        // Alternative: Remove .mx-2 class from footer.html.twig
-        span.text-white.mx-2 {
-          margin-left: 0.25rem !important;
-          margin-right: 0.25rem !important;
+        .footer-separator {
+          margin: 0 0.25rem;
         }
       }
     }

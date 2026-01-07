@@ -8,15 +8,10 @@
   visibility: hidden;
   transform: translateY(10px);
   transition: $transition-base;
-  
-  // Hide when admin toolbar is present
-  .toolbar-tray-open &,
-  .toolbar-fixed &,
-  .toolbar-horizontal &,
-  .toolbar-vertical & {
-    display: none !important;
-  }
-  
+
+  // NOTE: Admin toolbar hiding rules removed to allow visibility on admin pages.
+  // Font Awesome must be loaded for the icon to display (compiled into style.css via SCSS).
+
   &.show {
     opacity: 1;
     visibility: visible;

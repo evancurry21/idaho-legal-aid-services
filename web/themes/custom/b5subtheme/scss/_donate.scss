@@ -459,7 +459,7 @@
       display: flex;
       align-items: center;
       padding: 1.5rem;
-      border: 2px solid #e0e0e0;
+      border: 2px solid $color-gray-border-light;
       border-radius: 8px;
       cursor: pointer;
       transition: $transition-base;
@@ -534,7 +534,7 @@
         display: flex;
         align-items: center;
         padding: 0.75rem 1rem;
-        border: 1px solid #e0e0e0;
+        border: 1px solid $color-gray-border-light;
         border-radius: 4px;
         cursor: pointer;
         transition: $transition-base;
@@ -569,22 +569,22 @@
       .form-control {
         width: 100%;
         padding: 0.75rem;
-        border: 2px solid #e0e0e0;
+        border: 2px solid $color-gray-border-light;
         border-radius: 4px;
         font-size: 1rem;
-        
+
         &:focus {
           outline: none;
           border-color: $color-primary;
           box-shadow: $focus-ring-primary;
         }
       }
-      
+
       textarea.form-control {
         resize: vertical;
         min-height: 100px;
       }
-      
+
       .mt-3 {
         margin-top: 1rem;
       }
@@ -666,32 +666,32 @@
       .form-control {
         width: 100%;
         padding: 0.75rem;
-        border: 2px solid #e0e0e0;
+        border: 2px solid $color-gray-border-light;
         border-radius: 4px;
         font-size: 1rem;
         transition: $transition-base;
-        
+
         &:focus {
           outline: none;
           border-color: $color-primary;
           box-shadow: $focus-ring-primary;
         }
-        
+
         &:required:valid {
           border-color: $color-success;
         }
-        
+
         // Enhanced validation states
         &.is-invalid {
           border-color: $color-danger !important;
           box-shadow: 0 0 0 2px rgba($color-danger, 0.2) !important;
-          
+
           &:focus {
             border-color: $color-danger;
             box-shadow: 0 0 0 3px rgba($color-danger, 0.25);
           }
         }
-        
+
         &[aria-invalid="true"] {
           border-color: $color-danger;
         }
@@ -713,7 +713,7 @@
       
       .progress {
         height: 8px;
-        background-color: #e0e0e0;
+        background-color: $color-gray-border-light;
         border-radius: 4px;
         overflow: hidden;
         margin-bottom: 0.5rem;

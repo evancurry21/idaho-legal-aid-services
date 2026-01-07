@@ -4,17 +4,14 @@
  *
  * Uses Drupal.behaviors + once() for BigPipe/AJAX compatibility.
  *
- * CHANGELOG (v2.0 - Jitter Fix):
- * - Fixed header jitter on short pages by adding computed short-page guard
- * - Added hysteresis (shrink at 50px, expand at 20px) to prevent oscillation
- * - Added requestAnimationFrame batching for DOM writes
- * - Added reduced motion support for back-to-top smooth scroll
- *
- * Key fixes:
- * - measureHeaderDelta() uses cloned navbar (no scroll/layout impact)
- * - shouldEnableShrinking() uses stable "expanded-equivalent" maxScroll
- * - Guard formula: disable shrinking when maxScroll <= shrinkThreshold + headerDelta + 5px
- * - isShrunk syncs from DOM at start of each scroll handler to prevent desync
+ * CHANGELOG (v3.0 - Direction-Aware Jitter Fix):
+ * - Shrink only when scrolling DOWN past threshold
+ * - Expand only when scrolling UP and near top
+ * - Hysteresis gap larger than header height delta (120px shrink, 20px expand)
+ * - Cooldown matches CSS transition duration (275ms)
+ * - Short-page guard uses expanded-equivalent maxScroll to prevent flip-flop
+ * - Header delta measured via off-screen clone (no layout impact)
+ * - Initializes correct state on page load (handles scroll restoration)
  */
 
 (function (Drupal, once) {
@@ -41,40 +38,36 @@
   /**
    * Scroll behavior for navbar shrinking and back-to-top button visibility
    *
-   * Implements hysteresis and short-page detection to prevent jitter:
-   * - Different thresholds for shrink (50px) vs expand (20px)
-   * - Disabled on pages with insufficient scroll range
-   * - Optional cooldown prevents rapid state changes during momentum scroll
+   * Direction-aware with hysteresis to prevent jitter:
+   * - Shrink only when scrolling DOWN and past SHRINK_AT threshold
+   * - Expand only when scrolling UP and near top (below EXPAND_AT)
+   * - Cooldown prevents rapid toggling during CSS transition
+   * - Short-page guard uses expanded-equivalent maxScroll calculation
    */
   Drupal.behaviors.scrollBehaviors = {
     attach: function (context, settings) {
-      // Only attach scroll listener once per page (not per AJAX update)
-      once('scroll-behaviors', 'body', context).forEach(function () {
-        // Ensure scrollbar width is set (in case of AJAX content changes)
-        setScrollbarWidth();
+      // Always update CSS var on every attach (AJAX content may change scrollbar)
+      setScrollbarWidth();
 
+      // Only add listeners once (use document for reliable targeting)
+      once('scroll-behaviors', 'html', document).forEach(function () {
         var navbar = document.querySelector('.centered-logo-navbar');
         var backToTopBtn = document.querySelector('.back-to-top');
 
         // === Configuration ===
-        // Hysteresis thresholds to prevent oscillation
-        var shrinkThreshold = 50;   // Scroll down past this to shrink
-        var expandThreshold = 20;   // Scroll up past this to expand (must be < shrinkThreshold)
-        var safetyMargin = 5;       // Extra margin for computed guard
+        // Thresholds tuned to prevent oscillation
+        // Gap (120 - 20 = 100px) must be larger than header height delta (~50px)
+        var SHRINK_AT = 120;        // Scroll down past this to shrink
+        var EXPAND_AT = 20;         // Scroll up to near-top to expand
+        var SAFETY_MARGIN = 10;     // Extra margin for short-page guard
+        var EPS = 1;                // Ignore tiny fractional scroll changes
+        var COOLDOWN_MS = 275;      // Must be >= CSS transition duration
+        var BACK_TO_TOP_AT = 100;   // Show back-to-top button threshold
 
-        // Back-to-top button threshold
-        var backToTopThreshold = 100;
-
-        // Optional cooldown to prevent rapid toggling (ms)
-        // Set to 0 to disable if hysteresis alone is sufficient
-        var cooldownDuration = 50;
-        var lastToggleTime = 0;
-
-        // State tracking (synced from DOM at start of each scroll handler)
-        var isShrunk = false;
-        var rafPending = false;
-
-        // Measured header height delta (set on init)
+        // State tracking
+        var lastY = window.scrollY || window.pageYOffset || 0;
+        var ticking = false;
+        var cooldownUntil = 0;
         var headerHeightDelta = 0;
 
         if (!navbar && !backToTopBtn) {
@@ -125,98 +118,95 @@
         // Measure header delta on initialization
         headerHeightDelta = measureHeaderDelta();
 
-        // Sync isShrunk from DOM
-        isShrunk = navbar ? navbar.classList.contains('navbar-shrink') : false;
-
         /**
-         * Calculate maximum scroll position
-         * Returns the maximum scrollY value possible on the current page
+         * Calculate maximum scroll position (clamped to 0)
          */
         function getMaxScroll() {
-          var documentHeight = Math.max(
+          var docHeight = Math.max(
             document.body.scrollHeight,
-            document.body.offsetHeight,
-            document.documentElement.clientHeight,
-            document.documentElement.scrollHeight,
-            document.documentElement.offsetHeight
+            document.documentElement.scrollHeight
           );
-          var viewportHeight = window.innerHeight;
-          return Math.max(0, documentHeight - viewportHeight);
+          return Math.max(0, docHeight - window.innerHeight);
         }
 
         /**
          * Check if page has enough scroll range for shrinking behavior.
          * Uses stable "expanded-equivalent" maxScroll to prevent guard oscillation.
-         * Formula: maxScrollExpanded > shrinkThreshold + headerDelta + safetyMargin
          */
         function shouldEnableShrinking() {
+          var isShrunk = navbar ? navbar.classList.contains('navbar-shrink') : false;
           var maxScrollNow = getMaxScroll();
 
           // Estimate what maxScroll would be if we were expanded.
           // If currently shrunk, the expanded page would be taller by headerHeightDelta.
           var maxScrollExpanded = maxScrollNow + (isShrunk ? headerHeightDelta : 0);
 
-          var minRequired = shrinkThreshold + headerHeightDelta + safetyMargin;
+          // Need enough scroll room: shrink threshold + header delta + safety margin
+          var minRequired = SHRINK_AT + headerHeightDelta + SAFETY_MARGIN;
           return maxScrollExpanded > minRequired;
         }
 
         /**
-         * Handle scroll events with hysteresis and short-page protection
+         * Set navbar shrunk state with cooldown
+         */
+        function setShrunk(on) {
+          if (navbar) {
+            navbar.classList.toggle('navbar-shrink', on);
+            cooldownUntil = performance.now() + COOLDOWN_MS;
+          }
+        }
+
+        /**
+         * Handle scroll events with direction detection
          */
         function handleScroll() {
-          // Batch DOM reads/writes with requestAnimationFrame
-          if (rafPending) {
+          if (ticking) {
             return;
           }
-          rafPending = true;
+          ticking = true;
 
           requestAnimationFrame(function () {
-            rafPending = false;
+            ticking = false;
 
-            var scrolled = window.pageYOffset || document.documentElement.scrollTop;
-            var now = Date.now();
+            var now = performance.now();
+            var y = window.scrollY || window.pageYOffset || 0;
 
-            // Handle navbar shrinking with hysteresis
+            // Handle navbar shrinking
             if (navbar) {
-              // SYNC: Always read current state from DOM to prevent desync
-              // (other code, breakpoints, or admin toolbar could modify the class)
-              isShrunk = navbar.classList.contains('navbar-shrink');
-
-              // Check if page has enough scroll range (stable guard)
-              var enableShrinking = shouldEnableShrinking();
-
-              if (!enableShrinking) {
-                // Short page: always keep expanded
-                if (isShrunk) {
-                  navbar.classList.remove('navbar-shrink');
-                  isShrunk = false;
+              // Short-page guard: use expanded-equivalent calculation
+              if (!shouldEnableShrinking()) {
+                // Short page: force expanded, skip direction logic
+                if (navbar.classList.contains('navbar-shrink')) {
+                  setShrunk(false);
                 }
+                lastY = y;
+                // Still handle back-to-top below
               } else {
-                // Normal page: apply hysteresis logic
+                // Determine scroll direction
+                var dy = y - lastY;
+                var dir = dy > EPS ? 'down' : (dy < -EPS ? 'up' : 'still');
+                lastY = y;
 
-                // Check cooldown before allowing state change (skip if cooldown is 0)
-                var cooldownPassed = cooldownDuration === 0 || (now - lastToggleTime >= cooldownDuration);
+                // Skip if within cooldown period
+                if (now >= cooldownUntil) {
+                  var isShrunk = navbar.classList.contains('navbar-shrink');
 
-                if (cooldownPassed) {
-                  // Hysteresis: different thresholds for shrink vs expand
-                  if (!isShrunk && scrolled > shrinkThreshold) {
-                    // Transition to shrunk state
-                    navbar.classList.add('navbar-shrink');
-                    isShrunk = true;
-                    lastToggleTime = now;
-                  } else if (isShrunk && scrolled < expandThreshold) {
-                    // Transition to expanded state
-                    navbar.classList.remove('navbar-shrink');
-                    isShrunk = false;
-                    lastToggleTime = now;
+                  // Shrink only when moving DOWN and beyond SHRINK_AT
+                  if (!isShrunk && dir === 'down' && y >= SHRINK_AT) {
+                    setShrunk(true);
+                  }
+                  // Expand only when moving UP and very near the top
+                  else if (isShrunk && dir === 'up' && y <= EXPAND_AT) {
+                    setShrunk(false);
                   }
                 }
               }
             }
 
-            // Handle back-to-top button visibility (no hysteresis needed)
+            // Handle back-to-top button visibility (no direction check needed)
             if (backToTopBtn) {
-              if (scrolled > backToTopThreshold) {
+              var scrolled = window.scrollY || window.pageYOffset || 0;
+              if (scrolled > BACK_TO_TOP_AT) {
                 backToTopBtn.classList.add('show');
               } else {
                 backToTopBtn.classList.remove('show');
@@ -226,7 +216,7 @@
         }
 
         /**
-         * Handle resize events - recalculate if shrinking should be enabled
+         * Handle resize events
          */
         var resizeTimeout;
         function handleResize() {
@@ -238,23 +228,42 @@
             // Re-measure header delta (may change at different breakpoints)
             headerHeightDelta = measureHeaderDelta();
 
-            // Sync isShrunk from DOM
-            isShrunk = navbar ? navbar.classList.contains('navbar-shrink') : false;
-
             // Re-evaluate shrink state after resize
             // If this is now a short page, force expanded
-            if (navbar && !shouldEnableShrinking() && isShrunk) {
-              navbar.classList.remove('navbar-shrink');
-              isShrunk = false;
+            if (navbar && !shouldEnableShrinking() && navbar.classList.contains('navbar-shrink')) {
+              setShrunk(false);
             }
           }, 100);
         }
 
-        // Force expanded on short pages immediately after initialization
-        if (navbar && !shouldEnableShrinking()) {
-          navbar.classList.remove('navbar-shrink');
-          isShrunk = false;
+        /**
+         * Initialize correct state based on current scroll position.
+         * Handles page loads that are already scrolled (anchor links, scroll restoration, refresh).
+         */
+        function initializeState() {
+          if (!navbar) {
+            return;
+          }
+
+          var y = window.scrollY || window.pageYOffset || 0;
+
+          if (!shouldEnableShrinking()) {
+            // Short page: force expanded
+            navbar.classList.remove('navbar-shrink');
+          } else if (y >= SHRINK_AT) {
+            // Already scrolled past threshold: shrink immediately (no cooldown)
+            navbar.classList.add('navbar-shrink');
+          } else {
+            // Near top: ensure expanded
+            navbar.classList.remove('navbar-shrink');
+          }
+
+          // Sync lastY to current position
+          lastY = y;
         }
+
+        // Initialize state based on current scroll position
+        initializeState();
 
         // Attach scroll listener with passive option for performance
         window.addEventListener('scroll', handleScroll, { passive: true });
@@ -262,8 +271,13 @@
         // Attach resize listener for short-page recalculation
         window.addEventListener('resize', handleResize, { passive: true });
 
-        // Initial check on page load (handles scroll restoration, hash links, etc.)
-        handleScroll();
+        // Handle back-to-top initial state
+        if (backToTopBtn) {
+          var scrolled = window.scrollY || window.pageYOffset || 0;
+          if (scrolled > BACK_TO_TOP_AT) {
+            backToTopBtn.classList.add('show');
+          }
+        }
       });
     }
   };

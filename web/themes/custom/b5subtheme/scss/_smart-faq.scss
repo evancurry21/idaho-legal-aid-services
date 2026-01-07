@@ -204,7 +204,7 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
   
   // Search highlight
   mark.search-highlight {
-    background-color: rgba(#ffc107, 0.3); // Bootstrap warning color
+    background-color: rgba($color-warning, 0.3);
     color: inherit;
     padding: 0.1em 0.2em;
     border-radius: 2px;

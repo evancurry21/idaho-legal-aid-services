@@ -347,7 +347,7 @@
     .card-header {
       padding: 1rem 1.5rem; // Increased padding for more room
       background-color: $color-gray-bg; // Primary gray background
-      border-bottom: 1px solid #868e96;
+      border-bottom: 1px solid $color-gray-border;
 
       h3 {
         font-size: 1.25rem; // Slightly larger
@@ -440,7 +440,7 @@
     .card-footer {
       padding: 0.75rem; // Consistent padding
       text-align: center;
-      background-color: #f0f2f5;
+      background-color: $color-gray-bg;
       border-top: 1px solid $color-gray-border; // Match card border, or use var(--resource-border)
 
       // Back button uses standardized .back-button class from _buttons.scss
@@ -522,14 +522,14 @@
       max-width: 100%;
       page-break-inside: avoid;
       margin-top: 2rem;
-      border: 1px solid #000;
+      border: 1px solid $color-black;
     }
   }
-  
+
   // Ensure badges print well
   .badge {
-    border: 1px solid #000 !important;
-    color: #000 !important;
+    border: 1px solid $color-black !important;
+    color: $color-black !important;
     background: transparent !important;
   }
   

@@ -28,8 +28,8 @@ $transition-speed: 0.3s;
 .utility-bar {
   background-color: $color-primary;
   color: $color-white;
-  font-weight: $weight-nav;
-  letter-spacing: 1px;
+  font-weight: $font-weight-medium;
+  letter-spacing: 0.03em;
   font-family: $font-family-sans-serif;
   font-size: 1rem;
 
@@ -65,12 +65,12 @@ $transition-speed: 0.3s;
       gap: 0.25rem;
       color: $color-white;
       padding: 0.5rem 0.75rem;
-      line-height: 1;
+      line-height: 1.1;
       border-radius: 4px;
       transition: background-color $transition-speed ease, color $transition-speed ease;
       text-decoration: none;
-      font-weight: $weight-nav;
-      letter-spacing: 1px;
+      font-weight: $font-weight-medium;
+      letter-spacing: 0.03em;
       background: transparent;
       border: none;
       font-family: inherit;
@@ -151,10 +151,11 @@ $transition-speed: 0.3s;
     color: $color-black;
     white-space: nowrap;
     padding: 0.5rem 1rem;
-    font-weight: $weight-nav-dropdown;
+    font-weight: $font-weight-medium;
     text-transform: uppercase;
     font-size: 0.875rem;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.06em;
+    line-height: 1.15;
     border-radius: 4px;
     transition: background-color $transition-speed ease, color $transition-speed ease;
 
@@ -240,7 +241,7 @@ $transition-speed: 0.3s;
   @media (min-width: $large-desktop-breakpoint) and (max-width: #{$nav-expanded-breakpoint - 0.02px}) {
     .nav-link {
       font-size: 0.95rem;
-      padding: 0.4rem 0.5rem;
+      padding: 0.5rem 0.75rem;
     }
   }
 

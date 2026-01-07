@@ -137,7 +137,7 @@ form[data-drupal-selector="views-exposed-form-search-page-1"] {
 .pager {
   margin-top: 2rem;
   padding-top: $spacer-lg;
-  border-top: 1px solid #dee2e6;
+  border-top: 1px solid $nav-tabs-link-active-bg-sm;
 }
 
 // Remove all list styling from pager
@@ -239,7 +239,7 @@ ul.pager__items {
 .page-link.disabled {
   color: $color-gray-text;
   background-color: $color-gray-bg;
-  border-color: #dee2e6;
+  border-color: $nav-tabs-link-active-bg-sm;
   pointer-events: none;
   cursor: not-allowed;
 }

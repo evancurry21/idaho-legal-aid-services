@@ -86,7 +86,7 @@
 
     label {
       font-size: 1.1rem;
-      font-weight: 700;
+      font-weight: $font-weight-bold;
       color: $color-primary;
       margin-bottom: $spacer-sm;
       display: block;
@@ -139,7 +139,7 @@
     input[type="submit"] {
       display: inline-block;
       font-family: $font-family-sans-serif;
-      font-weight: 600;
+      font-weight: $font-weight-semibold;
       text-align: center;
       white-space: nowrap;
       border: 2px solid $color-primary;
@@ -185,7 +185,7 @@
   // Title - LEFT ALIGNED
   &__title {
     @include responsive-typography(1.75rem, 1.5rem, 1.35rem);
-    font-weight: 700;
+    font-weight: $font-weight-bold;
     margin: 0 0 0.5rem;
     line-height: 1.3;
     text-align: left;
@@ -220,7 +220,7 @@
   }
 
   &__date {
-    font-weight: 500;
+    font-weight: $font-weight-medium;
   }
 
   &__separator {
@@ -321,7 +321,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: $font-weight-bold;
     color: $color-primary;
     text-decoration: none !important;
     border-bottom: none !important;
@@ -371,7 +371,7 @@
 
   &__topic-label {
     color: $color-gray-text;
-    font-weight: 600;
+    font-weight: $font-weight-semibold;
     margin-right: 0.25rem;
   }
 
@@ -379,7 +379,7 @@
   &__topic a {
     color: $color-primary;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: $font-weight-medium;
 
     &:hover {
       text-decoration: underline;
@@ -441,7 +441,7 @@
       justify-content: center;
       align-items: center;
       font-family: $font-family-sans-serif;
-      font-weight: 600;
+      font-weight: $font-weight-semibold;
       text-align: center;
       text-decoration: none;
       text-transform: uppercase;
@@ -494,7 +494,7 @@
     // Title - LEFT ALIGNED, primary color
     .press-entry-title {
       @include responsive-typography(2rem, 1.75rem, 1.5rem);
-      font-weight: 700;
+      font-weight: $font-weight-bold;
       color: $color-primary;
       margin: 0 0 0.75rem;
       line-height: 1.3;
@@ -509,7 +509,7 @@
       text-align: left;
 
       .press-entry-date {
-        font-weight: 500;
+        font-weight: $font-weight-medium;
       }
 
       .press-entry-separator {
@@ -611,7 +611,7 @@
       .field__label,
       .press-entry-topic-label {
         display: inline;
-        font-weight: 600;
+        font-weight: $font-weight-semibold;
         color: $color-gray-text;
 
         &::after {
@@ -627,7 +627,7 @@
         a {
           color: $color-primary;
           text-decoration: none;
-          font-weight: 600;
+          font-weight: $font-weight-semibold;
 
           &:hover {
             text-decoration: underline;
@@ -646,7 +646,7 @@
         align-items: center;
         gap: 0.5rem;
         font-family: $font-family-sans-serif;
-        font-weight: 600;
+        font-weight: $font-weight-semibold;
         text-decoration: none;
         padding: 0.625rem 1.25rem;
         font-size: 1rem;

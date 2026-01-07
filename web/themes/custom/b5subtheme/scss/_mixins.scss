@@ -129,15 +129,18 @@ $z-layers: (
 }
 
 // Full-bleed element base
-// Uses CSS custom property to compensate for scrollbar width
-// 100vw includes scrollbar, but parent container excludes it
+// Uses CSS custom properties to compensate for:
+// - --scrollbar-width: browser scrollbar width (set by theme JS)
+// - --gin-toolbar-x-offset: Gin admin toolbar width (set by Gin, defaults to 0px)
+// This creates "true full bleed" - element spans full viewport including behind toolbar
 @mixin full-bleed-element($position: absolute, $top: 0) {
   content: '';
   position: $position;
   top: $top;
   left: 50%;
   width: calc(100vw - var(--scrollbar-width, 0px));
-  margin-left: calc(-50vw + var(--scrollbar-width, 0px) / 2);
+  // Shift left by half the toolbar offset to counteract parent's shift from Gin's body padding
+  margin-left: calc(-50vw + var(--scrollbar-width, 0px) / 2 - var(--gin-toolbar-x-offset, 0px) / 2);
 }
 
 // Standard Bootstrap breakpoint mixins using variables

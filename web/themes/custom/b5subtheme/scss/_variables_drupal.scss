@@ -22,9 +22,9 @@ $region-padding: 0 .5rem !default;
 
 $footer-padding: 2rem 0 !default;
 
-$nav-tabs-link-active-bg-sm: #dee2e6 !default;
+$nav-tabs-link-active-bg-sm: $color-gray-border-light !default;
 
 $local-tasks-primary-margin: 1rem 0 !default;
 $local-tasks-secondary-margin: 0 0 1rem 0 !default;
 
-$table-striped-bg: #f9f9f9 !default;
+$table-striped-bg: $color-gray-light !default;

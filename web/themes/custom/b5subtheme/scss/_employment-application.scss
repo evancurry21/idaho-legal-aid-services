@@ -15,9 +15,9 @@ $step-circle-size-mobile: 32px;
 $progress-height: 4px;
 $upload-area-min-height: 180px;
 $transition-speed: 0.3s;
-$success-green: #38a169;
-$error-red: #e53e3e;
-$warning-yellow: #ed8936;
+$success-green: $color-success;
+$error-red: $color-danger;
+$warning-yellow: $color-warning;
 
 // Hide page title for application pages
 .premium-application-page.hide-page-title {
@@ -1592,6 +1592,6 @@ $warning-yellow: #ed8936;
   }
   
   .step-header {
-    border-bottom: 2px solid #000;
+    border-bottom: 2px solid $color-black;
   }
 }

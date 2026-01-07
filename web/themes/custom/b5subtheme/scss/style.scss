@@ -13,12 +13,13 @@
 
 // -----------------------------------------------------------------------------
 // 2. VARIABLE OVERRIDES (must come BEFORE Bootstrap variables)
-// Order matters: tokens first, then overrides that use them
+// Order matters: tokens first, then Bootstrap overrides, then Bootswatch
+// Bootswatch uses !default so our overrides take precedence
 // -----------------------------------------------------------------------------
 @import 'variables_theme';      // Design tokens (font-weights, colors, spacing)
 @import 'variables_drupal';     // Drupal-specific (uses tokens)
-@import '~bootswatch/dist/lux/variables';
-@import 'variables_bootstrap';  // Bootstrap overrides (uses tokens)
+@import 'variables_bootstrap';  // Bootstrap overrides - BEFORE Bootswatch!
+@import '~bootswatch/dist/lux/variables';  // Bootswatch !default won't override
 
 // -----------------------------------------------------------------------------
 // 3. BOOTSTRAP VARIABLES AND MAPS
@@ -155,3 +156,6 @@
 // Utilities
 @import 'back-to-top';
 @import 'language-switcher';
+
+// Admin/Toolbar overrides (must load after Bootswatch)
+@import 'admin';

@@ -434,16 +434,16 @@
   }
 
   .guide-item-card {
-    border: 1px solid #000;
+    border: 1px solid $color-black;
     page-break-inside: avoid;
     box-shadow: none;
   }
 
   .guide-category-card {
-    border: 2px solid #000;
+    border: 2px solid $color-black;
     page-break-inside: avoid;
     box-shadow: none;
-    background: #fff;
+    background: $color-white;
   }
 
   .curved-page-header {
