@@ -71,9 +71,10 @@ $font-family-base: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
 $font-family-sans-serif: $font-family-base;
 $headings-font-family: $font-family-base;
 
-// Mobile Typography Scale (3 sizes)
+// Mobile Typography Scale
 $font-size-mobile-header: 2.25rem;     // Page titles, hero text
 $font-size-mobile-subheader: 1.7rem;   // Section headings, impact titles
+$font-size-mobile-card-title: 1.35rem; // Topic card titles
 $font-size-mobile-body: 1.1rem;        // Body text, descriptions
 
 // Content Area Typography

@@ -37,7 +37,7 @@
       flex: 0 0 auto;
       width: 100%;
       min-width: 0;
-      max-width: clamp(280px, 85vw, 340px);
+      max-width: 315px;
     }
   }
 
@@ -57,7 +57,7 @@
     @include mobile {
       border-width: 3px;
       width: 100%;
-      max-width: clamp(280px, 85vw, 340px); // Scales with viewport, better use of space on larger phones
+      max-width: 315px;
       min-height: 80px;           // Minimum for visual consistency
       height: auto;               // Allow content to dictate height
       max-height: none;           // Remove restriction to prevent text truncation
@@ -182,7 +182,7 @@
       min-height: 80px;         // Minimum for visual consistency
       height: auto;             // Allow content to dictate height
       max-height: none;         // Remove restriction to prevent text truncation
-      padding: 0.75rem;
+      padding: $spacer-sm;
     }
 
     // Focus styles for accessibility (triggered via :focus-within from anchor)
@@ -214,19 +214,35 @@
     }
 
     &__title {
-      @include responsive-typography(2.4rem, false, $font-size-mobile-subheader);
+      @include responsive-typography(2.4rem, false, $font-size-mobile-card-title);
       text-transform: uppercase;
       font-weight: $weight-title;
       margin: 0;
       transition: $transition-base;
       text-align: left;
 
-      // Title swap: show full by default, short on hover
+      @include mobile {
+        margin: 0 0 $spacer-sm 0;
+      }
+
+      // Desktop: title-full visible, title-short hidden (shows on hover)
+      // Mobile: title-mobile visible, others hidden
       .title-full {
         display: block;
+
+        @include mobile {
+          display: none;
+        }
       }
       .title-short {
         display: none;
+      }
+      .title-mobile {
+        display: none;
+
+        @include mobile {
+          display: block;
+        }
       }
     }
 
@@ -261,12 +277,13 @@
       }
 
       @include mobile {
-        // Mobile: always visible, no clamp (no hover state anyway)
+        // Mobile: always visible, clamped to 2 lines for consistent card height
         max-height: none;
         opacity: 1;
         visibility: visible;
         margin-top: 0.5rem;
-        -webkit-line-clamp: unset;
+        font-size: $font-size-mobile-body;
+        -webkit-line-clamp: 2;
         color: inherit;
 
         &::after {

@@ -42,7 +42,7 @@ main.main-content {
 // - .content-body should always be inside a .container
 // ===========================================================================
 .content-body {
-  --content-body-margin-bottom: 3rem;
+  --content-body-margin-bottom: 1rem;
 
   @extend %centered-container;
   position: relative;
@@ -128,6 +128,10 @@ main.main-content {
     h2, h3, h4, h5, h6 {
       margin: 1.5rem 0 1rem;
       font-weight: $weight-heading;
+
+      &.topic-card__title {
+        margin: 0 0 $spacer-sm 0;
+      }
     }
 
     // Link styles - exclude buttons to prevent underline inheritance

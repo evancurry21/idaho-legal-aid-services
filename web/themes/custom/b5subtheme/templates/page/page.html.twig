@@ -153,7 +153,20 @@
     {% if node and node.getTitle() %}
       <section class="curved-page-header">
         <div class="container">
-          <h1 class="curved-page-header-title">{{ node.getTitle() }}</h1>
+          {% set title_lower = node.getTitle()|lower %}
+          {% if title_lower == 'about idaho legal aid services' %}
+            <h1 class="curved-page-header-title">
+              <span class="d-none d-sm-inline">{{ node.getTitle() }}</span>
+              <span class="d-sm-none">ABOUT ILAS</span>
+            </h1>
+          {% elseif title_lower == 'employment opportunities' %}
+            <h1 class="curved-page-header-title">
+              <span class="d-none d-sm-inline">{{ node.getTitle() }}</span>
+              <span class="d-sm-none">CAREERS</span>
+            </h1>
+          {% else %}
+            <h1 class="curved-page-header-title">{{ node.getTitle() }}</h1>
+          {% endif %}
         </div>
       </section>
     {% endif %}
@@ -197,7 +210,15 @@
       {% if not skip_page_header and node and node.getTitle() %}
         <section class="curved-page-header">
           <div class="container">
-            <h1 class="curved-page-header-title">{{ node.getTitle() }}</h1>
+            {% set title_lower_custom = node.getTitle()|lower %}
+            {% if title_lower_custom == 'employment opportunities' %}
+              <h1 class="curved-page-header-title">
+                <span class="d-none d-sm-inline">{{ node.getTitle() }}</span>
+                <span class="d-sm-none">CAREERS</span>
+              </h1>
+            {% else %}
+              <h1 class="curved-page-header-title">{{ node.getTitle() }}</h1>
+            {% endif %}
           </div>
         </section>
       {% endif %}

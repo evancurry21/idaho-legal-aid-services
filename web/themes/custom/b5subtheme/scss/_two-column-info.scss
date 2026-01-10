@@ -1,7 +1,14 @@
+// Row containing two-column-info needs gutter on mobile
+.row:has(.column-border) {
+  @include mobile {
+    padding-inline: $gutter-page-x;
+  }
+}
+
 .column-border {
     border: 6px solid $color-primary;
-    z-index:20;
-    padding: 1rem 0.5rem;            // some inside spacing
+    z-index: 20;
+    padding: 1rem 0.5rem;
     margin-top: 2rem;
     background-color: $color-gray-bg;
   }

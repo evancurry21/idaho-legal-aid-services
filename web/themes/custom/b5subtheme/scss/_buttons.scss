@@ -266,12 +266,15 @@ input[type="button"] {
 }
 
 // Mobile responsive behavior
-// Buttons remain their natural size on mobile by default
-// Use .btn-block-mobile for opt-in full-width behavior
 @include mobile {
+  .btn {
+    max-width: 225px;
+  }
+
   .btn-block-mobile {
     display: block;
     width: 100%;
+    max-width: none;
   }
 }
 

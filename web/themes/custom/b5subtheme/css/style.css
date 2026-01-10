@@ -22784,9 +22784,13 @@ input[type=button]:active {
 }
 
 @media (max-width: 767.98px) {
+  .btn, .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn {
+    max-width: 225px;
+  }
   .btn-block-mobile {
     display: block;
     width: 100%;
+    max-width: none;
   }
 }
 .btn-group {
@@ -23145,7 +23149,6 @@ footer {
   /* Consistent spacing between footer columns on mobile */
   .footer-upper-wrapper .col-md-4 {
     padding-bottom: 1.5rem;
-    margin-bottom: 1.5rem;
     border-bottom: 1px solid #e9ecef;
   }
   .footer-upper-wrapper .col-md-4:last-child {
@@ -23264,7 +23267,7 @@ main.main-content {
 }
 
 .content-body {
-  --content-body-margin-bottom: 3rem;
+  --content-body-margin-bottom: 1rem;
   position: relative;
   z-index: 10;
   margin: 0 auto var(--content-body-margin-bottom) auto;
@@ -23346,6 +23349,9 @@ main.main-content {
 .standard-layout .node__content h2, .standard-layout .node__content .h2, .standard-layout .node__content h3, .standard-layout .node__content .h3, .standard-layout .node__content h4, .standard-layout .node__content .h4, .standard-layout .node__content h5, .standard-layout .node__content .h5, .standard-layout .node__content h6, .standard-layout .node__content .h6 {
   margin: 1.5rem 0 1rem;
   font-weight: 700;
+}
+.standard-layout .node__content h2.topic-card__title, .standard-layout .node__content .topic-card__title.h2, .standard-layout .node__content h3.topic-card__title, .standard-layout .node__content .topic-card__title.h3, .standard-layout .node__content h4.topic-card__title, .standard-layout .node__content .topic-card__title.h4, .standard-layout .node__content h5.topic-card__title, .standard-layout .node__content .topic-card__title.h5, .standard-layout .node__content h6.topic-card__title, .standard-layout .node__content .topic-card__title.h6 {
+  margin: 0 0 0.5rem 0;
 }
 .standard-layout .node__content a:not(.btn, .button, .form-submit, [role=button]) {
   color: #1263a0;
@@ -23924,7 +23930,7 @@ main.main-content {
     flex: 0 0 auto;
     width: 100%;
     min-width: 0;
-    max-width: clamp(280px, 85vw, 340px);
+    max-width: 315px;
   }
 }
 .field--name-field-topic-cards .topic-card, .how-we-help-section .topic-cards-row .topic-card {
@@ -23952,7 +23958,7 @@ main.main-content {
   .field--name-field-topic-cards .topic-card, .how-we-help-section .topic-cards-row .topic-card {
     border-width: 3px;
     width: 100%;
-    max-width: clamp(280px, 85vw, 340px);
+    max-width: 315px;
     min-height: 80px;
     height: auto;
     max-height: none;
@@ -24043,7 +24049,7 @@ main.main-content {
     min-height: 80px;
     height: auto;
     max-height: none;
-    padding: 0.75rem;
+    padding: 0.5rem;
   }
 }
 .field--name-field-topic-cards .topic-card:focus-within, .how-we-help-section .topic-cards-row .topic-card:focus-within {
@@ -24077,14 +24083,32 @@ main.main-content {
 }
 @media (max-width: 767.98px) {
   .field--name-field-topic-cards .topic-card__title, .how-we-help-section .topic-cards-row .topic-card__title {
-    font-size: 1.7rem;
+    font-size: 1.35rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .field--name-field-topic-cards .topic-card__title, .how-we-help-section .topic-cards-row .topic-card__title {
+    margin: 0 0 0.5rem 0;
   }
 }
 .field--name-field-topic-cards .topic-card__title .title-full, .how-we-help-section .topic-cards-row .topic-card__title .title-full {
   display: block;
 }
+@media (max-width: 767.98px) {
+  .field--name-field-topic-cards .topic-card__title .title-full, .how-we-help-section .topic-cards-row .topic-card__title .title-full {
+    display: none;
+  }
+}
 .field--name-field-topic-cards .topic-card__title .title-short, .how-we-help-section .topic-cards-row .topic-card__title .title-short {
   display: none;
+}
+.field--name-field-topic-cards .topic-card__title .title-mobile, .how-we-help-section .topic-cards-row .topic-card__title .title-mobile {
+  display: none;
+}
+@media (max-width: 767.98px) {
+  .field--name-field-topic-cards .topic-card__title .title-mobile, .how-we-help-section .topic-cards-row .topic-card__title .title-mobile {
+    display: block;
+  }
 }
 .field--name-field-topic-cards .topic-card__description, .how-we-help-section .topic-cards-row .topic-card__description {
   position: relative;
@@ -24119,7 +24143,8 @@ main.main-content {
     opacity: 1;
     visibility: visible;
     margin-top: 0.5rem;
-    -webkit-line-clamp: unset;
+    font-size: 1.1rem;
+    -webkit-line-clamp: 2;
     color: inherit;
   }
   .field--name-field-topic-cards .topic-card__description::after, .how-we-help-section .topic-cards-row .topic-card__description::after {
@@ -24857,7 +24882,7 @@ main.main-content {
 @media (max-width: 767.98px) {
   .how-we-help-section {
     min-height: 500px;
-    padding: 1rem 0;
+    padding: 3rem 0 1rem;
     justify-content: center;
   }
 }
@@ -28064,6 +28089,12 @@ body.announcement-overlay-open {
     transform: none;
   }
 }
+@media (max-width: 767.98px) {
+  .row:has(.column-border) {
+    padding-inline: 0.75rem;
+  }
+}
+
 .column-border {
   border: 6px solid #1263a0;
   z-index: 20;

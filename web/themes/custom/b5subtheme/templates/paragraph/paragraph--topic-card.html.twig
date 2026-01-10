@@ -20,7 +20,18 @@
   {% set topic_url = '/locations' %}
 {% endif %}
 
-{# Title mapping for hover state - shorter versions #}
+{# Title mapping by paragraph ID - takes precedence #}
+{% set id_title_map = {
+  '23': 'ONLINE APP',
+  '24': 'PHONE APP',
+  '25': 'IN-PERSON APP',
+  '63': 'RISK DETECTOR',
+  '153': 'BOARD',
+  '154': 'FINANCIALS',
+  '399': 'REPORTS'
+} %}
+
+{# Title mapping for hover state - shorter versions (fallback) #}
 {% set title_map = {
   'FREE LEGAL ASSISTANCE': 'LEGAL ASSISTANCE',
   'SAFE & STABLE HOUSING': 'HOUSING',
@@ -41,8 +52,9 @@
   'FINANCIALS & REPORTS': 'FINANCIALS'
 } %}
 
-{# Get short title from map, or use full title if not mapped #}
-{% set topic_title_short = title_map[topic_title_upper] ?? topic_title %}
+{# Get short title: ID map first, then title map, then full title #}
+{% set paragraph_id = paragraph.id() ~ '' %}
+{% set topic_title_short = id_title_map[paragraph_id] ?? title_map[topic_title_upper] ?? topic_title %}
 
 {# Create accessible label combining title and description #}
 {% if topic_title_upper == 'PHONE APPLICATION' %}
@@ -75,6 +87,7 @@
     <h2 class="topic-card__title" id="{{ title_id }}">
       <span class="title-full">{{ topic_title }}</span>
       <span class="title-short">{{ topic_title_short }}</span>
+      <span class="title-mobile">{{ topic_title_short }}</span>
     </h2>
     <div class="topic-card__description" id="{{ desc_id }}">
       {{- topic_description -}}
