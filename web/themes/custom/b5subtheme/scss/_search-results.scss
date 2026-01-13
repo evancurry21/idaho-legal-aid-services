@@ -86,7 +86,13 @@ form[data-drupal-selector="views-exposed-form-search-page-1"] {
     margin: 0;
     flex-shrink: 0;
 
-    @media (min-width: $tablet-breakpoint) {
+    // Mobile + tablet: center the button
+    @media (max-width: #{$desktop-breakpoint - 0.02}) {
+      display: flex;
+      justify-content: center;
+    }
+
+    @media (min-width: $desktop-breakpoint) {
       align-self: flex-end;
     }
 

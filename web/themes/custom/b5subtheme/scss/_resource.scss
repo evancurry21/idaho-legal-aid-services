@@ -229,6 +229,103 @@
 }
 
 
+/*──────────── 4b) Hybrid filter section ────────────*/
+// Outer section wrapper handles vertical spacing
+.resource-filter-section {
+  padding: $spacer 0;
+}
+
+// Inner container - centered within Bootstrap container
+.resource-filter-container {
+  text-align: center;
+}
+
+// Pills pattern
+.resource-filters--pills {
+  .nav-pills {
+    justify-content: center;
+  }
+}
+
+// Dropdown pattern wrapper
+.resource-filters--dropdown {
+  // Spacing handled by section wrapper
+}
+
+// Dropdown filter box (matches /forms and /guides style)
+.resource-filter {
+  max-width: 500px;
+  margin: 0 auto;
+
+  @include mobile {
+    max-width: 100%;
+  }
+
+  // Inner container with styling
+  &__inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacer-sm;
+    align-items: flex-end;
+    justify-content: center;
+    padding: $spacer;
+    background-color: $color-gray-bg;
+    border-radius: $border-radius-lg;
+    box-shadow: $box-shadow-sm;
+    border: 2px solid var(--resource-primary);
+
+    @include mobile {
+      flex-direction: column;
+      align-items: center;
+      padding: $spacer-sm;
+    }
+  }
+
+  &__select {
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+
+    label {
+      font-size: 1.1rem;
+      font-weight: $font-weight-bold;
+      color: var(--resource-primary);
+      margin-bottom: $spacer-sm;
+      display: block;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+
+      @include mobile {
+        font-size: 1rem;
+      }
+    }
+  }
+
+  &__dropdown {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    border: 2px solid $color-gray-border;
+    border-radius: $border-radius;
+    background-color: $color-white;
+    transition: var(--resource-transition-fast);
+    cursor: pointer;
+
+    &:focus {
+      border-color: var(--resource-primary);
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--resource-primary);
+      outline-offset: 2px;
+    }
+  }
+}
+
+
 /*──────────── 5) Accordion overrides ────────────*/
 .service-accordion {
   .accordion-header .accordion-button {

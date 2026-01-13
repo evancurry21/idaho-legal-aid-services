@@ -192,54 +192,91 @@
   max-width: $reading-column-width; // Match reading column width
   margin: 0 auto;
   padding: 0 $spacer-sm; // Add horizontal padding to prevent edge overflow
-  
-  // Mobile adjustments
-  @media (max-width: $mobile-breakpoint) {
+
+  // Mobile adjustments - use standard mobile mixin for consistency
+  @include mobile {
     gap: $spacer-xs;
     padding: 0 $spacer-xs;
   }
   
-  // Download button item - inherits from .btn and .btn-primary
+  // Download button item - matches form/guide download button styling
   &__item {
-    // Make buttons smaller width
     display: inline-flex;
-    
-    // Override only what's needed for accordion context
-    white-space: nowrap; // Allow text to wrap on small screens
-    overflow-wrap: break-word; // Break long words if needed
-    word-break: break-word; // Additional support for word breaking
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    
-    // Ensure all font properties inherit from .btn
-    font-family: inherit;
-    font-weight: inherit;
-    line-height: 1.5;
-    text-transform: uppercase; // Reset any transforms
-    
-    // For larger screens, prevent wrapping
-    @media (min-width: $tablet-breakpoint) {
+    gap: 0.5rem;
+    background: $color-primary;
+    color: $color-white;
+    border: 2px solid $color-primary;
+    padding: 0.625rem 1.25rem; // Match form/guide download buttons
+    border-radius: 4px;
+    font-weight: $weight-button;
+    font-size: 0.9375rem; // Match form/guide download buttons (15px)
+    text-decoration: none;
+    transition: $transition-base;
+    white-space: nowrap;
+
+    // Mobile + tablet: match standard .btn max-width, truncate long filenames
+    @media (max-width: #{$desktop-breakpoint - 0.02}) {
+      max-width: 225px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    &:hover,
+    &:focus {
+      background: $color-white;
+      border-color: $color-primary;
+      color: $color-primary;
+      transform: translateY(-2px);
+      box-shadow: $shadow-hover;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $color-primary;
+      outline-offset: 2px;
+    }
+
+    // Remove transform on mobile + tablet for better touch experience
+    @media (max-width: #{$desktop-breakpoint - 0.02}) {
+      &:hover,
+      &:focus,
+      &:active {
+        transform: none;
+      }
+    }
+
+    // File type indicator (default: download icon)
+    &::before {
+      font-family: "Font Awesome 6 Free";
+      font-weight: $weight-icon;
+      content: "\f019"; // Download icon
+      flex-shrink: 0; // Prevent icon from shrinking
+    }
+
+    // File type specific icons
+    &[href$=".pdf"]::before {
+      content: "\f1c1"; // PDF icon
+    }
+
+    &[href$=".doc"]::before,
+    &[href$=".docx"]::before {
+      content: "\f1c2"; // Word icon
+    }
+
+    &[href$=".xls"]::before,
+    &[href$=".xlsx"]::before {
+      content: "\f1c3"; // Excel icon
+    }
+  }
+
+  // Button text - truncate long filenames on mobile + tablet
+  &__name {
+    display: block;
+
+    @media (max-width: #{$desktop-breakpoint - 0.02}) {
+      overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
-      width: auto !important;
-    }
-    
-    // On mobile, allow buttons to take more space if needed
-    @media (max-width: $mobile-breakpoint) {
-      flex: 0 1 calc(50% - #{$spacer-xs}); // Two buttons per row on mobile
-      min-width: 120px; // Minimum reasonable button width
-    }
-    
-    // For very small screens, go full width
-    @media (max-width: 480px) {
-      flex: 0 1 100%; // One button per row on very small screens
-    }
-    
-    // Ensure button text is always visible (not just on hover)
-    .daa-downloads__name {
-      display: block;
-      // Inherit all font properties from parent button
-      font: inherit;
     }
   }
 }

@@ -71,6 +71,7 @@
 
     @include mobile {
       flex-direction: column;
+      align-items: center;
       padding: $spacer-sm;
     }
   }
@@ -120,18 +121,10 @@
   &__actions {
     flex-shrink: 0;
 
-    @include mobile {
-      width: 100%;
-    }
-
     .form-actions {
       display: flex;
       gap: $spacer-sm;
       margin: 0;
-
-      @include mobile {
-        justify-content: center;
-      }
     }
 
     // Primary button (Filter)
@@ -141,6 +134,7 @@
       font-family: $font-family-sans-serif;
       font-weight: $font-weight-semibold;
       text-align: center;
+      text-transform: uppercase;
       white-space: nowrap;
       border: 2px solid $color-primary;
       padding: 0.5rem 1rem;

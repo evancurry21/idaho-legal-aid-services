@@ -91,6 +91,7 @@
              target="_blank"
              rel="noopener noreferrer"
              download
+             title="{{ file.name }}"
              aria-label="Download {{ file.name }} ({{ (file.size / 1024 / 1024)|round(2) }} MB)">
             <span class="daa-downloads__name">{{ file.name }}</span>
             <span class="daa-downloads__size visually-hidden">{{ (file.size / 1024 / 1024)|round(2) }} MB</span>

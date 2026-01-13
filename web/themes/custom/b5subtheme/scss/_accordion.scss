@@ -42,10 +42,12 @@ body .accordion-section-title {
   color: $color-primary;
   font-weight: $weight-title;
   text-align: center;
+  margin-top: 1.5rem;
   margin-bottom: 1.5rem;
 
   @include mobile {
     font-size: 1.5rem;
+    margin-top: 1rem;
     margin-bottom: 1rem;
   }
 }
@@ -74,6 +76,11 @@ body .accordion-section-title {
       border-bottom: 4px solid $color-primary;
     }
   }
+}
+
+// Override Bootstrap's .accordion-header { margin-bottom: 0 } reset
+.accordion-section .accordion-header {
+  margin-bottom: 1rem;
 }
 
 // Remove default accordion button styles

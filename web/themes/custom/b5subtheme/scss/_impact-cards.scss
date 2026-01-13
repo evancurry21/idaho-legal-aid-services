@@ -43,6 +43,7 @@
 
   @include mobile {
     width: 100%;
+    min-width: 295px;
     max-width: clamp(280px, 85vw, 340px); // Scales with viewport, matches topic cards
     min-height: 100px;            // Minimum for visual consistency
     height: auto;                 // Allow content to dictate height

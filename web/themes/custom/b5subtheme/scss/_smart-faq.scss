@@ -119,6 +119,7 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
         font-family: $font-family-sans-serif;
         font-weight: $weight-button;
         text-align: center;
+        text-transform: uppercase;
         white-space: nowrap;
         vertical-align: middle;
         border: 2px solid $color-primary;
@@ -131,11 +132,6 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
         background-color: $color-primary;
         color: $color-white;
         min-height: 44px; // WCAG touch target
-
-        @include mobile {
-          width: 100%;
-          justify-content: center;
-        }
 
         &:hover,
         &:focus {
@@ -220,6 +216,7 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
           justify-content: center;
           font-family: $font-family-sans-serif;
           font-weight: $weight-button;
+          text-transform: uppercase;
           border: 2px solid $color-primary;
           padding: 0.625rem 1.25rem;
           font-size: 1rem;
@@ -252,11 +249,6 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
           }
 
           @include mobile {
-            margin-left: 0;
-            margin-top: $spacer-sm;
-            width: 100%;
-            justify-content: center;
-
             &:hover,
             &:focus,
             &:active {
@@ -265,18 +257,31 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
           }
         }
 
-        // Stack on mobile
+        // Stack on mobile - use grid for explicit row control
         @include mobile {
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 0;
 
           .input-group-text {
+            grid-column: 1;
+            grid-row: 1;
             border-radius: $border-radius 0 0 $border-radius;
           }
 
           .form-control {
-            flex: 1;
+            grid-column: 2;
+            grid-row: 1;
             min-width: 0;
             border-radius: 0 $border-radius $border-radius 0;
+          }
+
+          .btn {
+            grid-column: 1 / -1;
+            grid-row: 2;
+            justify-self: center;
+            width: auto;
+            margin-top: $spacer-sm;
           }
         }
       }

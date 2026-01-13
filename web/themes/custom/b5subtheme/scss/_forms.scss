@@ -117,6 +117,7 @@
 
     @include mobile {
       flex-direction: column;
+      align-items: center;
       padding: $spacer-sm;
     }
   }
@@ -161,10 +162,6 @@
 
   &__actions {
     flex-shrink: 0;
-
-    @include mobile {
-      width: 100%;
-    }
   }
 
   &__button {
@@ -172,6 +169,7 @@
     font-family: $font-family-sans-serif;
     font-weight: $font-weight-semibold;
     text-align: center;
+    text-transform: uppercase;
     white-space: nowrap;
     border: 2px solid $color-primary;
     padding: 0.5rem 1.5rem;
@@ -182,10 +180,6 @@
     cursor: pointer;
     background-color: $color-primary;
     color: $color-white;
-
-    @include mobile {
-      width: 100%;
-    }
 
     &:hover,
     &:focus {
@@ -244,7 +238,7 @@
   @include mobile {
     grid-template-columns: 1fr;
     justify-items: center;
-    padding: 0; // Container provides gutters - see CONTAINER CONTRACT in _variables_theme.scss
+    padding: 0 $gutter-page-x-roomy; // Roomy gutters for mobile cards
     gap: 1rem;
   }
 }
@@ -270,6 +264,7 @@
 
   @include mobile {
     border-width: 3px;
+    max-width: 420px; // Prevent overly wide cards on larger phones
     // Content-driven height - no truncation, allows card to grow for long titles
     height: auto;
     min-height: 80px;
@@ -439,6 +434,14 @@
       font-size: 0.9375rem;
       text-decoration: none;
       transition: $transition-base;
+
+      // Mobile + tablet: match standard .btn max-width, truncate long filenames
+      @media (max-width: #{$desktop-breakpoint - 0.02}) {
+        max-width: 225px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
 
       &:hover,
       &:focus {
