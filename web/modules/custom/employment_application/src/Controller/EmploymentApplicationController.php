@@ -85,19 +85,94 @@ class EmploymentApplicationController extends ControllerBase {
    */
   public function submitApplication(Request $request): JsonResponse {
     try {
+      $ip = $request->getClientIp();
+
+      // =================================================================
+      // RATE LIMITING (Flood Control)
+      // =================================================================
+      $flood = \Drupal::flood();
+
+      // Per-IP burst: 5/min
+      if (!$flood->isAllowed('employment_app_ip_burst', 5, 60, $ip)) {
+        \Drupal::logger('employment_application')->warning('Rate limit (burst) exceeded for IP: @ip', ['@ip' => $ip]);
+        return $this->errorResponse('Too many requests. Please wait a moment.', Response::HTTP_TOO_MANY_REQUESTS);
+      }
+
+      // Per-IP sustained: 20/hour
+      if (!$flood->isAllowed('employment_app_ip_hour', 20, 3600, $ip)) {
+        \Drupal::logger('employment_application')->warning('Rate limit (hourly) exceeded for IP: @ip', ['@ip' => $ip]);
+        return $this->errorResponse('Submission limit reached. Please try again later.', Response::HTTP_TOO_MANY_REQUESTS);
+      }
+
+      // Global burst: 30/min (protects against distributed attacks)
+      if (!$flood->isAllowed('employment_app_global', 30, 60, 'global')) {
+        \Drupal::logger('employment_application')->warning('Global rate limit exceeded');
+        return $this->errorResponse('Service temporarily busy. Please try again shortly.', Response::HTTP_TOO_MANY_REQUESTS);
+      }
+
+      // Register flood events
+      $flood->register('employment_app_ip_burst', 60, $ip);
+      $flood->register('employment_app_ip_hour', 3600, $ip);
+      $flood->register('employment_app_global', 60, 'global');
+
+      // =================================================================
+      // CONTENT-TYPE VALIDATION
+      // =================================================================
+      $contentType = $request->headers->get('Content-Type', '');
+      $isJson = strpos($contentType, 'application/json') !== false;
+      $isFormData = strpos($contentType, 'multipart/form-data') === 0;
+
+      if (!$isJson && !$isFormData) {
+        \Drupal::logger('employment_application')->warning('Invalid Content-Type from @ip: @type', [
+          '@ip' => $ip,
+          '@type' => $contentType,
+        ]);
+        return $this->errorResponse('Invalid request format.', Response::HTTP_UNSUPPORTED_MEDIA_TYPE);
+      }
+
+      // =================================================================
+      // HONEYPOT CHECK (Bot Detection)
+      // =================================================================
+      // Check honeypot field - if filled, likely a bot
+      $honeypotValue = $isFormData
+        ? $request->request->get('fax_number')
+        : null; // Will check JSON later after decoding
+
+      if (!empty($honeypotValue)) {
+        \Drupal::logger('employment_application')->notice('Honeypot triggered from @ip', ['@ip' => $ip]);
+        // Silent success - no side effects (no DB, no email)
+        return new JsonResponse([
+          'success' => TRUE,
+          'message' => 'Application submitted successfully.',
+        ]);
+      }
+
       // Log the request for debugging
-      $contentType = $request->headers->get('Content-Type');
-      \Drupal::logger('employment_application')->info('Request received - Content type: @type', [
+      \Drupal::logger('employment_application')->info('Request received from @ip - Content type: @type', [
+        '@ip' => $ip,
         '@type' => $contentType,
       ]);
 
-      // Determine if this is a file upload (FormData) or JSON submission
-      $isFileUpload = strpos($contentType, 'multipart/form-data') !== false;
-      
-      if ($isFileUpload) {
+      // =================================================================
+      // TIME-GATE CHECK (Bot Detection)
+      // =================================================================
+      // Get start time from FormData - will check JSON separately after parsing
+      if ($isFormData) {
+        $startTime = (int) $request->request->get('form_start_time', 0);
+        if ($startTime > 0 && (time() - $startTime) < 3) {
+          \Drupal::logger('employment_application')->notice('Form submitted too quickly (@sec seconds) from @ip', [
+            '@sec' => time() - $startTime,
+            '@ip' => $ip,
+          ]);
+          return $this->errorResponse('Please take a moment to review your application.', Response::HTTP_BAD_REQUEST);
+        }
+      }
+
+      // Process based on content type (use $isFormData from earlier)
+      if ($isFormData) {
         // Handle FormData submission with files
         \Drupal::logger('employment_application')->info('Processing FormData submission with files');
-        
+
         // Validate and sanitize form data
         $formData = $this->validateAndSanitizeData($request);
         if (!$formData['valid']) {
@@ -109,17 +184,17 @@ class EmploymentApplicationController extends ControllerBase {
         if (!$fileData['valid']) {
           return $this->errorResponse($fileData['errors'], Response::HTTP_BAD_REQUEST);
         }
-        
+
       } else {
         // Handle JSON submission (no files)
         \Drupal::logger('employment_application')->info('Processing JSON submission');
-        
+
         // Get JSON content from request
         $content = $request->getContent();
         \Drupal::logger('employment_application')->info('Request content length: @length', [
           '@length' => strlen($content),
         ]);
-        
+
         if (empty($content)) {
           \Drupal::logger('employment_application')->error('No content received in request');
           return $this->errorResponse('No data received.', Response::HTTP_BAD_REQUEST);
@@ -131,6 +206,29 @@ class EmploymentApplicationController extends ControllerBase {
             '@error' => json_last_error_msg(),
           ]);
           return $this->errorResponse('Invalid JSON data: ' . json_last_error_msg(), Response::HTTP_BAD_REQUEST);
+        }
+
+        // =================================================================
+        // HONEYPOT CHECK FOR JSON (Bot Detection)
+        // =================================================================
+        if (!empty($jsonData['fax_number'])) {
+          \Drupal::logger('employment_application')->notice('Honeypot (JSON) triggered from @ip', ['@ip' => $ip]);
+          return new JsonResponse([
+            'success' => TRUE,
+            'message' => 'Application submitted successfully.',
+          ]);
+        }
+
+        // =================================================================
+        // TIME-GATE CHECK FOR JSON
+        // =================================================================
+        $startTime = (int) ($jsonData['form_start_time'] ?? 0);
+        if ($startTime > 0 && (time() - $startTime) < 3) {
+          \Drupal::logger('employment_application')->notice('Form (JSON) submitted too quickly (@sec seconds) from @ip', [
+            '@sec' => time() - $startTime,
+            '@ip' => $ip,
+          ]);
+          return $this->errorResponse('Please take a moment to review your application.', Response::HTTP_BAD_REQUEST);
         }
 
         \Drupal::logger('employment_application')->info('JSON data parsed successfully, keys: @keys', [
@@ -1059,9 +1157,21 @@ class EmploymentApplicationController extends ControllerBase {
    */
   private function sendNotifications(array $data, array $files, string $applicationId, string $pdfContent = ''): void {
     try {
-      $config = \Drupal::config('system.site');
-      $siteName = $config->get('name') ?: 'Idaho Legal Aid Services';
-      $adminEmailAddress = 'evancurry@idaholegalaid.org';
+      $siteConfig = \Drupal::config('system.site');
+      $appConfig = \Drupal::config('employment_application.settings');
+
+      $siteName = $siteConfig->get('name') ?: 'Idaho Legal Aid Services';
+
+      // Get admin email from module config, fallback to site mail
+      $adminEmailAddress = $appConfig->get('admin_email')
+        ?: $siteConfig->get('mail')
+        ?: 'admin@idaholegalaid.org';
+
+      // Check if notifications are enabled
+      if ($appConfig->get('notification_enabled') === FALSE) {
+        \Drupal::logger('employment_application')->info('Email notifications disabled by config');
+        return;
+      }
       
       // Create admin email with PDF attachment
       $adminEmail = (new Email())
@@ -1302,8 +1412,10 @@ class EmploymentApplicationController extends ControllerBase {
       if (!empty($fileData)) {
         foreach ($fileData as $fieldName => $fieldFiles) {
           foreach ($fieldFiles as $file) {
-            $downloadUrl = '/admin/employment-applications/download/' . $file['fid'];
-            $filesList .= '<a href="' . $downloadUrl . '">' . $file['filename'] . '</a><br>';
+            // URL-encode the application_id since it may contain special characters
+            $encodedAppId = rawurlencode($app->application_id);
+            $downloadUrl = '/admin/employment-applications/' . $encodedAppId . '/download/' . $file['fid'];
+            $filesList .= '<a href="' . $downloadUrl . '">' . htmlspecialchars($file['filename']) . '</a><br>';
           }
         }
       }
@@ -1331,20 +1443,74 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Download uploaded file.
+   *
+   * @param string $application_id
+   *   The application ID the file belongs to.
+   * @param int $fid
+   *   The file ID to download.
+   *
+   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
+   *   The file download response.
    */
-  public function downloadFile(int $fid): BinaryFileResponse {
+  public function downloadFile(string $application_id, int $fid): BinaryFileResponse {
+    // Load application record to verify file ownership
+    $application = \Drupal::database()->select('employment_applications', 'ea')
+      ->fields('ea', ['file_data'])
+      ->condition('application_id', $application_id)
+      ->execute()
+      ->fetchObject();
+
+    if (!$application) {
+      throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('Application not found.');
+    }
+
+    // Verify fid belongs to this application - short-circuit on match
+    $fileData = json_decode($application->file_data, TRUE);
+    $fidBelongsToApplication = FALSE;
+
+    if (is_array($fileData)) {
+      foreach ($fileData as $fieldFiles) {
+        if (!is_array($fieldFiles)) {
+          continue;
+        }
+        foreach ($fieldFiles as $file) {
+          if (isset($file['fid']) && (int) $file['fid'] === $fid) {
+            $fidBelongsToApplication = TRUE;
+            break 2; // Short-circuit
+          }
+        }
+      }
+    }
+
+    if (!$fidBelongsToApplication) {
+      \Drupal::logger('employment_application')->warning('IDOR attempt: fid @fid not in application @app', [
+        '@fid' => $fid,
+        '@app' => $application_id,
+      ]);
+      throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('File does not belong to this application.');
+    }
+
+    // Load file entity
     $file = File::load($fid);
-    
     if (!$file) {
       throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('File not found.');
     }
-    
-    $filepath = \Drupal::service('file_system')->realpath($file->getFileUri());
-    
-    if (!file_exists($filepath)) {
+
+    // Verify file is in private scheme (defense in depth)
+    $uri = $file->getFileUri();
+    if (strpos($uri, 'private://') !== 0) {
+      \Drupal::logger('employment_application')->warning('File @fid not in private scheme: @uri', [
+        '@fid' => $fid,
+        '@uri' => $uri,
+      ]);
+      throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('Invalid file location.');
+    }
+
+    $filepath = \Drupal::service('file_system')->realpath($uri);
+    if (!$filepath || !file_exists($filepath)) {
       throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('Physical file not found.');
     }
-    
+
     return new BinaryFileResponse(
       $filepath,
       200,

@@ -19,82 +19,6 @@ $success-green: $color-success;
 $error-red: $color-danger;
 $warning-yellow: $color-warning;
 
-// Hide page title for application pages
-.premium-application-page.hide-page-title {
-  .page-title {
-    display: none;
-  }
-}
-
-// Application Header - matching curved header style without the curve
-.application-header {
-  background-color: $color-gray-bg;
-  color: $color-primary;
-  padding: 3rem 1rem;
-  position: relative;
-  
-  @include mobile {
-    padding: 2rem 1rem;
-  }
-  
-  .application-header-content {
-    position: relative;
-    z-index: 1;
-    text-align: center;
-    max-width: 700px;
-    margin: 0 auto;
-  }
-  
-  .application-title {
-    font-size: 2.5rem;
-    font-weight: $weight-title;
-    margin-bottom: 0.5rem;
-    color: $color-primary;
-    
-    @include tablet {
-      font-size: 2.25rem;
-    }
-    
-    @include mobile {
-      font-size: $font-size-mobile-subheader;
-    }
-  }
-  
-  .application-subtitle {
-    font-size: 1.1rem;
-    margin-bottom: 1.25rem;
-    color: $color-gray-border;
-    
-    @include mobile {
-      font-size: 1rem;
-    }
-  }
-  
-  .application-meta {
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    font-size: 0.9rem;
-    color: $color-primary;
-    
-    @include mobile {
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-    
-    span {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      
-      i {
-        font-size: 1rem;
-        color: $color-primary;
-      }
-    }
-  }
-}
-
 // Wizard Container
 .application-wizard {
   padding: 2rem 0;
@@ -317,11 +241,12 @@ $warning-yellow: $color-warning;
   padding: 2.5rem 2.5rem 1.5rem;
   border-bottom: 1px solid $color-gray-bg;
   background-color: $color-gray-bg;
-  
+  text-align: center;
+
   @include mobile {
     padding: 1.5rem 1.5rem 1rem;
   }
-  
+
   h2 {
     color: $color-primary;
     font-size: 2rem;
@@ -332,12 +257,12 @@ $warning-yellow: $color-warning;
       font-size: $font-size-mobile-subheader;
     }
   }
-  
+
   p {
     color: $color-gray-border;
     font-size: 1.1rem;
     margin: 0;
-    
+
     @include mobile {
       font-size: $font-size-mobile-body;
     }
@@ -457,10 +382,10 @@ $warning-yellow: $color-warning;
 .form-label {
   display: block;
   font-weight: $weight-label;
-  color: $color-gray-border;
+  color: $color-body;
   margin-bottom: 0.5rem;
   font-size: 0.95rem;
-  
+
   &.required::after {
     content: ' *';
     color: $error-red;
@@ -669,7 +594,7 @@ $warning-yellow: $color-warning;
 .upload-label {
   display: block;
   font-weight: $weight-label;
-  color: $color-gray-border;
+  color: $color-body;
   margin-bottom: 0.75rem;
   font-size: 1rem;
 }

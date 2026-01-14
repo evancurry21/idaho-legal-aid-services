@@ -184,6 +184,18 @@ body .accordion-section-title {
   ul, ol {
     margin: 1rem 0;
     padding-left: 2rem;
+
+    // When list items contain centered content, center the whole list
+    &:has(.text-align-center) {
+      list-style-position: inside;
+      padding-left: 0;
+      text-align: center;
+
+      // Make the <p> inline so it stays on same line as bullet
+      li p {
+        display: inline;
+      }
+    }
   }
 }
 

@@ -121,11 +121,20 @@
       }
       
       function renderSuccess(message) {
+        // Hide the content-body section above the form
+        const $container = $form.closest('.donation-inquiry-form').prev('.container');
+        if ($container.length) {
+          $container.find('.content-body').hide();
+        }
+
+        // Replace form with success message styled like content-body
         $form.replaceWith(`
-          <div class="alert alert-success submission-alert" role="alert">
-            <h3>Thank you for contacting us!</h3>
-            <p>${message || 'We have received your inquiry and will respond soon.'}</p>
-            <p>For immediate assistance, email <a href="mailto:development@idaholegalaid.org">development@idaholegalaid.org</a> or call <a href="tel:+12088072214">(208) 807-2214</a>.</p>
+          <div class="submission-success-wrapper">
+            <div class="alert alert-success submission-alert" role="alert">
+              <h3>Thank you for contacting us!</h3>
+              <p>${message || 'We have received your inquiry and will respond soon.'}</p>
+              <p>For immediate assistance, email <a href="mailto:development@idaholegalaid.org">development@idaholegalaid.org</a> or call <a href="tel:+12088072214">(208) 807-2214</a>.</p>
+            </div>
           </div>
         `);
       }
@@ -194,19 +203,21 @@
       });
       
       // Handle form submission
-      $form.on('submit', function(e) {
+      // Uses async/await to fetch a fresh CSRF token immediately before submit.
+      // This ensures the token is always session-valid regardless of page caching.
+      $form.on('submit', async function(e) {
         e.preventDefault();
-        
+
         if (!validateContactForm(form)) {
           return;
         }
-        
+
         const honeypotField = $form.find('input[name="website_url"]');
         if (honeypotField.length && honeypotField.val()) {
           console.warn('Donation inquiry honeypot triggered');
           return;
         }
-        
+
         let recaptchaResponse = '';
         if (typeof grecaptcha !== 'undefined' && $form.find('.g-recaptcha').length) {
           recaptchaResponse = grecaptcha.getResponse();
@@ -215,52 +226,68 @@
             return;
           }
         }
-        
-        const payload = buildPayload();
-        payload.csrf_token = $form.find('input[name="csrf_token"]').val();
-        payload.source_url = $form.find('input[name="source_url"]').val() || window.location.href;
-        payload.website_url = honeypotField.length ? honeypotField.val() : '';
-        payload.recaptcha_token = recaptchaResponse;
-        
+
         const submitBtn = $form.find('button[type="submit"]');
         const originalText = submitBtn.text();
         submitBtn.prop('disabled', true).text('Submitting...');
         showSubmissionMessage('info', 'Submitting your request...');
-        
-        fetch(submissionEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          credentials: 'same-origin',
-          body: JSON.stringify(payload)
-        })
-          .then(response => response.json().catch(() => ({})).then(body => ({ ok: response.ok, body })))
-          .then(({ ok, body }) => {
-            if (ok && body.status === 'success') {
-              renderSuccess(body.message);
-              return;
-            }
-            
-            const errorMessages = [];
-            if (body && body.errors) {
-              highlightBackendErrors(body.errors);
-              Object.values(body.errors).forEach(msg => errorMessages.push(msg));
-            }
-            const message = body && body.message ? body.message : 'We could not send your request. Please try again.';
-            showSubmissionMessage('danger', message, errorMessages);
-          })
-          .catch((error) => {
-            console.error('Donation inquiry submission failed', error);
-            showSubmissionMessage('danger', 'We were unable to submit your request. Please check your connection and try again.');
-          })
-          .finally(() => {
-            submitBtn.prop('disabled', false).text(originalText);
-            if (typeof grecaptcha !== 'undefined' && $form.find('.g-recaptcha').length) {
-              grecaptcha.reset();
-            }
+
+        try {
+          // Fetch a fresh CSRF token immediately before submission.
+          // This bypasses any page caching issues (Drupal, Varnish, CDN).
+          const tokenResponse = await fetch('/donation-inquiry/token', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
           });
+
+          if (!tokenResponse.ok) {
+            throw new Error('Could not verify session. Please refresh the page.');
+          }
+
+          const tokenData = await tokenResponse.json();
+
+          const payload = buildPayload();
+          // Use the fresh token from the server, falling back to embedded token.
+          payload.csrf_token = tokenData.token || $form.find('input[name="csrf_token"]').val();
+          payload.source_url = $form.find('input[name="source_url"]').val() || window.location.href;
+          payload.website_url = honeypotField.length ? honeypotField.val() : '';
+          payload.recaptcha_token = recaptchaResponse;
+
+          const response = await fetch(submissionEndpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
+          });
+
+          const body = await response.json().catch(() => ({}));
+
+          if (response.ok && body.status === 'success') {
+            renderSuccess(body.message);
+            return;
+          }
+
+          const errorMessages = [];
+          if (body && body.errors) {
+            highlightBackendErrors(body.errors);
+            Object.values(body.errors).forEach(msg => errorMessages.push(msg));
+          }
+          const message = body && body.message ? body.message : 'We could not send your request. Please try again.';
+          showSubmissionMessage('danger', message, errorMessages);
+
+        } catch (error) {
+          console.error('Donation inquiry submission failed', error);
+          showSubmissionMessage('danger', 'We were unable to submit your request. Please check your connection and try again.');
+        } finally {
+          submitBtn.prop('disabled', false).text(originalText);
+          if (typeof grecaptcha !== 'undefined' && $form.find('.g-recaptcha').length) {
+            grecaptcha.reset();
+          }
+        }
       });
       
       // Validate step 2 - ensure at least one checkbox is selected in visible sections

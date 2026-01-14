@@ -201,6 +201,34 @@ class DonationInquiryController extends ControllerBase {
   }
 
   /**
+   * Returns a fresh CSRF token for the donation inquiry form.
+   *
+   * This endpoint allows the client to fetch a session-specific token
+   * immediately before form submission, ensuring the token is always
+   * valid regardless of page caching (Drupal, Varnish, CDN).
+   */
+  public function getToken(Request $request): JsonResponse {
+    // Force the session to start and persist.
+    // Drupal uses lazy sessions - without this, anonymous users in incognito
+    // may not get a session cookie, causing CSRF validation to fail.
+    $session = $request->getSession();
+    if (!$session->isStarted()) {
+      $session->start();
+    }
+    // Write a marker to ensure the session is saved (not just started).
+    // Empty sessions may not persist in some configurations.
+    $session->set('donation_inquiry_token_issued', time());
+
+    $response = new JsonResponse([
+      'token' => $this->donationCsrfToken->get('donation_inquiry_form'),
+    ]);
+    // Ensure this endpoint is never cached at any layer.
+    $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    $response->headers->set('Pragma', 'no-cache');
+    return $response;
+  }
+
+  /**
    * Extracts JSON or form payload from the request.
    */
   protected function extractPayload(Request $request): array {

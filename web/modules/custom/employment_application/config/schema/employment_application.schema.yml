@@ -1,0 +1,10 @@
+employment_application.settings:
+  type: config_object
+  label: 'Employment Application settings'
+  mapping:
+    admin_email:
+      type: email
+      label: 'Admin notification email'
+    notification_enabled:
+      type: boolean
+      label: 'Enable email notifications'

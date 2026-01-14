@@ -9,29 +9,12 @@
 
 {{ attach_library('b5subtheme/premium-application') }}
 
-<article{{ attributes.addClass('node', 'node--type-' ~ node.bundle|clean_class, 'premium-application-page', 'hide-page-title') }}>
+<article{{ attributes.addClass('node', 'node--type-' ~ node.bundle|clean_class, 'premium-application-page') }}>
 
   <div{{ content_attributes.addClass('node__content') }}>
-    
+
     {# Skip Link for Accessibility #}
     <a href="#application-form" class="visually-hidden-focusable">Skip to application form</a>
-    
-    {# Application Header #}
-    <header class="application-header" role="banner">
-      <div class="application-header-content">
-        <h1 class="application-title">Join Our Mission</h1>
-        <div class="application-meta">
-          <span class="completion-time">
-            <i class="fas fa-clock" aria-hidden="true"></i> 
-            <span class="visually-hidden">Estimated time:</span> Takes 3-5 Minutes
-          </span>
-          <span class="auto-save-notice">
-            <i class="fas fa-save" aria-hidden="true"></i> 
-            <span class="visually-hidden">Feature:</span> Progress Automatically Saved
-          </span>
-        </div>
-      </div>
-    </header>
 
     {# Application Form - Proper Drupal Integration #}
     <form id="application-form" 
@@ -48,7 +31,16 @@
       <input type="hidden" name="form_id" value="webform_submission_employment_application_form">
       <input type="hidden" name="form_build_id" id="form-build-id" value="">
       <input type="hidden" name="op" value="Submit">
-      
+
+      {# Time-gate: form render timestamp for bot detection #}
+      <input type="hidden" name="form_start_time" id="form-start-time" value="{{ "now"|date("U") }}">
+
+      {# Honeypot: hidden field that bots will fill, humans won't see #}
+      <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
+        <label for="fax_number">Fax Number</label>
+        <input type="text" name="fax_number" id="fax_number" tabindex="-1" autocomplete="off" value="">
+      </div>
+
       <div class="container">
         
         {# Progress Indicator #}

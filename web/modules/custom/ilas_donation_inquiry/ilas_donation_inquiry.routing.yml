@@ -6,3 +6,12 @@ ilas_donation_inquiry.submit:
   requirements:
     _access: 'TRUE'
   methods: [POST]
+
+ilas_donation_inquiry.token:
+  path: '/donation-inquiry/token'
+  defaults:
+    _controller: '\Drupal\ilas_donation_inquiry\Controller\DonationInquiryController::getToken'
+    _title: 'Donation Inquiry CSRF Token'
+  requirements:
+    _access: 'TRUE'
+  methods: [GET]

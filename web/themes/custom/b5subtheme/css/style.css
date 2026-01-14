@@ -26014,6 +26014,57 @@ main.main-content {
   display: flex;
   justify-content: center;
 }
+.node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper {
+  max-width: 75ch;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 1.5rem;
+  line-height: 1.6;
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper {
+    font-size: 1.4rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper {
+    font-size: 1.1rem;
+  }
+}
+.node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success {
+  background: transparent;
+  border: none;
+  padding: 2rem 0;
+}
+.node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success::before {
+  display: none;
+}
+.node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success h3, .node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success .h3 {
+  color: #1263a0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 767.98px) {
+  .node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success h3, .node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success .h3 {
+    font-size: 1.7rem;
+  }
+}
+.node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success p {
+  color: #000000;
+  font-size: inherit;
+  margin-bottom: 1rem;
+}
+.node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success p:last-child {
+  margin-bottom: 0;
+}
+.node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success a {
+  color: #1263a0;
+  text-decoration: underline;
+}
+.node--type-donate.donate-page .donation-inquiry-form .submission-success-wrapper .alert-success a:hover {
+  text-decoration: none;
+}
 .node--type-donate.donate-page .donation-inquiry-form .alert {
   padding: 1rem 1.5rem;
   margin-bottom: 1.5rem;
@@ -28408,6 +28459,14 @@ body .node--employment .field--name-field-faq-section-title,
   margin: 1rem 0;
   padding-left: 2rem;
 }
+.accordion-section .accordion-body ul:has(.text-align-center), .faq-smart-section .accordion-body ul:has(.text-align-center), .accordion-section .accordion-body ol:has(.text-align-center), .faq-smart-section .accordion-body ol:has(.text-align-center) {
+  list-style-position: inside;
+  padding-left: 0;
+  text-align: center;
+}
+.accordion-section .accordion-body ul:has(.text-align-center) li p, .faq-smart-section .accordion-body ul:has(.text-align-center) li p, .accordion-section .accordion-body ol:has(.text-align-center) li p, .faq-smart-section .accordion-body ol:has(.text-align-center) li p {
+  display: inline;
+}
 
 @media (max-width: 767.98px) {
   .accordion-section .accordion-header .accordion-button, .faq-smart-section .accordion-header .accordion-button {
@@ -29336,77 +29395,6 @@ mark.search-highlight, .search-highlight.mark {
  * Premium Employment Application - Multi-Step Wizard
  * Comprehensive styling for accessible, responsive employment application
  */
-.premium-application-page.hide-page-title .page-title {
-  display: none;
-}
-
-.application-header {
-  background-color: #f0f2f5;
-  color: #1263a0;
-  padding: 3rem 1rem;
-  position: relative;
-}
-@media (max-width: 767.98px) {
-  .application-header {
-    padding: 2rem 1rem;
-  }
-}
-.application-header .application-header-content {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  max-width: 700px;
-  margin: 0 auto;
-}
-.application-header .application-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  color: #1263a0;
-}
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .application-header .application-title {
-    font-size: 2.25rem;
-  }
-}
-@media (max-width: 767.98px) {
-  .application-header .application-title {
-    font-size: 1.7rem;
-  }
-}
-.application-header .application-subtitle {
-  font-size: 1.1rem;
-  margin-bottom: 1.25rem;
-  color: #868e96;
-}
-@media (max-width: 767.98px) {
-  .application-header .application-subtitle {
-    font-size: 1rem;
-  }
-}
-.application-header .application-meta {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  font-size: 0.9rem;
-  color: #1263a0;
-}
-@media (max-width: 767.98px) {
-  .application-header .application-meta {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-}
-.application-header .application-meta span {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.application-header .application-meta span i {
-  font-size: 1rem;
-  color: #1263a0;
-}
-
 .application-wizard {
   padding: 2rem 0;
   min-height: 600px;
@@ -29601,6 +29589,7 @@ mark.search-highlight, .search-highlight.mark {
   padding: 2.5rem 2.5rem 1.5rem;
   border-bottom: 1px solid #f0f2f5;
   background-color: #f0f2f5;
+  text-align: center;
 }
 @media (max-width: 767.98px) {
   .step-header {
@@ -29722,7 +29711,7 @@ mark.search-highlight, .search-highlight.mark {
 .form-label {
   display: block;
   font-weight: 600;
-  color: #868e96;
+  color: #212529;
   margin-bottom: 0.5rem;
   font-size: 0.95rem;
 }
@@ -29905,7 +29894,7 @@ mark.search-highlight, .search-highlight.mark {
 .upload-label {
   display: block;
   font-weight: 600;
-  color: #868e96;
+  color: #212529;
   margin-bottom: 0.75rem;
   font-size: 1rem;
 }

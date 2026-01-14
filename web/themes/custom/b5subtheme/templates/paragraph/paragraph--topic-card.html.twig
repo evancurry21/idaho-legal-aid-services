@@ -8,7 +8,10 @@
 
 {# Extract raw field values directly to avoid HTML entity encoding issues #}
 {% set topic_title = paragraph.field_topic_title.value|trim %}
-{% set topic_description = paragraph.field_topic_description.value|striptags|trim %}
+{# Plain text version for aria-label (accessibility) #}
+{% set topic_description_plain = paragraph.field_topic_description.value|striptags|trim %}
+{# HTML version for visible display - renders bold, line breaks, etc. #}
+{% set topic_description_html = content.field_topic_description %}
 {# Get URL from render array - properly resolves internal/external URLs #}
 {% set topic_url = content.field_topic_link[0]['#url'] %}
 
@@ -56,11 +59,11 @@
 {% set paragraph_id = paragraph.id() ~ '' %}
 {% set topic_title_short = id_title_map[paragraph_id] ?? title_map[topic_title_upper] ?? topic_title %}
 
-{# Create accessible label combining title and description #}
+{# Create accessible label combining title and description (plain text for screen readers) #}
 {% if topic_title_upper == 'PHONE APPLICATION' %}
-  {% set aria_label = topic_title ~ ': ' ~ topic_description ~ '. Click to call 208-746-7541.' %}
+  {% set aria_label = topic_title ~ ': ' ~ topic_description_plain ~ '. Click to call 208-746-7541.' %}
 {% else %}
-  {% set aria_label = topic_title ~ ': ' ~ topic_description ~ '. Click to learn more.' %}
+  {% set aria_label = topic_title ~ ': ' ~ topic_description_plain ~ '. Click to learn more.' %}
 {% endif %}
 
 {# Build our classes array using the normalized color #}
@@ -90,7 +93,7 @@
       <span class="title-mobile">{{ topic_title_short }}</span>
     </h2>
     <div class="topic-card__description" id="{{ desc_id }}">
-      {{- topic_description -}}
+      {{- topic_description_html -}}
     </div>
   </div>
 
