@@ -24815,7 +24815,8 @@ main.main-content {
   -o-object-position: center;
      object-position: center;
   display: block;
-  border-radius: 8px;
+  border-radius: 32px;
+  border: 1px solid #1263a0;
 }
 @media (max-width: 767.98px) {
   .hero-content-section .hero-media img,
