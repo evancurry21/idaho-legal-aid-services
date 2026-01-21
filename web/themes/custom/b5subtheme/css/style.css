@@ -27534,6 +27534,8 @@ ul.pager__items {
   position: relative;
   padding: 7rem 0 8rem;
   margin-bottom: 2rem;
+  overflow: hidden;
+  background: #ffffff;
 }
 .employment-page__quick-facts-section::before {
   content: "";
@@ -27546,8 +27548,8 @@ ul.pager__items {
   background-image: url("/themes/custom/b5subtheme/images/curved-background-blue (2400 x 900 px).svg");
   background-repeat: no-repeat;
   background-size: cover;
-  background-position: center center;
-  z-index: -1;
+  background-position: center bottom;
+  z-index: 0;
   pointer-events: none;
 }
 @media (min-width: 768px) and (max-width: 991.98px) {
@@ -27560,9 +27562,21 @@ ul.pager__items {
     background-image: url("/themes/custom/b5subtheme/images/curved-background-blue (500 x 600 px).svg");
   }
 }
+.employment-page__quick-facts-section::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  height: 2px;
+  width: calc(100vw - var(--scrollbar-width, 0px));
+  margin-left: calc(-50vw + var(--scrollbar-width, 0px) / 2 - var(--gin-toolbar-x-offset, 0px) / 2);
+  background: #ffffff;
+  z-index: 1;
+  pointer-events: none;
+}
 .employment-page__quick-facts-section .container {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 .employment-page__quick-facts-section .section-heading {
   font-size: 2.5rem;

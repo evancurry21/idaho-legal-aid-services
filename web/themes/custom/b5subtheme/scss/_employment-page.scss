@@ -112,6 +112,8 @@
   position: relative;
   padding: 7rem 0 8rem; // Extra padding to show full curves
   margin-bottom: $spacer-xl; // White space before next section
+  overflow: hidden; // Prevent subpixel bleed
+  background: $color-white; // Match section below
 
   // Curved blue background - full bleed
   &::before {
@@ -125,8 +127,8 @@
     background-image: url('/themes/custom/b5subtheme/images/curved-background-blue (2400 x 900 px).svg');
     background-repeat: no-repeat;
     background-size: cover;
-    background-position: center center;
-    z-index: -1;
+    background-position: center bottom;
+    z-index: 0;
     pointer-events: none;
 
     @include tablet {
@@ -138,9 +140,24 @@
     }
   }
 
+  // 2px seam mask at bottom edge - full bleed
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    height: 2px;
+    width: calc(100vw - var(--scrollbar-width, 0px));
+    margin-left: calc(-50vw + var(--scrollbar-width, 0px) / 2 - var(--gin-toolbar-x-offset, 0px) / 2);
+    background: $color-white; // Must match next section's background
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  // Content sits above the pseudos
   .container {
     position: relative;
-    z-index: 1;
+    z-index: 2;
   }
 
   // Section heading - matches home page style
