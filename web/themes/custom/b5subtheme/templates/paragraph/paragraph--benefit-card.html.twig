@@ -1,0 +1,35 @@
+{#
+/**
+ * @file
+ * Template for Benefit Card paragraph type (static version).
+ *
+ * Displays a benefit category card with icon, title, and summary.
+ * Summary field supports full HTML including bullet points.
+ *
+ * Available variables:
+ * - paragraph: The paragraph entity
+ * - paragraph.field_benefit_title: Title for the benefit category
+ * - paragraph.field_benefit_icon: Font Awesome icon class (optional)
+ * - paragraph.field_benefit_summary: Description text (supports HTML)
+ * - paragraph.field_benefit_color: Color variant ("gray" or "blue")
+ */
+#}
+
+{% set color_class = paragraph.field_benefit_color.value|default('gray') %}
+
+{% set classes = [
+  'benefit-card',
+  'benefit-card--' ~ color_class,
+] %}
+
+<div{{ attributes.addClass(classes) }}>
+  <div class="benefit-card__content">
+    {% if paragraph.field_benefit_icon.value %}
+      <i class="{{ paragraph.field_benefit_icon.value }} benefit-card__icon" aria-hidden="true"></i>
+    {% endif %}
+    <h3 class="benefit-card__title">{{ paragraph.field_benefit_title.value }}</h3>
+    <div class="benefit-card__summary">
+      {{ paragraph.field_benefit_summary.value|raw }}
+    </div>
+  </div>
+</div>

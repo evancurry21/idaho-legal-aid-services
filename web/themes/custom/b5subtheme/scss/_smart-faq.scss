@@ -96,7 +96,8 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
         font-size: 1rem;
         border: 2px solid $color-gray-border;
         border-left: none;
-        border-radius: 0 $border-radius $border-radius 0;
+        border-right: none;
+        border-radius: 0;
         transition: $transition-fast;
         height: auto;
 
@@ -123,10 +124,11 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
         white-space: nowrap;
         vertical-align: middle;
         border: 2px solid $color-primary;
+        border-left: none;
         padding: 0.625rem 1.25rem;
         font-size: 1rem;
         line-height: 1.5;
-        border-radius: $border-radius;
+        border-radius: 0 $border-radius $border-radius 0;
         transition: $transition-base;
         cursor: pointer;
         background-color: $color-primary;
@@ -193,7 +195,8 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
           font-size: 1rem;
           border: 2px solid $color-gray-border;
           border-left: none;
-          border-radius: 0 $border-radius $border-radius 0;
+          border-right: none;
+          border-radius: 0;
           transition: $transition-fast;
           height: auto;
 
@@ -218,14 +221,14 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
           font-weight: $weight-button;
           text-transform: uppercase;
           border: 2px solid $color-primary;
+          border-left: none;
           padding: 0.625rem 1.25rem;
           font-size: 1rem;
           line-height: 1.5;
-          border-radius: $border-radius;
+          border-radius: 0 $border-radius $border-radius 0;
           background-color: $color-primary;
           color: $color-white;
           min-height: 44px;
-          margin-left: $spacer-sm;
 
           // Override btn-sm sizing
           &.btn-sm {
@@ -273,7 +276,7 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
             grid-column: 2;
             grid-row: 1;
             min-width: 0;
-            border-radius: 0 $border-radius $border-radius 0;
+            border-radius: 0;
           }
 
           .btn {
@@ -443,8 +446,64 @@ $faq-focus-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
       }
     }
     
-    // Accordion items inherit all base styles from accordion.scss
-    // No need to redefine them here
+    // FAQ Accordion Item Styles - Option A
+    // Header stays gray, only expanded body turns white
+    .faq-accordion {
+
+      .accordion-item.faq-item {
+        background-color: transparent;
+        border: none;
+        border-bottom: 2px solid $color-primary;
+        margin-bottom: 0.5rem;
+
+        &:last-child {
+          border-bottom: none;
+
+          &:hover {
+            border-bottom: 4px solid $color-primary;
+          }
+        }
+
+        &:hover {
+          border-bottom-width: 4px;
+        }
+      }
+
+      // Header stays gray always
+      .accordion-header .accordion-button {
+        background-color: $faq-bg-color;
+        border-radius: 0;
+
+        &:not(.collapsed) {
+          // Expanded state - still gray, just the +/- icon changes
+          background-color: $faq-bg-color;
+          box-shadow: none;
+        }
+
+        &:focus {
+          box-shadow: inset 0 0 0 2px rgba($color-primary, 0.25);
+        }
+      }
+
+      // Body turns white when expanded - full width (breaks out of section padding)
+      .accordion-collapse {
+        background-color: $color-white;
+        margin-left: -1rem;
+        margin-right: -1rem;
+      }
+
+      .accordion-body {
+        background-color: $color-white;
+        border-top: 1px solid $color-gray-border;
+        // Restore padding inside: 1rem (compensate for negative margin) + original padding
+        padding: 1.25rem 2rem 1.25rem 4rem; // left: 1rem + 3rem for icon alignment
+
+        @include mobile {
+          // Mobile: 1rem (compensate) + 2.5rem (mobile icon alignment) = 3.5rem left
+          padding: 1rem 1.75rem 1rem 3.5rem;
+        }
+      }
+    }
   }
   
   // Loading states

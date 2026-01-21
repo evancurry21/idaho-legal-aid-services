@@ -1,0 +1,27 @@
+uuid: 9e0f1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b
+langcode: en
+status: true
+dependencies:
+  module:
+    - options
+    - paragraphs
+id: paragraph.field_job_bilingual
+field_name: field_job_bilingual
+entity_type: paragraph
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: preferred
+      label: 'Bilingual Preferred'
+    -
+      value: required
+      label: 'Bilingual Required'
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

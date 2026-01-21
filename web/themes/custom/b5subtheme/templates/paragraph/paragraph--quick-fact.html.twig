@@ -1,0 +1,36 @@
+{#
+/**
+ * @file
+ * Template for Quick Fact paragraph type.
+ *
+ * Displays a single statistic card (number + label) for Quick Facts sections.
+ *
+ * Available variables:
+ * - paragraph: The paragraph entity
+ * - paragraph.field_stat_number: The statistic value (e.g., "7", "3,600+")
+ * - paragraph.field_stat_label: The label (e.g., "Offices Statewide")
+ * - paragraph.field_stat_detail: Optional additional context
+ * - paragraph.field_stat_color: Color variant ("blue" or "gray")
+ */
+#}
+
+{% set color_class = paragraph.field_stat_color.value|default('blue') %}
+
+{% set classes = [
+  'quick-fact',
+  'quick-fact--' ~ color_class,
+] %}
+
+<div{{ attributes.addClass(classes) }}>
+  <div class="quick-fact__number">
+    {{ paragraph.field_stat_number.value }}
+  </div>
+  <div class="quick-fact__label">
+    {{ paragraph.field_stat_label.value }}
+  </div>
+  {% if paragraph.field_stat_detail.value %}
+    <div class="quick-fact__detail">
+      {{ paragraph.field_stat_detail.value }}
+    </div>
+  {% endif %}
+</div>

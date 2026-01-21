@@ -1,5 +1,8 @@
 // Standardized Accordion Styles
 
+// =============================================================================
+// ACCORDION SECTION CONTAINER
+// =============================================================================
 // Container styling - matches FAQ section styling
 // Width constraint ensures accordions align with .content-body regardless of parent context
 .accordion-section {
@@ -15,9 +18,9 @@
   max-width: $reading-column-width;
   margin-inline: auto;
 
-  // Wider accordions for donate and employment pages
-  .node--type-donate &,
-  .node--employment & {
+  // Wide variant for pages needing more horizontal space
+  // Used by employment and donate pages
+  &--wide {
     max-width: 1080px;
   }
 
@@ -26,30 +29,39 @@
     margin-bottom: 1.5rem;
     border: 3px solid $color-primary;
   }
-}
 
-.accordion-section .accordion {
-  border: none;
-}
-
-/* This targets the top-level "Accordion Section" title */
-/* Using higher specificity instead of !important to override Drupal/CKEditor defaults */
-.accordion-section .accordion-section-title,
-.paragraph--type-accordion-section .accordion-section-title,
-body .accordion-section .accordion-section-title,
-body .accordion-section-title {
-  font-size: 2.5rem;
-  color: $color-primary;
-  font-weight: $weight-title;
-  text-align: center;
-  margin-top: 1.5rem;
-  margin-bottom: 1.5rem;
-
-  @include mobile {
-    font-size: 1.5rem;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+  // Nested accordion resets Bootstrap border
+  .accordion {
+    border: none;
   }
+
+  // =============================================================================
+  // ACCORDION SECTION TITLE
+  // =============================================================================
+  // Scoped to .accordion-section for predictable specificity
+  // No need for body-level selectors or multiple fallbacks
+  .accordion-section-title {
+    font-size: 2.5rem;
+    color: $color-primary;
+    font-weight: $weight-title;
+    text-align: center;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+
+    @include mobile {
+      font-size: 1.5rem;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+    }
+  }
+}
+
+// Wide accordion sections in specific page contexts
+// Note: These selectors depend on node body classes from Drupal
+// Consider adding .accordion-section--wide class directly in templates instead
+.node--type-donate .accordion-section,
+.node--employment .accordion-section {
+  max-width: 1080px;
 }
 
 

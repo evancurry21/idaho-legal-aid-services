@@ -1,0 +1,38 @@
+uuid: 10b4239f-c60e-49d7-9927-db430ad760dd
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.paragraph.job_category.field_category_id
+    - field.field.paragraph.job_category.field_category_jobs
+    - field.field.paragraph.job_category.field_category_name
+    - paragraphs.paragraphs_type.job_category
+  module:
+    - entity_reference_revisions
+id: paragraph.job_category.default
+targetEntityType: paragraph
+bundle: job_category
+mode: default
+content:
+  field_category_jobs:
+    type: entity_reference_revisions_entity_view
+    label: hidden
+    settings:
+      view_mode: default
+    third_party_settings: {  }
+    weight: 1
+    region: content
+  field_category_name:
+    type: string
+    label: hidden
+    settings:
+      link_to_entity: false
+    third_party_settings: {  }
+    weight: 0
+    region: content
+hidden:
+  entity_print_view_epub: true
+  entity_print_view_pdf: true
+  entity_print_view_word_docx: true
+  field_category_id: true
+  search_api_excerpt: true

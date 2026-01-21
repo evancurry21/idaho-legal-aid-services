@@ -1,0 +1,27 @@
+uuid: 7c8d9e0f-1a2b-3c4d-5e6f-7a8b9c0d1e2f
+langcode: en
+status: true
+dependencies:
+  module:
+    - options
+    - paragraphs
+id: paragraph.field_job_work_arrangement
+field_name: field_job_work_arrangement
+entity_type: paragraph
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: hybrid
+      label: 'Hybrid Eligible'
+    -
+      value: onsite
+      label: 'On-site'
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

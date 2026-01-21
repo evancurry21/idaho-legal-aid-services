@@ -26,6 +26,29 @@ employment_application.token:
       _disable_route_normalizers: TRUE
     _disable_search_api_indexing: TRUE
 
+employment_application.jobs:
+  path: '/employment-application/jobs'
+  defaults:
+    _controller: '\Drupal\employment_application\Controller\EmploymentApplicationController::getPostedJobs'
+  requirements:
+    _access: 'TRUE'
+    _method: 'GET'
+  options:
+    _admin_route: FALSE
+    _disable_search_api_indexing: TRUE
+
+employment_application.job:
+  path: '/employment-application/jobs/{job_uuid}'
+  defaults:
+    _controller: '\Drupal\employment_application\Controller\EmploymentApplicationController::getJobByUuid'
+  requirements:
+    _access: 'TRUE'
+    _method: 'GET'
+    job_uuid: '[a-f0-9\-]+'
+  options:
+    _admin_route: FALSE
+    _disable_search_api_indexing: TRUE
+
 employment_application.admin:
   path: '/admin/employment-applications'
   defaults:

@@ -1,0 +1,21 @@
+uuid: a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7e
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_benefits_disclaimer
+    - node.type.employment
+id: node.employment.field_benefits_disclaimer
+field_name: field_benefits_disclaimer
+entity_type: node
+bundle: employment
+label: 'Benefits Disclaimer'
+description: 'Disclaimer text for benefits (e.g., "Benefits are subject to change and may vary by position.")'
+required: false
+translatable: true
+default_value:
+  -
+    value: 'Benefits are subject to change and may vary by position.'
+default_value_callback: ''
+settings: {  }
+field_type: string

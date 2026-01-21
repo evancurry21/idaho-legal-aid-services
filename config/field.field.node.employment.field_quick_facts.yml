@@ -1,0 +1,70 @@
+uuid: b8c9d0e1-f2a3-4b4c-5d6e-7f8a9b0c1d2f
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_quick_facts
+    - node.type.employment
+    - paragraphs.paragraphs_type.quick_fact
+  module:
+    - entity_reference_revisions
+id: node.employment.field_quick_facts
+field_name: field_quick_facts
+entity_type: node
+bundle: employment
+label: 'Quick Facts'
+description: 'Statistics cards displayed at the top of the page (e.g., 7 Offices, 44 Counties)'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:paragraph'
+  handler_settings:
+    target_bundles:
+      quick_fact: quick_fact
+    negate: 0
+    target_bundles_drag_drop:
+      accordion_item:
+        weight: 1
+        enabled: false
+      accordion_section:
+        weight: 2
+        enabled: false
+      benefit_card:
+        weight: 3
+        enabled: false
+      content_section:
+        weight: 4
+        enabled: false
+      donation_questions:
+        weight: 5
+        enabled: false
+      down_arrow_accordion:
+        weight: 6
+        enabled: false
+      down_arrow_accordion_item:
+        weight: 7
+        enabled: false
+      external_resource:
+        weight: 8
+        enabled: false
+      faq_item:
+        weight: 9
+        enabled: false
+      faq_smart_section:
+        weight: 10
+        enabled: false
+      impact_card:
+        weight: 11
+        enabled: false
+      quick_fact:
+        weight: 0
+        enabled: true
+      topic_card:
+        weight: 12
+        enabled: false
+      two_column_info:
+        weight: 13
+        enabled: false
+field_type: entity_reference_revisions

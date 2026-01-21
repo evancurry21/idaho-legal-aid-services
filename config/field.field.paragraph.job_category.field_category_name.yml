@@ -1,0 +1,19 @@
+uuid: c47d44a6-88ff-4dcf-8d29-7c1d383aabab
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_category_name
+    - paragraphs.paragraphs_type.job_category
+id: paragraph.job_category.field_category_name
+field_name: field_category_name
+entity_type: paragraph
+bundle: job_category
+label: 'Category Name'
+description: 'The name of this job category (e.g., Attorneys, Support Staff, Administrative)'
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

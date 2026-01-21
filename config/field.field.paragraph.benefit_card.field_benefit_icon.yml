@@ -1,0 +1,19 @@
+uuid: f4a5b6c7-d8e9-4f0a-1b2c-3d4e5f6a7b8c
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_benefit_icon
+    - paragraphs.paragraphs_type.benefit_card
+id: paragraph.benefit_card.field_benefit_icon
+field_name: field_benefit_icon
+entity_type: paragraph
+bundle: benefit_card
+label: 'Icon Class'
+description: 'Font Awesome icon class (e.g., "fas fa-heart-pulse", "fas fa-piggy-bank")'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

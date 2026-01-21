@@ -4,10 +4,15 @@ status: true
 dependencies:
   config:
     - field.field.node.employment.field_application_form
-    - field.field.node.employment.field_benefits
+    - field.field.node.employment.field_benefits_disclaimer
+    - field.field.node.employment.field_benefits_snapshot
+    - field.field.node.employment.field_content_sections
+    - field.field.node.employment.field_eeo_statement
     - field.field.node.employment.field_job_listings
+    - field.field.node.employment.field_job_listings_title
     - field.field.node.employment.field_main_content
-    - field.field.node.employment.field_subheader
+    - field.field.node.employment.field_offices_text
+    - field.field.node.employment.field_quick_facts
     - node.type.employment
   module:
     - content_moderation
@@ -28,15 +33,59 @@ content:
     third_party_settings: {  }
   field_application_form:
     type: webform_entity_reference_select
-    weight: 124
+    weight: 200
     region: content
     settings:
       default_data: true
       webforms: {  }
     third_party_settings: {  }
-  field_benefits:
+  field_benefits_disclaimer:
+    type: string_textfield
+    weight: 140
+    region: content
+    settings:
+      size: 100
+      placeholder: ''
+    third_party_settings: {  }
+  field_benefits_snapshot:
+    type: paragraphs
+    weight: 150
+    region: content
+    settings:
+      title: 'Benefit Card'
+      title_plural: 'Benefit Cards'
+      edit_mode: closed
+      closed_mode: summary
+      autocollapse: all
+      closed_mode_threshold: 0
+      add_mode: button
+      form_display_mode: default
+      default_paragraph_type: benefit_card
+      features:
+        collapse_edit_all: collapse_edit_all
+        duplicate: duplicate
+    third_party_settings: {  }
+  field_content_sections:
+    type: paragraphs
+    weight: 130
+    region: content
+    settings:
+      title: 'Content Section'
+      title_plural: 'Content Sections'
+      edit_mode: closed
+      closed_mode: summary
+      autocollapse: all
+      closed_mode_threshold: 0
+      add_mode: button
+      form_display_mode: default
+      default_paragraph_type: content_section
+      features:
+        collapse_edit_all: collapse_edit_all
+        duplicate: duplicate
+    third_party_settings: {  }
+  field_eeo_statement:
     type: text_textarea
-    weight: 123
+    weight: 180
     region: content
     settings:
       rows: 5
@@ -44,37 +93,63 @@ content:
     third_party_settings: {  }
   field_job_listings:
     type: paragraphs
-    weight: 125
+    weight: 170
     region: content
     settings:
-      title: Paragraph
-      title_plural: Paragraphs
-      edit_mode: open
+      title: 'Job Category'
+      title_plural: 'Job Categories'
+      edit_mode: closed
       closed_mode: summary
-      autocollapse: none
+      autocollapse: all
       closed_mode_threshold: 0
       add_mode: dropdown
       form_display_mode: default
-      default_paragraph_type: ''
+      default_paragraph_type: job_category
       features:
         collapse_edit_all: collapse_edit_all
         duplicate: duplicate
     third_party_settings: {  }
+  field_job_listings_title:
+    type: string_textfield
+    weight: 165
+    region: content
+    settings:
+      size: 60
+      placeholder: 'e.g., Current Openings'
+    third_party_settings: {  }
   field_main_content:
     type: text_textarea
-    weight: 10
+    weight: 110
     region: content
     settings:
       rows: 5
       placeholder: ''
     third_party_settings: {  }
-  field_subheader:
-    type: string_textarea
-    weight: 121
+  field_offices_text:
+    type: text_textarea
+    weight: 160
     region: content
     settings:
       rows: 5
       placeholder: ''
+    third_party_settings: {  }
+  field_quick_facts:
+    type: paragraphs
+    weight: 120
+    region: content
+    settings:
+      title: 'Quick Fact'
+      title_plural: 'Quick Facts'
+      edit_mode: closed
+      closed_mode: summary
+      autocollapse: all
+      closed_mode_threshold: 0
+      add_mode: button
+      form_display_mode: default
+      default_paragraph_type: quick_fact
+      features:
+        collapse_edit_all: collapse_edit_all
+        duplicate: duplicate
     third_party_settings: {  }
   langcode:
     type: language_select
@@ -109,7 +184,7 @@ content:
     third_party_settings: {  }
   status:
     type: boolean_checkbox
-    weight: 120
+    weight: 210
     region: content
     settings:
       display_label: true
@@ -128,6 +203,11 @@ content:
     settings:
       size: 60
       placeholder: ''
+    third_party_settings: {  }
+  translation:
+    weight: 10
+    region: content
+    settings: {  }
     third_party_settings: {  }
   uid:
     type: entity_reference_autocomplete

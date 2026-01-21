@@ -279,6 +279,20 @@ function b5subtheme_preprocess_node(array &$variables): void {
   if ($variables['content_type'] === 'home_page' && $variables['view_mode'] === 'full') {
     _b5subtheme_preprocess_home_page_hero($variables, $node);
   }
+
+  // Preload background images for employment page.
+  if ($variables['content_type'] === 'employment' && $variables['view_mode'] === 'full') {
+    $theme_path = \Drupal::service('extension.list.theme')->getPath('b5subtheme');
+    $variables['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'preload',
+        'as' => 'image',
+        'type' => 'image/svg+xml',
+        'href' => '/' . $theme_path . '/images/curved-background-blue (2400 x 900 px).svg',
+      ],
+      TRUE,
+    ];
+  }
 }
 
 /**
@@ -388,6 +402,53 @@ function b5subtheme_preprocess_field(array &$variables): void {
   $element = $variables['element'];
   $variables['bundle'] = $element['#bundle'];
   $variables['entity_type'] = $element['#entity_type'];
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for job_category paragraphs.
+ *
+ * Moves date calculations from Twig to PHP for better maintainability.
+ * Calculates:
+ * - is_new: TRUE if job posted within 7 days
+ * - days_until_deadline: Signed integer (negative = past deadline)
+ */
+function b5subtheme_preprocess_paragraph__job_category(array &$variables): void {
+  $paragraph = $variables['paragraph'];
+
+  // Skip if no job listings field.
+  if (!$paragraph->hasField('field_category_jobs')) {
+    return;
+  }
+
+  $jobs = $paragraph->get('field_category_jobs')->referencedEntities();
+  $today = new \DateTime('today');
+
+  $processed_jobs = [];
+  foreach ($jobs as $job) {
+    $job_data = [
+      'entity' => $job,
+      'is_new' => FALSE,
+      'days_since_posted' => NULL,
+      'days_until_deadline' => NULL,
+    ];
+
+    // Calculate "new" status (posted within 7 days).
+    if ($job->hasField('field_job_date_posted') && !$job->get('field_job_date_posted')->isEmpty()) {
+      $posted_date = new \DateTime($job->get('field_job_date_posted')->value);
+      $job_data['days_since_posted'] = (int) $today->diff($posted_date)->format('%a');
+      $job_data['is_new'] = $job_data['days_since_posted'] <= 7;
+    }
+
+    // Calculate deadline urgency (negative = past deadline).
+    if ($job->hasField('field_job_valid_through') && !$job->get('field_job_valid_through')->isEmpty()) {
+      $deadline = new \DateTime($job->get('field_job_valid_through')->value);
+      $job_data['days_until_deadline'] = (int) $today->diff($deadline)->format('%r%a');
+    }
+
+    $processed_jobs[] = $job_data;
+  }
+
+  $variables['processed_jobs'] = $processed_jobs;
 }
 
 /**

@@ -1,0 +1,27 @@
+uuid: e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b
+langcode: en
+status: true
+dependencies:
+  module:
+    - options
+    - paragraphs
+id: paragraph.field_section_style
+field_name: field_section_style
+entity_type: paragraph
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: default
+      label: 'Default (white background)'
+    -
+      value: highlighted
+      label: 'Highlighted (gray background with blue border)'
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

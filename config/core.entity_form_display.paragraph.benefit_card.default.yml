@@ -1,0 +1,51 @@
+uuid: f0a1b2c3-d4e5-4f6a-7b8c-9d0e1f2a3b4c
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.paragraph.benefit_card.field_benefit_color
+    - field.field.paragraph.benefit_card.field_benefit_icon
+    - field.field.paragraph.benefit_card.field_benefit_summary
+    - field.field.paragraph.benefit_card.field_benefit_title
+    - paragraphs.paragraphs_type.benefit_card
+  module:
+    - options
+    - text
+id: paragraph.benefit_card.default
+targetEntityType: paragraph
+bundle: benefit_card
+mode: default
+content:
+  field_benefit_color:
+    type: options_select
+    weight: 2
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_benefit_icon:
+    type: string_textfield
+    weight: 1
+    region: content
+    settings:
+      size: 40
+      placeholder: 'e.g., fas fa-heart-pulse'
+    third_party_settings: {  }
+  field_benefit_summary:
+    type: text_textarea
+    weight: 3
+    region: content
+    settings:
+      rows: 5
+      placeholder: ''
+    third_party_settings: {  }
+  field_benefit_title:
+    type: string_textfield
+    weight: 0
+    region: content
+    settings:
+      size: 60
+      placeholder: 'e.g., Health Coverage'
+    third_party_settings: {  }
+hidden:
+  created: true
+  status: true

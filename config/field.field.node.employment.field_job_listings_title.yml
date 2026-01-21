@@ -1,0 +1,21 @@
+uuid: 5b8d0f23-cg94-5e67-b2f3-0d9e8c7a6f5b
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_job_listings_title
+    - node.type.employment
+id: node.employment.field_job_listings_title
+field_name: field_job_listings_title
+entity_type: node
+bundle: employment
+label: 'Job Listings Section Title'
+description: 'Title displayed above the job listings box (e.g., "Current Openings")'
+required: false
+translatable: true
+default_value:
+  -
+    value: 'Current Openings'
+default_value_callback: ''
+settings: {  }
+field_type: string

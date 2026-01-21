@@ -1,13 +1,13 @@
-uuid: 29e5cd92-136b-438c-b176-4606651530f0
+uuid: d0e1f2a3-b4c5-4d6e-7f8a-9b0c1d2e3f4a
 langcode: en
 status: true
 dependencies:
   module:
-    - node
+    - paragraphs
     - text
-id: node.field_benefits
-field_name: field_benefits
-entity_type: node
+id: paragraph.field_section_body
+field_name: field_section_body
+entity_type: paragraph
 type: text_long
 settings: {  }
 module: text

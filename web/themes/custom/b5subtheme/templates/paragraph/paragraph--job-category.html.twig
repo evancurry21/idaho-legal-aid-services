@@ -1,0 +1,276 @@
+{#
+/**
+ * @file
+ * Template for Job Category paragraph type.
+ *
+ * Displays a job category with static header and accordion job listings.
+ * Used on the Employment page for grouping jobs by type.
+ *
+ * Available variables:
+ * - paragraph: The paragraph entity
+ * - paragraph.field_category_name: Category title (e.g., "Attorneys")
+ * - paragraph.field_category_id: Anchor ID for jump links
+ * - processed_jobs: Array of job data from preprocess (b5subtheme_preprocess_paragraph__job_category)
+ *   - entity: The job paragraph entity
+ *   - is_new: TRUE if posted within 7 days
+ *   - days_since_posted: Days since job was posted
+ *   - days_until_deadline: Days until deadline (negative = past deadline)
+ *
+ * Job fields displayed in badges:
+ * - field_job_location: Location (e.g., "Boise, ID")
+ * - field_job_employment_type: Full-time, Part-time, etc.
+ * - field_job_salary_range: Salary/pay range
+ * - field_job_work_arrangement: Hybrid Eligible, On-site
+ * - field_job_idaho_bar: Idaho Bar requirement (attorneys only)
+ * - field_job_bilingual: Bilingual Preferred/Required
+ * - field_job_exemption: FLSA Exempt/Non Exempt
+ * - field_job_valid_through: Application deadline
+ * - field_job_date_posted: Date posted (for "New" badge)
+ *
+ * Badge hierarchy (Option 2: Medium Emphasis):
+ * - Primary: Location (anchor badge)
+ * - Highlight: New, Closing Soon, Closed (time-sensitive)
+ * - Secondary: Salary (tinted), Employment Type (outline), Work Arrangement (tinted)
+ * - Tertiary: Exempt status (quietest)
+ * - Accent: Idaho Bar, Bilingual (purple, stands out)
+ *
+ * Automated thresholds (calculated in preprocess):
+ * - New: Posted within 7 days
+ * - Closing soon: Within 3 days of deadline
+ * - Closed: Past deadline
+ */
+#}
+
+{% set category_id = paragraph.field_category_id.value|default('') %}
+{% set category_name = paragraph.field_category_name.value %}
+{% set has_jobs = processed_jobs|length > 0 %}
+
+{# Check if this is the attorney category for Idaho Bar badge #}
+{% set is_attorney_category = category_id == 'attorney-positions' or category_name|lower matches '/attorney/' %}
+
+<div{{ attributes.addClass('job-category') }} id="{{ category_id }}">
+  <h3 class="job-category__header">{{ category_name }}</h3>
+
+  <div class="job-category__listings">
+    {% if has_jobs %}
+      <div class="accordion job-category__accordion" id="accordion-{{ category_id }}">
+        {% for job_data in processed_jobs %}
+          {% set job = job_data.entity %}
+          {% set job_id = category_id ~ '-job-' ~ loop.index %}
+
+          {# Only show badges for actual job postings (must have date posted) #}
+          {% set is_job_posting = job.field_job_date_posted.value %}
+
+          {# Extract job metadata for badges #}
+          {% set job_location = job.field_job_location.value %}
+          {% set job_type = job.field_job_employment_type.value %}
+          {% set job_salary = job.field_job_salary_range.value %}
+          {% set job_deadline = job.field_job_valid_through.value %}
+          {% set job_arrangement = job.field_job_work_arrangement.value %}
+          {% set job_bar = job.field_job_idaho_bar.value %}
+          {% set job_bilingual = job.field_job_bilingual.value %}
+          {% set job_exemption = job.field_job_exemption.value %}
+
+          {# Check if any metadata exists AND this is a job posting #}
+          {% set has_meta = is_job_posting and (job_location or job_type or job_salary or job_deadline or job_arrangement or job_bar or job_bilingual or job_exemption) %}
+
+          {# Use preprocessed date calculations #}
+          {% set is_new_posting = job_data.is_new %}
+          {% set days_left = job_data.days_until_deadline %}
+
+          <div class="accordion-item job-category__job">
+            <div class="job-category__header-row">
+              <h4 class="accordion-header" id="heading-{{ job_id }}">
+                <button class="accordion-button collapsed" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapse-{{ job_id }}"
+                        aria-expanded="false"
+                        aria-controls="collapse-{{ job_id }}">
+                  <span class="job-title">{{ job.field_accordion_title.value }}</span>
+
+                  {% if has_meta %}
+                    {# Check which rows have content #}
+                    {% set has_row1 = job_location or job_arrangement or job_salary or job_deadline or is_new_posting %}
+                    {% set has_row2 = job_type or (job_bar and is_attorney_category) or job_bilingual or job_exemption %}
+
+                    <div class="job-badges">
+                      {# ================================================================ #}
+                      {# ROW 1 (Primary): Location, Work Arrangement, Salary, Deadline   #}
+                      {# ================================================================ #}
+                      {% if has_row1 %}
+                        <div class="job-badges__row job-badges__row--primary">
+                          {# Location #}
+                          {% if job_location %}
+                            <span class="job-badge job-badge--location">
+                              <i class="fas fa-location-dot" aria-hidden="true"></i>
+                              {{ job_location }}
+                            </span>
+                          {% endif %}
+
+                          {# Work Arrangement #}
+                          {% if job_arrangement %}
+                            {% if job_arrangement == 'hybrid' %}
+                              <span class="job-badge job-badge--arrangement">
+                                <i class="fas fa-house-laptop" aria-hidden="true"></i>
+                                Hybrid Eligible
+                              </span>
+                            {% elseif job_arrangement == 'onsite' %}
+                              <span class="job-badge job-badge--arrangement">
+                                <i class="fas fa-building" aria-hidden="true"></i>
+                                On-Site
+                              </span>
+                            {% endif %}
+                          {% endif %}
+
+                          {# Salary Range #}
+                          {% if job_salary %}
+                            <span class="job-badge job-badge--salary">
+                              <i class="fas fa-sack-dollar" aria-hidden="true"></i>
+                              {{ job_salary }}
+                            </span>
+                          {% endif %}
+
+                          {# Application Deadline (with status variants) #}
+                          {% if job_deadline and days_left is not null and days_left <= 0 %}
+                            {# Closed #}
+                            <span class="job-badge job-badge--closed">
+                              <i class="fas fa-ban" aria-hidden="true"></i>
+                              Closed
+                            </span>
+                          {% elseif job_deadline and days_left is not null and days_left <= 3 %}
+                            {# Closing soon (within 3 days) #}
+                            <span class="job-badge job-badge--urgent">
+                              <i class="fas fa-hourglass-half" aria-hidden="true"></i>
+                              {% if days_left == 0 %}
+                                Closes Today
+                              {% elseif days_left == 1 %}
+                                Closes Tomorrow
+                              {% else %}
+                                Closes in {{ days_left }} Days
+                              {% endif %}
+                            </span>
+                          {% elseif is_new_posting %}
+                            {# New posting (within 7 days) #}
+                            <span class="job-badge job-badge--new">
+                              <i class="fas fa-bolt-lightning" aria-hidden="true"></i>
+                              New
+                            </span>
+                          {% elseif job_deadline %}
+                            {# Standard deadline #}
+                            <span class="job-badge job-badge--deadline">
+                              <i class="fas fa-calendar" aria-hidden="true"></i>
+                              Closes {{ job_deadline|date('M j') }}
+                            </span>
+                          {% endif %}
+                        </div>
+                      {% endif %}
+
+                      {# ================================================================ #}
+                      {# ROW 2 (Secondary): Employment Type, Bar, Bilingual, Exempt      #}
+                      {# ================================================================ #}
+                      {% if has_row2 %}
+                        <div class="job-badges__row job-badges__row--secondary">
+                          {# Employment Type #}
+                          {% if job_type %}
+                            {% set type_label = job_type|replace({'_': ' '})|lower|title %}
+                            <span class="job-badge job-badge--employment-type">
+                              {{ type_label }}
+                            </span>
+                          {% endif %}
+
+                          {# Idaho Bar Requirement (attorneys only) #}
+                          {% if job_bar and is_attorney_category %}
+                            <span class="job-badge job-badge--bar">
+                              <i class="fas fa-gavel" aria-hidden="true"></i>
+                              Idaho Bar (≤3mo)
+                            </span>
+                          {% endif %}
+
+                          {# Bilingual Requirement #}
+                          {% if job_bilingual %}
+                            {% if job_bilingual == 'required' %}
+                              <span class="job-badge job-badge--bilingual-required">
+                                <i class="fas fa-comments" aria-hidden="true"></i>
+                                Bilingual Required
+                              </span>
+                            {% elseif job_bilingual == 'preferred' %}
+                              <span class="job-badge job-badge--bilingual-preferred">
+                                <i class="fas fa-comments" aria-hidden="true"></i>
+                                Bilingual Preferred
+                              </span>
+                            {% endif %}
+                          {% endif %}
+
+                          {# FLSA Exemption Status #}
+                          {% if job_exemption %}
+                            {% set exemption_label = job_exemption|replace({'_': ' '})|lower|title %}
+                            <span class="job-badge job-badge--exempt">
+                              {{ exemption_label }}
+                            </span>
+                          {% endif %}
+                        </div>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                </button>
+              </h4>
+
+              {# Apply Now button in header - visible only when collapsed #}
+              {% if is_job_posting %}
+                <div class="job-category__header-apply">
+                  <a href="/eapplication?job={{ job.uuid.value }}" class="btn btn-primary">
+                    Apply Now
+                    <i class="fas fa-arrow-right ms-2" aria-hidden="true"></i>
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+            <div id="collapse-{{ job_id }}"
+                 class="accordion-collapse collapse"
+                 aria-labelledby="heading-{{ job_id }}"
+                 data-bs-parent="#accordion-{{ category_id }}">
+              <div class="accordion-body">
+                {{ job.field_accordion_body.value|raw }}
+
+                {# Actions row: Download button (left) + Apply Now button (right) #}
+                {% set has_file = job.field_accordion_file.entity and job.field_accordion_file.entity.field_media_document.entity %}
+
+                {% if has_file or is_job_posting %}
+                  <div class="job-category__actions">
+                    {# Download button (left side) - only show if file is uploaded #}
+                    {% if has_file %}
+                      {% set file = job.field_accordion_file.entity.field_media_document.entity %}
+                      <div class="job-category__file">
+                        <a href="{{ file_url(file.uri.value) }}"
+                           class="btn btn-primary"
+                           target="_blank">
+                          <i class="fas fa-file-pdf me-2" aria-hidden="true"></i>
+                          Download Job Description
+                        </a>
+                      </div>
+                    {% else %}
+                      <div class="job-category__file-spacer"></div>
+                    {% endif %}
+
+                    {# Apply Now button (right side) - only show for actual job postings #}
+                    {# Deep links to application form with job UUID for prefill + locking #}
+                    {% if is_job_posting %}
+                      <div class="job-category__apply">
+                        <a href="/eapplication?job={{ job.uuid.value }}" class="btn btn-primary btn-lg">
+                          Apply Now
+                          <i class="fas fa-arrow-right ms-2" aria-hidden="true"></i>
+                        </a>
+                      </div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="job-category__empty">We don't have any openings in this area right now, but we're always appreciative of your interest. Please check back soon.</p>
+    {% endif %}
+  </div>
+</div>

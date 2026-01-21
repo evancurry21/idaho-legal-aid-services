@@ -1,0 +1,70 @@
+uuid: d0e1f2a3-b4c5-4d6e-7f8a-9b0c1d2e3f4b
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_benefits_snapshot
+    - node.type.employment
+    - paragraphs.paragraphs_type.benefit_card
+  module:
+    - entity_reference_revisions
+id: node.employment.field_benefits_snapshot
+field_name: field_benefits_snapshot
+entity_type: node
+bundle: employment
+label: 'Benefits Snapshot'
+description: 'Benefit cards displayed in the Benefits Snapshot section'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:paragraph'
+  handler_settings:
+    target_bundles:
+      benefit_card: benefit_card
+    negate: 0
+    target_bundles_drag_drop:
+      accordion_item:
+        weight: 1
+        enabled: false
+      accordion_section:
+        weight: 2
+        enabled: false
+      benefit_card:
+        weight: 0
+        enabled: true
+      content_section:
+        weight: 3
+        enabled: false
+      donation_questions:
+        weight: 5
+        enabled: false
+      down_arrow_accordion:
+        weight: 6
+        enabled: false
+      down_arrow_accordion_item:
+        weight: 7
+        enabled: false
+      external_resource:
+        weight: 8
+        enabled: false
+      faq_item:
+        weight: 9
+        enabled: false
+      faq_smart_section:
+        weight: 10
+        enabled: false
+      impact_card:
+        weight: 11
+        enabled: false
+      quick_fact:
+        weight: 4
+        enabled: false
+      topic_card:
+        weight: 12
+        enabled: false
+      two_column_info:
+        weight: 13
+        enabled: false
+field_type: entity_reference_revisions

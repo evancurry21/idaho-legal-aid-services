@@ -1,0 +1,27 @@
+uuid: 0f1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c
+langcode: en
+status: true
+dependencies:
+  module:
+    - options
+    - paragraphs
+id: paragraph.field_job_exemption
+field_name: field_job_exemption
+entity_type: paragraph
+type: list_string
+settings:
+  allowed_values:
+    -
+      value: exempt
+      label: 'Exempt'
+    -
+      value: non_exempt
+      label: 'Non Exempt'
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

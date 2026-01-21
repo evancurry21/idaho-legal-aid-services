@@ -4,10 +4,15 @@ status: true
 dependencies:
   config:
     - field.field.node.employment.field_application_form
-    - field.field.node.employment.field_benefits
+    - field.field.node.employment.field_benefits_disclaimer
+    - field.field.node.employment.field_benefits_snapshot
+    - field.field.node.employment.field_content_sections
+    - field.field.node.employment.field_eeo_statement
     - field.field.node.employment.field_job_listings
+    - field.field.node.employment.field_job_listings_title
     - field.field.node.employment.field_main_content
-    - field.field.node.employment.field_subheader
+    - field.field.node.employment.field_offices_text
+    - field.field.node.employment.field_quick_facts
     - node.type.employment
   module:
     - entity_reference_revisions
@@ -26,14 +31,40 @@ content:
       source_entity: true
       lazy: false
     third_party_settings: {  }
-    weight: 4
+    weight: 100
     region: content
-  field_benefits:
+  field_benefits_disclaimer:
+    type: string
+    label: hidden
+    settings:
+      link_to_entity: false
+    third_party_settings: {  }
+    weight: 40
+    region: content
+  field_benefits_snapshot:
+    type: entity_reference_revisions_entity_view
+    label: hidden
+    settings:
+      view_mode: default
+      link: ''
+    third_party_settings: {  }
+    weight: 50
+    region: content
+  field_content_sections:
+    type: entity_reference_revisions_entity_view
+    label: hidden
+    settings:
+      view_mode: default
+      link: ''
+    third_party_settings: {  }
+    weight: 30
+    region: content
+  field_eeo_statement:
     type: text_default
     label: hidden
     settings: {  }
     third_party_settings: {  }
-    weight: 3
+    weight: 80
     region: content
   field_job_listings:
     type: entity_reference_revisions_entity_view
@@ -42,7 +73,7 @@ content:
       view_mode: default
       link: ''
     third_party_settings: {  }
-    weight: 5
+    weight: 70
     region: content
   field_main_content:
     type: text_default
@@ -51,14 +82,27 @@ content:
     third_party_settings: {  }
     weight: 0
     region: content
-  field_subheader:
-    type: basic_string
+  field_offices_text:
+    type: text_default
     label: hidden
     settings: {  }
     third_party_settings: {  }
-    weight: 1
+    weight: 60
+    region: content
+  field_quick_facts:
+    type: entity_reference_revisions_entity_view
+    label: hidden
+    settings:
+      view_mode: default
+      link: ''
+    third_party_settings: {  }
+    weight: 20
     region: content
 hidden:
+  entity_print_view_epub: true
+  entity_print_view_pdf: true
+  entity_print_view_word_docx: true
+  field_job_listings_title: true
   langcode: true
   links: true
   search_api_excerpt: true

@@ -1,0 +1,22 @@
+uuid: c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_section_body
+    - paragraphs.paragraphs_type.content_section
+  module:
+    - text
+id: paragraph.content_section.field_section_body
+field_name: field_section_body
+entity_type: paragraph
+bundle: content_section
+label: 'Section Body'
+description: 'Main content for this section'
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  allowed_formats: {  }
+field_type: text_long

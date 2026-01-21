@@ -93,6 +93,14 @@ scroll-behaviors:
     - core/drupal
     - core/once
 
+sticky-jobs-bar:
+  version: 1.0
+  js:
+    js/sticky-jobs-bar.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+
 resources:
   version: 1.0
   js:

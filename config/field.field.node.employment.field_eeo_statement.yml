@@ -1,18 +1,18 @@
-uuid: 903b3611-9e33-4137-bc36-f129810a5566
+uuid: f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6d
 langcode: en
 status: true
 dependencies:
   config:
-    - field.storage.node.field_benefits
+    - field.storage.node.field_eeo_statement
     - node.type.employment
   module:
     - text
-id: node.employment.field_benefits
-field_name: field_benefits
+id: node.employment.field_eeo_statement
+field_name: field_eeo_statement
 entity_type: node
 bundle: employment
-label: Benefits
-description: ''
+label: 'EEO Statement'
+description: 'Equal Opportunity Employer statement text'
 required: false
 translatable: true
 default_value: {  }

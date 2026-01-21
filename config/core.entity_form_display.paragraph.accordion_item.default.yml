@@ -6,10 +6,17 @@ dependencies:
     - field.field.paragraph.accordion_item.field_accordion_body
     - field.field.paragraph.accordion_item.field_accordion_file
     - field.field.paragraph.accordion_item.field_accordion_title
+    - field.field.paragraph.accordion_item.field_job_bilingual
     - field.field.paragraph.accordion_item.field_job_date_posted
-    - field.field.paragraph.accordion_item.field_job_valid_through
-    - field.field.paragraph.accordion_item.field_job_location
     - field.field.paragraph.accordion_item.field_job_employment_type
+    - field.field.paragraph.accordion_item.field_job_exemption
+    - field.field.paragraph.accordion_item.field_job_idaho_bar
+    - field.field.paragraph.accordion_item.field_job_location
+    - field.field.paragraph.accordion_item.field_job_salary_range
+    - field.field.paragraph.accordion_item.field_job_open_until_filled
+    - field.field.paragraph.accordion_item.field_job_valid_through
+    - field.field.paragraph.accordion_item.field_job_work_arrangement
+    - field.field.paragraph.accordion_item.field_position_family
     - paragraphs.paragraphs_type.accordion_item
   module:
     - datetime
@@ -44,15 +51,39 @@ content:
       size: 60
       placeholder: ''
     third_party_settings: {  }
+  field_job_bilingual:
+    type: options_select
+    weight: 18
+    region: content
+    settings: {  }
+    third_party_settings: {  }
   field_job_date_posted:
     type: datetime_default
     weight: 10
     region: content
     settings: {  }
     third_party_settings: {  }
+  field_position_family:
+    type: options_select
+    weight: 9
+    region: content
+    settings: {  }
+    third_party_settings: {  }
   field_job_employment_type:
     type: options_select
     weight: 13
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_job_exemption:
+    type: options_select
+    weight: 19
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_job_idaho_bar:
+    type: options_select
+    weight: 17
     region: content
     settings: {  }
     third_party_settings: {  }
@@ -64,9 +95,30 @@ content:
       size: 60
       placeholder: 'e.g., Boise, ID or Remote'
     third_party_settings: {  }
+  field_job_salary_range:
+    type: string_textfield
+    weight: 14
+    region: content
+    settings:
+      size: 60
+      placeholder: 'e.g., $55,000 - $75,000 or DOE'
+    third_party_settings: {  }
   field_job_valid_through:
     type: datetime_default
     weight: 11
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_job_open_until_filled:
+    type: boolean_checkbox
+    weight: 11
+    region: content
+    settings:
+      display_label: true
+    third_party_settings: {  }
+  field_job_work_arrangement:
+    type: options_select
+    weight: 15
     region: content
     settings: {  }
     third_party_settings: {  }

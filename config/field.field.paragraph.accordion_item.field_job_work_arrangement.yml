@@ -1,0 +1,21 @@
+uuid: 7d8e9f0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_job_work_arrangement
+    - paragraphs.paragraphs_type.accordion_item
+  module:
+    - options
+id: paragraph.accordion_item.field_job_work_arrangement
+field_name: field_job_work_arrangement
+entity_type: paragraph
+bundle: accordion_item
+label: 'Job: Work Arrangement'
+description: 'For job listings only. Select the work arrangement for this position.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string

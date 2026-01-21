@@ -1,0 +1,19 @@
+uuid: 6b7c8d9e-0f1a-2b3c-4d5e-6f7a8b9c0d1e
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_job_salary_range
+    - paragraphs.paragraphs_type.accordion_item
+id: paragraph.accordion_item.field_job_salary_range
+field_name: field_job_salary_range
+entity_type: paragraph
+bundle: accordion_item
+label: 'Job: Salary Range'
+description: 'For job listings only. Enter the salary or pay range (e.g., "$55,000 - $75,000", "DOE", "$22-28/hour").'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

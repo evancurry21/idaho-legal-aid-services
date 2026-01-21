@@ -1,0 +1,21 @@
+uuid: a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7d
+langcode: en
+status: true
+dependencies:
+  module:
+    - paragraphs
+id: paragraph.field_benefit_icon
+field_name: field_benefit_icon
+entity_type: paragraph
+type: string
+settings:
+  max_length: 100
+  case_sensitive: false
+  is_ascii: true
+module: core
+locked: false
+cardinality: 1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

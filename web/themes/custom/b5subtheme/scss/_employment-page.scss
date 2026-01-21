@@ -1,0 +1,1298 @@
+/***********************************************
+ * Employment Page Component
+ *
+ * Styles for the redesigned Employment Opportunities page.
+ * Uses existing tokens from _variables_theme.scss.
+ ***********************************************/
+
+/* ========== Page Layout ========== */
+.employment-page {
+  // Inherits from .node--employment styles
+
+  .container {
+    max-width: 1080px; // Wider for employment page
+  }
+}
+
+/* ========== Intro Section ========== */
+.employment-page__intro {
+  margin-bottom: $spacer-xl;
+
+  .content-body {
+    max-width: $reading-column-width;
+    margin-inline: auto;
+  }
+}
+
+/* ========== Jump Navigation ========== */
+.employment-page__jump-nav {
+  margin-bottom: $spacer-xl;
+
+  @include mobile {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
+    // Hide scrollbar but keep functionality
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+.jump-nav-list {
+  display: flex;
+  justify-content: center;
+  gap: $spacer;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  @include mobile {
+    justify-content: flex-start;
+    gap: $spacer-sm;
+    min-width: max-content;
+  }
+}
+
+.jump-nav-link {
+  @include button-no-underline;
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  background-color: $color-primary;
+  color: $color-white;
+  font-weight: $weight-button;
+  border: 2px solid $color-primary;
+  border-radius: 4px;
+  transition: $transition-base;
+  white-space: nowrap;
+  min-height: 48px;
+  min-width: 185px;
+  text-align: center;
+  text-transform: uppercase;
+
+  &:hover,
+  &:focus {
+    background-color: $color-white;
+    color: $color-primary;
+    border-color: $color-primary;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: $shadow-hover;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  @include mobile {
+    padding: $spacer-sm $spacer;
+    font-size: 0.9rem;
+    min-height: 44px;
+
+    &:hover,
+    &:focus {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+}
+
+/* ========== View Open Positions CTA ========== */
+.employment-page__intro-cta {
+  margin-top: $spacer-xl;
+  margin-bottom: $spacer;
+  text-align: center;
+}
+
+/* ========== Quick Facts Section (Full-bleed with curved blue background) ========== */
+.employment-page__quick-facts-section {
+  position: relative;
+  padding: 7rem 0 8rem; // Extra padding to show full curves
+  margin-bottom: $spacer-xl; // White space before next section
+
+  // Curved blue background - full bleed
+  &::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: calc(100vw - var(--scrollbar-width, 0px));
+    margin-left: calc(-50vw + var(--scrollbar-width, 0px) / 2 - var(--gin-toolbar-x-offset, 0px) / 2);
+    background-image: url('/themes/custom/b5subtheme/images/curved-background-blue (2400 x 900 px).svg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center center;
+    z-index: -1;
+    pointer-events: none;
+
+    @include tablet {
+      background-image: url('/themes/custom/b5subtheme/images/curved-background-blue (1000 x 800 px).svg');
+    }
+
+    @include mobile {
+      background-image: url('/themes/custom/b5subtheme/images/curved-background-blue (500 x 600 px).svg');
+    }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  // Section heading - matches home page style
+  .section-heading {
+    font-size: 2.5rem;
+    font-weight: $weight-title;
+    color: $color-white;
+    margin-bottom: $spacer-xl;
+
+    @include mobile {
+      font-size: 1.75rem;
+      margin-bottom: $spacer-lg;
+    }
+  }
+
+  @include tablet {
+    padding: 5rem 0 6rem;
+  }
+
+  @include mobile {
+    padding: 4rem 0 5rem;
+  }
+}
+
+/* ========== Quick Facts Grid ========== */
+.quick-facts-grid {
+  max-width: 820px;
+  margin-inline: auto;
+
+  // Target the Drupal field wrapper
+  .field--name-field-quick-facts {
+    display: grid;
+    grid-template-columns: repeat(2, 380px);
+    justify-content: center;
+    gap: $spacer-xl;
+
+    @include mobile {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: $spacer-lg;
+    }
+  }
+}
+
+.quick-fact {
+  width: 380px;
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: $color-primary;
+  color: $color-white;
+  text-align: center;
+  border: 6px solid $color-white;
+  box-shadow: $shadow-card;
+  transition: $transition-base;
+
+  &:hover {
+    box-shadow: $shadow-glow-primary;
+
+    @include mobile {
+      box-shadow: $shadow-card;
+    }
+  }
+
+  &--gray {
+    background-color: $color-gray-bg;
+    color: $color-primary;
+    border-color: $color-primary;
+
+    &:hover {
+      box-shadow: $shadow-glow-primary;
+
+      @include mobile {
+        box-shadow: $shadow-card;
+      }
+    }
+  }
+
+  @include tablet {
+    width: 380px;
+    height: 220px;
+  }
+
+  @include mobile {
+    width: 100%;
+    max-width: 315px;
+    height: auto;
+    min-height: 80px;
+    padding: $spacer-sm;
+    border-width: 3px;
+  }
+}
+
+.quick-fact__number {
+  font-size: 4.5rem;
+  font-weight: $weight-heading;
+  line-height: 1.1;
+  margin-bottom: $spacer-sm;
+
+  @include mobile {
+    font-size: 2rem;
+    margin-bottom: $spacer-xs;
+  }
+}
+
+.quick-fact__label {
+  font-size: 1.5rem;
+  font-weight: $weight-subtitle;
+  line-height: 1.3;
+  text-transform: uppercase;
+  text-wrap: balance;
+
+  @include mobile {
+    font-size: 1rem;
+  }
+}
+
+.quick-fact__detail {
+  font-size: 1rem;
+  margin-top: $spacer-sm;
+  opacity: 0.9;
+}
+
+/* ========== Content Sections ========== */
+.employment-page__sections {
+  margin-bottom: $spacer-xl;
+}
+
+.content-section {
+  margin-bottom: $spacer-lg;
+  padding: $spacer-lg 0;
+
+  &--highlighted {
+    background-color: $color-gray-bg;
+    border-left: 6px solid $color-primary;
+    padding: $spacer-lg $spacer-xl;
+    margin-left: -$spacer;
+    margin-right: -$spacer;
+
+    @include mobile {
+      border-left-width: 4px;
+      padding: $spacer-lg $spacer;
+      margin-left: calc(-1 * #{$gutter-page-x});
+      margin-right: calc(-1 * #{$gutter-page-x});
+    }
+  }
+}
+
+.content-section__title {
+  @include responsive-typography(2rem, 1.75rem, 1.5rem);
+  font-weight: $weight-title;
+  color: $color-primary;
+  margin-bottom: $spacer-lg;
+  text-align: center;
+}
+
+.content-section__body {
+  @include responsive-typography(1.25rem, 1.15rem, $font-size-mobile-body);
+  line-height: $content-line-height;
+  color: $color-body;
+  max-width: $reading-column-width;
+  margin-inline: auto;
+  text-align: left;
+}
+
+/* ========== Benefits Snapshot ========== */
+.employment-page__benefits {
+  margin-bottom: $spacer-xl;
+  padding: $spacer-lg 0;
+}
+
+.benefits-disclaimer {
+  color: $color-body;
+  font-size: 1.1rem;
+  margin-bottom: $spacer-xl;
+  font-style: italic;
+  text-align: center;
+}
+
+.benefits-grid {
+  max-width: 900px;
+  margin-inline: auto;
+
+  // Target the Drupal field wrapper - use columns for masonry-style layout
+  .field--name-field-benefits-snapshot {
+    columns: 2;
+    column-gap: $spacer-xl;
+
+    @include mobile {
+      columns: 1;
+    }
+
+    // Target Drupal's field item wrapper for spacing
+    > .field__item {
+      break-inside: avoid;
+      margin-bottom: $spacer-xl;
+
+      @include mobile {
+        margin-bottom: $spacer-lg;
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+.benefit-card {
+  border: 6px solid $color-primary;
+  border-radius: 4px;
+  transition: $transition-base;
+
+  &:hover {
+    box-shadow: $shadow-hover;
+
+    @include mobile {
+      box-shadow: none;
+    }
+  }
+
+  @include mobile {
+    border-width: 4px;
+  }
+
+  // Gray variant (default)
+  &--gray {
+    background-color: $color-gray-bg;
+    border-color: $color-primary;
+
+    .benefit-card__icon,
+    .benefit-card__title,
+    .benefit-card__summary {
+      color: $color-primary;
+    }
+  }
+
+  // Blue variant
+  &--blue {
+    background-color: $color-primary;
+    border-color: $color-white;
+    box-shadow: $shadow-card;
+
+    .benefit-card__icon,
+    .benefit-card__title {
+      color: $color-white;
+    }
+
+    .benefit-card__summary {
+      color: $color-white;
+    }
+
+    &:hover {
+      box-shadow: $shadow-glow-primary;
+
+      @include mobile {
+        box-shadow: $shadow-card;
+      }
+    }
+  }
+}
+
+.benefit-card__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacer-xl $spacer-lg;
+  text-align: center;
+
+  @include mobile {
+    padding: $spacer-lg;
+  }
+}
+
+.benefit-card__icon {
+  font-size: 2.5rem;
+  color: $color-primary;
+  margin-bottom: $spacer;
+
+  @include mobile {
+    font-size: 2rem;
+  }
+}
+
+.benefit-card__title {
+  font-size: 1.5rem;
+  font-weight: $weight-title;
+  color: $color-primary;
+  margin: 0 0 $spacer 0;
+
+  @include mobile {
+    font-size: 1.25rem;
+  }
+}
+
+.benefit-card__summary {
+  font-size: 1.1rem;
+  color: $color-body;
+  line-height: $content-line-height;
+  margin: 0;
+  text-align: left;
+  width: 100%;
+
+  // Support for full HTML content with bullets
+  ul, ol {
+    margin: $spacer-sm 0;
+    padding-left: 1.5rem;
+    text-align: left;
+  }
+
+  li {
+    margin-bottom: $spacer-xs;
+  }
+
+  @include mobile {
+    font-size: 1rem;
+  }
+}
+
+/* ========== Offices Section ========== */
+.employment-page__offices {
+  margin-bottom: $spacer-xl;
+}
+
+.employment-page__offices .subsection-title {
+  @include responsive-typography(2rem, 1.75rem, 1.5rem);
+  font-weight: $weight-title;
+  color: $color-primary;
+  margin-bottom: $spacer-lg;
+  text-align: center;
+}
+
+.offices-list {
+  // Styles for WYSIWYG-entered content with links
+
+  // Target Drupal's field item wrapper
+  .field__item {
+    text-align: center;
+
+    // Intro paragraph
+    > p:first-child {
+      margin-bottom: $spacer;
+    }
+
+    // Office names container - use inline-block for natural flow
+    > p.text-align-center {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      width: 30%;
+      margin: $spacer-xs 1%;
+
+      @include mobile {
+        width: 100%;
+        margin: $spacer-xs 0;
+      }
+    }
+  }
+
+  // Office names with icons
+  p.text-align-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+
+    &::before {
+      content: '\f3c5'; // fa-map-marker-alt
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+      color: $color-primary;
+      font-size: 0.9em;
+    }
+  }
+
+  a {
+    color: $color-primary;
+    text-decoration: none;
+    font-weight: $weight-button;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+/* ========== Job Listings ========== */
+.employment-page__listings {
+  margin-bottom: $spacer-xl;
+  background-color: $color-gray-bg;
+  border: 6px solid $color-primary;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border-radius: 0.25rem;
+  padding: 1rem;
+
+  @include mobile {
+    border-width: 3px;
+  }
+
+  // Title inside the box (uses accordion-section-title class from template)
+  .accordion-section-title {
+    font-size: 2.5rem;
+    color: $color-primary;
+    font-weight: $weight-title;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+
+    @include mobile {
+      font-size: 1.5rem;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+    }
+  }
+
+}
+
+/* ========== Job Category (Grouped Accordion) ========== */
+.job-category {
+  scroll-margin-top: 100px; // Account for any sticky headers for jump links
+  padding-bottom: $spacer-lg;
+  margin-bottom: $spacer-lg;
+  border-bottom: 2px solid $color-primary;
+
+  &:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+}
+
+/* ========== Job Header Row (Title/Badges + Apply Button) ========== */
+.job-category__header-row {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacer;
+
+  // Accordion header grows to fill space, but leaves room for Apply button
+  .accordion-header {
+    flex: 1;
+    min-width: 0; // Allow flex shrinking
+  }
+
+  // Hide header apply button when accordion is expanded
+  &:has(.accordion-button:not(.collapsed)) .job-category__header-apply {
+    display: none;
+  }
+}
+
+.job-category__header-apply {
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: $spacer; // Align with badges
+  // Higher z-index to ensure clicks register
+  z-index: 2;
+  // Prevent parent hover transform from affecting button interaction
+  position: relative;
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    font-weight: $weight-button;
+    background-color: $color-primary;
+    color: $color-white;
+    border-color: $color-primary;
+    white-space: nowrap;
+
+    i {
+      flex-shrink: 0;
+      color: $color-white;
+    }
+
+    &:hover,
+    &:focus {
+      background-color: $color-white;
+      color: $color-primary;
+      border-color: $color-primary;
+
+      i {
+        color: $color-primary;
+      }
+    }
+  }
+
+  // Hide on mobile - user expands to see Apply button in body
+  @include mobile {
+    display: none;
+  }
+}
+
+.job-category__header {
+  @include responsive-typography(1.75rem, 1.5rem, 1.35rem);
+  font-weight: $weight-title;
+  color: $color-primary;
+  padding: $spacer $spacer-lg;
+  margin-bottom: 0;
+
+  @include mobile {
+    padding: $spacer;
+  }
+}
+
+.job-category__listings {
+  padding-left: $spacer-xl;
+
+  @include mobile {
+    padding-left: $spacer;
+  }
+}
+
+.job-category__accordion {
+  // Inset accordion items
+  .accordion-item {
+    border: none;
+    border-bottom: 2px solid $color-primary;
+    margin-bottom: 0.5rem;
+    background: transparent;
+    transition: border-bottom-width 0.2s ease;
+
+    &:hover {
+      border-bottom-width: 4px;
+
+      @include mobile {
+        border-bottom-width: 2px;
+      }
+    }
+  }
+
+  .accordion-button {
+    background-color: transparent;
+    color: $color-primary;
+    font-size: 1.5rem; // Match standard accordion
+    font-weight: $weight-button; // 600 - changes to 700 on expand
+    padding: $spacer $spacer-lg $spacer 3rem;
+    position: relative;
+    box-shadow: none;
+    // Stack title and badges vertically
+    flex-direction: column;
+    align-items: flex-start;
+    transition: $transition-base;
+
+    &:not(.collapsed) {
+      background-color: transparent;
+      color: $color-primary;
+      font-weight: $font-weight-bold; // 700 on expand
+      box-shadow: none;
+
+      // Title also gets bold when expanded
+      .job-title {
+        font-weight: $font-weight-bold; // 700
+      }
+    }
+
+    // Hover effects (match standard accordion)
+    &:hover {
+      color: darken($color-primary, 10%);
+
+      &::before {
+        color: darken($color-primary, 10%);
+      }
+    }
+
+    // Focus states for accessibility (match standard accordion)
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 0.25rem rgba($color-primary, 0.25);
+      z-index: 1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid $color-primary;
+      outline-offset: 2px;
+    }
+
+    // Hide default Bootstrap icon
+    &::after {
+      display: none;
+    }
+
+    // Custom plus/minus icon (1.5rem to match button font-size)
+    &::before {
+      font-family: "Font Awesome 6 Free";
+      content: "\f067"; // Plus icon
+      font-weight: $font-weight-bold;
+      font-size: 1.5rem; // Match standard accordion
+      position: absolute;
+      left: 0.75rem;
+      top: $spacer; // Aligns with top padding
+      color: $color-primary;
+      transition: $transition-base;
+    }
+
+    &:not(.collapsed)::before {
+      content: "\f068"; // Minus icon
+      transform: rotate(180deg); // Match standard accordion behavior
+    }
+
+    @include mobile {
+      padding: $spacer $spacer $spacer 2.5rem;
+
+      &::before {
+        left: 0.5rem;
+      }
+    }
+  }
+
+  // Job title styling
+  .job-title {
+    font-size: 1.5rem;
+    font-weight: $weight-button; // 600 - changes to 700 on expand (via parent)
+    color: $color-primary;
+    line-height: 1.3;
+    margin-bottom: 0.5rem;
+
+    @include mobile {
+      font-size: 1.25rem;
+      margin-bottom: 0.375rem;
+    }
+  }
+
+  // Job badges container
+  .job-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+
+    @include mobile {
+      gap: 0.375rem;
+    }
+  }
+
+  .accordion-body {
+    padding: 0 $spacer-lg $spacer-lg 3rem;
+    font-size: 1.5rem;
+    line-height: 1.6;
+
+    @include mobile {
+      padding: 0 $spacer $spacer 2.5rem;
+      font-size: 1.25rem;
+    }
+  }
+}
+
+/* ========== Job Badges ========== */
+// Badge Design System - Two Row Layout
+//
+// Row 1 (Primary): Location, Work Arrangement, Salary, Deadline
+// Row 2 (Secondary): Employment Type, Bar Requirement, Bilingual, FLSA Exemption
+//
+// Contrast-safe colors (all pass WCAG AA 4.5:1):
+// - Green (new): #2d855a on white text
+// - Orange (urgent): #cc6b00 on white text
+// - Red (closed): #c82333 on white text
+// - Purple accent: #6f42c1
+
+.job-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  // Semantic colors
+  --badge-purple: #6f42c1;
+  --badge-purple-tint: #f3eef8;
+  --badge-green: #2d855a;
+  --badge-blue-new: #0b5ed7;
+  --badge-orange: #cc6b00;
+  --badge-red: #c82333;
+  --badge-blue-tint: #{rgba($color-primary, 0.08)};
+  --badge-green-tint: #{rgba(#2d855a, 0.08)};
+}
+
+// Row containers
+.job-badges__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  @include mobile {
+    gap: 0.375rem;
+  }
+}
+
+// ==========================================================================
+// BASE BADGE STYLES (shared)
+// ==========================================================================
+.job-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  border-style: solid;
+  border-color: transparent; // Default, overridden by variants
+  white-space: nowrap;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  transition: $transition-fast;
+
+  i {
+    flex-shrink: 0;
+  }
+}
+
+// ==========================================================================
+// ROW 1 BADGES - Primary row (Location, Work Arrangement, Salary, Deadline)
+// Desktop: 16px, 700 weight, 2px border, 14px icon, 6px 14px padding
+// Mobile: 13px, 700 weight, 12px icon, 4px 10px padding
+// ==========================================================================
+.job-badges__row--primary .job-badge {
+  font-size: 1rem; // 16px
+  font-weight: $font-weight-bold; // 700
+  padding: 6px 14px;
+  border-width: 2px; // Only set width, not color (let variants handle color)
+  gap: 8px;
+
+  i {
+    font-size: 0.875rem; // 14px
+  }
+
+  @include mobile {
+    font-size: 0.8125rem; // 13px
+    font-weight: $font-weight-bold; // 700
+    padding: 4px 10px;
+
+    i {
+      font-size: 0.75rem; // 12px
+    }
+  }
+}
+
+// ==========================================================================
+// ROW 2 BADGES - Secondary row (Employment Type, Bar, Bilingual, Exempt)
+// Desktop: 15px, 600 weight, 1px border, 12px icon, 6px 14px padding
+// Mobile: 12px, 600 weight, 12px icon, 4px 10px padding
+// ==========================================================================
+.job-badges__row--secondary .job-badge {
+  font-size: 0.9375rem; // 15px
+  font-weight: $font-weight-semibold; // 600
+  padding: 6px 14px;
+  border-width: 1px; // Only set width, not color (let variants handle color)
+  gap: 8px;
+
+  i {
+    font-size: 0.75rem; // 12px
+  }
+
+  @include mobile {
+    font-size: 0.75rem; // 12px
+    font-weight: $font-weight-semibold; // 600
+    padding: 4px 10px;
+
+    i {
+      font-size: 0.75rem; // 12px
+    }
+  }
+}
+
+// ==========================================================================
+// BADGE COLOR VARIANTS
+// ==========================================================================
+
+// Location - Filled blue (Row 1)
+.job-badge--location {
+  background-color: $color-primary;
+  color: $color-white;
+  border-color: $color-primary;
+
+  i { color: $color-white; }
+}
+
+// Work Arrangement - Tinted blue (Row 1)
+.job-badge--arrangement {
+  background-color: var(--badge-blue-tint);
+  color: $color-primary;
+  border-color: $color-primary;
+
+  i { color: $color-primary; }
+}
+
+// Salary - Tinted green (Row 1)
+.job-badge--salary {
+  background-color: var(--badge-green-tint);
+  color: var(--badge-green);
+  border-color: var(--badge-green);
+
+  i { color: var(--badge-green); }
+}
+
+// Deadline - New posting (within 7 days) - Blue (Row 1)
+.job-badge--new {
+  background-color: var(--badge-blue-new);
+  color: $color-white;
+  border-color: var(--badge-blue-new);
+
+  i { color: $color-white; }
+}
+
+// Deadline - Closing soon (within 3 days) - Orange (Row 1)
+.job-badge--urgent {
+  background-color: var(--badge-orange);
+  color: $color-white;
+  border-color: var(--badge-orange);
+
+  i { color: $color-white; }
+}
+
+// Deadline - Closed - Red (Row 1)
+.job-badge--closed {
+  background-color: var(--badge-red);
+  color: $color-white;
+  border-color: var(--badge-red);
+
+  i { color: $color-white; }
+}
+
+// Deadline - Standard (neutral) (Row 1)
+.job-badge--deadline {
+  background-color: $color-gray-bg;
+  color: $color-gray-muted;
+  border-color: $color-gray-border;
+
+  i { color: $color-gray-text; }
+}
+
+// Employment Type - Outline blue (Row 2)
+.job-badge--employment-type {
+  background-color: transparent;
+  color: $color-primary;
+  border-color: $color-primary;
+
+  i { color: $color-primary; }
+}
+
+// Idaho Bar - Tinted purple (Row 2)
+.job-badge--bar {
+  background-color: var(--badge-purple-tint);
+  color: var(--badge-purple);
+  border-color: var(--badge-purple);
+
+  i { color: var(--badge-purple); }
+}
+
+// Bilingual Required - Solid purple (Row 2)
+.job-badge--bilingual-required {
+  background-color: var(--badge-purple);
+  color: $color-white;
+  border-color: var(--badge-purple);
+
+  i { color: $color-white; }
+}
+
+// Bilingual Preferred - Tinted purple with dashed border (Row 2)
+.job-badge--bilingual-preferred {
+  background-color: var(--badge-purple-tint);
+  color: var(--badge-purple);
+  border-color: var(--badge-purple);
+  border-style: dashed;
+
+  i { color: var(--badge-purple); }
+}
+
+// FLSA Exemption - Light gray (Row 2)
+.job-badge--exempt {
+  background-color: $color-gray-light;
+  color: $color-gray-text;
+  border-color: transparent;
+
+  i { color: $color-gray-text; }
+}
+
+.job-category__empty {
+  color: $color-body;
+  font-style: italic;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  padding: $spacer 0;
+  padding-left: 3rem;
+  margin: 0;
+  border-bottom: 2px solid $color-primary;
+
+  @include mobile {
+    font-size: 1rem;
+    padding-left: 2.5rem;
+  }
+}
+
+/* ========== Job Actions (Download + Apply Now buttons) ========== */
+.job-category__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $spacer;
+  margin-top: 1rem;
+  padding: 0.25rem 0;
+
+  @include mobile {
+    flex-direction: column;
+    gap: $spacer-sm;
+  }
+}
+
+.job-category__file {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    font-weight: $weight-button;
+    background-color: $color-primary;
+    color: $color-white;
+    border-color: $color-primary;
+
+    i {
+      margin-right: 0.5rem;
+      flex-shrink: 0;
+      color: $color-white;
+    }
+
+    &:hover,
+    &:focus {
+      background-color: $color-white;
+      color: $color-primary;
+      border-color: $color-primary;
+
+      i {
+        color: $color-primary;
+      }
+    }
+
+    @include mobile {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+.job-category__file-spacer {
+  // Empty spacer to push Apply Now to the right when no download button
+  flex-shrink: 1;
+}
+
+.job-category__apply {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    font-weight: $weight-button;
+    background-color: $color-primary;
+    color: $color-white;
+    border-color: $color-primary;
+
+    i {
+      flex-shrink: 0;
+      color: $color-white;
+    }
+
+    &:hover,
+    &:focus {
+      background-color: $color-white;
+      color: $color-primary;
+      border-color: $color-primary;
+
+      i {
+        color: $color-primary;
+      }
+    }
+
+    @include mobile {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+/* ========== EEO Statement ========== */
+.employment-page__eeo {
+  padding: 0.75rem 1.5rem;
+  background-color: $color-gray-bg;
+  border-left: 6px solid $color-primary;
+
+  @include mobile {
+    border-left-width: 4px;
+    padding: 0.5rem 1rem;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
+    margin-bottom: $spacer-sm;
+    text-align: center;
+
+    @include mobile {
+      font-size: 1.1rem;
+    }
+  }
+
+  .content-body {
+    font-size: 1.1rem;
+    line-height: 1.5;
+
+    @include mobile {
+      font-size: 1rem;
+    }
+  }
+
+  .benefits-disclaimer {
+    color: $color-body;
+    font-size: 1rem;
+    font-style: italic;
+    margin-top: $spacer-sm;
+    margin-bottom: 0;
+  }
+}
+
+/* ========== Section Title (shared) ========== */
+.section-title {
+  @include responsive-typography(2.5rem, 2rem, 1.75rem);
+  font-weight: $weight-title;
+  color: $color-primary;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+/* ========== Sticky Jobs Bar ========== */
+// Appears when user scrolls past intro CTA, hides when job listings are in view
+// Follows patterns from: utility-bar, back-to-top, help-overlay
+
+.sticky-jobs-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9985; // Below overlays (9990), above back-to-top (9980)
+
+  background-color: $color-primary;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
+
+  // Hidden by default
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(100%);
+  transition: opacity 0.3s ease-in-out,
+              visibility 0.3s ease-in-out,
+              transform 0.3s ease-in-out;
+
+  // Visible state (added by JS)
+  &.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+}
+
+.sticky-jobs-bar__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacer-lg;
+  padding: 0.75rem $spacer-lg;
+  max-width: 1080px; // Match employment page container
+  margin: 0 auto;
+
+  @include mobile {
+    flex-direction: column;
+    gap: $spacer-sm;
+    padding: 0.75rem $spacer;
+  }
+}
+
+.sticky-jobs-bar__text {
+  color: $color-white;
+  font-size: 1.1rem;
+  font-weight: $weight-subtitle;
+  white-space: nowrap;
+
+  @include mobile {
+    font-size: 1rem;
+  }
+}
+
+.sticky-jobs-bar__cta {
+  @include button-no-underline;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+
+  // Inverted pill button (matches utility-cta pattern)
+  background-color: $color-white;
+  color: $color-primary;
+  font-weight: $weight-button;
+  font-size: 1rem;
+  padding: 0.625rem 1.5rem;
+  border: 2px solid $color-white;
+  border-radius: 999px; // Pill shape
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: $transition-base;
+  white-space: nowrap;
+  min-height: 44px; // Touch target
+
+  i {
+    font-size: 0.9rem;
+    transition: transform 0.2s ease;
+  }
+
+  // Subtle hover effect (matches utility-cta pattern)
+  &:hover,
+  &:focus {
+    background-color: rgba($color-white, 0.88);
+    color: $color-primary;
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-white;
+    outline-offset: 3px;
+  }
+
+  @include mobile {
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.95rem;
+
+    &:hover,
+    &:focus {
+      transform: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
+/* ========== Reduced Motion Support ========== */
+@media (prefers-reduced-motion: reduce) {
+  .quick-fact,
+  .jump-nav-link,
+  .benefit-card,
+  .sticky-jobs-bar,
+  .sticky-jobs-bar__cta {
+    transition: none;
+  }
+
+  .sticky-jobs-bar {
+    transform: none; // No slide animation
+  }
+
+  .sticky-jobs-bar__cta i {
+    transition: none;
+  }
+}
+
+/* ========== Print Styles ========== */
+@media print {
+  .employment-page__jump-nav,
+  .sticky-jobs-bar {
+    display: none;
+  }
+}

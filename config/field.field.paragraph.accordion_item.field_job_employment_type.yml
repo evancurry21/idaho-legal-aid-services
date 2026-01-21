@@ -15,9 +15,7 @@ label: 'Job: Employment Type'
 description: 'For job listings only. Select the type of employment for this position.'
 required: false
 translatable: true
-default_value:
-  -
-    value: FULL_TIME
+default_value: {  }
 default_value_callback: ''
 settings: {  }
 field_type: list_string

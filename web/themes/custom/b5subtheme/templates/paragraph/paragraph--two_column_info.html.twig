@@ -19,73 +19,75 @@
 {% set left_btn_mobile = button_text_map[left_btn_text]|default(left_btn_text) %}
 {% set right_btn_mobile = button_text_map[right_btn_text]|default(right_btn_text) %}
 
-<div class="row justify-content-center brand-l col-padding-sm text-center mb-5">
-  {# LEFT COLUMN #}
-  <div class="col-md-5 column-border">
-    {% if content.field_left_title %}
-      <div class="column-title">
-        {{ content.field_left_title }}
-      </div>
-    {% endif %}
-    
-    {% if content.field_left_subtitle %}
-      <div class="column-subtitle">
-        {{ content.field_left_subtitle }}
-      </div>
-    {% endif %}
-    
-    {% if content.field_left_body %}
-      <div class="column-body mb-3">
-        {{ content.field_left_body }}
-      </div>
-    {% endif %}
+{# Two-column layout: Bootstrap gx-4 gutter creates gap, inner .column-card has border/bg #}
+<div class="two-column-info-wrapper">
+  <div class="row gx-4 gy-4 justify-content-center brand-l col-padding-sm text-center mb-5">
+    {# LEFT COLUMN #}
+    <div class="col-md-6">
+      <div class="column-card">
+        {% if content.field_left_title %}
+          <div class="column-title">
+            {{ content.field_left_title }}
+          </div>
+        {% endif %}
 
-    {% if content.field_left_link_url.0['#url'] is defined and content.field_left_link_text.0 is defined %}
-      <p>
-        <a class="btn btn-primary"
-           style="--bs-btn-padding-y: .75rem; --bs-btn-padding-x: 1.25rem; --bs-btn-font-size: .75rem;"
-           href="{{ content.field_left_link_url.0['#url'] }}">
-          <span class="d-none d-sm-inline">{{ content.field_left_link_text.0 }}</span>
-          <span class="d-sm-none">{{ left_btn_mobile }}</span>
-        </a>
-      </p>
-    {% endif %}
-  </div>
+        {% if content.field_left_subtitle %}
+          <div class="column-subtitle">
+            {{ content.field_left_subtitle }}
+          </div>
+        {% endif %}
 
-  {# SPACER COLUMN #}
-  <div class="col-md-1">
-    {# Empty spacer column #}
-  </div>
+        {% if content.field_left_body %}
+          <div class="column-body mb-3">
+            {{ content.field_left_body }}
+          </div>
+        {% endif %}
 
-  {# RIGHT COLUMN #}
-  <div class="col-md-5 column-border">
-    {% if content.field_right_title %}
-      <div class="column-title">
-        {{ content.field_right_title }}
+        {% if content.field_left_link_url.0['#url'] is defined and content.field_left_link_text.0 is defined %}
+          <p>
+            <a class="btn btn-primary"
+               style="--bs-btn-padding-y: .75rem; --bs-btn-padding-x: 1.25rem; --bs-btn-font-size: .75rem;"
+               href="{{ content.field_left_link_url.0['#url'] }}">
+              <span class="d-none d-sm-inline">{{ content.field_left_link_text.0 }}</span>
+              <span class="d-sm-none">{{ left_btn_mobile }}</span>
+            </a>
+          </p>
+        {% endif %}
       </div>
-    {% endif %}
-    
-    {% if content.field_right_subtitle %}
-      <div class="column-subtitle">
-        {{ content.field_right_subtitle }}
-      </div>
-    {% endif %}
-    
-    {% if content.field_right_body %}
-      <div class="column-body mb-3">
-        {{ content.field_right_body }}
-      </div>
-    {% endif %}
+    </div>
 
-    {% if content.field_right_link_url.0['#url'] is defined and content.field_right_link_text.0 is defined %}
-      <p>
-        <a class="btn btn-primary"
-           style="--bs-btn-padding-y: .75rem; --bs-btn-padding-x: 1.25rem; --bs-btn-font-size: .75rem;"
-           href="{{ content.field_right_link_url.0['#url'] }}">
-          <span class="d-none d-sm-inline">{{ content.field_right_link_text.0 }}</span>
-          <span class="d-sm-none">{{ right_btn_mobile }}</span>
-        </a>
-      </p>
-    {% endif %}
+    {# RIGHT COLUMN #}
+    <div class="col-md-6">
+      <div class="column-card">
+        {% if content.field_right_title %}
+          <div class="column-title">
+            {{ content.field_right_title }}
+          </div>
+        {% endif %}
+
+        {% if content.field_right_subtitle %}
+          <div class="column-subtitle">
+            {{ content.field_right_subtitle }}
+          </div>
+        {% endif %}
+
+        {% if content.field_right_body %}
+          <div class="column-body mb-3">
+            {{ content.field_right_body }}
+          </div>
+        {% endif %}
+
+        {% if content.field_right_link_url.0['#url'] is defined and content.field_right_link_text.0 is defined %}
+          <p>
+            <a class="btn btn-primary"
+               style="--bs-btn-padding-y: .75rem; --bs-btn-padding-x: 1.25rem; --bs-btn-font-size: .75rem;"
+               href="{{ content.field_right_link_url.0['#url'] }}">
+              <span class="d-none d-sm-inline">{{ content.field_right_link_text.0 }}</span>
+              <span class="d-sm-none">{{ right_btn_mobile }}</span>
+            </a>
+          </p>
+        {% endif %}
+      </div>
+    </div>
   </div>
 </div>

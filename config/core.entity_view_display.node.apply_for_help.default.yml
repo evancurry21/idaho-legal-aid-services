@@ -27,19 +27,19 @@ content:
     third_party_settings: {  }
     weight: 0
     region: content
-  field_apply_post_cards_body:
-    type: text_default
-    label: hidden
-    settings: {  }
-    third_party_settings: {  }
-    weight: 6
-    region: content
   field_apply_legal_title:
     type: text_default
     label: hidden
     settings: {  }
     third_party_settings: {  }
     weight: 1
+    region: content
+  field_apply_post_cards_body:
+    type: text_default
+    label: hidden
+    settings: {  }
+    third_party_settings: {  }
+    weight: 6
     region: content
   field_apply_schedule:
     type: text_default
@@ -72,6 +72,9 @@ content:
     weight: 2
     region: content
 hidden:
+  entity_print_view_epub: true
+  entity_print_view_pdf: true
+  entity_print_view_word_docx: true
   langcode: true
   links: true
   search_api_excerpt: true

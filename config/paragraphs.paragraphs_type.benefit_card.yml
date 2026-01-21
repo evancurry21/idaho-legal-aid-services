@@ -1,0 +1,10 @@
+uuid: c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f
+langcode: en
+status: true
+dependencies: {  }
+id: benefit_card
+label: 'Benefit Card'
+icon_uuid: null
+icon_default: null
+description: 'Benefit category card with icon, title, and summary for Benefits Snapshot.'
+behavior_plugins: {  }

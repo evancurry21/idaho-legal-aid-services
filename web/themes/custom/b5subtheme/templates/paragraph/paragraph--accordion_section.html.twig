@@ -3,14 +3,22 @@
   Used by the "Accordion Section" paragraph type.
 
   Fields:
-    - field_title (the top‐level title for the entire accordion)
+    - field_title (the top-level title for the entire accordion)
     - field_accordion_items (references the "accordion_item" paragraphs)
+
+  Features:
+    - Auto-generates an ID from the title for jump link anchors
+    - Uses Bootstrap 5 accordion components
 #}
 
 {% set paragraph_id = paragraph.entity.id() %}
 {% set accordion_id = 'accordion-' ~ paragraph_id %}
 
-<div class="accordion-section">
+{# Generate anchor ID from title for jump links #}
+{% set section_title = paragraph.field_title.value|default('') %}
+{% set section_anchor = section_title|lower|replace({' ': '-', '/': '-', "'": '', ':': ''})|trim('-') %}
+
+<div class="accordion-section"{% if section_anchor %} id="{{ section_anchor }}"{% endif %}>
   {% if paragraph.field_title.value %}
     <h3 class="accordion-section-title mb-3 text-center">
       {{ paragraph.field_title.value }}

@@ -1,0 +1,50 @@
+uuid: d8e9f0a1-b2c3-4d4e-5f6a-7b8c9d0e1f2a
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.paragraph.content_section.field_section_body
+    - field.field.paragraph.content_section.field_section_id
+    - field.field.paragraph.content_section.field_section_style
+    - field.field.paragraph.content_section.field_section_title
+    - paragraphs.paragraphs_type.content_section
+  module:
+    - text
+id: paragraph.content_section.default
+targetEntityType: paragraph
+bundle: content_section
+mode: default
+content:
+  field_section_body:
+    type: text_textarea
+    weight: 3
+    region: content
+    settings:
+      rows: 9
+      placeholder: ''
+    third_party_settings: {  }
+  field_section_id:
+    type: string_textfield
+    weight: 1
+    region: content
+    settings:
+      size: 30
+      placeholder: 'e.g., for-attorneys'
+    third_party_settings: {  }
+  field_section_style:
+    type: options_select
+    weight: 2
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_section_title:
+    type: string_textfield
+    weight: 0
+    region: content
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+hidden:
+  created: true
+  status: true

@@ -1,17 +1,36 @@
-// Row containing two-column-info needs gutter on mobile
-.row:has(.column-border) {
+// ===========================================================================
+// TWO-COLUMN INFO SECTION
+// Two side-by-side bordered cards with equal widths
+// Uses Bootstrap gx-4 gutter (~24px gap) instead of spacer column
+// ===========================================================================
+
+// Wrapper provides max-width alignment strategy:
+// - Slightly wider than reading-column-width to give cards breathing room
+// - Narrower than full container for visual cohesion with content above
+.two-column-info-wrapper {
+  // Max-width: 2× reading column + gap for comfortable card widths
+  // This creates alignment harmony with .content-body above
+  max-width: calc(#{$reading-column-width} * 2 + 3rem);
+  margin-inline: auto;
+  width: 100%;
+
   @include mobile {
     padding-inline: $gutter-page-x;
   }
 }
 
+// Inner card element receives border/background
+// Bootstrap gx-4 on the row creates padding in the col-md-6 columns
+// This inner element sits inside that padding, making the gap visible
+.column-card,
 .column-border {
-    border: 6px solid $color-primary;
-    z-index: 20;
-    padding: 1rem 0.5rem;
-    margin-top: 2rem;
-    background-color: $color-gray-bg;
-  }
+  border: 6px solid $color-primary;
+  z-index: 20;
+  padding: 1.25rem;
+  margin-top: 2rem;
+  background-color: $color-gray-bg;
+  height: 100%; // Equal height cards when side-by-side
+}
   
   // If you want to style titles/subtitles/body specifically:
   .column-title {

@@ -9,7 +9,7 @@ additional_fqdns: []
 database:
     type: mariadb
     version: "10.11"
-use_dns_when_possible: true
+use_dns_when_possible: false
 composer_version: "2"
 web_environment: 
     - STRIPE_LIVE_SECRET_KEY=sk_live_...VQXl

@@ -5,7 +5,7 @@ dependencies:
   config:
     - field.storage.node.field_job_listings
     - node.type.employment
-    - paragraphs.paragraphs_type.accordion_section
+    - paragraphs.paragraphs_type.job_category
   module:
     - entity_reference_revisions
 id: node.employment.field_job_listings
@@ -13,7 +13,7 @@ field_name: field_job_listings
 entity_type: node
 bundle: employment
 label: 'Job Listings'
-description: ''
+description: 'Add job categories (Attorneys, Support Staff, Administrative) with their job listings'
 required: false
 translatable: true
 default_value: {  }
@@ -22,7 +22,7 @@ settings:
   handler: 'default:paragraph'
   handler_settings:
     target_bundles:
-      accordion_section: accordion_section
+      job_category: job_category
     negate: 0
     target_bundles_drag_drop:
       accordion_item:
@@ -30,7 +30,7 @@ settings:
         enabled: false
       accordion_section:
         weight: 13
-        enabled: true
+        enabled: false
       donation_questions:
         weight: 14
         enabled: false
@@ -52,6 +52,9 @@ settings:
       impact_card:
         weight: 20
         enabled: false
+      job_category:
+        weight: 0
+        enabled: true
       topic_card:
         weight: 21
         enabled: false

@@ -1,0 +1,21 @@
+uuid: 9f0a1b2c-3d4e-5f6a-7b8c-9d0e1f2a3b4c
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_job_bilingual
+    - paragraphs.paragraphs_type.accordion_item
+  module:
+    - options
+id: paragraph.accordion_item.field_job_bilingual
+field_name: field_job_bilingual
+entity_type: paragraph
+bundle: accordion_item
+label: 'Job: Bilingual'
+description: 'For job listings only. Select if bilingual skills are preferred or required.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string

@@ -1,0 +1,21 @@
+uuid: f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c
+langcode: en
+status: true
+dependencies:
+  module:
+    - paragraphs
+id: paragraph.field_benefit_title
+field_name: field_benefit_title
+entity_type: paragraph
+type: string
+settings:
+  max_length: 255
+  case_sensitive: false
+  is_ascii: false
+module: core
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

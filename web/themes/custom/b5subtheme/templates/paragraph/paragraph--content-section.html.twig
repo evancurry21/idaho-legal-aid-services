@@ -1,0 +1,35 @@
+{#
+/**
+ * @file
+ * Template for Content Section paragraph type.
+ *
+ * Renders a titled text section with optional styling and anchor ID.
+ *
+ * Available variables:
+ * - paragraph: The paragraph entity
+ * - paragraph.field_section_id: Optional HTML anchor ID for jump links
+ * - paragraph.field_section_title: Section heading text
+ * - paragraph.field_section_body: WYSIWYG body content
+ * - paragraph.field_section_style: Visual style ("default" or "highlighted")
+ */
+#}
+
+{% set style = paragraph.field_section_style.value|default('default') %}
+{% set section_id = paragraph.field_section_id.value %}
+
+{% set classes = [
+  'content-section',
+  'content-section--' ~ style,
+] %}
+
+<section{{ attributes.addClass(classes) }}{% if section_id %} id="{{ section_id }}"{% endif %}>
+  {% if paragraph.field_section_title.value %}
+    <h2 class="content-section__title">
+      {{ paragraph.field_section_title.value }}
+    </h2>
+  {% endif %}
+
+  <div class="content-section__body content-body">
+    {{ paragraph.field_section_body.value|raw }}
+  </div>
+</section>

@@ -1,10 +1,18 @@
 {#
 /**
  * @file
- * Template for Employment content type.
+ * Template for Employment content type (redesigned).
  *
  * Uses standard page layout with curved header and footer.
  * Includes JobPosting schema for Google Jobs rich results.
+ *
+ * Sections:
+ * 1. Intro / Content Body
+ * 2. Quick Facts
+ * 3. Current Openings (Job Listings)
+ * 4. Content Sections (For Attorneys, Support Staff, Why ILAS, etc.)
+ * 5. Benefits Snapshot
+ * 6. EEO Statement
  *
  * Available variables:
  * - content: Rendered content fields
@@ -13,11 +21,13 @@
  */
 #}
 
-{# Build JobPosting schema for accordion items with job data #}
+{{ attach_library('b5subtheme/sticky-jobs-bar') }}
+
+{# ========== JobPosting Schema (preserved from original) ========== #}
 {% set job_postings = [] %}
-{% for section in node.field_job_listings %}
-  {% if section.entity %}
-    {% for item_ref in section.entity.field_accordion_items %}
+{% for category in node.field_job_listings %}
+  {% if category.entity %}
+    {% for item_ref in category.entity.field_category_jobs %}
       {% if item_ref.entity and item_ref.entity.field_job_date_posted.value %}
         {% set job_item = item_ref.entity %}
         {% set job_posting = {
@@ -75,44 +85,117 @@
 </script>
 {% endif %}
 
-<article{{ attributes.addClass('node', 'node--employment') }}>
+{# ========== Main Article ========== #}
+<article{{ attributes.addClass('node', 'node--employment', 'employment-page') }}>
   <div class="container">
-    
-    {# Main Content Area - field template adds .content-body #}
-    {% if content.field_main_content %}
-      {{ content.field_main_content }}
-    {% endif %}
 
-    {# Job Opportunities Section - Using Accordion #}
-    {% if content.field_job_listings %}
-      <div class="job-opportunities-section mt-4">
+    {# ===== 1. INTRO SECTION ===== #}
+    <section class="employment-page__intro">
+      {% if content.field_main_content %}
+        <div class="content-body">
+          {{ content.field_main_content }}
+        </div>
+      {% endif %}
+
+      {# View Open Positions CTA - observed by sticky bar JS #}
+      <div class="employment-page__intro-cta text-center" id="intro-cta-trigger">
+        <a href="#current-openings" class="btn btn-primary btn-lg">
+          View Open Positions
+          <i class="fas fa-arrow-down ms-2" aria-hidden="true"></i>
+        </a>
+      </div>
+    </section>
+
+  </div>{# End container for intro #}
+
+  {# ===== 2. QUICK FACTS SECTION (full-bleed with curved gray background) ===== #}
+  {% if content.field_quick_facts|render|trim %}
+    <section class="employment-page__quick-facts-section">
+      <div class="container">
+        <h2 class="section-heading text-center">Statewide Reach. Local Impact.</h2>
+        <div class="quick-facts-grid">
+          {{ content.field_quick_facts }}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="container">
+    {# ===== 3. CURRENT OPENINGS ===== #}
+    {% if content.field_job_listings|render|trim %}
+      <section class="employment-page__listings" id="current-openings">
+        {# Title #}
+        {% if node.field_job_listings_title.value %}
+          <h2 class="section-title text-center">{{ node.field_job_listings_title.value }}</h2>
+        {% endif %}
+
+        {# Jump Links Navigation #}
+        {% if node.field_job_listings|length > 0 %}
+        <nav class="employment-page__jump-nav" aria-label="Job categories">
+          <ul class="jump-nav-list">
+            {% for category in node.field_job_listings %}
+              {% if category.entity %}
+                <li>
+                  <a href="#{{ category.entity.field_category_id.value }}" class="jump-nav-link">
+                    {{ category.entity.field_category_name.value }}
+                  </a>
+                </li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+        </nav>
+        {% endif %}
+
+        {# Job listings accordion #}
         {{ content.field_job_listings }}
+      </section>
+    {% endif %}
+
+    {# ===== 4. CONTENT SECTIONS ===== #}
+    {% if content.field_content_sections|render|trim %}
+      <div class="employment-page__sections">
+        {{ content.field_content_sections }}
       </div>
     {% endif %}
 
-    {# Benefits Section #}
-    {% if content.field_benefits %}
-      <div class="benefits-section content-body mt-4">
-        <h3 class="accordion-section-title">Why Work With Us?</h3>
-        {{ content.field_benefits }}
-      </div>
+    {# ===== 5. BENEFITS SNAPSHOT ===== #}
+    {% if content.field_benefits_snapshot|render|trim %}
+      <section class="employment-page__benefits" id="benefits">
+        <h2 class="section-title text-center">Benefits Snapshot</h2>
+
+        {% if node.field_benefits_disclaimer.value %}
+          <p class="benefits-disclaimer">
+            {{ node.field_benefits_disclaimer.value }}
+          </p>
+        {% endif %}
+
+        <div class="benefits-grid">
+          {{ content.field_benefits_snapshot }}
+        </div>
+      </section>
     {% endif %}
 
-    {# Call to Action Section #}
-    <div class="cta-section content-body mt-5 text-center">
-      <h3 class="accordion-section-title">Ready to Join Our Team?</h3>
-      <p>We're looking for dedicated professionals who share our commitment to providing quality legal services to our community.</p>
-      <a href="/eapplication" class="btn btn-primary btn-lg">
-        Apply Today
-      </a>
-    </div>
-
-    {# Additional Content #}
-    {% if content.field_additional_content %}
-      <div class="additional-content content-body mt-4">
-        {{ content.field_additional_content }}
-      </div>
+    {# ===== 6. EEO STATEMENT ===== #}
+    {% if content.field_eeo_statement|render|trim %}
+      <section class="employment-page__eeo">
+        <h2 class="section-title">Equal Opportunity Employer</h2>
+        <div class="content-body">
+          {{ content.field_eeo_statement }}
+        </div>
+      </section>
     {% endif %}
-  
+
   </div>{# End container #}
 </article>
+
+{# ===== STICKY CTA BAR ===== #}
+{# Appears when intro CTA scrolls out of view, hides when job listings are in view #}
+<div class="sticky-jobs-bar" id="sticky-jobs-bar" aria-hidden="true">
+  <div class="sticky-jobs-bar__content">
+    <span class="sticky-jobs-bar__text">Ready to join our team?</span>
+    <a href="#current-openings" class="sticky-jobs-bar__cta">
+      View Open Positions
+      <i class="fas fa-briefcase ms-2" aria-hidden="true"></i>
+    </a>
+  </div>
+</div>

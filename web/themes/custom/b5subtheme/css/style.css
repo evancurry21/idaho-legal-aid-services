@@ -22786,6 +22786,16 @@ a.btn-primary:visited, .node--type-donate.donate-page .custom-donation-form a.do
 a.btn-success:visited {
   color: #ffffff;
 }
+a.btn-primary:visited:hover, .node--type-donate.donate-page .custom-donation-form a.donate-button:visited:hover, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options a.frequency-btn:visited:hover, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons a.amount-btn:visited:hover, a.btn-primary:visited:focus, .node--type-donate.donate-page .custom-donation-form a.donate-button:visited:focus, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options a.frequency-btn:visited:focus, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons a.amount-btn:visited:focus,
+a.btn-success:visited:hover,
+a.btn-success:visited:focus {
+  color: #1263a0;
+}
+a.btn-primary:visited:hover *, .node--type-donate.donate-page .custom-donation-form a.donate-button:visited:hover *, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options a.frequency-btn:visited:hover *, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons a.amount-btn:visited:hover *, a.btn-primary:visited:focus *, .node--type-donate.donate-page .custom-donation-form a.donate-button:visited:focus *, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options a.frequency-btn:visited:focus *, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons a.amount-btn:visited:focus *,
+a.btn-success:visited:hover *,
+a.btn-success:visited:focus * {
+  color: #1263a0;
+}
 
 .back-button {
   display: inline-flex !important;
@@ -27416,6 +27426,1243 @@ ul.pager__items {
   display: none;
 }
 
+/***********************************************
+ * Employment Page Component
+ *
+ * Styles for the redesigned Employment Opportunities page.
+ * Uses existing tokens from _variables_theme.scss.
+ ***********************************************/
+/* ========== Page Layout ========== */
+.employment-page .container {
+  max-width: 1080px;
+}
+
+/* ========== Intro Section ========== */
+.employment-page__intro {
+  margin-bottom: 2rem;
+}
+.employment-page__intro .content-body {
+  max-width: 75ch;
+  margin-inline: auto;
+}
+
+/* ========== Jump Navigation ========== */
+.employment-page__jump-nav {
+  margin-bottom: 2rem;
+}
+@media (max-width: 767.98px) {
+  .employment-page__jump-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .employment-page__jump-nav::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.jump-nav-list {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 767.98px) {
+  .jump-nav-list {
+    justify-content: flex-start;
+    gap: 0.5rem;
+    min-width: -moz-max-content;
+    min-width: max-content;
+  }
+}
+
+.jump-nav-link {
+  text-decoration: none;
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  background-color: #1263a0;
+  color: #ffffff;
+  font-weight: 600;
+  border: 2px solid #1263a0;
+  border-radius: 4px;
+  transition: all 0.3s ease-in-out;
+  white-space: nowrap;
+  min-height: 48px;
+  min-width: 185px;
+  text-align: center;
+  text-transform: uppercase;
+}
+.jump-nav-link:link, .jump-nav-link:visited, .jump-nav-link:hover, .jump-nav-link:focus, .jump-nav-link:focus-visible, .jump-nav-link:active {
+  text-decoration: none;
+}
+.jump-nav-link:hover, .jump-nav-link:focus {
+  background-color: #ffffff;
+  color: #1263a0;
+  border-color: #1263a0;
+  text-decoration: none;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.jump-nav-link:focus-visible {
+  outline: 2px solid #1263a0;
+  outline-offset: 2px;
+}
+@media (max-width: 767.98px) {
+  .jump-nav-link {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+  .jump-nav-link:hover, .jump-nav-link:focus {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* ========== View Open Positions CTA ========== */
+.employment-page__intro-cta {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* ========== Quick Facts Section (Full-bleed with curved blue background) ========== */
+.employment-page__quick-facts-section {
+  position: relative;
+  padding: 7rem 0 8rem;
+  margin-bottom: 2rem;
+}
+.employment-page__quick-facts-section::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: calc(100vw - var(--scrollbar-width, 0px));
+  margin-left: calc(-50vw + var(--scrollbar-width, 0px) / 2 - var(--gin-toolbar-x-offset, 0px) / 2);
+  background-image: url("/themes/custom/b5subtheme/images/curved-background-blue (2400 x 900 px).svg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+  z-index: -1;
+  pointer-events: none;
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .employment-page__quick-facts-section::before {
+    background-image: url("/themes/custom/b5subtheme/images/curved-background-blue (1000 x 800 px).svg");
+  }
+}
+@media (max-width: 767.98px) {
+  .employment-page__quick-facts-section::before {
+    background-image: url("/themes/custom/b5subtheme/images/curved-background-blue (500 x 600 px).svg");
+  }
+}
+.employment-page__quick-facts-section .container {
+  position: relative;
+  z-index: 1;
+}
+.employment-page__quick-facts-section .section-heading {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 2rem;
+}
+@media (max-width: 767.98px) {
+  .employment-page__quick-facts-section .section-heading {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .employment-page__quick-facts-section {
+    padding: 5rem 0 6rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .employment-page__quick-facts-section {
+    padding: 4rem 0 5rem;
+  }
+}
+
+/* ========== Quick Facts Grid ========== */
+.quick-facts-grid {
+  max-width: 820px;
+  margin-inline: auto;
+}
+.quick-facts-grid .field--name-field-quick-facts {
+  display: grid;
+  grid-template-columns: repeat(2, 380px);
+  justify-content: center;
+  gap: 2rem;
+}
+@media (max-width: 767.98px) {
+  .quick-facts-grid .field--name-field-quick-facts {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 1.5rem;
+  }
+}
+
+.quick-fact {
+  width: 380px;
+  height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #1263a0;
+  color: #ffffff;
+  text-align: center;
+  border: 6px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease-in-out;
+}
+.quick-fact:hover {
+  box-shadow: 0 0 10px 3px rgba(18, 99, 160, 0.4);
+}
+@media (max-width: 767.98px) {
+  .quick-fact:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+}
+.quick-fact--gray {
+  background-color: #f0f2f5;
+  color: #1263a0;
+  border-color: #1263a0;
+}
+.quick-fact--gray:hover {
+  box-shadow: 0 0 10px 3px rgba(18, 99, 160, 0.4);
+}
+@media (max-width: 767.98px) {
+  .quick-fact--gray:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .quick-fact {
+    width: 380px;
+    height: 220px;
+  }
+}
+@media (max-width: 767.98px) {
+  .quick-fact {
+    width: 100%;
+    max-width: 315px;
+    height: auto;
+    min-height: 80px;
+    padding: 0.5rem;
+    border-width: 3px;
+  }
+}
+
+.quick-fact__number {
+  font-size: 4.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 0.5rem;
+}
+@media (max-width: 767.98px) {
+  .quick-fact__number {
+    font-size: 2rem;
+    margin-bottom: 0.25rem;
+  }
+}
+
+.quick-fact__label {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+@media (max-width: 767.98px) {
+  .quick-fact__label {
+    font-size: 1rem;
+  }
+}
+
+.quick-fact__detail {
+  font-size: 1rem;
+  margin-top: 0.5rem;
+  opacity: 0.9;
+}
+
+/* ========== Content Sections ========== */
+.employment-page__sections {
+  margin-bottom: 2rem;
+}
+
+.content-section {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem 0;
+}
+.content-section--highlighted {
+  background-color: #f0f2f5;
+  border-left: 6px solid #1263a0;
+  padding: 1.5rem 2rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
+}
+@media (max-width: 767.98px) {
+  .content-section--highlighted {
+    border-left-width: 4px;
+    padding: 1.5rem 1rem;
+    margin-left: calc(-1 * 0.75rem);
+    margin-right: calc(-1 * 0.75rem);
+  }
+}
+
+.content-section__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1263a0;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .content-section__title {
+    font-size: 1.75rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .content-section__title {
+    font-size: 1.5rem;
+  }
+}
+
+.content-section__body {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: #212529;
+  max-width: 75ch;
+  margin-inline: auto;
+  text-align: left;
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .content-section__body {
+    font-size: 1.15rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .content-section__body {
+    font-size: 1.1rem;
+  }
+}
+
+/* ========== Benefits Snapshot ========== */
+.employment-page__benefits {
+  margin-bottom: 2rem;
+  padding: 1.5rem 0;
+}
+
+.benefits-disclaimer {
+  color: #212529;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.benefits-grid {
+  max-width: 900px;
+  margin-inline: auto;
+}
+.benefits-grid .field--name-field-benefits-snapshot {
+  -moz-columns: 2;
+       columns: 2;
+  -moz-column-gap: 2rem;
+       column-gap: 2rem;
+}
+@media (max-width: 767.98px) {
+  .benefits-grid .field--name-field-benefits-snapshot {
+    -moz-columns: 1;
+         columns: 1;
+  }
+}
+.benefits-grid .field--name-field-benefits-snapshot > .field__item, .benefits-grid .how-we-help-section .field--name-field-benefits-snapshot > .topic-card-col, .how-we-help-section .benefits-grid .field--name-field-benefits-snapshot > .topic-card-col {
+  -moz-column-break-inside: avoid;
+       break-inside: avoid;
+  margin-bottom: 2rem;
+}
+@media (max-width: 767.98px) {
+  .benefits-grid .field--name-field-benefits-snapshot > .field__item, .benefits-grid .how-we-help-section .field--name-field-benefits-snapshot > .topic-card-col, .how-we-help-section .benefits-grid .field--name-field-benefits-snapshot > .topic-card-col {
+    margin-bottom: 1.5rem;
+  }
+}
+.benefits-grid .field--name-field-benefits-snapshot > .field__item:last-child, .benefits-grid .how-we-help-section .field--name-field-benefits-snapshot > .topic-card-col:last-child, .how-we-help-section .benefits-grid .field--name-field-benefits-snapshot > .topic-card-col:last-child {
+  margin-bottom: 0;
+}
+
+.benefit-card {
+  border: 6px solid #1263a0;
+  border-radius: 4px;
+  transition: all 0.3s ease-in-out;
+}
+.benefit-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+@media (max-width: 767.98px) {
+  .benefit-card:hover {
+    box-shadow: none;
+  }
+}
+@media (max-width: 767.98px) {
+  .benefit-card {
+    border-width: 4px;
+  }
+}
+.benefit-card--gray {
+  background-color: #f0f2f5;
+  border-color: #1263a0;
+}
+.benefit-card--gray .benefit-card__icon,
+.benefit-card--gray .benefit-card__title,
+.benefit-card--gray .benefit-card__summary {
+  color: #1263a0;
+}
+.benefit-card--blue {
+  background-color: #1263a0;
+  border-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+.benefit-card--blue .benefit-card__icon,
+.benefit-card--blue .benefit-card__title {
+  color: #ffffff;
+}
+.benefit-card--blue .benefit-card__summary {
+  color: #ffffff;
+}
+.benefit-card--blue:hover {
+  box-shadow: 0 0 10px 3px rgba(18, 99, 160, 0.4);
+}
+@media (max-width: 767.98px) {
+  .benefit-card--blue:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.benefit-card__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+@media (max-width: 767.98px) {
+  .benefit-card__content {
+    padding: 1.5rem;
+  }
+}
+
+.benefit-card__icon {
+  font-size: 2.5rem;
+  color: #1263a0;
+  margin-bottom: 1rem;
+}
+@media (max-width: 767.98px) {
+  .benefit-card__icon {
+    font-size: 2rem;
+  }
+}
+
+.benefit-card__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1263a0;
+  margin: 0 0 1rem 0;
+}
+@media (max-width: 767.98px) {
+  .benefit-card__title {
+    font-size: 1.25rem;
+  }
+}
+
+.benefit-card__summary {
+  font-size: 1.1rem;
+  color: #212529;
+  line-height: 1.6;
+  margin: 0;
+  text-align: left;
+  width: 100%;
+}
+.benefit-card__summary ul, .benefit-card__summary ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  text-align: left;
+}
+.benefit-card__summary li {
+  margin-bottom: 0.25rem;
+}
+@media (max-width: 767.98px) {
+  .benefit-card__summary {
+    font-size: 1rem;
+  }
+}
+
+/* ========== Offices Section ========== */
+.employment-page__offices {
+  margin-bottom: 2rem;
+}
+
+.employment-page__offices .subsection-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1263a0;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .employment-page__offices .subsection-title {
+    font-size: 1.75rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .employment-page__offices .subsection-title {
+    font-size: 1.5rem;
+  }
+}
+
+.offices-list .field__item, .offices-list .how-we-help-section .topic-card-col, .how-we-help-section .offices-list .topic-card-col {
+  text-align: center;
+}
+.offices-list .field__item > p:first-child, .offices-list .how-we-help-section .topic-card-col > p:first-child, .how-we-help-section .offices-list .topic-card-col > p:first-child {
+  margin-bottom: 1rem;
+}
+.offices-list .field__item > p.text-align-center, .offices-list .how-we-help-section .topic-card-col > p.text-align-center, .how-we-help-section .offices-list .topic-card-col > p.text-align-center {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 30%;
+  margin: 0.25rem 1%;
+}
+@media (max-width: 767.98px) {
+  .offices-list .field__item > p.text-align-center, .offices-list .how-we-help-section .topic-card-col > p.text-align-center, .how-we-help-section .offices-list .topic-card-col > p.text-align-center {
+    width: 100%;
+    margin: 0.25rem 0;
+  }
+}
+.offices-list p.text-align-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+}
+.offices-list p.text-align-center::before {
+  content: "\f3c5";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  color: #1263a0;
+  font-size: 0.9em;
+}
+.offices-list a {
+  color: #1263a0;
+  text-decoration: none;
+  font-weight: 600;
+}
+.offices-list a:hover {
+  text-decoration: underline;
+}
+
+/* ========== Job Listings ========== */
+.employment-page__listings {
+  margin-bottom: 2rem;
+  background-color: #f0f2f5;
+  border: 6px solid #1263a0;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border-radius: 0.25rem;
+  padding: 1rem;
+}
+@media (max-width: 767.98px) {
+  .employment-page__listings {
+    border-width: 3px;
+  }
+}
+.employment-page__listings .accordion-section-title, .employment-page__listings .node--employment .field--name-field-faq-section-title, .node--employment .employment-page__listings .field--name-field-faq-section-title, .employment-page__listings .faq-smart-section .faq-section-title, .faq-smart-section .employment-page__listings .faq-section-title {
+  font-size: 2.5rem;
+  color: #1263a0;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 767.98px) {
+  .employment-page__listings .accordion-section-title, .employment-page__listings .node--employment .field--name-field-faq-section-title, .node--employment .employment-page__listings .field--name-field-faq-section-title, .employment-page__listings .faq-smart-section .faq-section-title, .faq-smart-section .employment-page__listings .faq-section-title {
+    font-size: 1.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+}
+
+/* ========== Job Category (Grouped Accordion) ========== */
+.job-category {
+  scroll-margin-top: 100px;
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #1263a0;
+}
+.job-category:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* ========== Job Header Row (Title/Badges + Apply Button) ========== */
+.job-category__header-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+}
+.job-category__header-row .accordion-header {
+  flex: 1;
+  min-width: 0;
+}
+.job-category__header-row:has(.accordion-button:not(.collapsed)) .job-category__header-apply {
+  display: none;
+}
+
+.job-category__header-apply {
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: 1rem;
+  z-index: 2;
+  position: relative;
+}
+.job-category__header-apply .btn, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__header-apply .amount-btn, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__header-apply .frequency-btn, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .job-category__header-apply .donate-button {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  background-color: #1263a0;
+  color: #ffffff;
+  border-color: #1263a0;
+  white-space: nowrap;
+}
+.job-category__header-apply .btn i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__header-apply .amount-btn i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__header-apply .frequency-btn i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donate-button i, .node--type-donate.donate-page .custom-donation-form .job-category__header-apply .donate-button i {
+  flex-shrink: 0;
+  color: #ffffff;
+}
+.job-category__header-apply .btn:hover, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:hover, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__header-apply .amount-btn:hover, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:hover, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__header-apply .frequency-btn:hover, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donate-button:hover, .node--type-donate.donate-page .custom-donation-form .job-category__header-apply .donate-button:hover, .job-category__header-apply .btn:focus, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:focus, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__header-apply .amount-btn:focus, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:focus, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__header-apply .frequency-btn:focus, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donate-button:focus, .node--type-donate.donate-page .custom-donation-form .job-category__header-apply .donate-button:focus {
+  background-color: #ffffff;
+  color: #1263a0;
+  border-color: #1263a0;
+}
+.job-category__header-apply .btn:hover i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:hover i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__header-apply .amount-btn:hover i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:hover i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__header-apply .frequency-btn:hover i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donate-button:hover i, .node--type-donate.donate-page .custom-donation-form .job-category__header-apply .donate-button:hover i, .job-category__header-apply .btn:focus i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:focus i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__header-apply .amount-btn:focus i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:focus i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__header-apply .frequency-btn:focus i, .job-category__header-apply .node--type-donate.donate-page .custom-donation-form .donate-button:focus i, .node--type-donate.donate-page .custom-donation-form .job-category__header-apply .donate-button:focus i {
+  color: #1263a0;
+}
+@media (max-width: 767.98px) {
+  .job-category__header-apply {
+    display: none;
+  }
+}
+
+.job-category__header {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1263a0;
+  padding: 1rem 1.5rem;
+  margin-bottom: 0;
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .job-category__header {
+    font-size: 1.5rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .job-category__header {
+    font-size: 1.35rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .job-category__header {
+    padding: 1rem;
+  }
+}
+
+.job-category__listings {
+  padding-left: 2rem;
+}
+@media (max-width: 767.98px) {
+  .job-category__listings {
+    padding-left: 1rem;
+  }
+}
+
+.job-category__accordion .accordion-item {
+  border: none;
+  border-bottom: 2px solid #1263a0;
+  margin-bottom: 0.5rem;
+  background: transparent;
+  transition: border-bottom-width 0.2s ease;
+}
+.job-category__accordion .accordion-item:hover {
+  border-bottom-width: 4px;
+}
+@media (max-width: 767.98px) {
+  .job-category__accordion .accordion-item:hover {
+    border-bottom-width: 2px;
+  }
+}
+.job-category__accordion .accordion-button {
+  background-color: transparent;
+  color: #1263a0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  padding: 1rem 1.5rem 1rem 3rem;
+  position: relative;
+  box-shadow: none;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: all 0.3s ease-in-out;
+}
+.job-category__accordion .accordion-button:not(.collapsed) {
+  background-color: transparent;
+  color: #1263a0;
+  font-weight: 700;
+  box-shadow: none;
+}
+.job-category__accordion .accordion-button:not(.collapsed) .job-title {
+  font-weight: 700;
+}
+.job-category__accordion .accordion-button:hover {
+  color: rgb(12.8426966292, 70.6348314607, 114.1573033708);
+}
+.job-category__accordion .accordion-button:hover::before {
+  color: rgb(12.8426966292, 70.6348314607, 114.1573033708);
+}
+.job-category__accordion .accordion-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 0.25rem rgba(18, 99, 160, 0.25);
+  z-index: 1;
+}
+.job-category__accordion .accordion-button:focus-visible {
+  outline: 2px solid #1263a0;
+  outline-offset: 2px;
+}
+.job-category__accordion .accordion-button::after {
+  display: none;
+}
+.job-category__accordion .accordion-button::before {
+  font-family: "Font Awesome 6 Free";
+  content: "\f067";
+  font-weight: 700;
+  font-size: 1.5rem;
+  position: absolute;
+  left: 0.75rem;
+  top: 1rem;
+  color: #1263a0;
+  transition: all 0.3s ease-in-out;
+}
+.job-category__accordion .accordion-button:not(.collapsed)::before {
+  content: "\f068";
+  transform: rotate(180deg);
+}
+@media (max-width: 767.98px) {
+  .job-category__accordion .accordion-button {
+    padding: 1rem 1rem 1rem 2.5rem;
+  }
+  .job-category__accordion .accordion-button::before {
+    left: 0.5rem;
+  }
+}
+.job-category__accordion .job-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1263a0;
+  line-height: 1.3;
+  margin-bottom: 0.5rem;
+}
+@media (max-width: 767.98px) {
+  .job-category__accordion .job-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.375rem;
+  }
+}
+.job-category__accordion .job-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+@media (max-width: 767.98px) {
+  .job-category__accordion .job-badges {
+    gap: 0.375rem;
+  }
+}
+.job-category__accordion .accordion-body {
+  padding: 0 1.5rem 1.5rem 3rem;
+  font-size: 1.5rem;
+  line-height: 1.6;
+}
+@media (max-width: 767.98px) {
+  .job-category__accordion .accordion-body {
+    padding: 0 1rem 1rem 2.5rem;
+    font-size: 1.25rem;
+  }
+}
+
+/* ========== Job Badges ========== */
+.job-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  --badge-purple: #6f42c1;
+  --badge-purple-tint: #f3eef8;
+  --badge-green: #2d855a;
+  --badge-blue-new: #0b5ed7;
+  --badge-orange: #cc6b00;
+  --badge-red: #c82333;
+  --badge-blue-tint: rgba(18, 99, 160, 0.08);
+  --badge-green-tint: rgba(45, 133, 90, 0.08);
+}
+
+.job-badges__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+@media (max-width: 767.98px) {
+  .job-badges__row {
+    gap: 0.375rem;
+  }
+}
+
+.job-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  border-style: solid;
+  border-color: transparent;
+  white-space: nowrap;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  transition: all 0.15s ease-in-out;
+}
+.job-badge i {
+  flex-shrink: 0;
+}
+
+.job-badges__row--primary .job-badge {
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-width: 2px;
+  gap: 8px;
+}
+.job-badges__row--primary .job-badge i {
+  font-size: 0.875rem;
+}
+@media (max-width: 767.98px) {
+  .job-badges__row--primary .job-badge {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    padding: 4px 10px;
+  }
+  .job-badges__row--primary .job-badge i {
+    font-size: 0.75rem;
+  }
+}
+
+.job-badges__row--secondary .job-badge {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-width: 1px;
+  gap: 8px;
+}
+.job-badges__row--secondary .job-badge i {
+  font-size: 0.75rem;
+}
+@media (max-width: 767.98px) {
+  .job-badges__row--secondary .job-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 10px;
+  }
+  .job-badges__row--secondary .job-badge i {
+    font-size: 0.75rem;
+  }
+}
+
+.job-badge--location {
+  background-color: #1263a0;
+  color: #ffffff;
+  border-color: #1263a0;
+}
+.job-badge--location i {
+  color: #ffffff;
+}
+
+.job-badge--arrangement {
+  background-color: var(--badge-blue-tint);
+  color: #1263a0;
+  border-color: #1263a0;
+}
+.job-badge--arrangement i {
+  color: #1263a0;
+}
+
+.job-badge--salary {
+  background-color: var(--badge-green-tint);
+  color: var(--badge-green);
+  border-color: var(--badge-green);
+}
+.job-badge--salary i {
+  color: var(--badge-green);
+}
+
+.job-badge--new {
+  background-color: var(--badge-blue-new);
+  color: #ffffff;
+  border-color: var(--badge-blue-new);
+}
+.job-badge--new i {
+  color: #ffffff;
+}
+
+.job-badge--urgent {
+  background-color: var(--badge-orange);
+  color: #ffffff;
+  border-color: var(--badge-orange);
+}
+.job-badge--urgent i {
+  color: #ffffff;
+}
+
+.job-badge--closed {
+  background-color: var(--badge-red);
+  color: #ffffff;
+  border-color: var(--badge-red);
+}
+.job-badge--closed i {
+  color: #ffffff;
+}
+
+.job-badge--deadline {
+  background-color: #f0f2f5;
+  color: #495057;
+  border-color: #868e96;
+}
+.job-badge--deadline i {
+  color: #6c757d;
+}
+
+.job-badge--employment-type {
+  background-color: transparent;
+  color: #1263a0;
+  border-color: #1263a0;
+}
+.job-badge--employment-type i {
+  color: #1263a0;
+}
+
+.job-badge--bar {
+  background-color: var(--badge-purple-tint);
+  color: var(--badge-purple);
+  border-color: var(--badge-purple);
+}
+.job-badge--bar i {
+  color: var(--badge-purple);
+}
+
+.job-badge--bilingual-required {
+  background-color: var(--badge-purple);
+  color: #ffffff;
+  border-color: var(--badge-purple);
+}
+.job-badge--bilingual-required i {
+  color: #ffffff;
+}
+
+.job-badge--bilingual-preferred {
+  background-color: var(--badge-purple-tint);
+  color: var(--badge-purple);
+  border-color: var(--badge-purple);
+  border-style: dashed;
+}
+.job-badge--bilingual-preferred i {
+  color: var(--badge-purple);
+}
+
+.job-badge--exempt {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  border-color: transparent;
+}
+.job-badge--exempt i {
+  color: #6c757d;
+}
+
+.job-category__empty {
+  color: #212529;
+  font-style: italic;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  padding: 1rem 0;
+  padding-left: 3rem;
+  margin: 0;
+  border-bottom: 2px solid #1263a0;
+}
+@media (max-width: 767.98px) {
+  .job-category__empty {
+    font-size: 1rem;
+    padding-left: 2.5rem;
+  }
+}
+
+/* ========== Job Actions (Download + Apply Now buttons) ========== */
+.job-category__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.25rem 0;
+}
+@media (max-width: 767.98px) {
+  .job-category__actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+.job-category__file .btn, .job-category__file .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__file .amount-btn, .job-category__file .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__file .frequency-btn, .job-category__file .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .job-category__file .donate-button {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  background-color: #1263a0;
+  color: #ffffff;
+  border-color: #1263a0;
+}
+.job-category__file .btn i, .job-category__file .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__file .amount-btn i, .job-category__file .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__file .frequency-btn i, .job-category__file .node--type-donate.donate-page .custom-donation-form .donate-button i, .node--type-donate.donate-page .custom-donation-form .job-category__file .donate-button i {
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+  color: #ffffff;
+}
+.job-category__file .btn:hover, .job-category__file .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:hover, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__file .amount-btn:hover, .job-category__file .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:hover, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__file .frequency-btn:hover, .job-category__file .node--type-donate.donate-page .custom-donation-form .donate-button:hover, .node--type-donate.donate-page .custom-donation-form .job-category__file .donate-button:hover, .job-category__file .btn:focus, .job-category__file .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:focus, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__file .amount-btn:focus, .job-category__file .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:focus, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__file .frequency-btn:focus, .job-category__file .node--type-donate.donate-page .custom-donation-form .donate-button:focus, .node--type-donate.donate-page .custom-donation-form .job-category__file .donate-button:focus {
+  background-color: #ffffff;
+  color: #1263a0;
+  border-color: #1263a0;
+}
+.job-category__file .btn:hover i, .job-category__file .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:hover i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__file .amount-btn:hover i, .job-category__file .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:hover i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__file .frequency-btn:hover i, .job-category__file .node--type-donate.donate-page .custom-donation-form .donate-button:hover i, .node--type-donate.donate-page .custom-donation-form .job-category__file .donate-button:hover i, .job-category__file .btn:focus i, .job-category__file .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:focus i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__file .amount-btn:focus i, .job-category__file .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:focus i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__file .frequency-btn:focus i, .job-category__file .node--type-donate.donate-page .custom-donation-form .donate-button:focus i, .node--type-donate.donate-page .custom-donation-form .job-category__file .donate-button:focus i {
+  color: #1263a0;
+}
+@media (max-width: 767.98px) {
+  .job-category__file .btn, .job-category__file .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__file .amount-btn, .job-category__file .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__file .frequency-btn, .job-category__file .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .job-category__file .donate-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.job-category__file-spacer {
+  flex-shrink: 1;
+}
+
+.job-category__apply .btn, .job-category__apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__apply .amount-btn, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__apply .frequency-btn, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .job-category__apply .donate-button {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  background-color: #1263a0;
+  color: #ffffff;
+  border-color: #1263a0;
+}
+.job-category__apply .btn i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__apply .amount-btn i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__apply .frequency-btn i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donate-button i, .node--type-donate.donate-page .custom-donation-form .job-category__apply .donate-button i {
+  flex-shrink: 0;
+  color: #ffffff;
+}
+.job-category__apply .btn:hover, .job-category__apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:hover, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__apply .amount-btn:hover, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:hover, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__apply .frequency-btn:hover, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donate-button:hover, .node--type-donate.donate-page .custom-donation-form .job-category__apply .donate-button:hover, .job-category__apply .btn:focus, .job-category__apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:focus, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__apply .amount-btn:focus, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:focus, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__apply .frequency-btn:focus, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donate-button:focus, .node--type-donate.donate-page .custom-donation-form .job-category__apply .donate-button:focus {
+  background-color: #ffffff;
+  color: #1263a0;
+  border-color: #1263a0;
+}
+.job-category__apply .btn:hover i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:hover i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__apply .amount-btn:hover i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:hover i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__apply .frequency-btn:hover i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donate-button:hover i, .node--type-donate.donate-page .custom-donation-form .job-category__apply .donate-button:hover i, .job-category__apply .btn:focus i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:focus i, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__apply .amount-btn:focus i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:focus i, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__apply .frequency-btn:focus i, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donate-button:focus i, .node--type-donate.donate-page .custom-donation-form .job-category__apply .donate-button:focus i {
+  color: #1263a0;
+}
+@media (max-width: 767.98px) {
+  .job-category__apply .btn, .job-category__apply .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-category__apply .amount-btn, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-category__apply .frequency-btn, .job-category__apply .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .job-category__apply .donate-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ========== EEO Statement ========== */
+.employment-page__eeo {
+  padding: 0.75rem 1.5rem;
+  background-color: #f0f2f5;
+  border-left: 6px solid #1263a0;
+}
+@media (max-width: 767.98px) {
+  .employment-page__eeo {
+    border-left-width: 4px;
+    padding: 0.5rem 1rem;
+  }
+}
+.employment-page__eeo .section-title {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+@media (max-width: 767.98px) {
+  .employment-page__eeo .section-title {
+    font-size: 1.1rem;
+  }
+}
+.employment-page__eeo .content-body {
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+@media (max-width: 767.98px) {
+  .employment-page__eeo .content-body {
+    font-size: 1rem;
+  }
+}
+.employment-page__eeo .benefits-disclaimer {
+  color: #212529;
+  font-size: 1rem;
+  font-style: italic;
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+/* ========== Section Title (shared) ========== */
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1263a0;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .section-title {
+    font-size: 2rem;
+  }
+}
+@media (max-width: 767.98px) {
+  .section-title {
+    font-size: 1.75rem;
+  }
+}
+
+/* ========== Sticky Jobs Bar ========== */
+.sticky-jobs-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9985;
+  background-color: #1263a0;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(100%);
+  transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.sticky-jobs-bar.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.sticky-jobs-bar__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+@media (max-width: 767.98px) {
+  .sticky-jobs-bar__content {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+}
+
+.sticky-jobs-bar__text {
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+@media (max-width: 767.98px) {
+  .sticky-jobs-bar__text {
+    font-size: 1rem;
+  }
+}
+
+.sticky-jobs-bar__cta {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: #ffffff;
+  color: #1263a0;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.625rem 1.5rem;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease-in-out;
+  white-space: nowrap;
+  min-height: 44px;
+}
+.sticky-jobs-bar__cta:link, .sticky-jobs-bar__cta:visited, .sticky-jobs-bar__cta:hover, .sticky-jobs-bar__cta:focus, .sticky-jobs-bar__cta:focus-visible, .sticky-jobs-bar__cta:active {
+  text-decoration: none;
+}
+.sticky-jobs-bar__cta i {
+  font-size: 0.9rem;
+  transition: transform 0.2s ease;
+}
+.sticky-jobs-bar__cta:hover, .sticky-jobs-bar__cta:focus {
+  background-color: rgba(255, 255, 255, 0.88);
+  color: #1263a0;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+.sticky-jobs-bar__cta:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+@media (max-width: 767.98px) {
+  .sticky-jobs-bar__cta {
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.95rem;
+  }
+  .sticky-jobs-bar__cta:hover, .sticky-jobs-bar__cta:focus {
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* ========== Reduced Motion Support ========== */
+@media (prefers-reduced-motion: reduce) {
+  .quick-fact,
+  .jump-nav-link,
+  .benefit-card,
+  .sticky-jobs-bar,
+  .sticky-jobs-bar__cta {
+    transition: none;
+  }
+  .sticky-jobs-bar {
+    transform: none;
+  }
+  .sticky-jobs-bar__cta i {
+    transition: none;
+  }
+}
+/* ========== Print Styles ========== */
+@media print {
+  .employment-page__jump-nav,
+  .sticky-jobs-bar {
+    display: none;
+  }
+}
 /* _help-overlay.scss */
 /**********************************************
  * HELP OVERLAY: FADE + SLIDE FROM RIGHT
@@ -28216,18 +29463,25 @@ body.announcement-overlay-open {
     transform: none;
   }
 }
+.two-column-info-wrapper {
+  max-width: calc(75ch * 2 + 3rem);
+  margin-inline: auto;
+  width: 100%;
+}
 @media (max-width: 767.98px) {
-  .row:has(.column-border) {
+  .two-column-info-wrapper {
     padding-inline: 0.75rem;
   }
 }
 
+.column-card,
 .column-border {
   border: 6px solid #1263a0;
   z-index: 20;
-  padding: 1rem 0.5rem;
+  padding: 1.25rem;
   margin-top: 2rem;
   background-color: #f0f2f5;
+  height: 100%;
 }
 
 .column-title {
@@ -28288,7 +29542,7 @@ body.announcement-overlay-open {
   max-width: 75ch;
   margin-inline: auto;
 }
-.node--type-donate .accordion-section, .node--type-donate .faq-smart-section, .node--employment .accordion-section, .node--employment .faq-smart-section {
+.accordion-section--wide {
   max-width: 1080px;
 }
 @media (max-width: 767.98px) {
@@ -28298,21 +29552,10 @@ body.announcement-overlay-open {
     border: 3px solid #1263a0;
   }
 }
-
 .accordion-section .accordion, .faq-smart-section .accordion {
   border: none;
 }
-
-/* This targets the top-level "Accordion Section" title */
-/* Using higher specificity instead of !important to override Drupal/CKEditor defaults */
-.accordion-section .accordion-section-title, .accordion-section .node--employment .field--name-field-faq-section-title, .node--employment .accordion-section .field--name-field-faq-section-title, .faq-smart-section .accordion-section-title, .faq-smart-section .node--employment .field--name-field-faq-section-title, .node--employment .faq-smart-section .field--name-field-faq-section-title, .faq-smart-section .faq-section-title,
-.paragraph--type-accordion-section .accordion-section-title,
-.paragraph--type-accordion-section .node--employment .field--name-field-faq-section-title,
-.node--employment .paragraph--type-accordion-section .field--name-field-faq-section-title,
-body .accordion-section .accordion-section-title,
-body .accordion-section-title,
-body .node--employment .field--name-field-faq-section-title,
-.node--employment body .field--name-field-faq-section-title {
+.accordion-section .accordion-section-title, .accordion-section .node--employment .field--name-field-faq-section-title, .node--employment .accordion-section .field--name-field-faq-section-title, .faq-smart-section .accordion-section-title, .faq-smart-section .node--employment .field--name-field-faq-section-title, .node--employment .faq-smart-section .field--name-field-faq-section-title, .faq-smart-section .faq-section-title {
   font-size: 2.5rem;
   color: #1263a0;
   font-weight: 700;
@@ -28321,18 +29564,17 @@ body .node--employment .field--name-field-faq-section-title,
   margin-bottom: 1.5rem;
 }
 @media (max-width: 767.98px) {
-  .accordion-section .accordion-section-title, .accordion-section .node--employment .field--name-field-faq-section-title, .node--employment .accordion-section .field--name-field-faq-section-title, .faq-smart-section .accordion-section-title, .faq-smart-section .node--employment .field--name-field-faq-section-title, .node--employment .faq-smart-section .field--name-field-faq-section-title, .faq-smart-section .faq-section-title,
-  .paragraph--type-accordion-section .accordion-section-title,
-  .paragraph--type-accordion-section .node--employment .field--name-field-faq-section-title,
-  .node--employment .paragraph--type-accordion-section .field--name-field-faq-section-title,
-  body .accordion-section .accordion-section-title,
-  body .accordion-section-title,
-  body .node--employment .field--name-field-faq-section-title,
-  .node--employment body .field--name-field-faq-section-title {
+  .accordion-section .accordion-section-title, .accordion-section .node--employment .field--name-field-faq-section-title, .node--employment .accordion-section .field--name-field-faq-section-title, .faq-smart-section .accordion-section-title, .faq-smart-section .node--employment .field--name-field-faq-section-title, .node--employment .faq-smart-section .field--name-field-faq-section-title, .faq-smart-section .faq-section-title {
     font-size: 1.5rem;
     margin-top: 1rem;
     margin-bottom: 1rem;
   }
+}
+
+.node--type-donate .accordion-section, .node--type-donate .faq-smart-section,
+.node--employment .accordion-section,
+.node--employment .faq-smart-section {
+  max-width: 1080px;
 }
 
 .accordion-section .accordion-item, .faq-smart-section .accordion-item {
@@ -28811,7 +30053,8 @@ body .node--employment .field--name-field-faq-section-title,
   font-size: 1rem;
   border: 2px solid #868e96;
   border-left: none;
-  border-radius: 0 0.375rem 0.375rem 0;
+  border-right: none;
+  border-radius: 0;
   transition: all 0.15s ease-in-out;
   height: auto;
 }
@@ -28837,10 +30080,11 @@ body .node--employment .field--name-field-faq-section-title,
   white-space: nowrap;
   vertical-align: middle;
   border: 2px solid #1263a0;
+  border-left: none;
   padding: 0.625rem 1.25rem;
   font-size: 1rem;
   line-height: 1.5;
-  border-radius: 0.375rem;
+  border-radius: 0 0.375rem 0.375rem 0;
   transition: all 0.3s ease-in-out;
   cursor: pointer;
   background-color: #1263a0;
@@ -28897,7 +30141,8 @@ body .node--employment .field--name-field-faq-section-title,
   font-size: 1rem;
   border: 2px solid #868e96;
   border-left: none;
-  border-radius: 0 0.375rem 0.375rem 0;
+  border-right: none;
+  border-radius: 0;
   transition: all 0.15s ease-in-out;
   height: auto;
 }
@@ -28921,14 +30166,14 @@ body .node--employment .field--name-field-faq-section-title,
   font-weight: 600;
   text-transform: uppercase;
   border: 2px solid #1263a0;
+  border-left: none;
   padding: 0.625rem 1.25rem;
   font-size: 1rem;
   line-height: 1.5;
-  border-radius: 0.375rem;
+  border-radius: 0 0.375rem 0.375rem 0;
   background-color: #1263a0;
   color: #ffffff;
   min-height: 44px;
-  margin-left: 0.5rem;
 }
 .faq-smart-section .faq-search-container .input-group .btn.btn-sm, .faq-smart-section .faq-search-container .input-group .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .btn-sm.amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .faq-smart-section .faq-search-container .input-group .btn-sm.amount-btn, .faq-smart-section .faq-search-container .input-group .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .btn-sm.frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .faq-smart-section .faq-search-container .input-group .btn-sm.frequency-btn, .faq-smart-section .faq-search-container .input-group .node--type-donate.donate-page .custom-donation-form .btn-sm.donate-button, .node--type-donate.donate-page .custom-donation-form .faq-smart-section .faq-search-container .input-group .btn-sm.donate-button {
   padding: 0.625rem 1.25rem;
@@ -28966,7 +30211,7 @@ body .node--employment .field--name-field-faq-section-title,
     grid-column: 2;
     grid-row: 1;
     min-width: 0;
-    border-radius: 0 0.375rem 0.375rem 0;
+    border-radius: 0;
   }
   .faq-smart-section .faq-search-container .input-group .btn, .faq-smart-section .faq-search-container .input-group .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .faq-smart-section .faq-search-container .input-group .amount-btn, .faq-smart-section .faq-search-container .input-group .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .faq-smart-section .faq-search-container .input-group .frequency-btn, .faq-smart-section .faq-search-container .input-group .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .faq-smart-section .faq-search-container .input-group .donate-button {
     grid-column: 1/-1;
@@ -29098,6 +30343,47 @@ body .node--employment .field--name-field-faq-section-title,
 @media (max-width: 767.98px) {
   .faq-smart-section .faq-filters .filter-btn:hover, .faq-smart-section .faq-filters .filter-btn:focus, .faq-smart-section .faq-filters .filter-btn:active {
     transform: none;
+  }
+}
+.faq-smart-section .faq-accordion .accordion-item.faq-item {
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid #1263a0;
+  margin-bottom: 0.5rem;
+}
+.faq-smart-section .faq-accordion .accordion-item.faq-item:last-child {
+  border-bottom: none;
+}
+.faq-smart-section .faq-accordion .accordion-item.faq-item:last-child:hover {
+  border-bottom: 4px solid #1263a0;
+}
+.faq-smart-section .faq-accordion .accordion-item.faq-item:hover {
+  border-bottom-width: 4px;
+}
+.faq-smart-section .faq-accordion .accordion-header .accordion-button {
+  background-color: #f0f2f5;
+  border-radius: 0;
+}
+.faq-smart-section .faq-accordion .accordion-header .accordion-button:not(.collapsed) {
+  background-color: #f0f2f5;
+  box-shadow: none;
+}
+.faq-smart-section .faq-accordion .accordion-header .accordion-button:focus {
+  box-shadow: inset 0 0 0 2px rgba(18, 99, 160, 0.25);
+}
+.faq-smart-section .faq-accordion .accordion-collapse {
+  background-color: #ffffff;
+  margin-left: -1rem;
+  margin-right: -1rem;
+}
+.faq-smart-section .faq-accordion .accordion-body {
+  background-color: #ffffff;
+  border-top: 1px solid #868e96;
+  padding: 1.25rem 2rem 1.25rem 4rem;
+}
+@media (max-width: 767.98px) {
+  .faq-smart-section .faq-accordion .accordion-body {
+    padding: 1rem 1.75rem 1rem 3.5rem;
   }
 }
 
@@ -29390,6 +30676,237 @@ mark.search-highlight, .search-highlight.mark {
 .webform-confirmation .webform-confirmation__back:hover {
   background-color: #1263a0;
   color: #ffffff;
+}
+
+.job-confirmation-card {
+  background: linear-gradient(135deg, #e8f4fd 0%, #f0f7fc 100%);
+  border: 2px solid #1263a0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+.job-confirmation-card:focus {
+  outline: 3px solid rgba(18, 99, 160, 0.5);
+  outline-offset: 2px;
+}
+.job-confirmation-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(18, 99, 160, 0.2);
+}
+@media (max-width: 767.98px) {
+  .job-confirmation-card__header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+.job-confirmation-card__check {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  background: #1263a0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(18, 99, 160, 0.3);
+}
+.job-confirmation-card__check i {
+  color: #ffffff;
+  font-size: 1.25rem;
+}
+.job-confirmation-card__intro {
+  flex: 1;
+  min-width: 0;
+}
+.job-confirmation-card__label {
+  display: block;
+  font-size: 0.8125rem;
+  color: #5a6c7d;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+.job-confirmation-card__title {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #1263a0;
+  line-height: 1.3;
+}
+@media (max-width: 767.98px) {
+  .job-confirmation-card__title {
+    font-size: 1.25rem;
+  }
+}
+.job-confirmation-card__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 767.98px) {
+  .job-confirmation-card__details {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+.job-confirmation-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(18, 99, 160, 0.2);
+}
+@media (max-width: 767.98px) {
+  .job-confirmation-card__actions {
+    flex-direction: column;
+  }
+  .job-confirmation-card__actions .btn, .job-confirmation-card__actions .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-confirmation-card__actions .amount-btn, .job-confirmation-card__actions .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-confirmation-card__actions .frequency-btn, .job-confirmation-card__actions .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .job-confirmation-card__actions .donate-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+.job-confirmation-card__actions .btn, .job-confirmation-card__actions .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-confirmation-card__actions .amount-btn, .job-confirmation-card__actions .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-confirmation-card__actions .frequency-btn, .job-confirmation-card__actions .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .job-confirmation-card__actions .donate-button {
+  display: inline-flex;
+  align-items: center;
+}
+.job-confirmation-card__actions .btn-outline-secondary {
+  border-color: #6c757d;
+  color: #6c757d;
+}
+.job-confirmation-card__actions .btn-outline-secondary:hover, .job-confirmation-card__actions .btn-outline-secondary:focus {
+  background: #6c757d;
+  color: #ffffff;
+}
+.job-confirmation-card__actions .btn-outline-primary {
+  border-color: #1263a0;
+  color: #1263a0;
+}
+.job-confirmation-card__actions .btn-outline-primary:hover, .job-confirmation-card__actions .btn-outline-primary:focus {
+  background: #1263a0;
+  color: #ffffff;
+}
+
+.job-detail-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  color: #4a5568;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid rgba(18, 99, 160, 0.15);
+}
+.job-detail-item__icon {
+  color: #1263a0;
+  font-size: 0.875rem;
+  width: 1rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.job-detail-item__value {
+  font-weight: 500;
+}
+.job-detail-item--open {
+  background: rgba(40, 167, 69, 0.1);
+  border-color: rgba(40, 167, 69, 0.3);
+  color: #1e7e34;
+}
+.job-detail-item--open .job-detail-item__icon {
+  color: #28a745;
+}
+.job-detail-item--open .job-detail-item__value {
+  font-style: italic;
+}
+@media (max-width: 767.98px) {
+  .job-detail-item {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+#no-positions-message {
+  margin-top: 1rem;
+}
+#no-positions-message a {
+  color: #1263a0;
+  text-decoration: underline;
+}
+
+.job-closed-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+  border: 1px solid #ffc107;
+}
+.job-closed-error__icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: #ffc107;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.job-closed-error__icon i {
+  color: #856404;
+  font-size: 1.25rem;
+}
+.job-closed-error__content {
+  flex: 1;
+}
+.job-closed-error__title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #856404;
+}
+.job-closed-error__message {
+  margin: 0 0 1rem 0;
+  color: #856404;
+}
+.job-closed-error__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.job-closed-error__actions .btn-primary, .job-closed-error__actions .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-closed-error__actions .amount-btn, .job-closed-error__actions .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-closed-error__actions .frequency-btn, .job-closed-error__actions .node--type-donate.donate-page .custom-donation-form .donate-button, .node--type-donate.donate-page .custom-donation-form .job-closed-error__actions .donate-button {
+  background: #1263a0;
+  border-color: #1263a0;
+}
+.job-closed-error__actions .btn-primary:hover, .job-closed-error__actions .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .amount-btn:hover, .node--type-donate.donate-page .custom-donation-form .amount-selection .amount-buttons .job-closed-error__actions .amount-btn:hover, .job-closed-error__actions .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .frequency-btn:hover, .node--type-donate.donate-page .custom-donation-form .donation-frequency .frequency-options .job-closed-error__actions .frequency-btn:hover, .job-closed-error__actions .node--type-donate.donate-page .custom-donation-form .donate-button:hover, .node--type-donate.donate-page .custom-donation-form .job-closed-error__actions .donate-button:hover {
+  background: rgb(12.8426966292, 70.6348314607, 114.1573033708);
+  border-color: rgb(12.8426966292, 70.6348314607, 114.1573033708);
+}
+.job-closed-error__divider {
+  color: #856404;
+  font-style: italic;
+}
+@media (max-width: 767.98px) {
+  .job-closed-error {
+    flex-direction: column;
+    text-align: center;
+  }
+  .job-closed-error__icon {
+    margin: 0 auto;
+  }
+  .job-closed-error__actions {
+    justify-content: center;
+    flex-direction: column;
+  }
 }
 
 /**

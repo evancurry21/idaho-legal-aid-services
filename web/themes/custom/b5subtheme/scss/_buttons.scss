@@ -323,6 +323,16 @@ button.btn-success.text-white {
 a.btn-primary:visited,
 a.btn-success:visited {
   color: $color-white;
+
+  // Visited links must still change color on hover
+  &:hover,
+  &:focus {
+    color: $color-primary;
+
+    * {
+      color: $color-primary;
+    }
+  }
 }
 
 // =============================================================================

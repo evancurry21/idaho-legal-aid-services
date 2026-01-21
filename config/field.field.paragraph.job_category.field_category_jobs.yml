@@ -1,0 +1,31 @@
+uuid: 3f543cb6-4187-4d3d-ae64-ee56de72509d
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_category_jobs
+    - paragraphs.paragraphs_type.accordion_item
+    - paragraphs.paragraphs_type.job_category
+  module:
+    - entity_reference_revisions
+id: paragraph.job_category.field_category_jobs
+field_name: field_category_jobs
+entity_type: paragraph
+bundle: job_category
+label: 'Job Listings'
+description: 'Add job postings for this category'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:paragraph'
+  handler_settings:
+    target_bundles:
+      accordion_item: accordion_item
+    negate: 0
+    target_bundles_drag_drop:
+      accordion_item:
+        weight: 0
+        enabled: true
+field_type: entity_reference_revisions

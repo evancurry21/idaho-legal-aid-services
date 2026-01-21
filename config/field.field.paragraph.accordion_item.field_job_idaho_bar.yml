@@ -1,0 +1,21 @@
+uuid: 8e9f0a1b-2c3d-4e5f-6a7b-8c9d0e1f2a3b
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_job_idaho_bar
+    - paragraphs.paragraphs_type.accordion_item
+  module:
+    - options
+id: paragraph.accordion_item.field_job_idaho_bar
+field_name: field_job_idaho_bar
+entity_type: paragraph
+bundle: accordion_item
+label: 'Job: Idaho Bar Requirement'
+description: 'For attorney positions only. Select if Idaho Bar admission within 3 months is required.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_string

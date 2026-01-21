@@ -1,0 +1,19 @@
+uuid: e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9c
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+    - text
+id: node.field_offices_text
+field_name: field_offices_text
+entity_type: node
+type: text_long
+settings: {  }
+module: text
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

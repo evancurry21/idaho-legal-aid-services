@@ -1,0 +1,22 @@
+uuid: a5b6c7d8-e9f0-4a1b-2c3d-4e5f6a7b8c9d
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_benefit_summary
+    - paragraphs.paragraphs_type.benefit_card
+  module:
+    - text
+id: paragraph.benefit_card.field_benefit_summary
+field_name: field_benefit_summary
+entity_type: paragraph
+bundle: benefit_card
+label: 'Benefit Summary'
+description: 'Description of this benefit. Supports full HTML including bullet points.'
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  allowed_formats: {  }
+field_type: text_long

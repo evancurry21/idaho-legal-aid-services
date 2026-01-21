@@ -1,0 +1,10 @@
+uuid: dd5c6dbf-3f72-4356-9bd1-fa475a801d3b
+langcode: en
+status: true
+dependencies: {  }
+id: job_category
+label: 'Job Category'
+icon_uuid: null
+icon_default: null
+description: 'A job category section with static header and accordion job listings'
+behavior_plugins: {  }

@@ -61,7 +61,12 @@
       token: '',
       buildId: ''
     };
-    
+
+    // Job selection state
+    this.postedJobs = [];
+    this.selectedJob = null;
+    this.isJobLocked = false;
+
     this.init();
   }
 
@@ -74,6 +79,7 @@
       this.setupFileUploads();
       this.setupMultipleFields();
       this.setupConditionalFields();
+      this.setupJobSelection();
       this.loadDraft();
       console.log('Employment Application Wizard initialized');
     },
@@ -235,7 +241,392 @@
           $detailsField.find('input').val('');
         }
       });
-      
+
+    },
+
+    // =========================================================================
+    // JOB SELECTION - Dynamic posted jobs dropdown with deep linking
+    // =========================================================================
+
+    setupJobSelection: function() {
+      const self = this;
+
+      // Fetch posted jobs from API
+      this.fetchPostedJobs().then(function() {
+        // After jobs are loaded, check for deep link
+        self.handleDeepLink();
+      });
+
+      // Job selection change handler
+      this.$form.on('change', '#job_selected', function() {
+        const selectedUuid = $(this).val();
+        if (selectedUuid) {
+          self.setSelectedJob(selectedUuid);
+        } else {
+          self.clearSelectedJob();
+        }
+      });
+
+      // Unlock job button handler
+      this.$form.on('click', '#unlock-job-btn', function(e) {
+        e.preventDefault();
+        self.unlockJobSelection();
+      });
+    },
+
+    fetchPostedJobs: function() {
+      const self = this;
+
+      return $.ajax({
+        url: '/employment-application/jobs',
+        type: 'GET',
+        dataType: 'json'
+      }).then(function(response) {
+        self.postedJobs = response.jobs || [];
+        self.populateJobDropdown();
+        return self.postedJobs;
+      }).catch(function(error) {
+        console.error('Failed to fetch posted jobs:', error);
+        self.showNoPositionsMessage();
+        return [];
+      });
+    },
+
+    populateJobDropdown: function() {
+      const $dropdown = this.$form.find('#job_selected');
+      const $noPositionsMsg = this.$form.find('#no-positions-message');
+
+      // Clear existing options
+      $dropdown.empty();
+
+      if (this.postedJobs.length === 0) {
+        $dropdown.append('<option value="">No positions available</option>');
+        $dropdown.prop('disabled', true);
+        $noPositionsMsg.show();
+        return;
+      }
+
+      // Add default option
+      $dropdown.append('<option value="">Select a position</option>');
+
+      // Group jobs by category
+      const jobsByCategory = {};
+      this.postedJobs.forEach(function(job) {
+        const category = job.category || 'Other';
+        if (!jobsByCategory[category]) {
+          jobsByCategory[category] = [];
+        }
+        jobsByCategory[category].push(job);
+      });
+
+      // Add optgroups for each category
+      Object.keys(jobsByCategory).sort().forEach(function(category) {
+        const $optgroup = $('<optgroup>').attr('label', category);
+        jobsByCategory[category].forEach(function(job) {
+          $optgroup.append(
+            $('<option>')
+              .val(job.uuid)
+              .text(job.label)
+              .data('job', job)
+          );
+        });
+        $dropdown.append($optgroup);
+      });
+
+      $dropdown.prop('disabled', false);
+      $noPositionsMsg.hide();
+    },
+
+    handleDeepLink: function() {
+      const self = this;
+      const urlParams = new URLSearchParams(window.location.search);
+      const jobUuid = urlParams.get('job');
+
+      if (!jobUuid) {
+        return;
+      }
+
+      // First check if job is in our loaded (active) jobs list
+      const job = this.postedJobs.find(function(j) {
+        return j.uuid === jobUuid;
+      });
+
+      if (job) {
+        // Valid active job - select and lock it
+        this.setSelectedJob(jobUuid);
+        this.lockJobSelection();
+        console.log('Deep linked to job:', job.label);
+
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      // Job not in active list - call API to get detailed reason
+      $.ajax({
+        url: '/employment-application/jobs/' + encodeURIComponent(jobUuid),
+        type: 'GET',
+        dataType: 'json'
+      }).always(function(response, textStatus) {
+        // Clean URL regardless of result
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        if (textStatus === 'success' && response.valid) {
+          // Job is valid (shouldn't reach here, but handle it)
+          self.setSelectedJob(jobUuid);
+          self.lockJobSelection();
+        } else {
+          // Get error details from response
+          const errorData = response.responseJSON || response || {};
+          self.showJobClosedError(errorData);
+        }
+      });
+    },
+
+    setSelectedJob: function(uuid) {
+      const job = this.postedJobs.find(function(j) {
+        return j.uuid === uuid;
+      });
+
+      if (!job) {
+        console.error('Job not found:', uuid);
+        return;
+      }
+
+      this.selectedJob = job;
+
+      // Update dropdown
+      this.$form.find('#job_selected').val(uuid);
+
+      // Update hidden fields
+      this.$form.find('#job_uuid').val(job.uuid);
+      this.$form.find('#job_title').val(job.title);
+      this.$form.find('#job_location').val(job.location);
+      this.$form.find('#position_applied').val(job.position_family);
+
+      // Trigger the attorney questions logic based on position_family
+      this.updateAttorneyQuestionsVisibility(job.position_family);
+
+      console.log('Selected job:', job.label, 'Position family:', job.position_family);
+    },
+
+    clearSelectedJob: function() {
+      this.selectedJob = null;
+
+      // Clear hidden fields
+      this.$form.find('#job_uuid').val('');
+      this.$form.find('#job_title').val('');
+      this.$form.find('#job_location').val('');
+      this.$form.find('#position_applied').val('');
+
+      // Hide attorney questions
+      this.updateAttorneyQuestionsVisibility('');
+    },
+
+    updateAttorneyQuestionsVisibility: function(positionFamily) {
+      const $attorneyQuestions = this.$form.find('#attorney-questions');
+      const $step3 = this.$form.find('.wizard-step[data-step="3"]');
+
+      if (positionFamily === 'managing_attorney' || positionFamily === 'staff_attorney') {
+        $attorneyQuestions.show().attr('aria-hidden', 'false');
+        $attorneyQuestions.find('select').prop('required', true).attr('aria-required', 'true');
+        $step3.removeClass('non-attorney-position');
+      } else {
+        $attorneyQuestions.hide().attr('aria-hidden', 'true');
+        $attorneyQuestions.find('select').prop('required', false).attr('aria-required', 'false').val('');
+        $step3.addClass('non-attorney-position');
+      }
+    },
+
+    lockJobSelection: function() {
+      if (!this.selectedJob) {
+        return;
+      }
+
+      this.isJobLocked = true;
+      const job = this.selectedJob;
+
+      // Hide the dropdown panel
+      this.$form.find('#job-selection-panel').hide();
+
+      // Get the confirmation card
+      const $card = this.$form.find('#job-locked-confirmation');
+
+      // Populate title
+      $card.find('#job-locked-title').text(job.title);
+
+      // Populate job details - show only if value exists
+      this.populateJobDetail($card, 'location', job.location);
+      this.populateJobDetail($card, 'type', this.formatEmploymentType(job.employment_type));
+      this.populateJobDetail($card, 'salary', job.salary_range);
+      this.populateJobDetail($card, 'arrangement', this.formatWorkArrangement(job.work_arrangement));
+
+      // Handle deadline vs open until filled
+      if (job.open_until_filled) {
+        $card.find('#job-detail-deadline').hide();
+        $card.find('#job-detail-open-until-filled').show();
+      } else if (job.valid_through) {
+        $card.find('#job-detail-open-until-filled').hide();
+        this.populateJobDetail($card, 'deadline', this.formatDate(job.valid_through));
+      } else {
+        // No deadline and not open until filled - hide both
+        $card.find('#job-detail-deadline').hide();
+        $card.find('#job-detail-open-until-filled').hide();
+      }
+
+      // Show the card
+      $card.show();
+
+      // Set focus to the card for accessibility
+      $card.focus();
+
+      // Announce to screen readers
+      const announcement = 'You are applying for ' + job.title +
+        (job.location ? ' in ' + job.location : '') +
+        '. You can change your selection using the button below.';
+      $card.find('#job-locked-announcement').text(announcement);
+
+      console.log('Job selection locked:', job.label);
+    },
+
+    unlockJobSelection: function() {
+      this.isJobLocked = false;
+
+      // Hide the confirmation card
+      const $card = this.$form.find('#job-locked-confirmation');
+      $card.hide();
+
+      // Clear the announcement
+      $card.find('#job-locked-announcement').text('');
+
+      // Show the dropdown panel (job stays selected but can be changed)
+      const $selectionPanel = this.$form.find('#job-selection-panel');
+      $selectionPanel.show();
+
+      // Focus the dropdown for keyboard navigation
+      this.$form.find('#job_selected').focus();
+
+      console.log('Job selection unlocked');
+    },
+
+    // Helper to populate a job detail field
+    populateJobDetail: function($card, field, value) {
+      const $item = $card.find('#job-detail-' + field);
+      if (value) {
+        $item.find('[data-field="' + field + '"]').text(value);
+        $item.show();
+      } else {
+        $item.hide();
+      }
+    },
+
+    // Format employment type for display
+    formatEmploymentType: function(value) {
+      if (!value) return '';
+      const labels = {
+        'FULL_TIME': 'Full-time',
+        'PART_TIME': 'Part-time',
+        'CONTRACTOR': 'Contract',
+        'TEMPORARY': 'Temporary',
+        'INTERN': 'Intern'
+      };
+      return labels[value] || value;
+    },
+
+    // Format work arrangement for display
+    formatWorkArrangement: function(value) {
+      if (!value) return '';
+      const labels = {
+        'hybrid': 'Hybrid Eligible',
+        'onsite': 'On-site',
+        'remote': 'Remote'
+      };
+      return labels[value] || value;
+    },
+
+    // Format date for display
+    formatDate: function(dateString) {
+      if (!dateString) return '';
+      try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        });
+      } catch (e) {
+        return dateString;
+      }
+    },
+
+    showNoPositionsMessage: function() {
+      this.$form.find('#job_selected').prop('disabled', true);
+      this.$form.find('#no-positions-message').show();
+    },
+
+    showJobClosedError: function(errorData) {
+      // Show detailed error based on API response
+      const $stepContent = this.$form.find('.wizard-step[data-step="2"] .step-content');
+      const messageType = errorData.message_type || 'not_found';
+
+      let title, message, icon;
+
+      switch (messageType) {
+        case 'closed':
+          const jobLabel = errorData.job_location
+            ? errorData.job_title + ' — ' + errorData.job_location
+            : errorData.job_title;
+          title = 'Position No Longer Available';
+          message = 'The position "' + jobLabel + '" is no longer accepting applications.';
+          icon = 'fa-clock';
+          break;
+
+        case 'invalid':
+          title = 'Invalid Link';
+          message = 'The link you followed does not point to a valid job posting.';
+          icon = 'fa-exclamation-triangle';
+          break;
+
+        case 'not_found':
+        default:
+          title = 'Position Not Found';
+          message = 'The position you were linked to may have been removed or filled.';
+          icon = 'fa-search';
+          break;
+      }
+
+      // Build the error panel HTML
+      const errorHtml = `
+        <div class="job-closed-error alert alert-warning" role="alert">
+          <div class="job-closed-error__icon">
+            <i class="fas ${icon}" aria-hidden="true"></i>
+          </div>
+          <div class="job-closed-error__content">
+            <h4 class="job-closed-error__title">${title}</h4>
+            <p class="job-closed-error__message">${message}</p>
+            <div class="job-closed-error__actions">
+              <a href="/employment" class="btn btn-primary">
+                <i class="fas fa-briefcase me-2" aria-hidden="true"></i>
+                View Current Openings
+              </a>
+              ${this.postedJobs.length > 0 ? '<span class="job-closed-error__divider">or</span><span>select from available positions below</span>' : ''}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Insert at the top of step content
+      $stepContent.prepend(errorHtml);
+
+      // Focus the error for accessibility
+      $stepContent.find('.job-closed-error').focus();
+
+      console.warn('Job closed/not found:', errorData);
+    },
+
+    showJobNotFoundError: function() {
+      // Legacy function - now delegates to showJobClosedError
+      this.showJobClosedError({ message_type: 'not_found' });
     },
 
     setupMultipleFields: function() {
