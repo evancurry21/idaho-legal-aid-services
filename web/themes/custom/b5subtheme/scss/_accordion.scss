@@ -241,49 +241,50 @@
 }
 
 // File download buttons in accordion
+// Proper filename truncation with accessible labeling
 .accordion-file {
   margin-top: 1rem;
-  padding: 0.25rem 0; // Add small vertical padding to accommodate hover transform
-  overflow-x: hidden; // Only hide horizontal overflow
-  overflow-y: visible; // Allow vertical overflow for transform effect
-  
-  // Style the download buttons to handle long filenames
+  padding: 0.25rem 0; // Small vertical padding for hover transform
+  overflow-x: hidden;
+  overflow-y: visible;
+  text-align: center;
+
   .btn {
     display: inline-flex;
     align-items: center;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    
-    // Keep icon properly aligned
+    justify-content: center;
+    gap: 0.5rem;
+    // Constrain width to prevent comically wide buttons
+    max-width: min(100%, 400px);
+
+    // Icon: prevent shrinking
     i {
-      margin-right: 0.5rem;
       flex-shrink: 0;
     }
-    
-    // On mobile, allow wrapping for very long filenames
+
+    // Label: truncate with ellipsis
+    // min-width: 0 is critical for text-overflow in flex containers
+    .btn__label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     @include mobile {
-      white-space: normal;
-      word-break: break-word;
-      overflow-wrap: break-word;
-      text-align: left;
-      display: block;
-      width: 100%;
+      max-width: min(100%, 280px);
+      font-size: $btn-font-size-mobile;
+      padding: $btn-padding-y-mobile $btn-padding-x-mobile;
     }
   }
-  
-  // Match the primary button hover behavior from _buttons.scss
+
   .btn-primary {
-    // Ensure consistent styling with site-wide buttons
     font-weight: $weight-button;
-    
+
     &:hover,
     &:focus {
-      // The transform and shadow are already defined in _buttons.scss
-      // Just ensure the text remains visible on hover
       i {
-        color: $color-primary; // Icon changes to blue on hover
+        color: $color-primary;
       }
     }
   }

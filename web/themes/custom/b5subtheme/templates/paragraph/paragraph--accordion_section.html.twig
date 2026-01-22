@@ -58,9 +58,11 @@
                     <div class="accordion-file mt-3">
                       <a href="{{ file_url(file.uri.value) }}"
                          class="btn btn-primary"
-                         download>
-                        <i class="fas fa-download me-1" aria-hidden="true"></i>
-                        {{ file.filename.value }}
+                         download
+                         title="{{ file.filename.value }}"
+                         aria-label="{{ 'Download:'|t }} {{ file.filename.value }}">
+                        <i class="fas fa-download" aria-hidden="true"></i>
+                        <span class="btn__label">{{ file.filename.value }}</span>
                       </a>
                     </div>
                   {% endif %}

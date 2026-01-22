@@ -281,20 +281,8 @@ function b5subtheme_preprocess_node(array &$variables): void {
     _b5subtheme_preprocess_home_page_hero($variables, $node);
   }
 
-  // Preload background images for employment page.
+  // Prepare content sections for tabbed display.
   if ($variables['content_type'] === 'employment' && $variables['view_mode'] === 'full') {
-    $theme_path = \Drupal::service('extension.list.theme')->getPath('b5subtheme');
-    $variables['#attached']['html_head_link'][] = [
-      [
-        'rel' => 'preload',
-        'as' => 'image',
-        'type' => 'image/svg+xml',
-        'href' => '/' . $theme_path . '/images/curved-background-blue (2400 x 900 px).svg',
-      ],
-      TRUE,
-    ];
-
-    // Prepare content sections for tabbed display.
     _b5subtheme_preprocess_employment_tabs($variables, $node);
   }
 }
@@ -335,7 +323,7 @@ function _b5subtheme_preprocess_employment_tabs(array &$variables, NodeInterface
     $tab_labels = [
       'What Sets ILAS Apart' => 'What Sets Us Apart',
       'For Attorneys: A Different Kind of Practice' => 'Attorney Practice',
-      'Support Staff Roles: The Work That Makes Everything Possible' => 'Support Staff Careers',
+      'Support Staff Roles: The Work That Makes Everything Possible' => 'Support Staff',
     ];
 
     if (isset($tab_labels[$title])) {

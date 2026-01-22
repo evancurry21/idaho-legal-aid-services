@@ -34,6 +34,11 @@
     padding: 1rem 0;
   }
 
+  // Remove margin-bottom on centered content section for this page
+  .content-section.content-section--centered {
+    margin-bottom: 0;
+  }
+
   // Section title styled to match subtitle
   // Using doubled selector for specificity instead of !important
   .content-section.content-section .section-title {

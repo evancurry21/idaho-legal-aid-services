@@ -106,6 +106,7 @@
   padding: 1rem 1.5rem;
   color: $color-body;
   text-decoration: none;
+  font-weight: $font-weight-bold;
   transition: background-color 0.3s ease;
 
   &:hover {
@@ -117,7 +118,7 @@
     align-items: center;
     min-height: 56px; /* Match height of items with submenus */
     padding: 1rem 1.5rem;
-    color: $color-body;
+    color: $color-black;
     text-decoration: none;
     transition: background-color 0.3s ease;
 
@@ -128,8 +129,9 @@
   }
 
   .menu-text-link {
-    color: $color-body;
+    color: $color-black;
     text-decoration: none;
+    font-weight: $font-weight-bold;
     flex: 1;
 
     &:hover {
@@ -146,12 +148,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: $color-gray-text;
     cursor: pointer;
     transition: transform 0.3s ease;
 
+    .menu-icon {
+      color: $color-primary;
+    }
+
     &[aria-expanded="true"] .menu-icon {
       transform: rotate(45deg);
+      color: $color-primary;
     }
   }
 }
@@ -178,14 +184,15 @@
   display: block;
   padding: 0.875rem 1.5rem 0.875rem 2.5rem;
   min-height: 44px; /* Minimum tap target size for accessibility */
-  color: $color-gray-muted;
+  color: $color-primary;
   text-decoration: none;
   font-size: 0.9rem;
+  font-weight: $font-weight-semibold;
   transition: $transition-base;
 
   &:hover {
     background-color: $color-gray-border-light;
-    color: $color-primary;
+    color: $color-primary-dark;
     padding-left: 3rem;
   }
 }

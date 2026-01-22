@@ -378,7 +378,7 @@
 /* ========== Content Sections - Tabbed Interface ========== */
 .employment-page__sections-tabbed {
   margin-bottom: $spacer-xl;
-  padding: $spacer-xl 0;
+  padding: $spacer 0; // Match listings internal padding (16px)
 
   .section-title {
     margin-bottom: $spacer-xl;
@@ -390,20 +390,7 @@
   margin-bottom: $spacer-xl;
 
   @include mobile {
-    // Horizontal scroll on mobile
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-left: calc(-1 * #{$gutter-page-x});
-    margin-right: calc(-1 * #{$gutter-page-x});
-    padding-left: $gutter-page-x;
-    padding-right: $gutter-page-x;
-
-    // Hide scrollbar but keep functionality
-    &::-webkit-scrollbar {
-      display: none;
-    }
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    overflow-x: visible;
   }
 }
 
@@ -417,10 +404,32 @@
   list-style: none;
 
   @include mobile {
-    justify-content: flex-start;
+    // Grid layout: first tab on row 1, tabs 2+3 share row 2
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: $spacer-sm;
-    min-width: max-content;
-    padding-bottom: 0;
+    border-bottom: 3px solid $color-gray-border-light;
+    padding: 0;
+    margin: 0;
+
+    // Reset Bootstrap nav-item defaults
+    .nav-item {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    // First tab spans both columns, centered (natural width)
+    .nav-item:first-child {
+      grid-column: 1 / -1;
+      justify-self: center;
+    }
+
+    // Remaining tabs each in their own column, centered
+    .nav-item:not(:first-child) {
+      justify-self: center;
+    }
   }
 
   // Nest tab styles for higher specificity over Bootstrap
@@ -429,7 +438,7 @@
     align-items: center;
     gap: $spacer-sm;
     padding: $spacer $spacer-lg;
-    background-color: transparent; // Transparent so nav border shows through
+    background-color: transparent;
     color: $color-gray-text;
     font-size: 1.1rem;
     font-weight: $weight-button;
@@ -437,6 +446,8 @@
     border-bottom: 4px solid transparent;
     border-radius: 0;
     margin-bottom: -4px; // Overlap the nav border
+    margin-right: 0; // Kill any Bootstrap margin
+    margin-left: 0;
     transition: $transition-base;
     white-space: nowrap;
     min-height: 56px;
@@ -456,7 +467,7 @@
     &.active {
       color: $color-primary;
       background-color: $color-gray-bg;
-      border-bottom-color: $color-gray-bg; // Match background to "connect" tab to content
+      border-bottom-color: $color-gray-bg;
       font-weight: $font-weight-bold;
 
       .content-tab__icon {
@@ -471,10 +482,16 @@
 
     @include mobile {
       padding: $spacer-sm $spacer;
-      font-size: 0.9rem;
-      min-height: 48px;
+      font-size: 0.875rem;
+      min-height: 44px;
       border-bottom-width: 3px;
       margin-bottom: -3px;
+      margin-right: 0;
+      margin-left: 0;
+      white-space: normal;
+      text-align: center;
+      width: auto; // Natural width
+      justify-content: center;
     }
   }
 }
@@ -517,7 +534,7 @@
   // Panel content wrapper
   .content-section {
     margin-bottom: 0;
-    padding: $spacer-lg 0;
+    padding: $spacer-lg 0 0 0; // Top padding only; bottom handled by parent margin
 
     &--highlighted {
       background-color: $color-gray-bg;
@@ -620,7 +637,7 @@
 /* ========== Benefits Snapshot ========== */
 .employment-page__benefits {
   margin-bottom: $spacer-xl;
-  padding: $spacer-lg 0;
+  padding: $spacer 0; // Match listings internal padding (16px)
 }
 
 .benefits-disclaimer {
@@ -937,19 +954,21 @@
     white-space: nowrap;
   }
 
-  // Compact icon button on mobile - still accessible via aria-label
+  // Compact button on mobile - aligned with badges, reduced height
   @include mobile {
-    margin-bottom: $spacer-sm; // Reduced margin for mobile
+    // Must match accordion-button's bottom padding ($spacer) to align with badges
+    margin-bottom: $spacer;
 
     .btn {
-      // Icon-only button styling
-      padding: 0.5rem 0.75rem;
-      min-width: 44px; // Touch target
-      min-height: 44px;
+      padding: 0.375rem 0.625rem; // Reduced padding for shorter button
+      min-width: 40px;
+      min-height: 36px; // Reduced from 44px - parent row provides additional tap area
+      font-size: 0.8125rem; // 13px to match badge font size
       justify-content: center;
 
       i {
         margin-left: 0; // Remove ms-2 margin when text is hidden
+        font-size: 0.75rem;
       }
     }
 
@@ -1088,6 +1107,9 @@
     @include mobile {
       font-size: 1.25rem;
       margin-bottom: 0.375rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   }
 
@@ -1109,7 +1131,7 @@
 
     @include mobile {
       padding: 0 $spacer $spacer 2.5rem;
-      font-size: 1.25rem;
+      font-size: 1.1rem; // 17.6px
     }
   }
 }

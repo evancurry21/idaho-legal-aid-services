@@ -127,20 +127,20 @@
       margin: 0;
     }
 
-    // Primary button (Filter)
+    // Primary button (Filter) - uses standard button tokens
     .button,
     input[type="submit"] {
       display: inline-block;
       font-family: $font-family-sans-serif;
-      font-weight: $font-weight-semibold;
+      font-weight: $weight-button;
       text-align: center;
       text-transform: uppercase;
       white-space: nowrap;
       border: 2px solid $color-primary;
-      padding: 0.5rem 1rem;
-      font-size: 0.9rem;
+      padding: $btn-padding-y $btn-padding-x;
+      font-size: $btn-font-size;
       line-height: 1.5;
-      border-radius: $border-radius;
+      border-radius: 4px;
       transition: $transition-base;
       cursor: pointer;
       background-color: $color-primary;
@@ -151,8 +151,13 @@
         background-color: $color-white;
         border-color: $color-primary;
         color: $color-primary;
-        transform: translateY(-1px);
-        box-shadow: $shadow-pressed;
+        transform: translateY(-2px);
+        box-shadow: $shadow-hover;
+      }
+
+      @include mobile {
+        padding: $btn-padding-y-mobile $btn-padding-x-mobile;
+        font-size: $btn-font-size-mobile;
       }
     }
   }
