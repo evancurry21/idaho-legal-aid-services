@@ -125,6 +125,38 @@
     }
   }
 
+  .callout-warning {
+    background-color: lighten($color-warning, 35%);
+    border: 4px solid $color-warning;
+    padding: 1.5rem 2rem;
+    margin: 2rem 0;
+    border-radius: 4px;
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    a {
+      color: darken($color-warning, 25%);
+    }
+  }
+
+  .callout-danger {
+    background-color: lighten($color-danger, 40%);
+    border: 4px solid $color-danger;
+    padding: 1.5rem 2rem;
+    margin: 2rem 0;
+    border-radius: 4px;
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    a {
+      color: darken($color-danger, 15%);
+    }
+  }
+
   .check-list {
     list-style: none;
     padding-left: 0;

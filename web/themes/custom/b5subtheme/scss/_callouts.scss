@@ -142,6 +142,66 @@ blockquote.pull-quote {
 }
 
 // -----------------------------------------------------------------------------
+// Callout - Warning style
+// Orange/amber for deadlines, important dates, cautions
+// -----------------------------------------------------------------------------
+.callout-warning {
+  background-color: lighten($color-warning, 35%);
+  border: 4px solid $color-warning;
+  padding: $spacer-lg $spacer-xl;
+  margin: $spacer-xl 0;
+  border-radius: 4px;
+
+  @include mobile {
+    border-width: 3px;
+    padding: $spacer-lg $spacer;
+    margin: $spacer-lg 0;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+
+  a {
+    color: darken($color-warning, 25%);
+
+    &:hover {
+      color: darken($color-warning, 35%);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Callout - Danger style
+// Red for critical alerts, errors, urgent warnings
+// -----------------------------------------------------------------------------
+.callout-danger {
+  background-color: lighten($color-danger, 40%);
+  border: 4px solid $color-danger;
+  padding: $spacer-lg $spacer-xl;
+  margin: $spacer-xl 0;
+  border-radius: 4px;
+
+  @include mobile {
+    border-width: 3px;
+    padding: $spacer-lg $spacer;
+    margin: $spacer-lg 0;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+
+  a {
+    color: darken($color-danger, 15%);
+
+    &:hover {
+      color: darken($color-danger, 25%);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Check List style
 // Bulleted list with checkmark icons
 // -----------------------------------------------------------------------------

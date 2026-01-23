@@ -60,6 +60,9 @@ content: |
   Disallow: /user/logout
   Disallow: /media/oembed
   Disallow: /*/media/oembed
+  # Webforms (prevent indexing of form pages)
+  Disallow: /form/
+  Disallow: /webform/
   # Paths (no clean URLs)
   Disallow: /index.php/admin/
   Disallow: /index.php/comment/reply/
