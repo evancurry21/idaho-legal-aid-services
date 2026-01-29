@@ -3,7 +3,7 @@
 // Button styling that matches existing design
 .back-to-top {
   position: fixed;
-  bottom: 2rem;
+  bottom: 100px; // Above chat button
   right: 2rem;
   z-index: 9980; // High priority, below overlays and CKEditor dialogs
   width: 50px;
@@ -55,19 +55,19 @@
   
   // Mobile positioning
   @include mobile {
-    bottom: 1.5rem;
+    bottom: 80px; // Above chat button
     right: 1rem;
     width: 40px;
     height: 40px;
-    
+
     i {
       font-size: 1.1rem;
     }
   }
-  
+
   // Tablet positioning
   @include tablet {
-    bottom: 1.75rem;
+    bottom: 90px; // Above chat button
     right: 1.5rem;
   }
 }

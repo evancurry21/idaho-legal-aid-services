@@ -151,7 +151,11 @@
       p {
         color: $color-black;
         margin-bottom: 0;
-        font-size: 1.1rem;
+        font-size: 1.25rem;
+
+        @include mobile {
+          font-size: 1.1rem;
+        }
       }
     }
 
@@ -230,10 +234,15 @@
         }
 
         label {
+          font-size: 1.25rem;
           font-weight: $weight-nav-dropdown;
           color: $color-black;
           white-space: nowrap;
           text-align: center;
+
+          @include mobile {
+            font-size: 1.1rem;
+          }
         }
 
         // Input group for currency prefix
@@ -243,7 +252,7 @@
           width: 100%;
 
           .input-group-text {
-            background-color: $color-white;
+            background-color: $color-primary;
             border: 2px solid $color-primary;
             border-right: none;
             border-radius: 6px 0 0 6px;
@@ -252,7 +261,7 @@
             min-height: 48px;
             display: flex;
             align-items: center;
-            color: $color-black;
+            color: $color-white;
           }
 
           input {

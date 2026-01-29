@@ -1,0 +1,72 @@
+{
+    "timestamp": "2026-01-27T20:25:09+00:00",
+    "total": 90,
+    "matches": 90,
+    "misroutes": 0,
+    "by_match_type": {
+        "exact": {
+            "total": 37,
+            "matches": 37
+        },
+        "stem": {
+            "total": 16,
+            "matches": 16
+        },
+        "synonym": {
+            "total": 17,
+            "matches": 17
+        },
+        "phrase": {
+            "total": 5,
+            "matches": 5
+        },
+        "fuzzy": {
+            "total": 5,
+            "matches": 5
+        },
+        "negative": {
+            "total": 10,
+            "matches": 10
+        }
+    },
+    "by_topic": {
+        "family": {
+            "total": 21,
+            "matches": 21
+        },
+        "housing": {
+            "total": 17,
+            "matches": 17
+        },
+        "consumer": {
+            "total": 14,
+            "matches": 14
+        },
+        "seniors": {
+            "total": 6,
+            "matches": 6
+        },
+        "health": {
+            "total": 9,
+            "matches": 9
+        },
+        "civil_rights": {
+            "total": 5,
+            "matches": 5
+        },
+        "employment": {
+            "total": 8,
+            "matches": 8
+        }
+    },
+    "failures": [],
+    "confidence_stats": {
+        "min": 0.6499999999999999,
+        "max": 0.88,
+        "sum": 68.02000000000002,
+        "count": 80,
+        "avg": 0.85
+    },
+    "accuracy": 100,
+    "misroute_rate": 0
+}

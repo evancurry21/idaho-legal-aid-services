@@ -1,0 +1,554 @@
+# Synonym Map - Normalizes variations to canonical terms per intent
+# Includes: Spanish equivalents, common misspellings, slang, abbreviations
+# Format: canonical_term -> [variations]
+
+apply:
+  # Core terms
+  apply:
+    - aply           # Typo
+    - aplly          # Typo
+    - aplicar        # Spanish
+  lawyer:
+    - lawer          # Typo
+    - laywer         # Typo
+    - attorney
+    - abogado        # Spanish
+  help:
+    - halp           # Typo/slang
+    - hlep           # Typo
+    - ayuda          # Spanish
+  qualify:
+    - quailfy        # Typo
+    - qualfy         # Typo
+    - calificar      # Spanish
+  assistance:
+    - assistnce      # Typo
+    - asistance      # Typo
+    - asistencia     # Spanish
+  representation:
+    - representaion  # Typo
+    - representacion # Spanish
+  free:
+    - gratis         # Spanish
+  application:
+    - aplicacion     # Spanish
+    - solicitud      # Spanish
+  need:
+    - necesito       # Spanish
+    - necesita       # Spanish
+
+hotline:
+  hotline:
+    - hot line       # Split word
+    - hotlin         # Typo
+    - linea          # Spanish
+  phone:
+    - fone           # Slang
+    - telefono       # Spanish
+  advice:
+    - advise         # Common confusion
+    - consejo        # Spanish
+  call:
+    - llamar         # Spanish
+  talk:
+    - hablar         # Spanish
+    - wanna talk     # Slang
+  speak:
+    - speek          # Typo
+  person:
+    - persona        # Spanish
+
+offices:
+  office:
+    - offic          # Typo
+    - oficina        # Spanish
+  location:
+    - locaton        # Typo
+    - ubicacion      # Spanish
+  address:
+    - adress         # Typo
+    - addres         # Typo
+    - direccion      # Spanish
+  hours:
+    - horas          # Spanish
+    - horario        # Spanish
+  operation:
+    - opperation     # Typo
+    - operaton       # Typo
+  where:
+    - donde          # Spanish
+  open:
+    - abierto        # Spanish
+  contact:
+    - contacto       # Spanish
+
+donations:
+  donate:
+    - donatoin       # Typo
+    - dontae         # Typo
+    - donar          # Spanish
+  donation:
+    - donacion       # Spanish
+  give:
+    - dar            # Spanish
+  support:
+    - apoyar         # Spanish
+    - apoyo          # Spanish
+  contribute:
+    - contribuir     # Spanish
+
+feedback:
+  complaint:
+    - complant       # Typo
+    - complait       # Typo
+    - queja          # Spanish
+  feedback:
+    - feeback        # Typo
+    - comentario     # Spanish
+  review:
+    - reseña         # Spanish
+  supervisor:
+    - supervisar     # Spanish
+  grievance:
+    - greviance      # Typo
+
+forms:
+  form:
+    - froms          # Typo
+    - fomr           # Typo
+    - formulario     # Spanish
+    - documento      # Spanish
+    - petition       # Common form type
+    - motion         # Common form type
+    - template       # Users ask for "motion template"
+    - affidavit      # Common form type
+  forms:
+    - formularios    # Spanish
+    - documentos     # Spanish
+  papers:
+    - papeles        # Spanish
+  paperwork:
+    - papeleo        # Spanish
+  download:
+    - descargar      # Spanish
+  custody:
+    - custodia       # Spanish
+  probate:
+    - estate         # Estate forms
+    - will           # Will forms
+
+# Estate/Probate synonyms (NEW - from Gem real traffic)
+estate_probate:
+  probate:
+    - estate
+    - sucesion
+    - herencia
+  will:
+    - wills
+    - testament
+    - testamento
+  trust:
+    - trusts
+    - fideicomiso
+  conservatorship:
+    - conservator
+    - guardianship of adult
+    - tutela de adulto
+  estate:
+    - estates
+    - inheritance
+    - herencia
+    - patrimonio
+
+guides:
+  guide:
+    - giude          # Typo
+    - giudes         # Typo
+    - guia           # Spanish
+  guides:
+    - guias          # Spanish
+  instructions:
+    - instrucciones  # Spanish
+  manual:
+    - manuel         # Typo
+
+faq:
+  faq:
+    - faqs
+    - f.a.q
+    - f.a.q.
+  frequently:
+    - frequentley    # Typo
+    - frecuentemente # Spanish
+  questions:
+    - questons       # Typo
+    - preguntas      # Spanish
+
+risk_detector:
+  senior:
+    - seniors
+    - seinor         # Typo
+    - mayor          # Spanish (persona mayor)
+  elderly:
+    - elder
+    - anciano        # Spanish
+  risk:
+    - riesgo         # Spanish
+  assessment:
+    - evaluacion     # Spanish
+  checkup:
+    - check-up
+    - chequeo        # Spanish
+
+services:
+  services:
+    - servies        # Typo
+    - servicios      # Spanish
+  types:
+    - tipos          # Spanish
+  cases:
+    - casos          # Spanish
+  areas:
+    - areas          # Same
+  cover:
+    - cubrir         # Spanish
+
+high_risk:
+  # DV terms
+  abusive:
+    - abusivo        # Spanish
+  hitting:
+    - pegando        # Spanish
+    - golpeando      # Spanish
+  violence:
+    - violencia      # Spanish
+  scared:
+    - asustado       # Spanish
+    - tengo miedo    # Spanish phrase
+  threatened:
+    - amenazado      # Spanish
+  # Eviction terms
+  eviction:
+    - eviccion       # Spanish
+    - desalojo       # Spanish
+  evict:
+    - desalojar      # Spanish
+  landlord:
+    - casero         # Spanish
+    - arrendador     # Spanish
+  notice:
+    - aviso          # Spanish
+    - notificacion   # Spanish
+  # Scam terms
+  scam:
+    - estafa         # Spanish
+  scammed:
+    - estafado       # Spanish
+  identity:
+    - identidad      # Spanish
+  stole:
+    - robaron        # Spanish
+  # Deadline terms
+  deadline:
+    - fecha limite   # Spanish
+    - plazo          # Spanish
+  court:
+    - corte          # Spanish
+    - tribunal       # Spanish
+  friday:
+    - viernes        # Spanish
+  tomorrow:
+    - manana         # Spanish
+    - mañana         # Spanish with tilde
+
+out_of_scope:
+  criminal:
+    - penal          # Spanish
+  arrest:
+    - arresto        # Spanish
+    - arrestado      # Spanish
+  immigration:
+    - inmigracion    # Spanish
+  business:
+    - negocio        # Spanish
+  emergency:
+    - emergencia     # Spanish
+
+# ============================================
+# Consumer/Debt synonyms (NEW - Consumer Debt Coverage Fix)
+# ============================================
+
+consumer_debt:
+  debt:
+    - deuda           # Spanish
+    - deudas          # Spanish plural
+    - owe
+    - owed
+    - owing
+    - debo            # Spanish - I owe
+    - deber           # Spanish - to owe
+  collection:
+    - collector
+    - collections
+    - cobro           # Spanish
+    - cobranza        # Spanish
+    - cobrador        # Spanish
+    - agencia de cobro  # Spanish
+  garnishment:
+    - garnish
+    - garnished
+    - garnishing
+    - levy
+    - levied
+    - embargo         # Spanish
+    - embargando      # Spanish - gerund form
+    - embargar        # Spanish - infinitive
+    - embargaron      # Spanish - past tense
+    - embargo de sueldo  # Spanish
+    - embargando el sueldo  # Spanish phrase
+  bankruptcy:
+    - bankrupt
+    - chapter 7
+    - chapter 13
+    - bancarrota      # Spanish
+    - quiebra         # Spanish
+    - bankrupcy       # Typo
+    - bankrupty       # Typo
+  credit:
+    - credito         # Spanish
+    - credit score
+    - credit report
+    - reporte de credito  # Spanish
+    - puntaje         # Spanish - score
+  scam:
+    - scammed
+    - fraud
+    - swindled
+    - con artist
+    - estafa          # Spanish
+    - fraude          # Spanish
+    - timo            # Spanish
+    - estafador       # Spanish
+  repossession:
+    - repo
+    - repossessed
+    - repoing
+    - car taken
+    - took my car
+    - reposesion      # Typo
+    - reposicion      # Spanish
+    - reposición      # Spanish accented
+    - embargo del carro  # Spanish
+    - reposeido       # Spanish
+    - quitaron        # Spanish - they took
+    - me quitaron     # Spanish - they took from me
+    - se llevaron     # Spanish - they took away
+  payday:
+    - payday loan
+    - cash advance
+    - title loan
+    - prestamo rapido # Spanish
+    - prestamo de dia de pago  # Spanish
+  medical_debt:
+    - medical bills
+    - hospital bills
+    - doctor bills
+    - facturas medicas  # Spanish
+    - deuda medica    # Spanish
+    - deudas medicas  # Spanish plural
+    - cuentas medicas # Spanish
+    - medicas         # Spanish - used in "deudas medicas" context
+    - medical         # When combined with debt/bills context
+  judgment:
+    - judgement       # Alt spelling
+    - default judgment
+    - court judgment
+    - sued for debt
+    - demanda por deuda  # Spanish
+  statute_of_limitations:
+    - old debt
+    - expired debt
+    - time barred
+    - too old
+    - deuda vieja     # Spanish
+    - prescripcion    # Spanish
+
+# ============================================
+# NEW SECTIONS - Coverage Gap Fixes
+# ============================================
+
+# Employment synonyms (NEW - Coverage Gap Fix)
+employment:
+  fired:
+    - terminated
+    - let go
+    - despedido
+    - corrido
+    - fird            # Typo
+  wages:
+    - pay
+    - salary
+    - salario
+    - pago
+    - paycheck
+    - cheque
+  employer:
+    - boss
+    - company
+    - work
+    - jefe
+    - patron
+    - empleador
+  job:
+    - trabajo
+    - empleo
+  wrongful:
+    - unfair
+    - illegal
+    - injusto
+    - ilegal
+  discrimination:
+    - discriminacion
+    - bias
+    - prejudice
+  harassment:
+    - acoso
+    - hostil
+
+# Utility synonyms (NEW - Coverage Gap Fix)
+utilities:
+  utility:
+    - utilities
+    - servicios
+    - power
+    - electric
+    - electricity
+    - gas
+    - water
+    - luz
+    - electricidad
+    - agua
+  shutoff:
+    - disconnected
+    - disconnect
+    - turned off
+    - cortaron
+    - desconectaron
+  bill:
+    - bills
+    - factura
+    - facturas
+    - payment
+
+# Mobile home synonyms (NEW - Coverage Gap Fix)
+mobile_home:
+  mobile:
+    - manufactured
+    - trailer
+    - movil
+  park:
+    - community
+    - parque
+  lot:
+    - space
+    - lote
+  owner:
+    - management
+    - manager
+    - dueno
+    - administrador
+
+# Name change synonyms (NEW - Coverage Gap Fix)
+name_change:
+  name:
+    - nombre
+  change:
+    - cambiar
+    - cambio
+  legal:
+    - court
+    - official
+    - corte
+    - oficial
+
+# Expungement synonyms (NEW - Coverage Gap Fix)
+expungement:
+  expunge:
+    - expungement
+    - seal
+    - sealed
+    - sealing
+    - erase
+    - borrar
+    - sellar
+  record:
+    - records
+    - background
+    - historial
+    - antecedentes
+  clean:
+    - clear
+    - remove
+    - limpiar
+    - quitar
+
+# Veterans synonyms (NEW - Coverage Gap Fix)
+veterans:
+  veteran:
+    - veterans
+    - vet
+    - veterano
+    - veteranos
+  military:
+    - service
+    - armed forces
+    - militar
+    - fuerzas armadas
+  VA:
+    - veterans affairs
+    - asuntos de veteranos
+  benefits:
+    - compensation
+    - disability
+    - beneficios
+    - compensacion
+
+# Additional typo corrections (NEW - Coverage Gap Fix)
+typo_corrections:
+  eviction:
+    - evicton
+    - eviciton
+    - evition
+    - eviktion
+  custody:
+    - cutsody
+    - custidy
+    - custoy
+    - cusotdy
+  divorce:
+    - divorec
+    - divorse
+    - divore
+    - divorece
+  bankruptcy:
+    - bankrupcy
+    - bankrupty
+    - bankrupcty
+    - bankruptsy
+  protection:
+    - protecton
+    - protecion
+    - proteccion
+  application:
+    - aplicaton
+    - aplication
+    - applicaton
+  landlord:
+    - landord
+    - lanldord
+    - landolrd
+  lawyer:
+    - laywyer
+    - laywer      # Already covered, but ensure
+    - lawer       # Already covered
+    - laweyr

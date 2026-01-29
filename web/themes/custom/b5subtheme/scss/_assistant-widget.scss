@@ -1,0 +1,1104 @@
+// =============================================================================
+// ILAS SITE ASSISTANT WIDGET
+// Accessible, responsive chat widget for Idaho Legal Aid Services.
+//
+// ARCHITECTURE: Styles live in theme (not module) to use design tokens.
+// The module attaches only JS; CSS compiles with theme's style.css.
+//
+// PATTERN: Launcher matches back-to-top and language-switcher buttons.
+// =============================================================================
+
+// =============================================================================
+// FLOATING WIDGET CONTAINER
+// =============================================================================
+.ilas-assistant-widget-container {
+  position: fixed;
+  bottom: 2rem; // Bottom right corner
+  right: 2rem;
+  z-index: 9980; // Match back-to-top and language-switcher
+  font-family: $font-family-base;
+
+  @include tablet {
+    bottom: 1.75rem;
+    right: 1.5rem;
+  }
+
+  @include mobile {
+    bottom: 1.5rem;
+    right: 1rem;
+  }
+}
+
+// =============================================================================
+// TOGGLE BUTTON
+// Matches floating button pattern (back-to-top, language-switcher)
+// =============================================================================
+.assistant-toggle-btn {
+  // Circular button matching other floating buttons
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // Colors and border (matches back-to-top exactly)
+  background-color: $color-primary;
+  color: $color-white;
+  border: 3px solid $color-white;
+  border-radius: 50%;
+
+  // Elevation
+  box-shadow: $box-shadow;
+  cursor: pointer;
+
+  // Animation
+  transition: $transition-base;
+
+  // Icon styling - matches language-switcher icon format
+  font-size: 1.25rem;
+
+  i {
+    font-size: 1.25rem;
+    transition: $transition-transform;
+  }
+
+  // Hover/focus: invert colors (matches floating button pattern)
+  &:hover,
+  &:focus {
+    background-color: $color-white;
+    color: $color-primary;
+    border-color: $color-primary;
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+  }
+
+  // Keyboard focus indicator
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 3px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  // Icon states for open/close
+  .toggle-icon-open {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .toggle-icon-close {
+    display: none;
+  }
+
+  .toggle-label {
+    // Hidden - icon-only button like other floating buttons
+    @include visually-hidden;
+  }
+
+  // Tablet sizing
+  @include tablet {
+    width: 45px;
+    height: 45px;
+
+    i {
+      font-size: 1.125rem;
+    }
+  }
+
+  // Mobile sizing (matches back-to-top/language-switcher)
+  @include mobile {
+    width: 40px;
+    height: 40px;
+
+    i {
+      font-size: 1rem;
+    }
+
+    // No transform on mobile for better touch experience
+    &:hover,
+    &:focus {
+      transform: none;
+    }
+  }
+}
+
+// Open state toggle icon swap
+.ilas-assistant-widget-container.is-open {
+  .assistant-toggle-btn {
+    // Invert when open (like language-switcher expanded)
+    background-color: $color-white;
+    color: $color-primary;
+    border-color: $color-primary;
+
+    .toggle-icon-open {
+      display: none;
+    }
+
+    .toggle-icon-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+
+// =============================================================================
+// PANEL
+// =============================================================================
+.assistant-panel {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  width: 380px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 200px);
+  background: $color-white;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-elevated;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &[hidden] {
+    display: none;
+  }
+
+  @include mobile {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 160px);
+    right: 0;
+  }
+}
+
+// =============================================================================
+// PANEL HEADER
+// =============================================================================
+.assistant-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: $spacer;
+  background: $color-gray-bg;
+  border-bottom: 1px solid $color-gray-border-light;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: $weight-button;
+  color: $color-primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacer-sm;
+}
+
+.panel-close-btn {
+  position: absolute;
+  right: $spacer-sm;
+  background: transparent;
+  border: none;
+  color: $color-primary;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: $spacer-xs $spacer-sm;
+  border-radius: $border-radius-sm;
+  transition: $transition-fast;
+
+  &:hover {
+    background: rgba($color-primary, 0.1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+// =============================================================================
+// DISCLAIMER
+// =============================================================================
+.assistant-disclaimer {
+  padding: $spacer-sm $spacer;
+  background: $color-primary;
+  color: $color-white;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: $spacer-sm;
+  border-bottom: 1px solid $color-gray-border-light;
+
+  i {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}
+
+// =============================================================================
+// CHAT AREA
+// =============================================================================
+.assistant-chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacer;
+  min-height: 200px;
+  max-height: 300px;
+  background: $color-gray-light;
+}
+
+// Bottom sentinel (zero-height, keeps scroll target at end of message list).
+.chat-bottom-sentinel {
+  height: 0;
+  overflow: hidden;
+}
+
+// "Jump to latest" button — sticky inside the scrollable chat container.
+.chat-jump-btn {
+  @include button-no-underline;
+  position: sticky;
+  bottom: 8px;
+  z-index: 2;
+  // Center horizontally within the chat container.
+  display: inline-flex;
+  margin: $spacer-sm auto 0;
+  align-items: center;
+  gap: $spacer-xs;
+  padding: 6px 16px;
+  background: $color-primary;
+  color: $color-white;
+  border: 2px solid $color-primary;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: $weight-button;
+  cursor: pointer;
+  box-shadow: $shadow-elevated;
+  transition: $transition-base;
+  white-space: nowrap;
+
+  &:hover {
+    background: $color-white;
+    color: $color-primary;
+    border-color: $color-primary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  &[hidden] {
+    display: none;
+  }
+
+  i {
+    font-size: 0.75rem;
+  }
+}
+
+// Messages
+.chat-message {
+  margin-bottom: $spacer-sm * 1.5; // 12px
+  max-width: 92%;
+  animation: assistantMessageIn 0.3s ease-in-out;
+}
+
+@keyframes assistantMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chat-message--user {
+  margin-left: auto;
+}
+
+.chat-message--assistant {
+  margin-right: auto;
+  // Allow assistant messages with results/buttons to use full width.
+  max-width: 96%;
+}
+
+.message-content {
+  padding: 10px 14px;
+  border-radius: $border-radius-lg;
+  line-height: 1.5;
+
+  p {
+    margin: 0 0 $spacer-sm 0;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.chat-message--user .message-content {
+  background: $color-primary;
+  color: $color-white;
+  border-bottom-right-radius: $border-radius-sm;
+}
+
+.chat-message--assistant .message-content {
+  background: $color-white;
+  color: $color-body;
+  border: 1px solid $color-gray-border-light;
+  border-bottom-left-radius: $border-radius-sm;
+}
+
+// Typing indicator
+.chat-message--typing .message-content {
+  padding: 14px 18px;
+}
+
+.typing-indicator {
+  display: flex;
+  gap: $spacer-xs;
+
+  span {
+    width: 8px;
+    height: 8px;
+    background: $color-gray-text;
+    border-radius: 50%;
+    animation: assistantTyping 1.2s infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+  }
+}
+
+@keyframes assistantTyping {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-6px);
+  }
+}
+
+// =============================================================================
+// QUICK ACTIONS
+// =============================================================================
+.assistant-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacer-sm;
+  padding: $spacer-sm $spacer;
+  border-top: 1px solid $color-gray-border-light;
+  background: $color-white;
+}
+
+// Quick action buttons follow btn-primary pattern (filled, inverts on hover)
+.quick-action-btn {
+  @include button-no-underline;
+  flex: 1 1 auto;
+  min-width: calc(50% - #{$spacer-xs});
+  min-height: 48px; // Touch target
+  padding: $btn-padding-y-mobile $btn-padding-x-mobile;
+  background: $color-primary;
+  border: 2px solid $color-primary;
+  border-radius: $border-radius-sm;
+  color: $color-white;
+  font-size: $btn-font-size-mobile;
+  font-weight: $weight-button;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: $transition-base;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacer-xs * 1.5;
+
+  // Desktop/tablet: larger text, uppercase, match .btn padding.
+  @media (min-width: $tablet-breakpoint) {
+    font-size: 1rem;
+    text-transform: uppercase;
+    padding: $btn-padding-y $btn-padding-x;
+  }
+
+  // Hover: invert colors (matches btn-primary)
+  &:hover {
+    background: $color-white;
+    border-color: $color-primary;
+    color: $color-primary;
+    transform: translateY(-2px);
+    box-shadow: $shadow-hover;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @include mobile {
+    min-height: 44px;
+
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+// =============================================================================
+// INPUT FORM
+// =============================================================================
+.assistant-input-form {
+  display: flex;
+  padding: $spacer-sm $spacer;
+  background: $color-white;
+  border-top: 1px solid $color-gray-border-light;
+}
+
+.input-wrapper {
+  display: flex;
+  flex: 1;
+  gap: $spacer-sm;
+}
+
+.assistant-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid $color-gray-border-light;
+  border-radius: $border-radius;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: $transition-fast;
+
+  &:focus {
+    outline: none;
+    border-color: $color-primary;
+    box-shadow: $focus-ring-primary;
+  }
+
+  &::placeholder {
+    color: $color-gray-text;
+  }
+}
+
+.assistant-send-btn {
+  @include button-no-underline;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 10px 16px;
+  background: $color-primary;
+  color: $color-white;
+  border: 2px solid $color-primary;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  transition: $transition-base;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // Match theme button hover (invert)
+  &:hover,
+  &:focus {
+    background: $color-white;
+    color: $color-primary;
+    border-color: $color-primary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @include mobile {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+// =============================================================================
+// PANEL FOOTER
+// =============================================================================
+.assistant-panel-footer {
+  padding: $spacer-sm $spacer;
+  text-align: center;
+  font-size: 0.875rem;
+  background: $color-gray-light;
+  border-top: 1px solid $color-gray-border-light;
+}
+
+.assistant-panel-footer {
+  .footer-link {
+    color: $color-primary;
+    text-decoration: none;
+    font-weight: $weight-button;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .footer-divider {
+    margin: 0 $spacer-sm;
+    color: $color-gray-text;
+  }
+}
+
+// =============================================================================
+// RESULTS STYLING
+// =============================================================================
+
+// FAQ Results
+.faq-results {
+  margin-top: $spacer-sm;
+}
+
+.faq-result {
+  padding: $spacer-sm * 1.5;
+  background: $color-gray-light;
+  border-radius: $border-radius-lg;
+  margin-bottom: $spacer-sm;
+}
+
+.faq-question {
+  margin: 0 0 $spacer-sm 0;
+  font-size: 0.95rem;
+  font-weight: $weight-button;
+  color: $color-primary;
+}
+
+.faq-answer {
+  margin: 0 0 $spacer-sm 0;
+  font-size: 0.9rem;
+  color: $color-gray-text;
+}
+
+.faq-link {
+  font-size: 0.85rem;
+  color: $color-primary;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// Resource Results
+.resource-results {
+  list-style: none;
+  margin: $spacer-sm 0 0 0;
+  padding: 0;
+}
+
+.resource-result {
+  margin-bottom: $spacer-sm;
+}
+
+.resource-link {
+  display: flex;
+  align-items: center;
+  gap: $spacer-sm;
+  padding: 10px 12px;
+  background: $color-gray-light;
+  border-radius: $border-radius-lg;
+  color: $color-body;
+  text-decoration: none;
+  transition: $transition-base;
+
+  &:hover {
+    background: rgba($color-primary, 0.08);
+  }
+
+  i {
+    color: $color-primary;
+    font-size: 1.1rem;
+  }
+
+  .badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background: $color-primary;
+    color: $color-white;
+    border-radius: $border-radius-sm;
+  }
+}
+
+.resource-title {
+  flex: 1;
+  font-weight: $weight-nav-dropdown;
+}
+
+.resource-desc {
+  margin: $spacer-xs 0 0 0;
+  padding-left: $spacer-sm * 1.5;
+  font-size: 0.85rem;
+  color: $color-gray-text;
+}
+
+.resource-disclaimer {
+  margin: $spacer-sm 0 0 0;
+  font-size: 0.8rem;
+  color: $color-gray-text;
+}
+
+.form-finder-fallback {
+  margin-top: $spacer-sm;
+  font-size: 0.9rem;
+}
+
+// CTA Button
+.cta-button {
+  @include button-no-underline;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacer-sm;
+  padding: 10px 20px;
+  min-height: 48px;
+  background: $color-primary;
+  color: $color-white;
+  border: 2px solid $color-primary;
+  border-radius: $border-radius-sm;
+  font-weight: $weight-button;
+  transition: $transition-base;
+
+  &:hover {
+    background: $color-white;
+    color: $color-primary;
+    border-color: $color-primary;
+  }
+
+  @include mobile {
+    min-height: 44px;
+  }
+}
+
+// Escalation Actions
+.escalation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacer-sm;
+  margin-top: $spacer-sm * 1.5;
+}
+
+// Escalation buttons follow btn-primary pattern
+.escalation-btn {
+  @include button-no-underline;
+  padding: $btn-padding-y-mobile $btn-padding-x-mobile;
+  min-height: 44px;
+  background: $color-primary;
+  border: 2px solid $color-primary;
+  border-radius: $border-radius-sm;
+  color: $color-white;
+  font-weight: $weight-button;
+  transition: $transition-base;
+  display: inline-flex;
+  align-items: center;
+
+  &:hover {
+    background: $color-white;
+    border-color: $color-primary;
+    color: $color-primary;
+    transform: translateY(-2px);
+    box-shadow: $shadow-hover;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @include mobile {
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+// Inline Suggestions (pills) - follow btn-primary pattern with pill shape
+.inline-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacer-xs * 1.5;
+  margin-top: $spacer-sm;
+}
+
+.inline-suggestion-btn {
+  @include button-no-underline;
+  padding: $spacer-xs * 1.5 $spacer-sm * 1.5;
+  background: $color-primary;
+  border: 2px solid $color-primary;
+  border-radius: 20px; // Pill shape for chips
+  color: $color-white;
+  font-size: 0.875rem;
+  font-weight: $weight-button;
+  cursor: pointer;
+  transition: $transition-base;
+
+  &:hover {
+    background: $color-white;
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+// Topic Suggestions (fallback) - follow btn-primary pattern
+.topic-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacer-sm;
+  margin: $spacer-sm * 1.5 0;
+}
+
+.topic-suggestion-btn {
+  @include button-no-underline;
+  padding: $btn-padding-y-mobile $btn-padding-x-mobile;
+  min-height: 44px;
+  background: $color-primary;
+  border: 2px solid $color-primary;
+  border-radius: $border-radius-sm;
+  color: $color-white;
+  font-size: $btn-font-size-mobile;
+  font-weight: $weight-button;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: $transition-base;
+  display: inline-flex;
+  align-items: center;
+
+  // Desktop/tablet: larger text.
+  @media (min-width: $tablet-breakpoint) {
+    font-size: 1rem;
+  }
+
+  &:hover {
+    background: $color-white;
+    border-color: $color-primary;
+    color: $color-primary;
+    transform: translateY(-2px);
+    box-shadow: $shadow-hover;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @include mobile {
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+// Response Links (Policy/Eligibility)
+.response-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacer-sm;
+  margin-top: $spacer-sm * 1.5;
+}
+
+.response-link-btn {
+  @include button-no-underline;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacer-xs * 1.5;
+  padding: 10px $spacer;
+  min-height: 44px;
+  background: $color-primary;
+  color: $color-white;
+  border: 2px solid $color-primary;
+  border-radius: $border-radius-sm;
+  font-weight: $weight-nav-dropdown;
+  font-size: 0.9rem;
+  transition: $transition-base;
+
+  &:hover {
+    background: $color-white;
+    color: $color-primary;
+  }
+}
+
+// Service Areas Grid
+.service-areas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: $spacer-sm;
+  margin: $spacer-sm * 1.5 0;
+}
+
+// Service area buttons follow btn-primary pattern
+.service-area-btn {
+  @include button-no-underline;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $btn-padding-y-mobile $btn-padding-x-mobile;
+  min-height: 44px;
+  background: $color-primary;
+  border: 2px solid $color-primary;
+  border-radius: $border-radius-sm;
+  color: $color-white;
+  font-size: $btn-font-size-mobile;
+  font-weight: $weight-button;
+  text-align: center;
+  transition: $transition-base;
+
+  &:hover {
+    background: $color-white;
+    border-color: $color-primary;
+    color: $color-primary;
+    transform: translateY(-2px);
+    box-shadow: $shadow-hover;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @include mobile {
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+// Eligibility Caveat
+.eligibility-caveat {
+  margin: $spacer-sm 0;
+  padding: 10px 12px;
+  background: #fff3cd;
+  border-left: 3px solid $color-warning;
+  border-radius: 0 $border-radius-lg $border-radius-lg 0;
+  font-size: 0.9rem;
+  color: #856404;
+}
+
+// =============================================================================
+// DEDICATED PAGE STYLES (/assistant)
+// =============================================================================
+.ilas-assistant-page {
+  max-width: $reading-column-width;
+  margin: 0 auto;
+  padding: $section-pad-y-desktop 20px;
+
+  @include mobile {
+    padding: $section-pad-y-mobile $gutter-page-x;
+  }
+}
+
+.ilas-assistant-page .assistant-container {
+  background: $color-white;
+  border-radius: $border-radius-xl;
+  box-shadow: $shadow-elevated;
+  overflow: hidden;
+}
+
+.ilas-assistant-page .assistant-header {
+  text-align: center;
+  padding: $spacer-xl 20px;
+  background: $color-primary;
+  color: $color-white;
+}
+
+.ilas-assistant-page .assistant-icon {
+  font-size: 3rem;
+  margin-bottom: $spacer-sm * 1.5;
+}
+
+.ilas-assistant-page .assistant-tagline {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.ilas-assistant-page .assistant-disclaimer {
+  margin: 0;
+  border-radius: 0;
+}
+
+.ilas-assistant-page .assistant-chat {
+  min-height: 300px;
+  max-height: 50vh;
+}
+
+.ilas-assistant-page .assistant-suggestions {
+  padding: 20px;
+  border-top: 1px solid $color-gray-border-light;
+}
+
+.ilas-assistant-page .suggestions-label {
+  margin: 0 0 $spacer-sm * 1.5 0;
+  font-weight: $weight-button;
+  color: $color-gray-text;
+}
+
+.ilas-assistant-page .suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: $spacer-sm * 1.5;
+}
+
+// Page suggestion buttons follow btn-primary pattern with icon
+.ilas-assistant-page .suggestion-btn {
+  @include button-no-underline;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacer-sm;
+  padding: $spacer;
+  min-height: 80px;
+  background: $color-primary;
+  border: 2px solid $color-primary;
+  border-radius: $border-radius-sm;
+  color: $color-white;
+  font-size: $btn-font-size-mobile;
+  font-weight: $weight-button;
+  cursor: pointer;
+  transition: $transition-base;
+
+  i {
+    font-size: 1.5rem;
+    color: $color-white;
+    transition: $transition-fast;
+  }
+
+  &:hover {
+    background: $color-white;
+    border-color: $color-primary;
+    color: $color-primary;
+    transform: translateY(-2px);
+    box-shadow: $shadow-hover;
+
+    i {
+      color: $color-primary;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @include mobile {
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+.ilas-assistant-page .assistant-input-form {
+  border-top: 1px solid $color-gray-border-light;
+}
+
+.ilas-assistant-page .assistant-footer {
+  padding: $spacer 20px;
+  text-align: center;
+  background: $color-gray-light;
+  border-top: 1px solid $color-gray-border-light;
+}
+
+.ilas-assistant-page .footer-text {
+  margin: 0;
+  color: $color-gray-text;
+  font-size: 0.9rem;
+}
+
+@include mobile {
+  .ilas-assistant-page .suggestions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+// =============================================================================
+// REDUCED MOTION
+// =============================================================================
+@media (prefers-reduced-motion: reduce) {
+  .chat-message,
+  .assistant-toggle-btn,
+  .quick-action-btn,
+  .suggestion-btn,
+  .resource-link,
+  .escalation-btn,
+  .chat-jump-btn,
+  .ilas-assistant-page .suggestion-btn {
+    animation: none;
+    transition: $transition-fade;
+  }
+
+  .typing-indicator span {
+    animation: none;
+  }
+}
+
+// =============================================================================
+// HIGH CONTRAST MODE
+// =============================================================================
+@media (prefers-contrast: high) {
+  .assistant-toggle-btn,
+  .assistant-send-btn,
+  .cta-button,
+  .response-link-btn {
+    border-width: 3px;
+  }
+
+  .chat-message--assistant .message-content,
+  .assistant-panel,
+  .quick-action-btn,
+  .escalation-btn,
+  .topic-suggestion-btn,
+  .service-area-btn,
+  .ilas-assistant-page .suggestion-btn {
+    border-width: 2px;
+    border-color: $color-black;
+  }
+}

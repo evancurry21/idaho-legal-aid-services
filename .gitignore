@@ -116,3 +116,6 @@ logs/
 # Allow our custom theme ignore file (even though we ignore scaffolded ones under /web/)
 !/web/themes/custom/b5subtheme/.gitignore
 button-audit/
+
+# Private data directory (raw user data, PII)
+data/private/

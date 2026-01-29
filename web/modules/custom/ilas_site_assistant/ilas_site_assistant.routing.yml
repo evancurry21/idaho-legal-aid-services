@@ -46,3 +46,19 @@ ilas_site_assistant.admin.report:
     _title: 'ILAS Site Assistant Report'
   requirements:
     _permission: 'view ilas site assistant reports'
+
+ilas_site_assistant.api.health:
+  path: '/assistant/api/health'
+  defaults:
+    _controller: '\Drupal\ilas_site_assistant\Controller\AssistantApiController::health'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'
+
+ilas_site_assistant.api.metrics:
+  path: '/assistant/api/metrics'
+  defaults:
+    _controller: '\Drupal\ilas_site_assistant\Controller\AssistantApiController::metrics'
+  methods: [GET]
+  requirements:
+    _permission: 'view ilas site assistant reports'

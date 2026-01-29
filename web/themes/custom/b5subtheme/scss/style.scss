@@ -160,5 +160,8 @@
 @import 'back-to-top';
 @import 'language-switcher';
 
+// Site Assistant (chatbot widget)
+@import 'assistant-widget';
+
 // Admin/Toolbar overrides (must load after Bootswatch)
 @import 'admin';

@@ -1,0 +1,371 @@
+# Acronym / Abbreviation Expansion Map
+# Maps common acronyms and abbreviations to canonical terms + primary intent.
+# Applied early in the extraction pipeline (before synonym mapping).
+#
+# Format:
+#   ACRONYM:
+#     expansion: "canonical phrase"
+#     intent: primary_intent_hint (optional, used for routing boost)
+#
+# Rules:
+# - Match is case-insensitive but only on whole-word boundaries
+# - Expansion replaces the acronym in the normalized text
+# - Intent hint is advisory; IntentRouter still makes final decision
+
+# === Domestic / Safety ===
+DV:
+  expansion: "domestic violence"
+  intent: high_risk_dv
+
+IPV:
+  expansion: "intimate partner violence"
+  intent: high_risk_dv
+
+PO:
+  expansion: "protection order"
+  intent: forms_finder
+
+CPO:
+  expansion: "civil protection order"
+  intent: forms_finder
+
+TPO:
+  expansion: "temporary protection order"
+  intent: forms_finder
+
+RO:
+  expansion: "restraining order"
+  intent: forms_finder
+
+TRO:
+  expansion: "temporary restraining order"
+  intent: forms_finder
+
+# === Legal / Court ===
+POA:
+  expansion: "power of attorney"
+  intent: forms_finder
+
+DPOA:
+  expansion: "durable power of attorney"
+  intent: forms_finder
+
+MPOA:
+  expansion: "medical power of attorney"
+  intent: forms_finder
+
+GAL:
+  expansion: "guardian ad litem"
+  intent: faq
+
+ADR:
+  expansion: "alternative dispute resolution"
+  intent: faq
+
+# === Benefits / Government Programs ===
+SSI:
+  expansion: "supplemental security income"
+  intent: topic_benefits
+
+SSDI:
+  expansion: "social security disability insurance"
+  intent: topic_benefits
+
+SSD:
+  expansion: "social security disability"
+  intent: topic_benefits
+
+SS:
+  expansion: "social security"
+  intent: topic_benefits
+
+SSA:
+  expansion: "social security administration"
+  intent: topic_benefits
+
+SNAP:
+  expansion: "supplemental nutrition assistance program food stamps"
+  intent: topic_benefits
+
+EBT:
+  expansion: "electronic benefits transfer food stamps"
+  intent: topic_benefits
+
+WIC:
+  expansion: "women infants children nutrition program"
+  intent: topic_benefits
+
+TANF:
+  expansion: "temporary assistance for needy families"
+  intent: topic_benefits
+
+LIHEAP:
+  expansion: "low income home energy assistance program"
+  intent: topic_benefits
+
+HUD:
+  expansion: "housing and urban development"
+  intent: topic_housing
+
+IHFA:
+  expansion: "idaho housing and finance association"
+  intent: topic_housing
+
+# === Health ===
+ACA:
+  expansion: "affordable care act health insurance"
+  intent: topic_health
+
+CHIP:
+  expansion: "children health insurance program"
+  intent: topic_health
+
+VA:
+  expansion: "veterans affairs"
+  intent: topic_health
+
+# === Housing ===
+FHA:
+  expansion: "federal housing administration"
+  intent: topic_housing
+
+LL:
+  expansion: "landlord"
+  intent: topic_housing
+
+# === Consumer / Debt ===
+FTC:
+  expansion: "federal trade commission"
+  intent: topic_consumer
+
+FDCPA:
+  expansion: "fair debt collection practices act"
+  intent: topic_consumer
+
+FCRA:
+  expansion: "fair credit reporting act"
+  intent: topic_consumer
+
+BK:
+  expansion: "bankruptcy"
+  intent: topic_consumer
+
+CH7:
+  expansion: "chapter 7 bankruptcy"
+  intent: topic_consumer
+
+CH13:
+  expansion: "chapter 13 bankruptcy"
+  intent: topic_consumer
+
+IRS:
+  expansion: "internal revenue service taxes"
+  intent: topic_consumer
+
+# === Family Law ===
+CS:
+  expansion: "child support"
+  intent: topic_family
+
+CPS:
+  expansion: "child protective services"
+  intent: topic_family
+
+ICPC:
+  expansion: "interstate compact on the placement of children"
+  intent: topic_family
+
+# === Employment / Civil Rights ===
+EEOC:
+  expansion: "equal employment opportunity commission discrimination"
+  intent: topic_civil_rights
+
+ADA:
+  expansion: "americans with disabilities act"
+  intent: topic_civil_rights
+
+FMLA:
+  expansion: "family medical leave act"
+  intent: topic_employment
+
+FLSA:
+  expansion: "fair labor standards act wages"
+  intent: topic_employment
+
+OSHA:
+  expansion: "occupational safety health administration"
+  intent: topic_employment
+
+UI:
+  expansion: "unemployment insurance"
+  intent: topic_employment
+
+# === Idaho-Specific ===
+ILAS:
+  expansion: "idaho legal aid services"
+  intent: services_overview
+
+ILHS:
+  expansion: "idaho legal aid services"
+  intent: services_overview
+
+ISP:
+  expansion: "idaho state police"
+  intent: out_of_scope
+
+IDHW:
+  expansion: "idaho department of health and welfare"
+  intent: topic_benefits
+
+DHW:
+  expansion: "idaho department of health and welfare"
+  intent: topic_benefits
+
+# === General Legal ===
+IOLTA:
+  expansion: "interest on lawyer trust accounts"
+  intent: faq
+
+LSC:
+  expansion: "legal services corporation"
+  intent: faq
+
+pro se:
+  expansion: "self represented without a lawyer"
+  intent: guides_finder
+
+pro bono:
+  expansion: "free legal help volunteer lawyer"
+  intent: apply_for_help
+
+# === Text Speak / Common Abbreviations ===
+# These normalize informal text speak to full phrases.
+# Applied early in pipeline to enable proper routing.
+
+"r u":
+  expansion: "are you"
+  intent: null
+
+"r u located":
+  expansion: "are you located"
+  intent: offices_contact
+
+"where r u":
+  expansion: "where are you"
+  intent: offices_contact
+
+"where r u located":
+  expansion: "where are you located"
+  intent: offices_contact
+
+"u r":
+  expansion: "you are"
+  intent: null
+
+"ur":
+  expansion: "your"
+  intent: null
+
+"pls":
+  expansion: "please"
+  intent: null
+
+"plz":
+  expansion: "please"
+  intent: null
+
+"thx":
+  expansion: "thanks"
+  intent: null
+
+"ty":
+  expansion: "thank you"
+  intent: null
+
+"w/":
+  expansion: "with"
+  intent: null
+
+"b/c":
+  expansion: "because"
+  intent: null
+
+"bc":
+  expansion: "because"
+  intent: null
+
+"idk":
+  expansion: "i do not know"
+  intent: null
+
+"asap":
+  expansion: "as soon as possible urgent"
+  intent: null
+
+"btw":
+  expansion: "by the way"
+  intent: null
+
+"fyi":
+  expansion: "for your information"
+  intent: null
+
+"govt":
+  expansion: "government"
+  intent: null
+
+"gov":
+  expansion: "government"
+  intent: null
+
+"atty":
+  expansion: "attorney"
+  intent: apply_for_help
+
+"attny":
+  expansion: "attorney"
+  intent: apply_for_help
+
+"info":
+  expansion: "information"
+  intent: null
+
+"appt":
+  expansion: "appointment"
+  intent: null
+
+"hrs":
+  expansion: "hours"
+  intent: offices_contact
+
+"yr":
+  expansion: "year"
+  intent: null
+
+"yrs":
+  expansion: "years"
+  intent: null
+
+"mo":
+  expansion: "month"
+  intent: null
+
+"mos":
+  expansion: "months"
+  intent: null
+
+"wk":
+  expansion: "week"
+  intent: null
+
+"wks":
+  expansion: "weeks"
+  intent: null
+
+"dr":
+  expansion: "doctor"
+  intent: null
+
+"msg":
+  expansion: "message"
+  intent: null

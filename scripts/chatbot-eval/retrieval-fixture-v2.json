@@ -1,0 +1,932 @@
+{
+  "meta": {
+    "version": "2.0.0",
+    "description": "Retrieval evaluation fixture for ILAS chatbot - corrected URLs based on actual site",
+    "created": "2026-01-23",
+    "total_cases": 110,
+    "notes": "URLs verified against actual API responses"
+  },
+  "test_cases": [
+    {
+      "id": "faq-divorce-forms-001",
+      "query": "divorce forms",
+      "expected_type": "faq",
+      "canonical_target": "/resources/divorce#divorce-forms",
+      "acceptable_alternates": ["/resources/divorce", "/es/resources/divorcio#divorce-forms"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-custody-forms-001",
+      "query": "custody forms",
+      "expected_type": "faq",
+      "canonical_target": "/faq#custody-forms",
+      "acceptable_alternates": ["/faq", "/legal-help/family"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-eviction-forms-001",
+      "query": "eviction forms",
+      "expected_type": "faq",
+      "canonical_target": "/resources/evictions#self-help-eviction-forms",
+      "acceptable_alternates": ["/resources/evictions"],
+      "category": "housing",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-apply-001",
+      "query": "apply for help online",
+      "expected_type": "faq",
+      "canonical_target": "/legal-advice-line#check-eligibility-and-prepare",
+      "acceptable_alternates": ["/legal-advice-line", "/apply-for-help"],
+      "category": "navigation",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-apply-002",
+      "query": "apply for help",
+      "expected_type": "faq",
+      "canonical_target": "/legal-advice-line#check-eligibility-and-prepare",
+      "acceptable_alternates": ["/apply-for-help", "/legal-advice-line"],
+      "category": "navigation",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-qualify-001",
+      "query": "do I qualify for legal aid",
+      "expected_type": "eligibility",
+      "canonical_target": "/eligibility",
+      "acceptable_alternates": ["/apply-for-help", "/faq#eligibility"],
+      "category": "eligibility",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-qualify-002",
+      "query": "qualify for help",
+      "expected_type": "eligibility",
+      "canonical_target": "/eligibility",
+      "acceptable_alternates": ["/apply-for-help"],
+      "category": "eligibility",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-call-001",
+      "query": "call",
+      "expected_type": "faq",
+      "canonical_target": "/legal-advice-line#tips-for-a-productive-call",
+      "acceptable_alternates": ["/legal-advice-line", "/Legal-Advice-Line"],
+      "category": "navigation",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-call-002",
+      "query": "talk to someone",
+      "expected_type": "faq",
+      "canonical_target": "/legal-advice-line#tips-for-a-productive-call",
+      "acceptable_alternates": ["/legal-advice-line", "/Legal-Advice-Line"],
+      "category": "navigation",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-call-003",
+      "query": "phone consultation",
+      "expected_type": "faq",
+      "canonical_target": "/legal-advice-line",
+      "acceptable_alternates": ["/Legal-Advice-Line"],
+      "category": "navigation",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-phone-001",
+      "query": "phone number",
+      "expected_type": "faq",
+      "canonical_target": "/legal-advice-line",
+      "acceptable_alternates": ["/Legal-Advice-Line", "/contact"],
+      "category": "navigation",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-ilas-001",
+      "query": "what does idaho legal aid do",
+      "expected_type": "faq",
+      "canonical_target": "/faq#what-if-idaho-legal-aid-services-cannot-help-me",
+      "acceptable_alternates": ["/faq", "/what-we-do"],
+      "category": "about",
+      "difficulty": "medium"
+    },
+    {
+      "id": "nav-divorce-001",
+      "query": "divorce in idaho",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/family",
+      "acceptable_alternates": ["/resources/divorce", "/legal-help/family#divorce"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-custody-001",
+      "query": "custody in idaho",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/family",
+      "acceptable_alternates": ["/legal-help/family#custody"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-senior-001",
+      "query": "senior legal help",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/seniors",
+      "acceptable_alternates": ["/seniors", "/senior-risk-detector", "/resources/legal-risk-detector"],
+      "category": "seniors",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-eviction-001",
+      "query": "tenant eviction",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/housing",
+      "acceptable_alternates": ["/resources/evictions"],
+      "category": "housing",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-housing-001",
+      "query": "housing problems",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/housing",
+      "acceptable_alternates": ["/housing"],
+      "category": "housing",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-family-001",
+      "query": "family law issues",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/family",
+      "acceptable_alternates": ["/family"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-consumer-001",
+      "query": "debt collection",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/consumer",
+      "acceptable_alternates": ["/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-consumer-002",
+      "query": "consumer problems",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/consumer",
+      "acceptable_alternates": ["/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-benefits-001",
+      "query": "food stamps",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/health",
+      "acceptable_alternates": ["/health", "/benefits"],
+      "category": "benefits",
+      "difficulty": "easy"
+    },
+    {
+      "id": "escalation-dv-001",
+      "query": "domestic violence help",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line", "/apply-for-help"],
+      "category": "safety",
+      "difficulty": "easy",
+      "notes": "Should trigger safety escalation"
+    },
+    {
+      "id": "escalation-dv-002",
+      "query": "protection order",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "safety",
+      "difficulty": "easy"
+    },
+    {
+      "id": "escalation-eviction-001",
+      "query": "eviction notice",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line", "/apply-for-help"],
+      "category": "safety",
+      "difficulty": "easy",
+      "notes": "Emergency eviction triggers escalation"
+    },
+    {
+      "id": "escalation-eviction-002",
+      "query": "landlord gave me 3 day notice",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "safety",
+      "difficulty": "easy"
+    },
+    {
+      "id": "escalation-lockout-001",
+      "query": "illegal lockout by landlord",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "safety",
+      "difficulty": "easy"
+    },
+    {
+      "id": "escalation-lockout-002",
+      "query": "my landlord changed the locks",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "safety",
+      "difficulty": "easy"
+    },
+    {
+      "id": "tool-senior-001",
+      "query": "senior risk detector",
+      "expected_type": "navigation",
+      "canonical_target": "/resources/legal-risk-detector",
+      "acceptable_alternates": ["/senior-risk-detector", "/seniors", "/legal-help/seniors"],
+      "category": "seniors",
+      "difficulty": "easy"
+    },
+    {
+      "id": "tool-senior-002",
+      "query": "legal checkup for seniors",
+      "expected_type": "navigation",
+      "canonical_target": "/resources/legal-risk-detector",
+      "acceptable_alternates": ["/senior-risk-detector", "/seniors"],
+      "category": "seniors",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-grievance-001",
+      "query": "file a grievance",
+      "expected_type": "faq",
+      "canonical_target": "/faq#grievance",
+      "acceptable_alternates": ["/faq", "/feedback", "/get-involved/feedback"],
+      "category": "about",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-get-help-001",
+      "query": "get help",
+      "expected_type": "faq",
+      "canonical_target": "/apply-for-help",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "navigation",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-spanish-phone-001",
+      "query": "numero de telefono",
+      "expected_type": "faq",
+      "canonical_target": "/legal-advice-line",
+      "acceptable_alternates": ["/es/legal-advice-line", "/Legal-Advice-Line"],
+      "category": "spanish",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-how-eviction-001",
+      "query": "how long do I have to respond to eviction",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/housing",
+      "acceptable_alternates": ["/resources/evictions"],
+      "category": "housing",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-fight-eviction-001",
+      "query": "how to fight an eviction step by step",
+      "expected_type": "faq",
+      "canonical_target": "/resources/evictions",
+      "acceptable_alternates": ["/legal-help/housing"],
+      "category": "housing",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-lockout-story-001",
+      "query": "my landlord changed the locks on my apartment",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "safety",
+      "difficulty": "easy"
+    },
+    {
+      "id": "out-of-scope-criminal-001",
+      "query": "criminal defense",
+      "expected_type": "out_of_scope",
+      "canonical_target": null,
+      "acceptable_alternates": [],
+      "category": "out_of_scope",
+      "difficulty": "easy",
+      "notes": "ILAS does not handle criminal cases"
+    },
+    {
+      "id": "out-of-scope-dui-001",
+      "query": "DUI lawyer",
+      "expected_type": "out_of_scope",
+      "canonical_target": null,
+      "acceptable_alternates": [],
+      "category": "out_of_scope",
+      "difficulty": "easy"
+    },
+    {
+      "id": "out-of-scope-oregon-001",
+      "query": "oregon legal aid",
+      "expected_type": "out_of_scope",
+      "canonical_target": null,
+      "acceptable_alternates": [],
+      "category": "out_of_scope",
+      "difficulty": "easy"
+    },
+    {
+      "id": "out-of-scope-business-001",
+      "query": "start a business",
+      "expected_type": "out_of_scope",
+      "canonical_target": null,
+      "acceptable_alternates": [],
+      "category": "out_of_scope",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-divorce-how-001",
+      "query": "how to file for divorce",
+      "expected_type": "faq",
+      "canonical_target": "/resources/divorce",
+      "acceptable_alternates": ["/legal-help/family#divorce"],
+      "category": "family",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-divorce-papers-001",
+      "query": "divorce papers",
+      "expected_type": "faq",
+      "canonical_target": "/resources/divorce#divorce-forms",
+      "acceptable_alternates": ["/resources/divorce"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-security-001",
+      "query": "security deposit",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/housing",
+      "acceptable_alternates": ["/faq#security-deposit"],
+      "category": "housing",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-repairs-001",
+      "query": "landlord won't fix things",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/housing",
+      "acceptable_alternates": ["/faq#repairs"],
+      "category": "housing",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-child-custody-001",
+      "query": "child custody",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/family",
+      "acceptable_alternates": ["/faq#custody"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-child-support-001",
+      "query": "child support",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/family",
+      "acceptable_alternates": ["/faq#child-support"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-poa-001",
+      "query": "power of attorney",
+      "expected_type": "topic",
+      "canonical_target": "/legal-help/seniors",
+      "acceptable_alternates": ["/faq#power-of-attorney"],
+      "category": "seniors",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-guardianship-001",
+      "query": "guardianship forms",
+      "expected_type": "faq",
+      "canonical_target": "/faq#guardianship",
+      "acceptable_alternates": ["/legal-help/family#guardianship"],
+      "category": "family",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-snap-001",
+      "query": "SNAP benefits",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/health",
+      "acceptable_alternates": ["/faq#snap"],
+      "category": "benefits",
+      "difficulty": "easy"
+    },
+    {
+      "id": "faq-medicaid-001",
+      "query": "medicaid application",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/health",
+      "acceptable_alternates": ["/faq#medicaid"],
+      "category": "benefits",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-ssi-001",
+      "query": "SSI disability",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/health",
+      "acceptable_alternates": ["/faq#ssi"],
+      "category": "benefits",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-identity-001",
+      "query": "identity theft",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/consumer",
+      "acceptable_alternates": ["/faq#identity-theft"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-bankruptcy-001",
+      "query": "bankruptcy forms",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer",
+      "acceptable_alternates": ["/faq#bankruptcy"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "nav-donate-001",
+      "query": "donate",
+      "expected_type": "navigation",
+      "canonical_target": "/get-involved/donate",
+      "acceptable_alternates": ["/donate"],
+      "category": "navigation",
+      "difficulty": "easy"
+    },
+    {
+      "id": "nav-feedback-001",
+      "query": "complaint",
+      "expected_type": "navigation",
+      "canonical_target": "/get-involved/feedback",
+      "acceptable_alternates": ["/feedback"],
+      "category": "navigation",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-income-001",
+      "query": "income limits for legal aid",
+      "expected_type": "eligibility",
+      "canonical_target": "/eligibility",
+      "acceptable_alternates": ["/apply-for-help", "/faq#income"],
+      "category": "eligibility",
+      "difficulty": "medium"
+    },
+    {
+      "id": "faq-cases-001",
+      "query": "what cases does idaho legal aid handle",
+      "expected_type": "faq",
+      "canonical_target": "/faq",
+      "acceptable_alternates": ["/what-we-do"],
+      "category": "about",
+      "difficulty": "medium"
+    },
+    {
+      "id": "spanish-eviction-001",
+      "query": "aviso de desalojo",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/es/legal-advice-line"],
+      "category": "spanish",
+      "difficulty": "medium"
+    },
+    {
+      "id": "spanish-divorce-001",
+      "query": "divorcio",
+      "expected_type": "navigation",
+      "canonical_target": "/es/legal-help/family",
+      "acceptable_alternates": ["/legal-help/family", "/es/resources/divorcio"],
+      "category": "spanish",
+      "difficulty": "medium"
+    },
+    {
+      "id": "spanish-custody-001",
+      "query": "custodia de ninos",
+      "expected_type": "navigation",
+      "canonical_target": "/es/legal-help/family",
+      "acceptable_alternates": ["/legal-help/family"],
+      "category": "spanish",
+      "difficulty": "medium"
+    },
+    {
+      "id": "typo-eviction-001",
+      "query": "evction notice",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "typos",
+      "difficulty": "medium"
+    },
+    {
+      "id": "typo-divorce-001",
+      "query": "divorc papers",
+      "expected_type": "faq",
+      "canonical_target": "/resources/divorce#divorce-forms",
+      "acceptable_alternates": ["/resources/divorce"],
+      "category": "typos",
+      "difficulty": "hard"
+    },
+    {
+      "id": "typo-apply-001",
+      "query": "aply for help",
+      "expected_type": "faq",
+      "canonical_target": "/apply-for-help",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "typos",
+      "difficulty": "hard"
+    },
+    {
+      "id": "abbrev-po-001",
+      "query": "PO form",
+      "expected_type": "faq",
+      "canonical_target": "/faq#protection-order",
+      "acceptable_alternates": ["/legal-help/family"],
+      "category": "abbreviations",
+      "difficulty": "hard"
+    },
+    {
+      "id": "abbrev-poa-001",
+      "query": "POA form",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/seniors",
+      "acceptable_alternates": ["/faq#power-of-attorney"],
+      "category": "abbreviations",
+      "difficulty": "hard"
+    },
+    {
+      "id": "vague-help-001",
+      "query": "help",
+      "expected_type": "navigation",
+      "canonical_target": "/apply-for-help",
+      "acceptable_alternates": ["/legal-advice-line", "/faq"],
+      "category": "vague",
+      "difficulty": "hard"
+    },
+    {
+      "id": "vague-forms-001",
+      "query": "forms",
+      "expected_type": "faq",
+      "canonical_target": "/faq#custody-forms",
+      "acceptable_alternates": ["/forms", "/faq"],
+      "category": "vague",
+      "difficulty": "hard"
+    },
+    {
+      "id": "vague-info-001",
+      "query": "information",
+      "expected_type": "navigation",
+      "canonical_target": "/faq",
+      "acceptable_alternates": ["/what-we-do"],
+      "category": "vague",
+      "difficulty": "hard"
+    },
+    {
+      "id": "story-eviction-001",
+      "query": "I got a paper from my landlord saying I have to leave",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line"],
+      "category": "stories",
+      "difficulty": "medium"
+    },
+    {
+      "id": "story-support-001",
+      "query": "my ex husband hasn't paid child support in months",
+      "expected_type": "escalation",
+      "canonical_target": "/Legal-Advice-Line",
+      "acceptable_alternates": ["/legal-advice-line", "/legal-help/family"],
+      "category": "stories",
+      "difficulty": "medium"
+    },
+    {
+      "id": "story-divorce-001",
+      "query": "I want to get divorced from my husband but we have kids",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/family",
+      "acceptable_alternates": ["/resources/divorce"],
+      "category": "stories",
+      "difficulty": "medium"
+    },
+    {
+      "id": "topic-housing-001",
+      "query": "eviction",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/housing",
+      "acceptable_alternates": ["/resources/evictions"],
+      "category": "topics",
+      "difficulty": "easy"
+    },
+    {
+      "id": "topic-family-001",
+      "query": "divorce",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/family",
+      "acceptable_alternates": ["/resources/divorce"],
+      "category": "topics",
+      "difficulty": "easy"
+    },
+    {
+      "id": "topic-family-002",
+      "query": "custody",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/family",
+      "acceptable_alternates": [],
+      "category": "topics",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-debt-collection-001",
+      "query": "debt collector keeps calling me",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-are-my-rights-when-a-debt-collector-contacts-me",
+      "acceptable_alternates": ["/legal-help/consumer", "/faq"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-debt-collection-002",
+      "query": "rights with debt collectors",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-are-my-rights-when-a-debt-collector-contacts-me",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-debt-dispute-001",
+      "query": "how to dispute a debt",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#how-do-i-dispute-a-debt",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-garnishment-001",
+      "query": "wage garnishment",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-can-i-do-about-wage-garnishment",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-garnishment-002",
+      "query": "stop garnishment",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-can-i-do-about-wage-garnishment",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-garnishment-003",
+      "query": "me estan embargando el sueldo",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-can-i-do-about-wage-garnishment",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-credit-001",
+      "query": "error on credit report",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#how-do-i-fix-errors-on-my-credit-report",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-credit-002",
+      "query": "fix my credit report",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#how-do-i-fix-errors-on-my-credit-report",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-medical-001",
+      "query": "can't pay medical bills",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-can-i-do-about-medical-debt",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-medical-002",
+      "query": "hospital bills in collections",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-can-i-do-about-medical-debt",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-medical-003",
+      "query": "tengo muchas facturas medicas",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-can-i-do-about-medical-debt",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-scam-001",
+      "query": "I got scammed what do I do",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-should-i-do-if-i-was-scammed",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-identity-002",
+      "query": "someone opened accounts in my name",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-do-i-do-if-someone-stole-my-identity",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-lawsuit-001",
+      "query": "sued for a debt",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-do-i-do-if-im-sued-for-a-debt",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-lawsuit-002",
+      "query": "got court papers for debt",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-do-i-do-if-im-sued-for-a-debt",
+      "acceptable_alternates": ["/legal-help/consumer", "/legal-advice-line"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-bankruptcy-002",
+      "query": "should I file bankruptcy",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#should-i-consider-bankruptcy",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-bankruptcy-003",
+      "query": "chapter 7 vs chapter 13",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#should-i-consider-bankruptcy",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-repo-001",
+      "query": "car was repossessed",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-are-my-rights-if-my-car-is-repossessed",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-repo-002",
+      "query": "me quitaron el carro",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-are-my-rights-if-my-car-is-repossessed",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-payday-001",
+      "query": "payday loan help",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-can-i-do-about-payday-loan-debt",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-sol-001",
+      "query": "can they collect on a 10 year old debt",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#can-a-creditor-still-collect-on-old-debt",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-levy-001",
+      "query": "creditor took money from my bank account",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#can-a-creditor-take-money-from-my-bank-account",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-levy-002",
+      "query": "bank account frozen",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#can-a-creditor-take-money-from-my-bank-account",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-predatory-001",
+      "query": "predatory lending",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-is-predatory-lending",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-death-001",
+      "query": "am I responsible for my parent's debt",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#am-i-responsible-for-a-family-members-debt",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-spanish-debt-001",
+      "query": "cobrador de deudas",
+      "expected_type": "faq",
+      "canonical_target": "/legal-help/consumer#what-are-my-rights-when-a-debt-collector-contacts-me",
+      "acceptable_alternates": ["/legal-help/consumer"],
+      "category": "consumer",
+      "difficulty": "medium"
+    },
+    {
+      "id": "consumer-topic-001",
+      "query": "debt",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/consumer",
+      "acceptable_alternates": [],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-topic-002",
+      "query": "garnishment",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/consumer",
+      "acceptable_alternates": [],
+      "category": "consumer",
+      "difficulty": "easy"
+    },
+    {
+      "id": "consumer-topic-003",
+      "query": "bankruptcy",
+      "expected_type": "navigation",
+      "canonical_target": "/legal-help/consumer",
+      "acceptable_alternates": [],
+      "category": "consumer",
+      "difficulty": "easy"
+    }
+  ]
+}

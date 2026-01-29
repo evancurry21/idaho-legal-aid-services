@@ -1,0 +1,345 @@
+# KB Stubs for Top 5 Coverage Gaps
+# Generated: 2026-01-23
+#
+# These FAQ entries should be created in Drupal as paragraph entities
+# (faq_item or accordion_item) to address the identified coverage gaps.
+#
+# To implement:
+# 1. Create or identify an appropriate node to host these FAQs
+# 2. Add these as faq_item paragraphs with the specified fields
+# 3. The Search API index will automatically pick them up
+# 4. Run `drush sapi-r faq_accordion` to reindex if needed
+
+faq_stubs:
+
+  # ============================================
+  # EMPLOYMENT FAQs (High Priority)
+  # ============================================
+
+  - id: faq_employment_fired
+    type: faq_item
+    category: Employment
+    anchor_id: what-if-i-was-fired-unfairly
+    question: "What if I was fired unfairly?"
+    answer: |
+      Idaho is an "at-will" employment state, meaning employers can generally
+      terminate employees for any reason. However, termination may be wrongful if
+      it was based on:
+
+      - Discrimination (race, sex, age, disability, religion, national origin)
+      - Retaliation for protected activity (reporting safety violations, filing
+        workers' compensation claims, whistleblowing)
+      - Violation of an employment contract
+      - Violation of public policy
+
+      If you believe you were wrongfully terminated:
+      1. Gather documentation of your employment history and the circumstances of your firing
+      2. Request your personnel file from your employer
+      3. Note any witnesses to discriminatory or retaliatory statements
+
+      You may file a complaint with the Idaho Human Rights Commission (for discrimination)
+      or contact Idaho Legal Aid if you meet income eligibility requirements.
+    keywords:
+      - fired
+      - wrongful termination
+      - terminated
+      - laid off
+      - discrimination
+      - retaliation
+      - despedido
+    url_destination: /legal-help/employment
+    related_resources:
+      - Idaho Human Rights Commission
+      - EEOC
+
+  - id: faq_employment_wages
+    type: faq_item
+    category: Employment
+    anchor_id: how-do-i-collect-unpaid-wages
+    question: "How do I collect unpaid wages?"
+    answer: |
+      Idaho law requires employers to pay wages at least monthly on regular paydays
+      and to provide final payment by the next regular payday after termination.
+
+      If your employer owes you wages, you have several options:
+
+      1. Request payment in writing - Send a formal written demand to your employer
+      2. File a wage claim - Contact the Idaho Department of Labor to file a complaint
+      3. Sue in small claims court - For amounts under $5,000, you can file in
+         small claims court without an attorney
+      4. Consult with a lawyer - For larger amounts or complex situations
+
+      Important: Keep records of all hours worked, pay stubs, and any communication
+      with your employer about wages.
+
+      Idaho Legal Aid may be able to help if you meet income eligibility requirements.
+    keywords:
+      - unpaid wages
+      - owed money
+      - final paycheck
+      - wage theft
+      - not getting paid
+      - back pay
+      - no me pagan
+      - salario
+    url_destination: /legal-help/employment
+    related_resources:
+      - Idaho Department of Labor
+      - Small Claims Court Guide
+
+  # ============================================
+  # UTILITIES FAQ (High Priority)
+  # ============================================
+
+  - id: faq_utility_shutoff
+    type: faq_item
+    category: Consumer
+    anchor_id: what-if-my-utilities-are-being-shut-off
+    question: "What if my utilities are being shut off?"
+    answer: |
+      If you receive a utility shutoff notice, take action immediately:
+
+      1. Contact your utility company - Ask about payment plans, budget billing,
+         or hardship programs. Many utilities offer assistance programs.
+
+      2. Apply for LIHEAP - The Low Income Home Energy Assistance Program helps
+         with heating and cooling costs. Apply through your local Community
+         Action Agency.
+
+      3. Check utility company programs:
+         - Idaho Power: Project Share, medical certificate exemptions
+         - Intermountain Gas: customer assistance programs
+         - Most utilities offer payment arrangements
+
+      4. Weather protections - During extreme weather, Idaho utilities may have
+         moratoriums on shutoffs for vulnerable customers
+
+      5. Medical exemptions - If someone in your home has a serious medical
+         condition, you may qualify for protection from disconnection
+
+      If your utilities are already disconnected, contact your Community Action
+      Agency for emergency assistance to get reconnected.
+
+      Idaho Legal Aid may be able to help with utility-related legal issues.
+    keywords:
+      - utility shutoff
+      - power disconnected
+      - gas turned off
+      - water shut off
+      - LIHEAP
+      - energy assistance
+      - utility bill
+      - me cortaron la luz
+      - ayuda con facturas
+    url_destination: /legal-help/consumer
+    related_resources:
+      - LIHEAP
+      - Community Action Agency
+      - Idaho Power Customer Assistance
+      - Intermountain Gas Assistance
+
+  # ============================================
+  # NAME CHANGE FAQ (Medium Priority)
+  # ============================================
+
+  - id: faq_name_change
+    type: faq_item
+    category: Family
+    anchor_id: how-do-i-legally-change-my-name
+    question: "How do I legally change my name?"
+    answer: |
+      In Idaho, you can legally change your name through a court process:
+
+      Steps to change your name:
+      1. File a Petition for Name Change in your county's district court
+      2. Pay the filing fee (approximately $200 in most counties)
+      3. Publish notice in a local newspaper for 4 consecutive weeks
+      4. Attend a court hearing where the judge reviews your petition
+      5. If approved, receive a court order for name change
+
+      After receiving your court order:
+      - Update your Social Security card first
+      - Update your driver's license/state ID
+      - Update your passport, bank accounts, and other documents
+
+      Special situations:
+      - Fee waiver: If you can't afford the filing fee, you can request a fee waiver
+      - Minors: Requires both parents' consent or court approval
+      - Name change in divorce: Can be included in your divorce decree
+      - Gender-related changes: Same process applies
+
+      Idaho Legal Aid may be able to help with name changes in some cases.
+    keywords:
+      - name change
+      - change my name
+      - legal name
+      - court name change
+      - cambiar mi nombre
+      - cambio de nombre
+    url_destination: /legal-help/family
+    related_resources:
+      - Idaho Court Self-Help Center
+      - Name Change Forms
+
+  # ============================================
+  # MOBILE HOME RIGHTS FAQ (Medium Priority)
+  # ============================================
+
+  - id: faq_mobile_home_rights
+    type: faq_item
+    category: Housing
+    anchor_id: what-are-my-rights-in-a-mobile-home-park
+    question: "What are my rights in a mobile home park?"
+    answer: |
+      Idaho has specific laws protecting mobile home park residents under the
+      Idaho Residential Mobile Home Landlord and Tenant Act (Idaho Code 55-2001 et seq.).
+
+      Key protections:
+
+      1. Eviction protections:
+         - Your landlord cannot evict you without proper cause and notice
+         - Proper causes include: nonpayment of rent, rule violations,
+           park closure, or change in land use
+         - You have the right to cure most violations before eviction
+
+      2. Rent and fees:
+         - Lot rent cannot be raised without 90 days written notice
+         - The park must provide an itemized list of any fees
+         - Rent increases must be reasonable and non-discriminatory
+
+      3. Rules and regulations:
+         - Park rules must be reasonable and apply equally to all residents
+         - You must receive written notice of any rule changes
+         - Rules cannot be arbitrary or discriminatory
+
+      4. Right to sell:
+         - You have the right to sell your mobile home in place
+         - The park cannot unreasonably refuse approval of a buyer
+         - The park cannot require you to sell through a specific dealer
+
+      Important: The eviction process for mobile home parks is different from
+      regular rental evictions. If you're facing eviction, contact Idaho Legal Aid
+      immediately.
+    keywords:
+      - mobile home
+      - manufactured home
+      - trailer park
+      - lot rent
+      - mobile home eviction
+      - park rules
+      - casa movil
+      - parque de trailers
+    url_destination: /legal-help/housing
+    related_resources:
+      - Idaho Mobile Home Tenant Rights Guide
+      - Mobile Home Park Eviction Process
+
+  # ============================================
+  # ADDITIONAL RECOMMENDED FAQs
+  # ============================================
+
+  - id: faq_veterans_services
+    type: faq_item
+    category: General
+    anchor_id: does-idaho-legal-aid-help-veterans
+    question: "Does Idaho Legal Aid help veterans?"
+    answer: |
+      Yes, Idaho Legal Aid provides legal assistance to veterans who meet our
+      income eligibility requirements. We can help with many civil legal issues
+      including:
+
+      - Housing issues (eviction, foreclosure, landlord disputes)
+      - Family law (divorce, custody, protection orders)
+      - Consumer issues (debt, scams, identity theft)
+      - Public benefits (VA benefits disputes, SNAP, Medicaid)
+      - Discharge upgrades (in partnership with pro bono attorneys)
+
+      For VA benefits claims and appeals, we may be able to provide direct
+      assistance or refer you to organizations that specialize in veterans benefits:
+
+      - Idaho Division of Veterans Services: (208) 780-1300
+      - Veterans Service Organizations (American Legion, VFW, DAV)
+      - Idaho Volunteer Lawyers Program
+
+      Veterans facing legal issues should apply for help through our online
+      application or call our Legal Advice Line.
+    keywords:
+      - veteran
+      - veterans
+      - military
+      - VA benefits
+      - discharge upgrade
+      - veterano
+      - militar
+    url_destination: /apply-for-help
+    related_resources:
+      - Idaho Division of Veterans Services
+      - VA Regional Office
+      - Veterans Service Organizations
+
+  - id: faq_expungement
+    type: faq_item
+    category: Consumer
+    anchor_id: can-i-seal-or-expunge-my-criminal-record
+    question: "Can I seal or expunge my criminal record?"
+    answer: |
+      Idaho law allows for expungement (sealing) of certain criminal records.
+      This is a civil process that may be within Idaho Legal Aid's scope.
+
+      Eligible records in Idaho include:
+      - Acquittals (found not guilty)
+      - Dismissed charges
+      - Certain misdemeanor convictions (after 5 years with no new offenses)
+      - Juvenile records (in many cases)
+      - Withheld judgments (after successful completion)
+
+      Records that generally CANNOT be expunged:
+      - Sex offenses
+      - Violent felonies
+      - DUI/DWI convictions
+      - Crimes against children
+
+      The expungement process:
+      1. Determine if your record is eligible
+      2. File a petition with the court that handled your case
+      3. Pay the filing fee (fee waiver may be available)
+      4. Attend a hearing if required
+      5. If granted, your record is sealed from most background checks
+
+      Note: Even sealed records may still be visible to law enforcement and
+      for certain professional licenses.
+
+      Idaho Legal Aid may be able to help with civil expungement cases. For
+      active criminal cases, you should contact a criminal defense attorney
+      or public defender.
+    keywords:
+      - expunge
+      - expungement
+      - seal record
+      - clean record
+      - background check
+      - criminal record
+      - borrar record
+      - limpiar antecedentes
+    url_destination: /legal-help/consumer
+    related_resources:
+      - Idaho Court Self-Help Center
+      - Expungement Forms
+
+# ============================================
+# Implementation Notes
+# ============================================
+#
+# To create these FAQs in Drupal:
+#
+# 1. Navigate to the appropriate FAQ or content page
+# 2. Add a new paragraph of type "faq_item"
+# 3. Fill in:
+#    - field_faq_question: The "question" value
+#    - field_faq_answer: The "answer" value (preserve formatting)
+#    - field_anchor_id: The "anchor_id" value
+# 4. Save the node
+# 5. The Search API index will automatically update
+#
+# Alternatively, use Drupal migration or a content import module
+# to bulk-create these FAQs from this YAML file.

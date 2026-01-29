@@ -1,7 +1,30 @@
 services:
+  ilas_site_assistant.ranking_enhancer:
+    class: Drupal\ilas_site_assistant\Service\RankingEnhancer
+    arguments: ['@cache.default']
+
+  ilas_site_assistant.acronym_expander:
+    class: Drupal\ilas_site_assistant\Service\AcronymExpander
+    arguments: ['@cache.default']
+
+  ilas_site_assistant.typo_corrector:
+    class: Drupal\ilas_site_assistant\Service\TypoCorrector
+    arguments: ['@cache.default', '@ilas_site_assistant.topic_router', '@ilas_site_assistant.acronym_expander']
+
+  ilas_site_assistant.keyword_extractor:
+    class: Drupal\ilas_site_assistant\Service\KeywordExtractor
+    arguments: ['@cache.default', '@ilas_site_assistant.acronym_expander', '@ilas_site_assistant.typo_corrector']
+
+  ilas_site_assistant.topic_router:
+    class: Drupal\ilas_site_assistant\Service\TopicRouter
+    arguments: ['@cache.default']
+
+  ilas_site_assistant.navigation_intent:
+    class: Drupal\ilas_site_assistant\Service\NavigationIntent
+
   ilas_site_assistant.intent_router:
     class: Drupal\ilas_site_assistant\Service\IntentRouter
-    arguments: ['@config.factory', '@ilas_site_assistant.topic_resolver']
+    arguments: ['@config.factory', '@ilas_site_assistant.topic_resolver', '@ilas_site_assistant.keyword_extractor', '@ilas_site_assistant.topic_router', '@ilas_site_assistant.navigation_intent', '@ilas_site_assistant.disambiguator']
 
   ilas_site_assistant.topic_resolver:
     class: Drupal\ilas_site_assistant\Service\TopicResolver
@@ -9,11 +32,11 @@ services:
 
   ilas_site_assistant.faq_index:
     class: Drupal\ilas_site_assistant\Service\FaqIndex
-    arguments: ['@entity_type.manager', '@cache.default', '@config.factory', '@language_manager']
+    arguments: ['@entity_type.manager', '@cache.default', '@config.factory', '@language_manager', '@ilas_site_assistant.ranking_enhancer']
 
   ilas_site_assistant.resource_finder:
     class: Drupal\ilas_site_assistant\Service\ResourceFinder
-    arguments: ['@entity_type.manager', '@ilas_site_assistant.topic_resolver', '@cache.default', '@language_manager']
+    arguments: ['@entity_type.manager', '@ilas_site_assistant.topic_resolver', '@cache.default', '@language_manager', '@ilas_site_assistant.ranking_enhancer']
 
   ilas_site_assistant.analytics_logger:
     class: Drupal\ilas_site_assistant\Service\AnalyticsLogger
@@ -26,3 +49,35 @@ services:
   ilas_site_assistant.llm_enhancer:
     class: Drupal\ilas_site_assistant\Service\LlmEnhancer
     arguments: ['@config.factory', '@http_client', '@logger.factory', '@ilas_site_assistant.policy_filter']
+
+  ilas_site_assistant.fallback_gate:
+    class: Drupal\ilas_site_assistant\Service\FallbackGate
+    arguments: ['@config.factory']
+
+  ilas_site_assistant.response_grounder:
+    class: Drupal\ilas_site_assistant\Service\ResponseGrounder
+
+  ilas_site_assistant.safety_classifier:
+    class: Drupal\ilas_site_assistant\Service\SafetyClassifier
+    arguments: ['@config.factory']
+
+  ilas_site_assistant.safety_response_templates:
+    class: Drupal\ilas_site_assistant\Service\SafetyResponseTemplates
+
+  ilas_site_assistant.disambiguator:
+    class: Drupal\ilas_site_assistant\Service\Disambiguator
+
+  ilas_site_assistant.out_of_scope_classifier:
+    class: Drupal\ilas_site_assistant\Service\OutOfScopeClassifier
+    arguments: ['@config.factory']
+
+  ilas_site_assistant.out_of_scope_response_templates:
+    class: Drupal\ilas_site_assistant\Service\OutOfScopeResponseTemplates
+
+  logger.channel.ilas_site_assistant:
+    parent: logger.channel_base
+    arguments: ['ilas_site_assistant']
+
+  ilas_site_assistant.performance_monitor:
+    class: Drupal\ilas_site_assistant\Service\PerformanceMonitor
+    arguments: ['@state', '@logger.channel.ilas_site_assistant']

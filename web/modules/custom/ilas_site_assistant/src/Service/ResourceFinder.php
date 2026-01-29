@@ -44,6 +44,13 @@ class ResourceFinder {
   protected $languageManager;
 
   /**
+   * The ranking enhancer service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\RankingEnhancer
+   */
+  protected $rankingEnhancer;
+
+  /**
    * The Search API index.
    *
    * @var \Drupal\search_api\IndexInterface|null
@@ -67,12 +74,14 @@ class ResourceFinder {
     EntityTypeManagerInterface $entity_type_manager,
     TopicResolver $topic_resolver,
     CacheBackendInterface $cache,
-    LanguageManagerInterface $language_manager
+    LanguageManagerInterface $language_manager,
+    RankingEnhancer $ranking_enhancer = NULL
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->topicResolver = $topic_resolver;
     $this->cache = $cache;
     $this->languageManager = $language_manager;
+    $this->rankingEnhancer = $ranking_enhancer;
   }
 
   /**
@@ -194,7 +203,7 @@ class ResourceFinder {
       // Get description/body if available.
       if ($node->hasField('field_main_content') && !$node->get('field_main_content')->isEmpty()) {
         $body = $node->get('field_main_content')->value;
-        $resource['description'] = mb_substr(strip_tags($body), 0, 200);
+        $resource['description'] = $this->cleanDescription(strip_tags($body), $node->getTitle());
       }
 
       // Build search keywords.
@@ -480,7 +489,7 @@ class ResourceFinder {
     // Get description/body if available.
     if ($node->hasField('field_main_content') && !$node->get('field_main_content')->isEmpty()) {
       $body = $node->get('field_main_content')->value;
-      $item['description'] = mb_substr(strip_tags($body), 0, 200);
+      $item['description'] = $this->cleanDescription(strip_tags($body), $node->getTitle());
     }
 
     return $item;
@@ -539,6 +548,27 @@ class ResourceFinder {
    */
   protected function findByTypeLegacy(string $query, ?string $type, int $limit) {
     $resources = $this->getAllResources();
+
+    // Use enhanced ranking if available.
+    if ($this->rankingEnhancer) {
+      // Convert to format expected by ranking enhancer.
+      $items = [];
+      foreach ($resources as $resource) {
+        $items[] = [
+          'id' => $resource['id'],
+          'title' => $resource['title'],
+          'url' => $resource['url'],
+          'type' => $resource['type'],
+          'description' => $resource['description'],
+          'has_file' => $resource['has_file'],
+          'has_link' => $resource['has_link'],
+          'topics' => $resource['topic_names'],
+        ];
+      }
+      return $this->rankingEnhancer->scoreResourceResults($items, $query, $type, $limit);
+    }
+
+    // Fallback to basic ranking.
     $query_lower = strtolower($query);
     $query_keywords = $this->extractKeywords($query);
 
@@ -663,6 +693,82 @@ class ResourceFinder {
     }
 
     return array_slice($results, 0, $limit);
+  }
+
+  /**
+   * Cleans a description string for display as a resource summary.
+   *
+   * Strips boilerplate phrases, removes title duplication, normalizes
+   * whitespace, and caps at 240 characters ending on a word boundary.
+   *
+   * @param string $raw_text
+   *   The raw body text (already stripped of HTML tags).
+   * @param string $title
+   *   The resource title (used to avoid duplication).
+   *
+   * @return string
+   *   Cleaned description suitable for display.
+   */
+  protected function cleanDescription(string $raw_text, string $title = ''): string {
+    // Normalize whitespace (collapse newlines, tabs, multiple spaces).
+    $text = preg_replace('/\s+/', ' ', trim($raw_text));
+
+    if (empty($text)) {
+      return '';
+    }
+
+    // Remove common navigation/boilerplate phrases that appear at the start.
+    $boilerplate_patterns = [
+      '/^(Home\s*[>»›|\/]\s*)+/i',
+      '/^(Skip to (main )?content\.?\s*)/i',
+      '/^(You are here:?\s*)/i',
+      '/^(Breadcrumb\s*)/i',
+      '/^(Main navigation\s*)/i',
+      '/^(Idaho Legal Aid Services?\s*[>»›|\/]?\s*)/i',
+      '/^(ILAS\s*[>»›|\/]?\s*)/i',
+    ];
+    foreach ($boilerplate_patterns as $pattern) {
+      $text = preg_replace($pattern, '', $text);
+    }
+
+    // Remove global repeated phrases that appear in many resource bodies.
+    $global_noise = [
+      '/Idaho Legal Aid Services provides free legal help to low-income Idahoans\.?\s*/i',
+      '/This (information|resource|document|form) (is|was) (provided|prepared|created) (by|for) Idaho Legal Aid Services?\.?\s*/i',
+      '/For more information,?\s*(please\s*)?(visit|call|contact).*$/i',
+      '/If you need (legal )?(help|advice|assistance),?\s*(please\s*)?(call|contact|apply|visit).*$/i',
+      '/Disclaimer:.*$/i',
+      '/Note:\s*This is not legal advice\.?\s*/i',
+      '/Last (updated|revised|modified):?\s*\d.*$/i',
+    ];
+    foreach ($global_noise as $pattern) {
+      $text = preg_replace($pattern, '', $text);
+    }
+
+    // Remove leading duplication of the title.
+    if (!empty($title)) {
+      $escaped_title = preg_quote($title, '/');
+      $text = preg_replace('/^\s*' . $escaped_title . '\s*[\.\:\-]?\s*/i', '', $text);
+    }
+
+    $text = trim($text);
+
+    if (empty($text)) {
+      return '';
+    }
+
+    // Cap at 240 characters, breaking at word boundary.
+    if (mb_strlen($text) > 240) {
+      $text = mb_substr($text, 0, 240);
+      // Break at last space to avoid mid-word truncation.
+      $last_space = strrpos($text, ' ');
+      if ($last_space !== FALSE && $last_space > 160) {
+        $text = substr($text, 0, $last_space);
+      }
+      $text = rtrim($text, '.,;:!? ') . '…';
+    }
+
+    return $text;
   }
 
   /**

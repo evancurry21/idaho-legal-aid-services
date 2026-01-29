@@ -1,21 +1,163 @@
 /**
  * @file
- * ILAS Site Assistant Widget
+ * Aila Chat Widget
  *
- * A vanilla JavaScript chat widget for the Idaho Legal Aid Services website.
- * Provides FAQ search, resource discovery, and navigation assistance.
+ * Aila (eye-luh) is the Idaho Legal Aid Services chat assistant.
+ * The name is derived from ILAS. Provides FAQ search, resource discovery,
+ * and navigation assistance.
  */
 (function (Drupal, drupalSettings, once) {
   'use strict';
 
+  // Enable for scroll-related debug logging.
+  var SCROLL_DEBUG = false;
+
   /**
-   * Site Assistant Widget Manager
+   * Shared Scroll Manager.
+   *
+   * Tracks whether the user is near the bottom of a scroll container and
+   * conditionally auto-scrolls when new content arrives. Shows a "Jump to
+   * latest" button when the user has scrolled away and new messages appear.
+   *
+   * @param {HTMLElement} container - The scrollable chat message list.
+   * @param {number} threshold - Pixel distance from bottom considered "at bottom".
+   */
+  function ScrollManager(container, threshold) {
+    this.container = container;
+    this.threshold = threshold || 80;
+    this.isAtBottom = true;
+    this.hasNewContent = false;
+    this.jumpBtn = null;
+    this.sentinel = null;
+
+    this._init();
+  }
+
+  ScrollManager.prototype = {
+    _init: function () {
+      // Create bottom sentinel.
+      this.sentinel = document.createElement('div');
+      this.sentinel.className = 'chat-bottom-sentinel';
+      this.sentinel.setAttribute('aria-hidden', 'true');
+      this.container.appendChild(this.sentinel);
+
+      // Create jump-to-latest button.
+      this.jumpBtn = document.createElement('button');
+      this.jumpBtn.type = 'button';
+      this.jumpBtn.className = 'chat-jump-btn';
+      this.jumpBtn.setAttribute('aria-label', Drupal.t('Jump to latest messages'));
+      this.jumpBtn.innerHTML = '<i class="fas fa-arrow-down" aria-hidden="true"></i> ' + Drupal.t('New messages');
+      this.jumpBtn.hidden = true;
+
+      // Insert button inside the chat container after the sentinel.
+      // Uses position: sticky to float at the bottom of the visible area.
+      this.container.appendChild(this.jumpBtn);
+
+      // Bind events.
+      var self = this;
+      this.container.addEventListener('scroll', function () {
+        self._onScroll();
+      }, { passive: true });
+
+      this.jumpBtn.addEventListener('click', function () {
+        self.scrollToBottom();
+        self._hideJumpBtn();
+      });
+    },
+
+    /**
+     * Check if user is near the bottom.
+     */
+    _checkIsAtBottom: function () {
+      var c = this.container;
+      var distance = c.scrollHeight - c.scrollTop - c.clientHeight;
+      this.isAtBottom = distance <= this.threshold;
+      if (SCROLL_DEBUG) {
+        console.log('[ScrollManager] distance=' + distance + ' isAtBottom=' + this.isAtBottom);
+      }
+      return this.isAtBottom;
+    },
+
+    /**
+     * Handle user scroll events.
+     */
+    _onScroll: function () {
+      this._checkIsAtBottom();
+      if (this.isAtBottom) {
+        this._hideJumpBtn();
+        this.hasNewContent = false;
+      }
+    },
+
+    /**
+     * Call after appending a new message to the container.
+     * Conditionally scrolls or shows the jump button.
+     */
+    onNewContent: function () {
+      // Check position BEFORE the browser has a chance to lay out the new content.
+      // Use the cached isAtBottom from the last scroll event, which reflects
+      // the state just before the append.
+      if (this.isAtBottom) {
+        this._scrollToBottomRaf();
+      } else {
+        this.hasNewContent = true;
+        this._showJumpBtn();
+      }
+    },
+
+    /**
+     * Scroll container to bottom using requestAnimationFrame to wait for layout.
+     */
+    _scrollToBottomRaf: function () {
+      var self = this;
+      requestAnimationFrame(function () {
+        self.container.scrollTop = self.container.scrollHeight;
+        self.isAtBottom = true;
+        if (SCROLL_DEBUG) {
+          console.log('[ScrollManager] auto-scrolled to bottom');
+        }
+      });
+    },
+
+    /**
+     * Programmatic scroll to bottom (e.g., for jump button click).
+     */
+    scrollToBottom: function () {
+      this.container.scrollTop = this.container.scrollHeight;
+      this.isAtBottom = true;
+      this.hasNewContent = false;
+    },
+
+    _showJumpBtn: function () {
+      this.jumpBtn.hidden = false;
+    },
+
+    _hideJumpBtn: function () {
+      this.jumpBtn.hidden = true;
+    },
+  };
+
+  /**
+   * Safely focus an element without causing scroll jumps.
+   */
+  function safeFocus(el) {
+    if (!el) return;
+    try {
+      el.focus({ preventScroll: true });
+    } catch (e) {
+      el.focus();
+    }
+  }
+
+  /**
+   * Aila Chat Widget Manager
    */
   const SiteAssistant = {
     config: null,
     widget: null,
     chatContainer: null,
     inputField: null,
+    scrollManager: null,
     isOpen: false,
     isPageMode: false,
     messageHistory: [],
@@ -49,8 +191,11 @@
         return;
       }
 
-      // Focus input on page load.
-      this.inputField.focus();
+      // Initialize scroll manager (60px threshold for page mode).
+      this.scrollManager = new ScrollManager(this.chatContainer, 60);
+
+      // Focus input on page load without scrolling.
+      safeFocus(this.inputField);
     },
 
     /**
@@ -80,6 +225,9 @@
       this.chatContainer = container.querySelector('.assistant-chat');
       this.inputField = container.querySelector('.assistant-input');
 
+      // Initialize scroll manager (80px threshold for widget).
+      this.scrollManager = new ScrollManager(this.chatContainer, 80);
+
       // Bind widget-specific events.
       this.bindWidgetEvents();
     },
@@ -92,35 +240,35 @@
         <button type="button"
                 class="assistant-toggle-btn"
                 id="assistant-toggle"
-                aria-label="${Drupal.t('Open Site Assistant')}"
+                aria-label="${Drupal.t('Open Aila Chat')}"
                 aria-expanded="false"
                 aria-controls="assistant-panel">
           <span class="toggle-icon-open"><i class="fas fa-comment-dots" aria-hidden="true"></i></span>
           <span class="toggle-icon-close"><i class="fas fa-times" aria-hidden="true"></i></span>
-          <span class="toggle-label">${Drupal.t('Help')}</span>
+          <span class="toggle-label">${Drupal.t('Chat')}</span>
         </button>
 
         <div class="assistant-panel"
              id="assistant-panel"
              role="dialog"
              aria-modal="true"
-             aria-label="${Drupal.t('Site Assistant')}"
+             aria-label="${Drupal.t('Aila Chat')}"
              hidden>
           <header class="assistant-panel-header">
             <h2 class="panel-title">
               <i class="fas fa-comment-dots" aria-hidden="true"></i>
-              ${Drupal.t('Site Assistant')}
+              ${Drupal.t('Chat')}
             </h2>
             <button type="button"
                     class="panel-close-btn"
-                    aria-label="${Drupal.t('Close assistant')}">
+                    aria-label="${Drupal.t('Close chat')}">
               <i class="fas fa-times" aria-hidden="true"></i>
             </button>
           </header>
 
           <div class="assistant-disclaimer">
             <i class="fas fa-info-circle" aria-hidden="true"></i>
-            <span>${this.config.disclaimer || Drupal.t('I can help you find information. I cannot provide legal advice.')}</span>
+            <span>${this.config.disclaimer || (Drupal.t('I can help you find information on our website. But I') + ' <strong>' + Drupal.t('cannot') + '</strong> ' + Drupal.t('provide legal advice.'))}</span>
           </div>
 
           <div class="assistant-chat" role="log" aria-live="polite"></div>
@@ -250,9 +398,9 @@
       this.widget.classList.add('is-open');
       this.isOpen = true;
 
-      // Focus input.
+      // Focus input without causing scroll jumps.
       setTimeout(() => {
-        this.inputField.focus();
+        safeFocus(this.inputField);
       }, 100);
 
       // Track open event.
@@ -309,7 +457,7 @@
      * Show welcome message.
      */
     showWelcomeMessage: function () {
-      const message = this.config.welcomeMessage || Drupal.t('Hello! I can help you find information on our website. What are you looking for today?');
+      const message = this.config.welcomeMessage || Drupal.t('Hi, I\'m Aila (eye-luh), your guide to Idaho Legal Aid Services. How can I help you today?');
       this.addMessage('assistant', message);
     },
 
@@ -373,9 +521,28 @@
         topic_benefits: Drupal.t('Help with benefits'),
         topic_consumer: Drupal.t('Help with debt'),
         topic_civil_rights: Drupal.t('Help with discrimination'),
+        // Form Finder topic actions.
+        forms_housing: Drupal.t('Find housing and eviction forms'),
+        forms_family: Drupal.t('Find family and divorce forms'),
+        forms_consumer: Drupal.t('Find consumer and debt forms'),
+        forms_seniors: Drupal.t('Find senior and estate planning forms'),
+        forms_safety: Drupal.t('Find protection order forms'),
+        forms_employment: Drupal.t('Find employment forms'),
+        forms_benefits: Drupal.t('Find public benefits forms'),
+        // Guide Finder topic actions.
+        guides_housing: Drupal.t('Find housing and eviction guides'),
+        guides_family: Drupal.t('Find family and divorce guides'),
+        guides_consumer: Drupal.t('Find consumer and debt guides'),
+        guides_seniors: Drupal.t('Find senior and estate planning guides'),
+        guides_employment: Drupal.t('Find employment guides'),
+        guides_benefits: Drupal.t('Find public benefits guides'),
+        guides_safety: Drupal.t('Find protection order guides'),
       };
 
       const message = actionMessages[action] || action;
+
+      // Track suggestion click events for debugging.
+      this.trackEvent('suggestion_click', action);
 
       // Add as user message.
       this.addMessage('user', message);
@@ -426,11 +593,18 @@
           break;
 
         case 'resources':
-          html += this.renderResourceResults(response.results, response.fallback_url);
+          html += this.renderResourceResults(response.results, response.fallback_url, response.fallback_label);
+          if (response.disclaimer) {
+            html += `<p class="resource-disclaimer"><em>${this.escapeHtml(response.disclaimer)}</em></p>`;
+          }
           break;
 
         case 'navigation':
           html += this.renderNavigation(response);
+          break;
+
+        case 'apply_cta':
+          html += this.renderApplyCta(response);
           break;
 
         case 'topic':
@@ -463,6 +637,18 @@
           }
           if (response.url) {
             html += this.renderNavigation(response);
+          }
+          break;
+
+        case 'form_finder_clarify':
+        case 'guide_finder_clarify':
+          // Multi-turn finder: show topic chips for narrowing down.
+          if (response.topic_suggestions) {
+            html += this.renderTopicSuggestions(response.topic_suggestions);
+          }
+          // Show "Browse All ..." fallback link.
+          if (response.primary_action && response.primary_action.url) {
+            html += `<p class="form-finder-fallback"><a href="${response.primary_action.url}" class="result-link" data-assistant-track="resource_click">${this.escapeHtml(response.primary_action.label)}</a></p>`;
           }
           break;
 
@@ -514,9 +700,10 @@
     /**
      * Render resource results.
      */
-    renderResourceResults: function (results, fallbackUrl) {
+    renderResourceResults: function (results, fallbackUrl, fallbackLabel) {
       if (!results || results.length === 0) {
-        return `<p><a href="${fallbackUrl}" class="result-link" data-assistant-track="resource_click">${Drupal.t('Browse all resources')}</a></p>`;
+        const label = fallbackLabel || Drupal.t('Browse all resources');
+        return `<p><a href="${fallbackUrl}" class="result-link" data-assistant-track="resource_click">${label}</a></p>`;
       }
 
       let html = '<ul class="resource-results">';
@@ -552,6 +739,37 @@
           </p>
         `;
       }
+      return html;
+    },
+
+    /**
+     * Render the apply CTA response with three application methods.
+     */
+    renderApplyCta: function (response) {
+      let html = '<div class="apply-methods">';
+
+      if (response.apply_methods && response.apply_methods.length > 0) {
+        response.apply_methods.forEach(method => {
+          const iconClass = method.icon || 'arrow-right';
+          html += `<div class="apply-method apply-method--${this.escapeHtml(method.method)}">`;
+          html += `<h4 class="apply-method__heading"><i class="fas fa-${iconClass}" aria-hidden="true"></i> ${this.escapeHtml(method.heading)}</h4>`;
+          html += `<p class="apply-method__desc">${this.escapeHtml(method.description)}</p>`;
+          html += `<a href="${method.cta_url}" class="cta-button" data-assistant-track="apply_cta_click">${this.escapeHtml(method.cta_label)} <i class="fas fa-arrow-right" aria-hidden="true"></i></a>`;
+
+          if (method.secondary_label && method.secondary_url) {
+            html += ` <a href="${method.secondary_url}" class="apply-method__secondary-link" data-assistant-track="apply_secondary_click">${this.escapeHtml(method.secondary_label)}</a>`;
+          }
+
+          html += `</div>`;
+        });
+      }
+
+      html += '</div>';
+
+      if (response.followup) {
+        html += `<p class="apply-followup"><em>${this.escapeHtml(response.followup)}</em></p>`;
+      }
+
       return html;
     },
 
@@ -695,10 +913,21 @@
       }
 
       messageEl.appendChild(contentEl);
-      chat.appendChild(messageEl);
 
-      // Scroll to bottom.
-      chat.scrollTop = chat.scrollHeight;
+      // Insert message before the sentinel so it stays at the end.
+      if (this.scrollManager && this.scrollManager.sentinel) {
+        chat.insertBefore(messageEl, this.scrollManager.sentinel);
+      } else {
+        chat.appendChild(messageEl);
+      }
+
+      // Conditionally scroll: only if user is near bottom.
+      if (this.scrollManager) {
+        this.scrollManager.onNewContent();
+      } else {
+        // Fallback for edge case where scroll manager isn't ready.
+        chat.scrollTop = chat.scrollHeight;
+      }
 
       // Store in history (text only).
       if (sender === 'user') {
@@ -737,8 +966,20 @@
           <span></span><span></span><span></span>
         </div>
       `;
-      chat.appendChild(typing);
-      chat.scrollTop = chat.scrollHeight;
+
+      // Insert before sentinel so it stays at the end.
+      if (this.scrollManager && this.scrollManager.sentinel) {
+        chat.insertBefore(typing, this.scrollManager.sentinel);
+      } else {
+        chat.appendChild(typing);
+      }
+
+      // Conditionally scroll.
+      if (this.scrollManager) {
+        this.scrollManager.onNewContent();
+      } else {
+        chat.scrollTop = chat.scrollHeight;
+      }
     },
 
     /**
@@ -783,8 +1024,8 @@
       // Push to dataLayer if available.
       if (window.dataLayer) {
         window.dataLayer.push({
-          event: 'ilas_assistant_' + eventType,
-          event_category: 'Site Assistant',
+          event: 'aila_chat_' + eventType,
+          event_category: 'Aila Chat',
           event_action: eventType,
           event_label: eventValue,
         });

@@ -45,6 +45,13 @@ class FaqIndex {
   protected $languageManager;
 
   /**
+   * The ranking enhancer service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\RankingEnhancer
+   */
+  protected $rankingEnhancer;
+
+  /**
    * The Search API index.
    *
    * @var \Drupal\search_api\IndexInterface|null
@@ -68,12 +75,14 @@ class FaqIndex {
     EntityTypeManagerInterface $entity_type_manager,
     CacheBackendInterface $cache,
     ConfigFactoryInterface $config_factory,
-    LanguageManagerInterface $language_manager
+    LanguageManagerInterface $language_manager,
+    RankingEnhancer $ranking_enhancer = NULL
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->cache = $cache;
     $this->configFactory = $config_factory;
     $this->languageManager = $language_manager;
+    $this->rankingEnhancer = $ranking_enhancer;
   }
 
   /**
@@ -501,6 +510,13 @@ class FaqIndex {
    */
   protected function searchLegacy(string $query, int $limit) {
     $all_items = $this->getAllFaqsLegacy();
+
+    // Use enhanced ranking if available.
+    if ($this->rankingEnhancer) {
+      return $this->rankingEnhancer->scoreFaqResults($all_items, $query, $limit);
+    }
+
+    // Fallback to basic ranking.
     $query_lower = strtolower($query);
     $query_keywords = $this->extractKeywords($query);
 

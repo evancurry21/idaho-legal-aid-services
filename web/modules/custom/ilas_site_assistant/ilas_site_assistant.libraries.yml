@@ -1,8 +1,7 @@
 widget:
   version: 1.0
-  css:
-    theme:
-      css/assistant-widget.css: {}
+  # CSS moved to theme: web/themes/custom/b5subtheme/scss/_assistant-widget.scss
+  # This ensures design tokens stay in sync with the theme.
   js:
     js/assistant-widget.js: {}
   dependencies:
@@ -12,9 +11,8 @@ widget:
 
 page:
   version: 1.0
-  css:
-    theme:
-      css/assistant-widget.css: {}
+  # CSS moved to theme: web/themes/custom/b5subtheme/scss/_assistant-widget.scss
+  # This ensures design tokens stay in sync with the theme.
   js:
     js/assistant-widget.js: {}
   dependencies:

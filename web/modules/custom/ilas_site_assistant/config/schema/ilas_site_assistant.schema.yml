@@ -33,6 +33,9 @@ ilas_site_assistant.settings:
         apply:
           type: string
           label: 'Apply for Help URL'
+        online_application:
+          type: string
+          label: 'Online Application URL (LegalServer intake form)'
         hotline:
           type: string
           label: 'Hotline URL'
@@ -153,3 +156,50 @@ ilas_site_assistant.settings:
         fallback_on_error:
           type: boolean
           label: 'Fallback to rule-based on LLM error'
+    fallback_gate:
+      type: mapping
+      label: 'Fallback Gate Configuration'
+      mapping:
+        thresholds:
+          type: mapping
+          label: 'Confidence thresholds'
+          mapping:
+            intent_high_conf:
+              type: float
+              label: 'High intent confidence threshold (default: 0.85)'
+            intent_medium_conf:
+              type: float
+              label: 'Medium intent confidence threshold (default: 0.65)'
+            intent_low_conf:
+              type: float
+              label: 'Low intent confidence threshold (default: 0.40)'
+            retrieval_high_score:
+              type: float
+              label: 'High retrieval score threshold (default: 0.75)'
+            retrieval_medium_score:
+              type: float
+              label: 'Medium retrieval score threshold (default: 0.50)'
+            retrieval_low_score:
+              type: float
+              label: 'Low retrieval score threshold (default: 0.30)'
+            retrieval_score_gap_high:
+              type: float
+              label: 'High score gap threshold (default: 0.25)'
+            retrieval_score_gap_low:
+              type: float
+              label: 'Low score gap threshold (default: 0.10)'
+            retrieval_min_results:
+              type: integer
+              label: 'Minimum results for confident retrieval (default: 1)'
+            combined_high_conf:
+              type: float
+              label: 'High combined confidence threshold (default: 0.80)'
+            combined_fallback_threshold:
+              type: float
+              label: 'Fallback threshold for combined confidence (default: 0.50)'
+            short_message_words:
+              type: integer
+              label: 'Short message word count threshold (default: 3)'
+            ambiguous_message_words:
+              type: integer
+              label: 'Ambiguous message word count threshold (default: 2)'

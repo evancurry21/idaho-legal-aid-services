@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created": "2026-01-27",
+    "description": "Single-token and short-query topic routing test cases",
+    "total_cases": 75
+  },
+  "single_token_cases": [
+    {"id": 1, "utterance": "divorce", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "exact"},
+    {"id": 2, "utterance": "custody", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "exact"},
+    {"id": 3, "utterance": "visitation", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "exact"},
+    {"id": 4, "utterance": "adoption", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "exact"},
+    {"id": 5, "utterance": "paternity", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "exact"},
+    {"id": 6, "utterance": "guardianship", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "exact"},
+    {"id": 7, "utterance": "separation", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "exact"},
+    {"id": 8, "utterance": "family", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "exact"},
+
+    {"id": 9, "utterance": "eviction", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "exact"},
+    {"id": 10, "utterance": "housing", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "exact"},
+    {"id": 11, "utterance": "landlord", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "exact"},
+    {"id": 12, "utterance": "tenant", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "exact"},
+    {"id": 13, "utterance": "rent", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "exact"},
+    {"id": 14, "utterance": "lease", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "exact"},
+    {"id": 15, "utterance": "foreclosure", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "exact"},
+    {"id": 16, "utterance": "apartment", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "exact"},
+
+    {"id": 17, "utterance": "bankruptcy", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "exact"},
+    {"id": 18, "utterance": "debt", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "exact"},
+    {"id": 19, "utterance": "scam", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "exact"},
+    {"id": 20, "utterance": "fraud", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "exact"},
+    {"id": 21, "utterance": "consumer", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "exact"},
+    {"id": 22, "utterance": "garnishment", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "exact"},
+    {"id": 23, "utterance": "repossession", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "exact"},
+
+    {"id": 24, "utterance": "seniors", "expected_topic": "seniors", "expected_url": "/legal-help/seniors", "match_type": "exact"},
+    {"id": 25, "utterance": "elderly", "expected_topic": "seniors", "expected_url": "/legal-help/seniors", "match_type": "exact"},
+    {"id": 26, "utterance": "elder", "expected_topic": "seniors", "expected_url": "/legal-help/seniors", "match_type": "exact"},
+
+    {"id": 27, "utterance": "medicaid", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "exact"},
+    {"id": 28, "utterance": "medicare", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "exact"},
+    {"id": 29, "utterance": "benefits", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "exact"},
+    {"id": 30, "utterance": "disability", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "exact"},
+    {"id": 31, "utterance": "snap", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "exact"},
+    {"id": 32, "utterance": "insurance", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "exact"},
+
+    {"id": 33, "utterance": "discrimination", "expected_topic": "civil_rights", "expected_url": "/legal-help/civil-rights", "match_type": "exact"},
+    {"id": 34, "utterance": "harassment", "expected_topic": "civil_rights", "expected_url": "/legal-help/civil-rights", "match_type": "exact"},
+
+    {"id": 35, "utterance": "fired", "expected_topic": "employment", "expected_url": "/legal-help/civil-rights", "match_type": "exact"},
+    {"id": 36, "utterance": "terminated", "expected_topic": "employment", "expected_url": "/legal-help/civil-rights", "match_type": "exact"},
+    {"id": 37, "utterance": "wages", "expected_topic": "employment", "expected_url": "/legal-help/civil-rights", "match_type": "exact"}
+  ],
+  "stem_cases": [
+    {"id": 38, "utterance": "divorced", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "stem"},
+    {"id": 39, "utterance": "divorcing", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "stem"},
+    {"id": 40, "utterance": "custodial", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "stem"},
+    {"id": 41, "utterance": "adopted", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "stem"},
+    {"id": 42, "utterance": "adopting", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "stem"},
+    {"id": 43, "utterance": "separated", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "stem"},
+    {"id": 44, "utterance": "evicted", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "stem"},
+    {"id": 45, "utterance": "foreclosed", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "stem"},
+    {"id": 46, "utterance": "renting", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "stem"},
+    {"id": 47, "utterance": "bankrupt", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "stem"},
+    {"id": 48, "utterance": "garnished", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "stem"},
+    {"id": 49, "utterance": "disabled", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "stem"},
+    {"id": 50, "utterance": "discriminated", "expected_topic": "civil_rights", "expected_url": "/legal-help/civil-rights", "match_type": "stem"},
+    {"id": 51, "utterance": "harassed", "expected_topic": "civil_rights", "expected_url": "/legal-help/civil-rights", "match_type": "stem"},
+    {"id": 52, "utterance": "employed", "expected_topic": "employment", "expected_url": "/legal-help/civil-rights", "match_type": "stem"},
+    {"id": 53, "utterance": "terminated", "expected_topic": "employment", "expected_url": "/legal-help/civil-rights", "match_type": "stem"}
+  ],
+  "synonym_cases": [
+    {"id": 54, "utterance": "divorcio", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "synonym"},
+    {"id": 55, "utterance": "custodia", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "synonym"},
+    {"id": 56, "utterance": "alimony", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "synonym"},
+    {"id": 57, "utterance": "annulment", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "synonym"},
+    {"id": 58, "utterance": "desalojo", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "synonym"},
+    {"id": 59, "utterance": "casero", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "synonym"},
+    {"id": 60, "utterance": "homeless", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "synonym"},
+    {"id": 61, "utterance": "mortgage", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "synonym"},
+    {"id": 62, "utterance": "estafa", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "synonym"},
+    {"id": 63, "utterance": "deuda", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "synonym"},
+    {"id": 64, "utterance": "refund", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "synonym"},
+    {"id": 65, "utterance": "anciano", "expected_topic": "seniors", "expected_url": "/legal-help/seniors", "match_type": "synonym"},
+    {"id": 66, "utterance": "retired", "expected_topic": "seniors", "expected_url": "/legal-help/seniors", "match_type": "synonym"},
+    {"id": 67, "utterance": "beneficios", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "synonym"},
+    {"id": 68, "utterance": "welfare", "expected_topic": "health", "expected_url": "/legal-help/health", "match_type": "synonym"},
+    {"id": 69, "utterance": "despedido", "expected_topic": "employment", "expected_url": "/legal-help/civil-rights", "match_type": "synonym"},
+    {"id": 70, "utterance": "paycheck", "expected_topic": "employment", "expected_url": "/legal-help/civil-rights", "match_type": "synonym"}
+  ],
+  "phrase_cases": [
+    {"id": 71, "utterance": "child support", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "phrase"},
+    {"id": 72, "utterance": "protection order", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "phrase"},
+    {"id": 73, "utterance": "identity theft", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "phrase"},
+    {"id": 74, "utterance": "elder abuse", "expected_topic": "seniors", "expected_url": "/legal-help/seniors", "match_type": "phrase"},
+    {"id": 75, "utterance": "wrongful termination", "expected_topic": "employment", "expected_url": "/legal-help/civil-rights", "match_type": "phrase"}
+  ],
+  "fuzzy_cases": [
+    {"id": 76, "utterance": "divorec", "expected_topic": "family", "expected_url": "/legal-help/family", "match_type": "fuzzy"},
+    {"id": 77, "utterance": "evicton", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "fuzzy"},
+    {"id": 78, "utterance": "bankrupcy", "expected_topic": "consumer", "expected_url": "/legal-help/consumer", "match_type": "fuzzy"},
+    {"id": 79, "utterance": "harasment", "expected_topic": "civil_rights", "expected_url": "/legal-help/civil-rights", "match_type": "fuzzy"},
+    {"id": 80, "utterance": "foreclsoure", "expected_topic": "housing", "expected_url": "/legal-help/housing", "match_type": "fuzzy"}
+  ],
+  "negative_cases": [
+    {"id": 81, "utterance": "hi", "expected_topic": null, "note": "Greeting, not a topic"},
+    {"id": 82, "utterance": "hello", "expected_topic": null, "note": "Greeting, not a topic"},
+    {"id": 83, "utterance": "yes", "expected_topic": null, "note": "Affirmation, not a topic"},
+    {"id": 84, "utterance": "no", "expected_topic": null, "note": "Negation, not a topic"},
+    {"id": 85, "utterance": "ok", "expected_topic": null, "note": "Acknowledgement, not a topic"},
+    {"id": 86, "utterance": "the", "expected_topic": null, "note": "Stop word only"},
+    {"id": 87, "utterance": "pizza", "expected_topic": null, "note": "Unrelated word"},
+    {"id": 88, "utterance": "cat", "expected_topic": null, "note": "Unrelated word"},
+    {"id": 89, "utterance": "weather", "expected_topic": null, "note": "Unrelated word"},
+    {"id": 90, "utterance": "basketball", "expected_topic": null, "note": "Unrelated word"}
+  ]
+}

@@ -132,5 +132,21 @@
                 "  * Get involved with the Drupal community: https://drupal.org/getting-involved"
             ]
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Drupal\\ilas_site_assistant\\": "web/modules/custom/ilas_site_assistant/src/",
+            "Drupal\\Tests\\ilas_site_assistant\\": "web/modules/custom/ilas_site_assistant/tests/src/"
+        }
+    },
+    "require-dev": {
+        "behat/mink": "^1.13",
+        "behat/mink-browserkit-driver": "^2.3",
+        "phpunit/phpunit": "^12.5"
+    },
+    "scripts": {
+        "test:pure": "vendor/bin/phpunit -c phpunit.pure.xml",
+        "test:drupal": "vendor/bin/phpunit -c phpunit.xml --testsuite drupal-unit",
+        "test:all": "vendor/bin/phpunit -c phpunit.xml"
     }
 }

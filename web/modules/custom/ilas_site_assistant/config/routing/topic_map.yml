@@ -1,0 +1,499 @@
+# Topic Map - Maps single tokens and short queries to canonical topic landing pages.
+#
+# Each topic has:
+#   url:       Canonical landing page URL
+#   label:     Human-readable label for the topic
+#   service_area: The service area key (matches IntentRouter patterns)
+#   tokens:    Exact single-token matches (case-insensitive)
+#   stems:     Stem roots that catch inflected forms (e.g., "divorc" matches divorce/divorced/divorcing)
+#   synonyms:  Common synonyms, slang, and Spanish equivalents
+#   phrases:   Short 2-3 word phrases that are topic-specific
+#
+# Matching priority:
+#   1. Exact token match (highest confidence: 0.88)
+#   2. Stem match (confidence: 0.85)
+#   3. Synonym match (confidence: 0.82)
+#   4. Fuzzy match via Levenshtein (confidence: 0.70, max distance 1 for 5-7 char tokens, 2 for 8+)
+#   5. Short phrase match (confidence: 0.85)
+
+family:
+  url: /legal-help/family
+  label: Family Law
+  service_area: family
+  tokens:
+    - family
+    - divorce
+    - custody
+    - visitation
+    - adoption
+    - paternity
+    - guardianship
+    - separation
+    - alimony
+    - contempt
+    - annulment
+  stems:
+    - divorc          # divorce, divorced, divorcing
+    - custod          # custody, custodial
+    - adopt           # adopt, adopted, adoption, adopting
+    - guardian         # guardian, guardianship
+    - visitat         # visitation, visiting
+    - patern          # paternity, paternal
+    - separat         # separation, separated, separating
+    - contempt        # contempt, contemptuous
+    - annul           # annul, annulment, annulled
+  synonyms:
+    - divorec         # Common typo
+    - divorse         # Common typo
+    - divorcio        # Spanish
+    - custodia        # Spanish
+    - familia         # Spanish
+    - manutencion     # Spanish - child support
+    - visitacion      # Spanish
+    - adopcion        # Spanish
+    - tutela          # Spanish - guardianship
+    - parenting
+    - spousal
+    - matrimonial
+    - marital
+    - grandparents    # Grandparents rights → family
+    - grandparent
+    - stepparent
+    - unmarried       # Unmarried parents
+  phrases:
+    - child support
+    - child custody
+    - parenting time
+    - parenting plan
+    - protection order
+    - restraining order
+    - domestic violence
+    - intimate partner violence
+    - domestic relations
+    - grandparents rights
+    - no contact order
+    - fathers name
+    - fathers rights
+    - mothers rights
+    - paternity test
+    - supervised visits
+    - supervised visitation
+    - child protective services
+
+housing:
+  url: /legal-help/housing
+  label: Housing
+  service_area: housing
+  tokens:
+    - housing
+    - eviction
+    - landlord
+    - tenant
+    - rent
+    - lease
+    - apartment
+    - foreclosure
+    - renter
+    - rental
+    - renting
+    - deposit
+    - hoa
+  stems:
+    - evict           # evict, evicted, eviction, evicting
+    - foreclos        # foreclosure, foreclosed, foreclosing
+    - landlord        # landlord, landlords
+    - tenant          # tenant, tenants
+    - leas            # lease, leased, leasing
+    - rent            # rent, rented, renting, rental, renter
+    - deposit         # deposit, deposits
+  synonyms:
+    - desalojo        # Spanish - eviction
+    - casero          # Spanish - landlord
+    - arrendador      # Spanish - landlord
+    - inquilino       # Spanish - tenant
+    - alquiler        # Spanish - rent
+    - vivienda        # Spanish - housing
+    - arriendo        # Spanish - lease
+    - eviccion        # Spanish
+    - kicked          # "kicked out"
+    - homeless
+    - homelessness
+    - shelter
+    - lockout
+    - sublease
+    - subletting
+    - habitability
+    - habitacion      # Spanish
+    - mortgage
+    - homeowner       # HOA related
+    - homeowners
+  phrases:
+    - kicked out
+    - locked out
+    - section 8
+    - public housing
+    - mobile home
+    - trailer park
+    - repair issues
+    - security deposit
+    - deposit return
+    - move out
+    - move-out
+    - property management
+    - homeowners association
+
+consumer:
+  url: /legal-help/consumer
+  label: Consumer
+  service_area: consumer
+  tokens:
+    - consumer
+    - debt
+    - bankruptcy
+    - scam
+    - fraud
+    - garnishment
+    - repossession
+    - collection
+    - collections
+    - credit
+    - levy
+    - judgment
+    - judgement
+    - creditor
+    - collector
+  stems:
+    - bankrupt        # bankrupt, bankruptcy
+    - garnish         # garnish, garnished, garnishment
+    - reposses        # repossession, repossessed
+    - collect         # collection, collections, collector
+    - fraud           # fraud, fraudulent, fraudster
+    - predator        # predatory, predator
+    - creditor        # creditor, creditors
+    - embarg          # embargo, embargando, embargar (Spanish)
+  synonyms:
+    # Spanish - debt and collections
+    - deuda           # Spanish - debt
+    - deudas          # Spanish - debts
+    - bancarrota      # Spanish - bankruptcy
+    - quiebra         # Spanish - bankruptcy
+    - estafa          # Spanish - scam
+    - fraude          # Spanish - fraud
+    - cobro           # Spanish - collection
+    - cobranza        # Spanish - collection
+    - cobrador        # Spanish - collector
+    - cobradores      # Spanish - collectors
+    - credito         # Spanish - credit
+    - embargo         # Spanish - garnishment/levy
+    - embargando      # Spanish - garnishing
+    - embargar        # Spanish - to garnish
+    - embargaron      # Spanish - they garnished
+    # Spanish - repossession variants
+    - reposicion      # Spanish - repossession
+    - reposesion      # Spanish - repossession (alternate)
+    - reposición      # Spanish - repossession (accented)
+    - quitaron        # Spanish - they took away
+    # Spanish - medical debt
+    - facturas        # Spanish - bills
+    - medicas         # Spanish - medical (for medical bills context)
+    - medicos         # Spanish - medical bills (plural)
+    # English slang and variants
+    - scammed
+    - robbed
+    - swindled
+    - predatory
+    - usury
+    - lemon
+    - warranty
+    - refund
+    - contractor
+    - repo
+    - repoed
+    - owe
+    - owed
+    - owing
+    - debo            # Spanish - I owe
+    - bills
+    - harassing
+    - harassment
+    - calling         # context: debt collector calling
+  phrases:
+    # English - identity and fraud
+    - identity theft
+    - stolen identity
+    # English - debt collection
+    - bill collector
+    - debt collector
+    - debt collection
+    - collection calls
+    - collector keeps calling
+    - collector calling me
+    - calling me at work
+    - calling about debt
+    # English - loans
+    - payday loan
+    - title loan
+    - cash advance
+    - predatory lending
+    # English - credit
+    - credit report
+    - credit card
+    - credit report error
+    - credit score
+    - error on my credit
+    - fix my credit
+    # English - garnishment
+    - wage garnishment
+    - garnished wages
+    - garnishing my wages
+    - wages are being garnished
+    - stop garnishment
+    - bank levy
+    - frozen account
+    - froze my bank account
+    - took money from my bank
+    # English - medical debt (CONSUMER issue, not health)
+    - medical bills
+    - medical debt
+    - hospital debt
+    - hospital bills
+    - doctor bills
+    - cant pay medical
+    - cant pay my medical
+    - cant pay hospital
+    - medical bills i cant pay
+    - lot of medical bills
+    - overwhelming medical bills
+    - medical bills in collections
+    # English - lawsuits
+    - sued for debt
+    - sued for a debt
+    - sued for money
+    - default judgment
+    - debt lawsuit
+    - got court papers
+    - court papers for debt
+    # English - repossession
+    - car repossession
+    - car was repossessed
+    - car got repossessed
+    - took my car
+    - repossessed my car
+    # English - statute of limitations
+    - old debt
+    - statute of limitations
+    - debt from 10 years ago
+    - collect on old debt
+    # English - other
+    - debt after death
+    - debt dispute
+    - creditor harassment
+    - creditor froze
+    - rights with debt collectors
+    - what are my rights
+    # Spanish - debt collection
+    - cobrador de deudas
+    - cobradores de deudas
+    - me llama todos los dias
+    - me llaman constantemente
+    - me llaman al trabajo
+    - llamando constantemente
+    - no me deja en paz
+    - acoso de cobradores
+    # Spanish - garnishment
+    - embargo de sueldo
+    - embargando el sueldo
+    - embargando mi sueldo
+    - me estan embargando
+    - embargaron mi sueldo
+    # Spanish - medical debt
+    - deuda medica
+    - deudas medicas
+    - facturas medicas
+    - cuentas medicas
+    - facturas del hospital
+    - deuda del hospital
+    - no puedo pagar
+    - muchas deudas medicas
+    - tengo muchas facturas
+    # Spanish - credit
+    - reporte de credito
+    - error en mi credito
+    # Spanish - repossession
+    - me quitaron el carro
+    - me quitaron el coche
+    - me quitaron el auto
+    - se llevaron mi carro
+    - me reposearon el carro
+    # Spanish - lawsuit
+    - demandado por deuda
+    - me demandaron
+
+seniors:
+  url: /legal-help/seniors
+  label: Seniors
+  service_area: seniors
+  tokens:
+    - seniors
+    - senior
+    - elderly
+    - elder
+    - probate
+    - estate
+    - will
+    - conservatorship
+    - trust
+  stems:
+    - elder           # elder, elderly, elders
+    - senior          # senior, seniors
+    - probat          # probate, probated
+    - conservator     # conservatorship, conservator
+    - estat           # estate, estates
+  synonyms:
+    - anciano         # Spanish
+    - ancianos        # Spanish
+    - tercera         # Spanish (tercera edad)
+    - mayor           # Spanish (persona mayor)
+    - aging
+    - aged
+    - retiree
+    - retired
+    - retirement
+    - geriatric
+    - jubilado        # Spanish - retired
+    - wills           # Plural of will
+    - trusts          # Plural of trust
+    - testament       # Last will and testament
+    - inheritance
+    - herencia        # Spanish - inheritance
+    - testamento      # Spanish - will/testament
+    - fideicomiso     # Spanish - trust
+    - sucesion        # Spanish - estate
+  phrases:
+    - older adult
+    - older adults
+    - nursing home
+    - assisted living
+    - elder abuse
+    - elder care
+    - elder law
+    - power of attorney
+    - small estate
+    - small estate affidavit
+    - summary administration
+    - estate planning
+    - last will
+    - last will and testament
+    - quit claim
+    - quitclaim deed
+
+health:
+  url: /legal-help/health
+  label: Health & Benefits
+  service_area: health
+  tokens:
+    - medicaid
+    - medicare
+    - snap
+    - benefits
+    - disability
+    - insurance
+    - healthcare
+    - ssi
+    - ssdi
+    - tanf
+    - ada
+  stems:
+    - disabl          # disabled, disability, disabilities
+    - disabil         # disability, disabilities
+    - medicai         # medicaid
+    - medicar         # medicare
+    - insur           # insurance, insured, insurer
+    - benefi          # benefits, beneficial
+  synonyms:
+    - beneficios      # Spanish
+    - seguro          # Spanish - insurance
+    - salud           # Spanish - health
+    - medico          # Spanish - medical
+    - discapacidad    # Spanish - disability
+    - incapacidad     # Spanish - disability
+    - estampillas     # Spanish - food stamps
+    - foodstamps
+    - dental
+    - medical
+    - prescriptions
+    - medication
+    - welfare
+  phrases:
+    - food stamps
+    - public benefits
+    - health insurance
+    - health coverage
+    - denied benefits
+    - denied coverage
+
+civil_rights:
+  url: /legal-help/civil-rights
+  label: Civil Rights
+  service_area: civil_rights
+  tokens:
+    - discrimination
+    - harassment
+    - voting
+  stems:
+    - discriminat     # discriminate, discrimination, discriminated
+    - harass          # harass, harassed, harassment, harassing
+  synonyms:
+    - discriminacion  # Spanish
+    - acoso           # Spanish - harassment
+    - derechos        # Spanish - rights
+    - prejudice
+    - bias
+    - bigotry
+    - racism
+    - sexism
+    - retaliation
+  phrases:
+    - civil rights
+    - unfair treatment
+    - workplace discrimination
+    - employment discrimination
+    - voting rights
+
+employment:
+  url: /legal-help/civil-rights
+  label: Employment
+  service_area: civil_rights
+  tokens:
+    - employment
+    - fired
+    - terminated
+    - wages
+    - retaliation
+  stems:
+    - employ          # employ, employed, employer, employment
+    - terminat        # terminate, terminated, termination
+    - wage            # wage, wages
+    - retaliat        # retaliate, retaliated, retaliation
+  synonyms:
+    - despedido       # Spanish - fired
+    - salario         # Spanish - salary/wages
+    - trabajo         # Spanish - work/job
+    - empleo          # Spanish - employment
+    - corrido         # Spanish - fired (colloquial)
+    - paycheck
+    - overtime
+    - unpaid
+    - fmla
+    - workplace
+    - wrongful
+    - layoff
+  phrases:
+    - laid off
+    - let go
+    - wrongful termination
+    - unpaid wages
+    - wage theft
+    - hostile work
+    - workers comp
+    - workers compensation

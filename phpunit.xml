@@ -20,6 +20,9 @@
     <testsuite name="unit">
       <directory>web/modules/custom/*/tests/src/Unit</directory>
     </testsuite>
+    <testsuite name="drupal-unit">
+      <directory>web/modules/custom/*/tests/src/DrupalUnit</directory>
+    </testsuite>
     <testsuite name="kernel">
       <directory>web/modules/custom/*/tests/src/Kernel</directory>
     </testsuite>

@@ -1,0 +1,500 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "generated_at": "2026-01-23T00:00:00Z",
+    "analyzer": "Claude Code Coverage Gap Analysis",
+    "data_sources": {
+      "golden_dataset": "chatbot-golden-dataset.csv",
+      "retrieval_fixture": "scripts/chatbot-eval/retrieval-fixture.json",
+      "routing_config": "web/modules/custom/ilas_site_assistant/config/routing/"
+    }
+  },
+  "summary": {
+    "total_gap_clusters": 11,
+    "high_priority_gaps": 3,
+    "medium_priority_gaps": 6,
+    "low_priority_gaps": 2,
+    "estimated_coverage_current": 0.78,
+    "estimated_coverage_target": 0.95
+  },
+  "metrics": {
+    "intent_coverage": {
+      "current": 25,
+      "recommended": 32,
+      "gap": 7
+    },
+    "faq_topic_coverage": {
+      "current": 6,
+      "recommended": 9,
+      "gap": 3
+    },
+    "synonym_coverage_english": {
+      "current": 0.85,
+      "target": 0.95,
+      "gap": 0.10
+    },
+    "synonym_coverage_spanish": {
+      "current": 0.65,
+      "target": 0.90,
+      "gap": 0.25
+    },
+    "typo_tolerance": {
+      "current": 0.70,
+      "target": 0.90,
+      "gap": 0.20
+    }
+  },
+  "gap_clusters": [
+    {
+      "id": "employment",
+      "name": "Employment & Workplace Issues",
+      "priority": "high",
+      "severity": "high",
+      "estimated_query_volume": "8-12%",
+      "current_coverage": "minimal",
+      "missing_patterns": [
+        "fired from my job",
+        "wrongful termination",
+        "unpaid wages",
+        "wage theft",
+        "laid off",
+        "unemployment benefits",
+        "my employer owes me money",
+        "not getting paid",
+        "final paycheck",
+        "work discrimination",
+        "hostile work environment",
+        "retaliation at work"
+      ],
+      "missing_spanish_patterns": [
+        "perdi mi trabajo",
+        "no me pagan",
+        "despedido",
+        "discriminacion laboral",
+        "acoso en el trabajo"
+      ],
+      "recommendations": [
+        "Add topic_employment intent",
+        "Create FAQ entries for employment issues",
+        "Add employment-specific forms/guides"
+      ],
+      "impact": "Users asking about employment issues will receive unclear routing"
+    },
+    {
+      "id": "veterans",
+      "name": "Veterans Benefits",
+      "priority": "medium-high",
+      "severity": "medium-high",
+      "estimated_query_volume": "3-5%",
+      "current_coverage": "none",
+      "missing_patterns": [
+        "veteran benefits",
+        "VA benefits denied",
+        "veteran legal help",
+        "military benefits",
+        "GI Bill",
+        "veteran disability",
+        "DD-214",
+        "veterans court"
+      ],
+      "missing_spanish_patterns": [
+        "militar",
+        "veterano",
+        "beneficios de veterano"
+      ],
+      "recommendations": [
+        "Add topic_veterans intent",
+        "Create FAQ about veteran services",
+        "Add out-of-scope routing with referrals if not served"
+      ],
+      "impact": "Veterans seeking help will receive fallback responses"
+    },
+    {
+      "id": "utilities",
+      "name": "Utilities & Basic Needs",
+      "priority": "medium",
+      "severity": "medium",
+      "estimated_query_volume": "4-6%",
+      "current_coverage": "minimal",
+      "missing_patterns": [
+        "utility shutoff",
+        "power disconnected",
+        "gas turned off",
+        "water shut off",
+        "LIHEAP",
+        "energy assistance",
+        "can't pay utility bills",
+        "utility company"
+      ],
+      "missing_spanish_patterns": [
+        "servicios publicos",
+        "me cortaron la luz",
+        "ayuda con facturas"
+      ],
+      "recommendations": [
+        "Add utility patterns to topic_consumer",
+        "Create FAQ for utility shutoff",
+        "Add urgent safety trigger for imminent shutoff"
+      ],
+      "impact": "Users facing utility disconnection may not find relevant help"
+    },
+    {
+      "id": "mobile_home",
+      "name": "Mobile/Manufactured Home Issues",
+      "priority": "medium",
+      "severity": "medium",
+      "estimated_query_volume": "2-4%",
+      "current_coverage": "none",
+      "missing_patterns": [
+        "mobile home",
+        "manufactured home",
+        "trailer park",
+        "mobile home eviction",
+        "lot rent",
+        "park owner"
+      ],
+      "missing_spanish_patterns": [
+        "casa movil",
+        "trailer"
+      ],
+      "recommendations": [
+        "Add mobile home patterns to topic_housing",
+        "Create specific FAQ for mobile home rights",
+        "Add guide for mobile home tenant rights"
+      ],
+      "impact": "Mobile home residents may receive generic housing advice"
+    },
+    {
+      "id": "name_change",
+      "name": "Name Change",
+      "priority": "medium",
+      "severity": "medium",
+      "estimated_query_volume": "2-3%",
+      "current_coverage": "minimal",
+      "missing_patterns": [
+        "change my name",
+        "legal name change",
+        "name change form",
+        "court name change",
+        "change child's name"
+      ],
+      "missing_spanish_patterns": [
+        "cambiar mi nombre",
+        "cambio de nombre"
+      ],
+      "recommendations": [
+        "Add forms_finder patterns for name change",
+        "Create FAQ for name change process",
+        "Add name change to forms listing"
+      ],
+      "impact": "Users seeking name change will not find resources"
+    },
+    {
+      "id": "expungement",
+      "name": "Expungement & Record Sealing",
+      "priority": "medium",
+      "severity": "medium",
+      "estimated_query_volume": "2-3%",
+      "current_coverage": "none",
+      "missing_patterns": [
+        "expunge my record",
+        "seal my record",
+        "criminal record sealed",
+        "clean my record",
+        "background check"
+      ],
+      "missing_spanish_patterns": [
+        "borrar mi record",
+        "limpiar mi record"
+      ],
+      "recommendations": [
+        "Review if expungement is in-scope",
+        "Add patterns if in-scope",
+        "Modify criminal negatives to allow expungement"
+      ],
+      "impact": "Expungement queries may be incorrectly blocked as criminal"
+    },
+    {
+      "id": "adult_guardianship",
+      "name": "Adult Guardianship (Non-Senior)",
+      "priority": "medium",
+      "severity": "medium",
+      "estimated_query_volume": "1-2%",
+      "current_coverage": "partial",
+      "missing_patterns": [
+        "guardianship adult",
+        "disabled family member",
+        "incapacitated adult",
+        "adult with disability",
+        "developmental disability"
+      ],
+      "missing_spanish_patterns": [
+        "tutela de adulto"
+      ],
+      "recommendations": [
+        "Expand guardianship patterns beyond seniors",
+        "Create FAQ for adult guardianship",
+        "Add guardianship to family law"
+      ],
+      "impact": "Non-senior guardianship queries may not route correctly"
+    },
+    {
+      "id": "tribal",
+      "name": "Tribal/Native American Issues",
+      "priority": "medium",
+      "severity": "medium",
+      "estimated_query_volume": "1-3%",
+      "current_coverage": "none",
+      "missing_patterns": [
+        "tribal court",
+        "ICWA",
+        "Indian Child Welfare",
+        "reservation",
+        "tribal member",
+        "Native American"
+      ],
+      "missing_spanish_patterns": [
+        "jurisdiccion tribal"
+      ],
+      "recommendations": [
+        "Determine if ILAS handles tribal matters",
+        "Add topic and FAQ if in-scope",
+        "Add out-of-scope with referrals if not"
+      ],
+      "impact": "Native American population has unique jurisdictional issues"
+    },
+    {
+      "id": "education",
+      "name": "Education & Special Needs",
+      "priority": "low-medium",
+      "severity": "low-medium",
+      "estimated_query_volume": "1-2%",
+      "current_coverage": "none",
+      "missing_patterns": [
+        "special education",
+        "IEP",
+        "504 plan",
+        "school discipline",
+        "school expulsion"
+      ],
+      "missing_spanish_patterns": [
+        "educacion especial",
+        "plan IEP"
+      ],
+      "recommendations": [
+        "Determine if education law is in-scope",
+        "Add topic and FAQ if in-scope",
+        "Add referral to disability advocates if not"
+      ],
+      "impact": "Parents with school issues will not find resources"
+    },
+    {
+      "id": "medical_debt",
+      "name": "Medical Debt & Collections",
+      "priority": "low-medium",
+      "severity": "low-medium",
+      "estimated_query_volume": "2-3%",
+      "current_coverage": "partial",
+      "missing_patterns": [
+        "medical bills",
+        "hospital debt",
+        "medical collection",
+        "healthcare debt"
+      ],
+      "missing_spanish_patterns": [
+        "facturas medicas",
+        "deuda del hospital"
+      ],
+      "recommendations": [
+        "Add medical debt patterns to consumer",
+        "Create FAQ for medical debt",
+        "Add information about charity care"
+      ],
+      "impact": "Medical debt has unique considerations not covered"
+    },
+    {
+      "id": "probate",
+      "name": "Probate & Wills",
+      "priority": "low",
+      "severity": "low",
+      "estimated_query_volume": "1-2%",
+      "current_coverage": "partial",
+      "missing_patterns": [
+        "probate",
+        "will",
+        "testament",
+        "intestate",
+        "inherit"
+      ],
+      "missing_spanish_patterns": [
+        "testamento",
+        "herencia"
+      ],
+      "recommendations": [
+        "Expand probate patterns beyond seniors",
+        "Add FAQ for probate basics",
+        "Add probate forms/guides if available"
+      ],
+      "impact": "Probate queries may only route correctly if senior-related"
+    }
+  ],
+  "synonym_gaps": {
+    "english": {
+      "eviction": ["kicked out", "thrown out", "forced to leave"],
+      "landlord": ["property manager", "rental company", "management company"],
+      "custody": ["visitation", "parenting time", "time with kids"],
+      "divorce": ["end marriage", "separation", "split up"],
+      "bankruptcy": ["chapter 7", "chapter 13", "debt relief"],
+      "benefits": ["assistance", "welfare", "government help"],
+      "forms": ["documents", "papers", "paperwork", "templates"]
+    },
+    "spanish": {
+      "apply for help": ["pedir ayuda", "solicitar servicios"],
+      "legal advice line": ["linea legal", "consejo legal por telefono"],
+      "eviction": ["desahucio", "echar de casa"],
+      "child support": ["pension alimenticia", "manutencion"],
+      "domestic violence": ["maltrato", "abuso domestico", "violencia en el hogar"],
+      "scam": ["timo", "engano"],
+      "deadline": ["vencimiento", "fecha de entrega"]
+    }
+  },
+  "typo_gaps": {
+    "eviction": ["evicton", "eviciton", "evition"],
+    "custody": ["cutsody", "custidy", "custoy"],
+    "divorce": ["divorec", "divorse", "divore"],
+    "bankruptcy": ["bankrupcy", "bankrupty", "bankrupcty"],
+    "protection": ["protecton", "protecion"],
+    "application": ["aplicaton", "aplication"],
+    "landlord": ["landord", "lanldord"]
+  },
+  "retrieval_confidence_issues": [
+    {
+      "category": "single_word_vague",
+      "examples": ["divorce", "custody", "eviction"],
+      "issue": "Multiple valid destinations",
+      "recommendation": "Add disambiguation or smart ranking"
+    },
+    {
+      "category": "indirect_descriptions",
+      "examples": ["my landlord won't fix things", "someone stole my identity"],
+      "issue": "Requires semantic understanding",
+      "recommendation": "Add phrase mapping"
+    },
+    {
+      "category": "spanish_queries",
+      "examples": ["custodia de ninos", "aviso de desalojo"],
+      "issue": "Limited Spanish content indexed",
+      "recommendation": "Expand Spanish synonym mapping"
+    },
+    {
+      "category": "abbreviations",
+      "examples": ["PO form", "POA", "SNAP"],
+      "issue": "Not all abbreviations mapped",
+      "recommendation": "Add abbreviation synonyms"
+    }
+  ],
+  "content_backlog": {
+    "tier1_high_priority": [
+      {
+        "type": "faq",
+        "title": "What if I was fired unfairly?",
+        "category": "employment"
+      },
+      {
+        "type": "faq",
+        "title": "How do I collect unpaid wages?",
+        "category": "employment"
+      },
+      {
+        "type": "faq",
+        "title": "What if my utilities are being shut off?",
+        "category": "consumer"
+      },
+      {
+        "type": "config",
+        "title": "Add 25+ missing English synonyms",
+        "category": "synonyms"
+      },
+      {
+        "type": "config",
+        "title": "Add 15+ missing Spanish phrases",
+        "category": "synonyms"
+      },
+      {
+        "type": "faq",
+        "title": "How do I legally change my name?",
+        "category": "family"
+      }
+    ],
+    "tier2_medium_priority": [
+      {
+        "type": "faq",
+        "title": "Does Idaho Legal Aid help veterans?",
+        "category": "veterans"
+      },
+      {
+        "type": "faq",
+        "title": "What are my rights in a mobile home park?",
+        "category": "housing"
+      },
+      {
+        "type": "faq",
+        "title": "Can I seal or expunge my criminal record?",
+        "category": "expungement"
+      },
+      {
+        "type": "faq",
+        "title": "How do I become guardian for a disabled adult?",
+        "category": "guardianship"
+      }
+    ],
+    "tier3_low_priority": [
+      {
+        "type": "faq",
+        "title": "Tribal/Native American information or referrals",
+        "category": "tribal"
+      },
+      {
+        "type": "faq",
+        "title": "Education/special needs information",
+        "category": "education"
+      },
+      {
+        "type": "faq",
+        "title": "What can I do about medical debt?",
+        "category": "consumer"
+      },
+      {
+        "type": "faq",
+        "title": "What is probate?",
+        "category": "seniors"
+      }
+    ]
+  },
+  "success_metrics_targets": {
+    "intent_accuracy": {
+      "baseline": 0.942,
+      "target": 0.97
+    },
+    "fallback_rate": {
+      "baseline": 0.15,
+      "target": 0.08
+    },
+    "spanish_query_success": {
+      "baseline": 0.65,
+      "target": 0.85
+    },
+    "typo_tolerance": {
+      "baseline": 0.70,
+      "target": 0.90
+    },
+    "employment_routing": {
+      "baseline": 0.0,
+      "target": 0.90
+    },
+    "utility_routing": {
+      "baseline": 0.30,
+      "target": 0.85
+    }
+  }
+}

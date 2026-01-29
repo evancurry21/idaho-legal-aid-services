@@ -1,0 +1,346 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "generated_at": "2026-01-23T00:00:00Z",
+    "source": "Coverage Gap Analysis"
+  },
+  "summary": {
+    "total_items": 25,
+    "by_priority": {
+      "P0": 1,
+      "P1": 5,
+      "P2": 8,
+      "P3": 11
+    },
+    "by_type": {
+      "bug_fix": 2,
+      "code_change": 4,
+      "content": 15,
+      "decision": 3,
+      "test_fix": 1
+    }
+  },
+  "backlog": [
+    {
+      "id": "BUG-001",
+      "title": "Fix high_risk_dv trigger matching",
+      "type": "bug_fix",
+      "priority": "P0",
+      "status": "todo",
+      "description": "Domestic violence queries (0% detection) are not triggering urgent safety responses. The triggers exist in IntentRouter but are not matching user queries.",
+      "affected_component": "IntentRouter.php",
+      "test_cases": ["high_risk_dv category in golden dataset"],
+      "acceptance_criteria": [
+        "All 9 high_risk_dv test cases pass",
+        "DV queries route to urgent_safety intent",
+        "Safety language included in response"
+      ]
+    },
+    {
+      "id": "CODE-001",
+      "title": "Add employment intent patterns to IntentRouter",
+      "type": "code_change",
+      "priority": "P1",
+      "status": "todo",
+      "description": "Add topic_employment intent with patterns for fired, wrongful termination, unpaid wages, etc.",
+      "affected_component": "IntentRouter.php",
+      "patterns_to_add": [
+        "/\\b(fired|wrongful\\s*(termination|firing)|terminated)/i",
+        "/\\b(unpaid\\s*wages?|wage\\s*theft|not\\s*(getting|been)\\s*paid)/i",
+        "/\\b(work(place)?\\s*discrimination|hostile\\s*work)/i",
+        "/\\b(final\\s*paycheck|owed\\s*money\\s*from\\s*(work|job|employer))/i",
+        "/\\b(despedido|no\\s*me\\s*pagan|perdí\\s*mi\\s*trabajo)/i"
+      ],
+      "acceptance_criteria": [
+        "Employment queries route to topic_employment",
+        "Service area linked to appropriate page",
+        "Spanish queries also detected"
+      ]
+    },
+    {
+      "id": "CONTENT-001",
+      "title": "Import employment FAQ: What if I was fired unfairly?",
+      "type": "content",
+      "priority": "P1",
+      "status": "todo",
+      "description": "Create FAQ paragraph in Drupal covering wrongful termination in Idaho",
+      "content_source": "config/kb-stubs/top5-gap-faq-stubs.yml",
+      "anchor_id": "what-if-i-was-fired-unfairly",
+      "category": "Employment",
+      "keywords": ["fired", "terminated", "wrongful termination", "laid off", "despedido"],
+      "acceptance_criteria": [
+        "FAQ appears in search results for 'fired'",
+        "Anchor link works correctly",
+        "Search API indexed"
+      ]
+    },
+    {
+      "id": "CONTENT-002",
+      "title": "Import employment FAQ: How do I collect unpaid wages?",
+      "type": "content",
+      "priority": "P1",
+      "status": "todo",
+      "description": "Create FAQ paragraph covering wage claims and small claims court",
+      "content_source": "config/kb-stubs/top5-gap-faq-stubs.yml",
+      "anchor_id": "how-do-i-collect-unpaid-wages",
+      "category": "Employment",
+      "keywords": ["unpaid wages", "owed money", "final paycheck", "wage theft"],
+      "acceptance_criteria": [
+        "FAQ appears in search results for 'unpaid wages'",
+        "Links to Idaho DOL and small claims info"
+      ]
+    },
+    {
+      "id": "TEST-001",
+      "title": "Fix evaluation harness action comparison",
+      "type": "test_fix",
+      "priority": "P1",
+      "status": "todo",
+      "description": "The evaluator compares URL paths (/apply-for-help) against response types (faq). Need to map response types to canonical URLs or compare differently.",
+      "affected_component": "scripts/chatbot-eval/ChatbotEvaluator.php",
+      "acceptance_criteria": [
+        "Action comparison uses consistent format",
+        "Valid matches marked as passed",
+        "Pass rate reflects actual accuracy"
+      ]
+    },
+    {
+      "id": "CODE-002",
+      "title": "Add utility urgent safety triggers",
+      "type": "code_change",
+      "priority": "P2",
+      "status": "todo",
+      "description": "Add urgent_utility triggers for imminent shutoff situations",
+      "affected_component": "IntentRouter.php or negatives.yml",
+      "triggers_to_add": [
+        "utility shutoff today",
+        "power disconnected today",
+        "no heat",
+        "freezing",
+        "me cortaron la luz hoy"
+      ],
+      "acceptance_criteria": [
+        "Imminent utility shutoff triggers urgent response",
+        "Links to LIHEAP and Community Action"
+      ]
+    },
+    {
+      "id": "CONTENT-003",
+      "title": "Import utility FAQ: What if my utilities are being shut off?",
+      "type": "content",
+      "priority": "P2",
+      "status": "todo",
+      "description": "Create FAQ covering utility shutoff rights, LIHEAP, payment plans",
+      "content_source": "config/kb-stubs/top5-gap-faq-stubs.yml",
+      "anchor_id": "what-if-my-utilities-are-being-shut-off",
+      "category": "Consumer",
+      "keywords": ["utility shutoff", "LIHEAP", "power disconnected", "energy assistance"]
+    },
+    {
+      "id": "CONTENT-004",
+      "title": "Import FAQ: How do I legally change my name?",
+      "type": "content",
+      "priority": "P2",
+      "status": "todo",
+      "description": "Create FAQ covering name change process in Idaho",
+      "content_source": "config/kb-stubs/top5-gap-faq-stubs.yml",
+      "anchor_id": "how-do-i-legally-change-my-name",
+      "category": "Family",
+      "keywords": ["name change", "legal name", "court petition", "cambiar mi nombre"]
+    },
+    {
+      "id": "CONTENT-005",
+      "title": "Import FAQ: What are my rights in a mobile home park?",
+      "type": "content",
+      "priority": "P2",
+      "status": "todo",
+      "description": "Create FAQ covering mobile home tenant rights under Idaho law",
+      "content_source": "config/kb-stubs/top5-gap-faq-stubs.yml",
+      "anchor_id": "what-are-my-rights-in-a-mobile-home-park",
+      "category": "Housing",
+      "keywords": ["mobile home", "manufactured home", "trailer park", "lot rent"]
+    },
+    {
+      "id": "CONTENT-006",
+      "title": "Import FAQ: Does Idaho Legal Aid help veterans?",
+      "type": "content",
+      "priority": "P2",
+      "status": "todo",
+      "description": "Create FAQ explaining services for veterans and referrals",
+      "content_source": "config/kb-stubs/top5-gap-faq-stubs.yml",
+      "anchor_id": "does-idaho-legal-aid-help-veterans",
+      "category": "General",
+      "keywords": ["veteran", "VA benefits", "military", "discharge upgrade"]
+    },
+    {
+      "id": "CODE-003",
+      "title": "Add mobile home patterns to housing intent",
+      "type": "code_change",
+      "priority": "P2",
+      "status": "todo",
+      "description": "Ensure mobile home queries route to housing with proper context",
+      "patterns_to_add": [
+        "/\\b(mobile\\s*home|manufactured\\s*home)/i",
+        "/\\b(trailer\\s*park|lot\\s*rent)/i",
+        "/\\bcasa\\s*movil/i"
+      ]
+    },
+    {
+      "id": "CODE-004",
+      "title": "Add name change patterns to forms intent",
+      "type": "code_change",
+      "priority": "P2",
+      "status": "todo",
+      "description": "Ensure name change queries can route to forms or FAQ",
+      "patterns_to_add": [
+        "/\\b(change\\s*my\\s*name|legal\\s*name\\s*change)/i",
+        "/\\bname\\s*change\\s*(form|petition)/i",
+        "/\\bcambiar\\s*mi\\s*nombre/i"
+      ]
+    },
+    {
+      "id": "DECISION-001",
+      "title": "Determine expungement scope",
+      "type": "decision",
+      "priority": "P3",
+      "status": "todo",
+      "description": "Decide if civil expungement/record sealing is in-scope for ILAS. If yes, add content. If no, add out-of-scope routing with referrals.",
+      "options": [
+        "In-scope: Add FAQ, forms, guide",
+        "Partial: Info only, refer for assistance",
+        "Out-of-scope: Route to out-of-scope with referrals"
+      ]
+    },
+    {
+      "id": "CONTENT-007",
+      "title": "Import FAQ: Can I seal or expunge my criminal record?",
+      "type": "content",
+      "priority": "P3",
+      "status": "blocked",
+      "blocked_by": "DECISION-001",
+      "description": "Create FAQ covering expungement process (pending scope decision)",
+      "content_source": "config/kb-stubs/top5-gap-faq-stubs.yml",
+      "anchor_id": "can-i-seal-or-expunge-my-criminal-record",
+      "category": "Consumer"
+    },
+    {
+      "id": "CONTENT-008",
+      "title": "Expand guardianship FAQ beyond seniors",
+      "type": "content",
+      "priority": "P3",
+      "status": "todo",
+      "description": "Add FAQ covering guardianship for incapacitated adults (non-senior)",
+      "anchor_id": "how-do-i-become-guardian-for-a-disabled-adult",
+      "category": "Family",
+      "keywords": ["guardianship", "disabled adult", "incapacitated", "developmental disability"]
+    },
+    {
+      "id": "DECISION-002",
+      "title": "Determine tribal/Native American scope",
+      "type": "decision",
+      "priority": "P3",
+      "status": "todo",
+      "description": "Decide how to handle tribal court and ICWA queries. Significant Native American population in Idaho.",
+      "options": [
+        "In-scope for some issues",
+        "Referral only to tribal courts/legal services",
+        "Informational FAQ about jurisdiction"
+      ]
+    },
+    {
+      "id": "CONTENT-009",
+      "title": "Add tribal/Native American information",
+      "type": "content",
+      "priority": "P3",
+      "status": "blocked",
+      "blocked_by": "DECISION-002",
+      "description": "Add FAQ or referral information for tribal legal issues"
+    },
+    {
+      "id": "DECISION-003",
+      "title": "Determine education/special needs scope",
+      "type": "decision",
+      "priority": "P3",
+      "status": "todo",
+      "description": "Decide if education law (IEP, 504, school discipline) is in-scope",
+      "options": [
+        "In-scope",
+        "Referral to disability advocates",
+        "Out-of-scope"
+      ]
+    },
+    {
+      "id": "CONTENT-010",
+      "title": "Add medical debt specific FAQ",
+      "type": "content",
+      "priority": "P3",
+      "status": "todo",
+      "description": "Create FAQ specific to medical debt with charity care info",
+      "anchor_id": "what-can-i-do-about-medical-debt",
+      "category": "Consumer",
+      "keywords": ["medical bills", "hospital debt", "medical collection", "charity care"]
+    },
+    {
+      "id": "CONTENT-011",
+      "title": "Add probate FAQ for non-seniors",
+      "type": "content",
+      "priority": "P3",
+      "status": "todo",
+      "description": "Expand probate coverage beyond senior-focused content",
+      "anchor_id": "what-is-probate",
+      "category": "General",
+      "keywords": ["probate", "will", "estate", "inherit", "intestate"]
+    },
+    {
+      "id": "CONTENT-012",
+      "title": "Add Spanish translations for key FAQs",
+      "type": "content",
+      "priority": "P3",
+      "status": "todo",
+      "description": "Translate top 10 FAQs to Spanish",
+      "acceptance_criteria": [
+        "Employment FAQs in Spanish",
+        "Housing FAQs in Spanish",
+        "Application process in Spanish"
+      ]
+    },
+    {
+      "id": "BUG-002",
+      "title": "Fix deadline urgency detection",
+      "type": "bug_fix",
+      "priority": "P3",
+      "status": "todo",
+      "description": "high_risk_deadline at 0% - urgent deadline queries not detected",
+      "test_cases": ["high_risk_deadline category in golden dataset"],
+      "acceptance_criteria": [
+        "Deadline queries trigger urgent response",
+        "Court date tomorrow detected",
+        "Response due today detected"
+      ]
+    },
+    {
+      "id": "CONTENT-013",
+      "title": "Review and update synonym coverage",
+      "type": "content",
+      "priority": "P3",
+      "status": "in_progress",
+      "description": "Already added many synonyms, need to verify they're being loaded",
+      "files_modified": [
+        "config/routing/synonyms.yml",
+        "config/routing/phrases.yml"
+      ]
+    },
+    {
+      "id": "CONTENT-014",
+      "title": "Add common typo corrections",
+      "type": "content",
+      "priority": "P3",
+      "status": "in_progress",
+      "description": "Already added typo corrections to synonyms.yml",
+      "typos_added": [
+        "evicton", "cutsody", "divorec", "bankrupcy",
+        "protecton", "aplicaton", "landord"
+      ]
+    }
+  ]
+}

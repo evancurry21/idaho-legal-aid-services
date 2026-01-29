@@ -1,0 +1,141 @@
+{
+  "description": "Test cases for multi-turn Guide Finder flow",
+  "version": "1.0",
+  "cases": [
+    {
+      "id": "gf_bare_1",
+      "input": "Find a guide",
+      "context": {"quickAction": "guides"},
+      "expected_type": "guide_finder_clarify",
+      "expected_message_contains": "What kind of guide",
+      "expected_topic_suggestions": true,
+      "notes": "Bare 'Find a Guide' click should produce clarifying prompt, not results"
+    },
+    {
+      "id": "gf_bare_2",
+      "input": "I need a guide",
+      "expected_type": "guide_finder_clarify",
+      "expected_message_contains": "What kind of guide",
+      "notes": "Generic guide request without topic should clarify"
+    },
+    {
+      "id": "gf_bare_3",
+      "input": "Get me a guide",
+      "expected_type": "guide_finder_clarify",
+      "expected_message_contains": "What kind of guide",
+      "notes": "Generic 'get me a guide' should clarify"
+    },
+    {
+      "id": "gf_bare_4",
+      "input": "Where can I find guides",
+      "expected_type": "guide_finder_clarify",
+      "expected_message_contains": "What kind of guide",
+      "notes": "Generic navigation to guides should clarify"
+    },
+    {
+      "id": "gf_topic_eviction",
+      "input": "Find housing and eviction guides",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "housing",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified guide search should return housing guides"
+    },
+    {
+      "id": "gf_topic_divorce",
+      "input": "Find family and divorce guides",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "family",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified guide search should return family law guides"
+    },
+    {
+      "id": "gf_topic_debt",
+      "input": "Find consumer and debt guides",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "consumer",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified guide search should return consumer/debt guides"
+    },
+    {
+      "id": "gf_topic_poa",
+      "input": "Find senior and estate planning guides",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "seniors",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified guide search should return seniors/estate guides"
+    },
+    {
+      "id": "gf_topic_protection",
+      "input": "Find protection order guides",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "safety",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified guide search should return protection order guides"
+    },
+    {
+      "id": "gf_keyword_eviction",
+      "input": "eviction guide",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Direct keyword + guide should search, not clarify"
+    },
+    {
+      "id": "gf_keyword_divorce",
+      "input": "divorce guide",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Direct keyword + guide should search"
+    },
+    {
+      "id": "gf_keyword_custody",
+      "input": "child custody guide",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Direct keyword + guide should search"
+    },
+    {
+      "id": "gf_keyword_power_of_attorney",
+      "input": "power of attorney guide",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Multi-word topic + guide should search"
+    },
+    {
+      "id": "gf_nonsense_fallback",
+      "input": "Find xyzzy blorpnax guides",
+      "expected_type": "resources",
+      "expected_results_count": 0,
+      "expected_fallback_url_contains": "/guides",
+      "expected_fallback_label": "Browse all guides",
+      "notes": "Nonsense query should trigger fallback with /guides CTA"
+    },
+    {
+      "id": "gf_guardrail_legal_advice",
+      "input": "Should I file for divorce",
+      "expected_type_not": "resources",
+      "notes": "Legal advice question should NOT return guides"
+    },
+    {
+      "id": "gf_description_quality",
+      "input": "Find housing and eviction guides",
+      "validate_descriptions": true,
+      "description_max_length": 240,
+      "description_must_not_contain": [
+        "Idaho Legal Aid Services provides",
+        "Skip to main content",
+        "Home >",
+        "You are here"
+      ],
+      "notes": "Descriptions should be clean, meaningful summaries—not boilerplate"
+    }
+  ]
+}

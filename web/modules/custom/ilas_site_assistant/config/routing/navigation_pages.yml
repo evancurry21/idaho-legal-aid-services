@@ -1,0 +1,368 @@
+# Navigation Page Index
+#
+# Maps navigable pages to their titles, slugs, aliases, and keywords.
+# Used by NavigationIntent to match "show me the forms page" style queries.
+#
+# Each page has:
+#   url:       Canonical URL path
+#   label:     Human-readable page title
+#   slug:      Short slug used in URL or common shorthand
+#   aliases:   Alternative names/phrases users might use
+#   keywords:  Individual keywords that suggest this page
+
+apply:
+  url: /apply-for-help
+  label: Apply for Help
+  slug: apply
+  aliases:
+    - application
+    - apply for help
+    - intake
+    - get started
+    - sign up
+    - aplicar
+    - solicitud
+  keywords:
+    - apply
+    - application
+    - intake
+    - started
+    - sign up
+    - aplicar
+    - solicitud
+
+hotline:
+  url: /Legal-Advice-Line
+  label: Legal Advice Line
+  slug: hotline
+  aliases:
+    - hotline
+    - advice line
+    - legal advice line
+    - phone line
+    - helpline
+    - linea de ayuda
+  keywords:
+    - hotline
+    - advice
+    - phone
+    - call
+    - helpline
+    - linea
+    - llamar
+    - telefono
+
+offices:
+  url: /contact/offices
+  label: Office Locations
+  slug: offices
+  aliases:
+    - offices
+    - office locations
+    - locations
+    - contact
+    - contact us
+    - oficinas
+    - direccion
+  keywords:
+    - office
+    - offices
+    - location
+    - locations
+    - address
+    - contact
+    - visit
+    - hours
+    - oficina
+    - direccion
+    - horario
+    - located
+
+forms:
+  url: /forms
+  label: Forms
+  slug: forms
+  aliases:
+    - forms
+    - legal forms
+    - court forms
+    - paperwork
+    - documents
+    - formularios
+    - froms
+    - blank forms
+  keywords:
+    - form
+    - forms
+    - paperwork
+    - document
+    - documents
+    - download
+    - pdf
+    - court papers
+    - formulario
+    - formularios
+
+guides:
+  url: /guides
+  label: Guides
+  slug: guides
+  aliases:
+    - guides
+    - self-help
+    - self help
+    - how-to
+    - how to guides
+    - guias
+    - giudes
+    - giude
+  keywords:
+    - guide
+    - guides
+    - how-to
+    - instructions
+    - self-help
+    - step by step
+    - manual
+    - guia
+    - guias
+
+faq:
+  url: /faq
+  label: FAQ
+  slug: faq
+  aliases:
+    - faq
+    - faqs
+    - frequently asked questions
+    - common questions
+    - preguntas frecuentes
+  keywords:
+    - faq
+    - faqs
+    - question
+    - questions
+    - frequently
+    - answers
+    - preguntas
+
+donate:
+  url: /donate
+  label: Donate
+  slug: donate
+  aliases:
+    - donate
+    - donations
+    - give
+    - contribute
+    - donar
+    - donacion
+    - donatoin
+    - dontae
+  keywords:
+    - donate
+    - donation
+    - give
+    - contribute
+    - support
+    - gift
+    - donar
+    - donacion
+
+feedback:
+  url: /get-involved/feedback
+  label: Feedback
+  slug: feedback
+  aliases:
+    - feedback
+    - complaint
+    - complaints
+    - grievance
+    - queja
+  keywords:
+    - feedback
+    - complaint
+    - grievance
+    - review
+    - suggestion
+    - queja
+    - comentario
+
+resources:
+  url: /what-we-do/resources
+  label: Resources
+  slug: resources
+  aliases:
+    - resources
+    - legal resources
+    - resource library
+    - recursos
+  keywords:
+    - resource
+    - resources
+    - library
+    - download
+    - printable
+    - recursos
+
+services:
+  url: /services
+  label: Our Services
+  slug: services
+  aliases:
+    - services
+    - our services
+    - what we do
+    - practice areas
+    - servicios
+    - what you do
+  keywords:
+    - services
+    - service
+    - help
+    - practice
+    - areas
+    - servicios
+
+senior_risk_detector:
+  url: /resources/legal-risk-detector
+  label: Legal Risk Detector
+  slug: risk detector
+  aliases:
+    - risk detector
+    - legal risk detector
+    - senior risk
+    - legal checkup
+    - risk assessment
+    - evaluacion de riesgo
+  keywords:
+    - risk
+    - detector
+    - assessment
+    - quiz
+    - checkup
+    - senior
+    - elderly
+    - evaluacion
+    - riesgo
+
+housing:
+  url: /legal-help/housing
+  label: Housing
+  slug: housing
+  aliases:
+    - housing
+    - housing help
+    - housing page
+    - eviction help
+    - landlord tenant
+    - vivienda
+  keywords:
+    - housing
+    - eviction
+    - landlord
+    - tenant
+    - rent
+    - lease
+    - vivienda
+    - desalojo
+
+family:
+  url: /legal-help/family
+  label: Family Law
+  slug: family
+  aliases:
+    - family
+    - family law
+    - family help
+    - divorce page
+    - custody page
+    - familia
+  keywords:
+    - family
+    - divorce
+    - custody
+    - child support
+    - adoption
+    - familia
+    - divorcio
+    - custodia
+
+seniors:
+  url: /legal-help/seniors
+  label: Seniors
+  slug: seniors
+  aliases:
+    - seniors
+    - senior help
+    - elder law
+    - elderly
+    - ancianos
+  keywords:
+    - senior
+    - seniors
+    - elderly
+    - elder
+    - older
+    - aging
+    - ancianos
+
+health:
+  url: /legal-help/health
+  label: Health & Benefits
+  slug: health
+  aliases:
+    - health
+    - benefits
+    - health benefits
+    - medicaid
+    - salud
+    - beneficios
+  keywords:
+    - health
+    - benefits
+    - medicaid
+    - medicare
+    - insurance
+    - disability
+    - snap
+    - salud
+    - beneficios
+
+consumer:
+  url: /legal-help/consumer
+  label: Consumer
+  slug: consumer
+  aliases:
+    - consumer
+    - consumer help
+    - debt help
+    - scam help
+    - consumidor
+  keywords:
+    - consumer
+    - debt
+    - bankruptcy
+    - scam
+    - fraud
+    - credit
+    - consumidor
+    - deuda
+
+civil_rights:
+  url: /legal-help/civil-rights
+  label: Civil Rights
+  slug: civil rights
+  aliases:
+    - civil rights
+    - discrimination
+    - employment rights
+    - derechos civiles
+  keywords:
+    - civil
+    - rights
+    - discrimination
+    - employment
+    - harassment
+    - derechos
+    - discriminacion

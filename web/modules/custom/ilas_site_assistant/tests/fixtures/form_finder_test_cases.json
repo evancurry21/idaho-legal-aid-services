@@ -1,0 +1,148 @@
+{
+  "description": "Test cases for multi-turn Form Finder flow",
+  "version": "1.0",
+  "cases": [
+    {
+      "id": "ff_bare_1",
+      "input": "Find a form",
+      "context": {"quickAction": "forms"},
+      "expected_type": "form_finder_clarify",
+      "expected_message_contains": "What kind of form",
+      "expected_topic_suggestions": true,
+      "notes": "Bare 'Find a Form' click should produce clarifying prompt, not results"
+    },
+    {
+      "id": "ff_bare_2",
+      "input": "I need a form",
+      "expected_type": "form_finder_clarify",
+      "expected_message_contains": "What kind of form",
+      "notes": "Generic form request without topic should clarify"
+    },
+    {
+      "id": "ff_bare_3",
+      "input": "Get me a form",
+      "expected_type": "form_finder_clarify",
+      "expected_message_contains": "What kind of form",
+      "notes": "Generic 'get me a form' should clarify"
+    },
+    {
+      "id": "ff_bare_4",
+      "input": "Where can I find forms",
+      "expected_type": "form_finder_clarify",
+      "expected_message_contains": "What kind of form",
+      "notes": "Generic navigation to forms should clarify"
+    },
+    {
+      "id": "ff_topic_eviction",
+      "input": "Find housing and eviction forms",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "housing",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified form search should return housing forms"
+    },
+    {
+      "id": "ff_topic_divorce",
+      "input": "Find family and divorce forms",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "family",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified form search should return family law forms"
+    },
+    {
+      "id": "ff_topic_debt",
+      "input": "Find consumer and debt forms",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "consumer",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified form search should return consumer/debt forms"
+    },
+    {
+      "id": "ff_topic_poa",
+      "input": "Find senior and estate planning forms",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "seniors",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified form search should return seniors/estate forms"
+    },
+    {
+      "id": "ff_topic_protection",
+      "input": "Find protection order forms",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "expected_results_topic": "safety",
+      "description_not_boilerplate": true,
+      "notes": "Topic-qualified form search should return protection order forms"
+    },
+    {
+      "id": "ff_keyword_eviction",
+      "input": "eviction forms",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Direct keyword + form should search, not clarify"
+    },
+    {
+      "id": "ff_keyword_divorce",
+      "input": "divorce paperwork",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Direct keyword + paperwork should search"
+    },
+    {
+      "id": "ff_keyword_custody",
+      "input": "child custody forms",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Direct keyword + forms should search"
+    },
+    {
+      "id": "ff_keyword_bankruptcy",
+      "input": "bankruptcy forms",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Direct keyword + forms should search"
+    },
+    {
+      "id": "ff_keyword_guardianship",
+      "input": "guardianship paperwork",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Direct keyword + paperwork should search"
+    },
+    {
+      "id": "ff_keyword_small_claims",
+      "input": "small claims court form",
+      "expected_type": "resources",
+      "expected_results_min": 1,
+      "description_not_boilerplate": true,
+      "notes": "Multi-word topic + form should search"
+    },
+    {
+      "id": "ff_guardrail_legal_advice",
+      "input": "Should I file for divorce",
+      "expected_type_not": "resources",
+      "notes": "Legal advice question should NOT return forms"
+    },
+    {
+      "id": "ff_description_quality",
+      "input": "Find housing and eviction forms",
+      "validate_descriptions": true,
+      "description_max_length": 240,
+      "description_must_not_contain": [
+        "Idaho Legal Aid Services provides",
+        "Skip to main content",
+        "Home >",
+        "You are here"
+      ],
+      "notes": "Descriptions should be clean, meaningful summaries—not boilerplate"
+    }
+  ]
+}

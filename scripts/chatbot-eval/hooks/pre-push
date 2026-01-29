@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# ILAS Chatbot Pre-Push Hook
+# Runs validation checks before pushing to remote.
+#
+# Install with:
+#   cp scripts/chatbot-eval/hooks/pre-push .git/hooks/pre-push
+#   chmod +x .git/hooks/pre-push
+#
+# Or run:
+#   scripts/chatbot-eval/hooks/install-hook.sh
+
+set -e
+
+# Get the directory of this script.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Check if any routing config files are being pushed.
+CONFIG_CHANGED=false
+
+# Get list of files being pushed.
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    # Branch is being deleted, skip.
+    continue
+  fi
+
+  # Check for config changes in this push.
+  if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    # New branch, check all files.
+    RANGE="$local_sha"
+  else
+    RANGE="$remote_sha..$local_sha"
+  fi
+
+  # Look for changes to routing config or settings.
+  CHANGED_FILES=$(git diff --name-only "$RANGE" 2>/dev/null || echo "")
+
+  if echo "$CHANGED_FILES" | grep -qE '(config/routing/|ilas_site_assistant\.settings\.yml|chatbot-golden-dataset\.csv)'; then
+    CONFIG_CHANGED=true
+    break
+  fi
+done
+
+# If no config files changed, allow push without checks.
+if [ "$CONFIG_CHANGED" = false ]; then
+  echo "No chatbot config changes detected, skipping CI check."
+  exit 0
+fi
+
+echo ""
+echo "=========================================="
+echo "Chatbot config changes detected!"
+echo "Running pre-push validation..."
+echo "=========================================="
+echo ""
+
+# Run the CI check script.
+if php "$PROJECT_ROOT/scripts/chatbot-eval/ci-check.php" --smoke-limit=30; then
+  echo ""
+  echo "Pre-push checks passed!"
+  exit 0
+else
+  echo ""
+  echo "=========================================="
+  echo "PRE-PUSH CHECKS FAILED"
+  echo "=========================================="
+  echo ""
+  echo "Your changes may have introduced a regression."
+  echo "Please fix the issues before pushing."
+  echo ""
+  echo "To bypass this check (not recommended):"
+  echo "  git push --no-verify"
+  echo ""
+  exit 1
+fi
