@@ -5,6 +5,7 @@ namespace Drupal\ilas_site_assistant\Controller;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * Controller for the Site Assistant dedicated page.
@@ -45,6 +46,11 @@ class AssistantPageController extends ControllerBase {
    */
   public function page() {
     $config = $this->configFactory->get('ilas_site_assistant.settings');
+
+    // Block access when the assistant is disabled (e.g. production).
+    if (!$config->get('enable_global_widget')) {
+      throw new AccessDeniedHttpException();
+    }
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
 
     // Build suggestions for quick actions.
