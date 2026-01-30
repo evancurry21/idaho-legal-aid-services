@@ -5,20 +5,20 @@ dependencies: {  }
 id: node__legal_content
 label: 'Content: Legal Content'
 tags:
-  title: '[node:title] | [node:field_service_area:entity:name] | [site:name]'
-  description: '[node:field_legal_content_description:summary]'
+  title: '[node:title] | [site:name]'
+  description: '[node:field_legal_content_description:summary|Learn about [node:title]. Free legal help with [node:field_service_area:entity:name] issues from Idaho Legal Aid Services.]'
   og_type: article
   schema_web_page_type: WebPage
   schema_web_page_id: '[node:url]#webpage'
   schema_web_page_name: '[node:title]'
-  schema_web_page_description: '[node:field_legal_content_description:summary]'
+  schema_web_page_description: '[node:field_legal_content_description:summary|Learn about [node:title]. Free legal help with [node:field_service_area:entity:name] issues from Idaho Legal Aid Services.]'
   schema_web_page_is_part_of: 'a:2:{s:5:"@type";s:7:"WebSite";s:3:"@id";s:38:"https://idaholegalaid.org/#website";}'
   schema_article_type: Article
   schema_article_id: '[node:url]#article'
   schema_article_name: '[node:title]'
   schema_article_headline: '[node:title]'
-  schema_article_description: '[node:field_legal_content_description:summary]'
-  schema_article_image: '[node:field_legal_content_image:entity:field_media_image:url]'
+  schema_article_description: '[node:field_legal_content_description:summary|Learn about [node:title]. Free legal help with [node:field_service_area:entity:name] issues from Idaho Legal Aid Services.]'
+  schema_article_image: '[node:field_legal_content_image:entity:field_media_image:url|node:field_seo_image:entity:field_media_image:url|node:field_featured_image:entity:field_media_image:url|https://idaholegalaid.org/themes/custom/b5subtheme/logo.svg]'
   schema_article_date_published: '[node:created:custom:c]'
   schema_article_date_modified: '[node:changed:custom:c]'
   schema_article_author: 'a:3:{s:5:"@type";s:12:"Organization";s:4:"name";s:24:"Idaho Legal Aid Services";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'

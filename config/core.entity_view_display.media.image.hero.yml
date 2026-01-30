@@ -5,17 +5,30 @@ dependencies:
   config:
     - core.entity_view_mode.media.hero
     - field.field.media.image.field_media_image
+    - image.style.5_2_1300x520_focal_point_webp
     - media.type.image
+  module:
+    - image
 _core:
   default_config_hash: bRkbUUam-k4ca3cG_O0yJzoKiQu3dTprhyhjfjVsuvI
 id: media.image.hero
 targetEntityType: media
 bundle: image
 mode: hero
-content: {  }
+content:
+  field_media_image:
+    type: image
+    label: visually_hidden
+    settings:
+      image_link: ''
+      image_style: 5_2_1300x520_focal_point_webp
+      image_loading:
+        attribute: lazy
+    third_party_settings: {  }
+    weight: 1
+    region: content
 hidden:
   created: true
-  field_media_image: true
   langcode: true
   name: true
   search_api_excerpt: true

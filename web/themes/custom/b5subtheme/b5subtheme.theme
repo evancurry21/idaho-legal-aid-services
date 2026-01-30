@@ -547,6 +547,60 @@ function b5subtheme_preprocess_html(array &$variables): void {
 
   // Add JSON-LD BreadcrumbList schema for SEO.
   _b5subtheme_add_breadcrumb_schema($variables);
+
+  // Add WebSite + SearchAction schema on the front page.
+  _b5subtheme_add_website_search_schema($variables);
+}
+
+/**
+ * Adds WebSite + SearchAction JSON-LD schema to the front page head.
+ *
+ * The schema_metatag module's serialized PHP array for potentialAction does
+ * not reliably deserialize into the rendered JSON-LD. This helper ensures the
+ * SearchAction is always present on the homepage, which is required for
+ * Google's sitelinks search box eligibility.
+ *
+ * @param array $variables
+ *   The variables array from hook_preprocess_html.
+ */
+function _b5subtheme_add_website_search_schema(array &$variables): void {
+  if (!\Drupal::service('path.matcher')->isFrontPage()) {
+    return;
+  }
+
+  $schema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'WebSite',
+    '@id' => 'https://idaholegalaid.org/#website',
+    'name' => 'Idaho Legal Aid Services',
+    'url' => 'https://idaholegalaid.org',
+    'publisher' => [
+      '@type' => 'NGO',
+      '@id' => 'https://idaholegalaid.org/#organization',
+    ],
+    'inLanguage' => ['en', 'es'],
+    'potentialAction' => [
+      '@type' => 'SearchAction',
+      'target' => [
+        '@type' => 'EntryPoint',
+        'urlTemplate' => 'https://idaholegalaid.org/search?keys={search_term_string}',
+      ],
+      'query-input' => 'required name=search_term_string',
+    ],
+  ];
+
+  if (!isset($variables['page']) || !is_array($variables['page'])) {
+    $variables['page'] = [];
+  }
+  $variables['page']['#attached']['html_head'][] = [
+    [
+      '#type' => 'html_tag',
+      '#tag' => 'script',
+      '#attributes' => ['type' => 'application/ld+json'],
+      '#value' => json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
+    ],
+    'website_search_schema',
+  ];
 }
 
 /**

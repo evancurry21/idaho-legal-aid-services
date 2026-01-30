@@ -5,17 +5,30 @@ dependencies:
   config:
     - core.entity_view_mode.media.3_2_medium
     - field.field.media.image.field_media_image
+    - image.style.3_2_600x400_focal_point_webp
     - media.type.image
+  module:
+    - image
 _core:
   default_config_hash: 1j5FW20IGfbOgCuJ2q11uiWijLYeFOhW8ihRB27RpMg
 id: media.image.3_2_medium
 targetEntityType: media
 bundle: image
 mode: 3_2_medium
-content: {  }
+content:
+  field_media_image:
+    type: image
+    label: visually_hidden
+    settings:
+      image_link: ''
+      image_style: 3_2_600x400_focal_point_webp
+      image_loading:
+        attribute: lazy
+    third_party_settings: {  }
+    weight: 1
+    region: content
 hidden:
   created: true
-  field_media_image: true
   langcode: true
   name: true
   search_api_excerpt: true

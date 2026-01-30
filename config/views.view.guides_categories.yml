@@ -478,7 +478,19 @@ display:
     position: 1
     display_options:
       display_description: 'Guides landing page showing categories'
-      display_extenders: {  }
+      display_extenders:
+        metatag_display_extender:
+          metatags:
+            title: 'Legal Guides & How-To Resources | Idaho Legal Aid Services'
+            description: 'Browse free legal guides and step-by-step instructions for common legal issues in Idaho. Find how-to resources for family law, housing, benefits, and more from Idaho Legal Aid Services.'
+            canonical_url: 'https://idaholegalaid.org/guides'
+            robots: 'index, follow'
+            og_title: 'Legal Guides & How-To Resources'
+            og_description: 'Browse free legal guides and step-by-step instructions for common legal issues in Idaho. Family law, housing, benefits, and more.'
+            og_type: website
+            og_url: 'https://idaholegalaid.org/guides'
+            twitter_cards_title: 'Legal Guides & How-To Resources | Idaho Legal Aid'
+            twitter_cards_description: 'Free legal guides and step-by-step instructions for common legal issues in Idaho from Idaho Legal Aid Services.'
       path: guides
     cache_metadata:
       max-age: -1

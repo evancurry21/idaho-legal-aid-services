@@ -6,11 +6,13 @@ id: node__get_involved
 label: 'Content: Get Involved'
 tags:
   title: '[node:title] | Support Legal Aid | [site:name]'
-  description: '[node:field_subheader|node:field_main_content:summary]'
+  description: '[node:field_subheader|node:field_main_content:summary|[node:title] — support Idaho Legal Aid Services and help provide free civil legal assistance to low-income Idahoans.]'
   og_type: website
+  og_description: '[node:field_subheader|node:field_main_content:summary|[node:title] — support Idaho Legal Aid Services.]'
+  twitter_cards_description: '[node:field_subheader|node:field_main_content:summary|[node:title] — support Idaho Legal Aid Services.]'
   schema_web_page_type: WebPage
   schema_web_page_id: '[node:url]#webpage'
   schema_web_page_name: '[node:title]'
-  schema_web_page_description: '[node:field_subheader|node:field_main_content:summary]'
+  schema_web_page_description: '[node:field_subheader|node:field_main_content:summary|[node:title] — support Idaho Legal Aid Services and help provide free civil legal assistance to low-income Idahoans.]'
   schema_web_page_is_part_of: 'a:2:{s:5:"@type";s:7:"WebSite";s:3:"@id";s:38:"https://idaholegalaid.org/#website";}'
   schema_web_page_about: 'a:3:{s:5:"@type";s:3:"NGO";s:4:"name";s:24:"Idaho Legal Aid Services";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";}'

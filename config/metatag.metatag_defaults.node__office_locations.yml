@@ -5,4 +5,12 @@ dependencies: {  }
 id: node__office_locations
 label: 'Content: Office Locations'
 tags:
+  title: '[node:title] | Contact | [site:name]'
+  description: 'Find Idaho Legal Aid Services office locations across Idaho. Free civil legal help for low-income Idahoans — call 208-746-7541.'
+  og_type: website
+  og_description: 'Find Idaho Legal Aid Services office locations across Idaho. Free legal help — call 208-746-7541.'
+  twitter_cards_description: 'Find Idaho Legal Aid Services office locations across Idaho. Free legal help — call 208-746-7541.'
   schema_web_page_type: WebPage
+  schema_web_page_name: '[node:title]'
+  schema_web_page_description: 'Find Idaho Legal Aid Services office locations across Idaho. Free civil legal help for low-income Idahoans.'
+  schema_web_page_is_part_of: 'a:2:{s:5:"@type";s:7:"WebSite";s:3:"@id";s:38:"https://idaholegalaid.org/#website";}'
