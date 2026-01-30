@@ -72,9 +72,8 @@ if (isset($_ENV['PANTHEON_ENVIRONMENT']) && $_ENV['PANTHEON_ENVIRONMENT'] === 'l
  * from the SMTP_PASSWORD environment variable. This keeps the credential
  * out of exported config YAML and version control.
  *
- * On Pantheon, set it via:
- *   terminus secret:set <site>.<env> SMTP_PASSWORD <value> --scope=web
- * Locally (DDEV), add to .ddev/.env or export before `ddev start`.
+ * On Pantheon: set via Site Dashboard → Secrets, key "SMTP_PASSWORD", scope "Web".
+ * Locally (DDEV): add SMTP_PASSWORD=<value> to .ddev/.env, then ddev restart.
  */
 $smtp_pass = getenv('SMTP_PASSWORD');
 if ($smtp_pass) {
