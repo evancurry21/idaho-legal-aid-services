@@ -713,7 +713,7 @@ class EmploymentApplicationController extends ControllerBase {
 
       return $response;
 
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
       \Drupal::logger('employment_application')->error('Submission error: @error', [
         '@error' => $e->getMessage(),
       ]);
@@ -1310,7 +1310,10 @@ class EmploymentApplicationController extends ControllerBase {
    */
   private function generateApplicationPDF(array $data, array $files, string $applicationId): string {
     try {
-      // Use DomPDF directly since Entity Print installs it
+      if (!class_exists(\Dompdf\Options::class)) {
+        \Drupal::logger('employment_application')->error('Dompdf library is not installed. Run: composer require dompdf/dompdf');
+        return '';
+      }
       $options = new \Dompdf\Options();
       $options->set('defaultFont', 'DejaVu Sans');
       $options->set('isRemoteEnabled', false); // Security
@@ -1333,7 +1336,7 @@ class EmploymentApplicationController extends ControllerBase {
       // Return PDF content as string
       return $dompdf->output();
 
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
       \Drupal::logger('employment_application')->error('PDF generation failed: @error', [
         '@error' => $e->getMessage(),
       ]);
@@ -1346,7 +1349,10 @@ class EmploymentApplicationController extends ControllerBase {
    */
   private function generateMainApplicationPDF(array $data, array $files, string $applicationId): string {
     try {
-      // Use DomPDF directly since Entity Print installs it
+      if (!class_exists(\Dompdf\Options::class)) {
+        \Drupal::logger('employment_application')->error('Dompdf library is not installed. Run: composer require dompdf/dompdf');
+        return '';
+      }
       $options = new \Dompdf\Options();
       $options->set('defaultFont', 'DejaVu Sans');
       $options->set('isRemoteEnabled', false); // Security
@@ -1369,7 +1375,7 @@ class EmploymentApplicationController extends ControllerBase {
       // Return PDF content as string
       return $dompdf->output();
 
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
       \Drupal::logger('employment_application')->error('Main PDF generation failed: @error', [
         '@error' => $e->getMessage(),
       ]);
@@ -1693,6 +1699,7 @@ class EmploymentApplicationController extends ControllerBase {
       $adminEmail = (new Email())
         ->from('noreply@idaholegalaid.org')
         ->to($adminEmailAddress)
+        ->replyTo($data['email'] ?? 'noreply@idaholegalaid.org')
         ->subject("New Application: {$positionDisplay} - {$siteName}")
         ->text($this->formatAdminEmail($data, $files, $applicationId))
         ->html($this->formatAdminEmailHTML($data, $files, $applicationId));
@@ -1725,6 +1732,7 @@ class EmploymentApplicationController extends ControllerBase {
         $confirmEmail = (new Email())
           ->from('noreply@idaholegalaid.org')
           ->to($data['email'])
+          ->replyTo('noreply@idaholegalaid.org')
           ->subject("Application Received: {$positionDisplay} - {$siteName}")
           ->text($this->formatConfirmationEmail($data, $applicationId))
           ->html($this->formatConfirmationEmailHTML($data, $applicationId));
@@ -1734,7 +1742,7 @@ class EmploymentApplicationController extends ControllerBase {
         \Drupal::logger('employment_application')->info('Confirmation email sent successfully');
       }
 
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
       \Drupal::logger('employment_application')->error('Email sending failed: @error', [
         '@error' => $e->getMessage(),
       ]);
