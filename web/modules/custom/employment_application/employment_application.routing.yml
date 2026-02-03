@@ -60,11 +60,12 @@ employment_application.admin:
     _admin_route: TRUE
 
 employment_application.download:
-  path: '/admin/employment-applications/{application_id}/download/{fid}'
+  path: '/admin/employment-applications/{id}/download/{fid}'
   defaults:
     _controller: '\Drupal\employment_application\Controller\EmploymentApplicationController::downloadFile'
   requirements:
     _permission: 'administer employment applications'
     fid: \d+
+    id: \d+
   options:
     _admin_route: TRUE

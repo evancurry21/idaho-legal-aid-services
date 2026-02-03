@@ -1170,8 +1170,8 @@ class EmploymentApplicationController extends ControllerBase {
     // Use job title instead of position family
     $jobTitle = $data['job_title'] ?? 'Unknown Position';
 
-    // Format date as MM/DD/YYYY with time to ensure uniqueness
-    $dateSubmitted = date('m/d/Y H:i:s');
+    // Format date safely for URLs and filenames (YYYY-MM-DD HH-MM-SS)
+    $dateSubmitted = date('Y-m-d H-i-s');
 
     // Create ID: LastName, FirstName - JobTitle (DateSubmitted)
     $applicationId = "{$lastName}, {$firstName} - {$jobTitle} ({$dateSubmitted})";
@@ -1977,9 +1977,7 @@ class EmploymentApplicationController extends ControllerBase {
       if (!empty($fileData)) {
         foreach ($fileData as $fieldName => $fieldFiles) {
           foreach ($fieldFiles as $file) {
-            // URL-encode the application_id since it may contain special characters
-            $encodedAppId = rawurlencode($app->application_id);
-            $downloadUrl = '/admin/employment-applications/' . $encodedAppId . '/download/' . $file['fid'];
+            $downloadUrl = '/admin/employment-applications/' . $app->id . '/download/' . $file['fid'];
             $filesList .= '<a href="' . $downloadUrl . '">' . htmlspecialchars($file['filename']) . '</a><br>';
           }
         }
@@ -2017,11 +2015,11 @@ class EmploymentApplicationController extends ControllerBase {
    * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
    *   The file download response.
    */
-  public function downloadFile(string $application_id, int $fid): BinaryFileResponse {
+  public function downloadFile(int $id, int $fid): BinaryFileResponse {
     // Load application record to verify file ownership
     $application = \Drupal::database()->select('employment_applications', 'ea')
       ->fields('ea', ['file_data'])
-      ->condition('application_id', $application_id)
+      ->condition('id', $id)
       ->execute()
       ->fetchObject();
 
@@ -2050,7 +2048,7 @@ class EmploymentApplicationController extends ControllerBase {
     if (!$fidBelongsToApplication) {
       \Drupal::logger('employment_application')->warning('IDOR attempt: fid @fid not in application @app', [
         '@fid' => $fid,
-        '@app' => $application_id,
+        '@app' => $id,
       ]);
       throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('File does not belong to this application.');
     }
