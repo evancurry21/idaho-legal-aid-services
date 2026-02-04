@@ -21,6 +21,7 @@
 {# Get field values for conditional display #}
 {% set has_location = node.field_event__location_name.value is not empty %}
 {% set has_address = not node.field_event__location_address.isEmpty %}
+{% set has_contact = node.field_event__contact is defined and node.field_event__contact.value is not empty %}
 {% set has_content = not node.field_content.isEmpty %}
 {% set has_file = not node.field_event__file.isEmpty %}
 {% set has_link = not node.field_event__link.isEmpty %}
@@ -52,6 +53,14 @@
       {% if has_address %}
         <div class="event-detail__address">
           {{ content.field_event__location_address }}
+        </div>
+      {% endif %}
+
+      {# Contact info #}
+      {% if has_contact %}
+        <div class="event-detail__contact">
+          <i class="fa-solid fa-user" aria-hidden="true"></i>
+          <span>{{ node.field_event__contact.value }}</span>
         </div>
       {% endif %}
 
