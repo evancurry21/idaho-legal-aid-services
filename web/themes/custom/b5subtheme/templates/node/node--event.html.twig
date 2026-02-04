@@ -1,0 +1,92 @@
+{#
+/**
+ * @file
+ * Template for Event content type (full view).
+ *
+ * Displays event details with:
+ * - Title (left-aligned, primary color)
+ * - Date/time (Smart Date with add-to-calendar)
+ * - Location name + address
+ * - Body content
+ * - File attachment
+ * - Back button to /events
+ *
+ * Available variables:
+ * - content: Rendered content fields
+ * - attributes: HTML attributes for the article element
+ * - node: The node entity
+ */
+#}
+
+{# Get field values for conditional display #}
+{% set has_location = node.field_event__location_name.value is not empty %}
+{% set has_address = not node.field_event__location_address.isEmpty %}
+{% set has_content = not node.field_content.isEmpty %}
+{% set has_file = not node.field_event__file.isEmpty %}
+{% set has_link = not node.field_event__link.isEmpty %}
+
+<article{{ attributes.addClass('node', 'node--type-event', 'node--view-mode-full') }}>
+
+  <div class="container">
+    <div class="event-detail">
+      {# Title #}
+      <h1 class="event-detail__title">{{ node.getTitle() }}</h1>
+
+      {# Date/time - uses Smart Date formatter with add-to-calendar #}
+      {% if content.field_event__date %}
+        <div class="event-detail__date">
+          <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+          {{ content.field_event__date }}
+        </div>
+      {% endif %}
+
+      {# Location name #}
+      {% if has_location %}
+        <div class="event-detail__location">
+          <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+          <span>{{ node.field_event__location_name.value }}</span>
+        </div>
+      {% endif %}
+
+      {# Address #}
+      {% if has_address %}
+        <div class="event-detail__address">
+          {{ content.field_event__location_address }}
+        </div>
+      {% endif %}
+
+      {# Body content #}
+      {% if has_content %}
+        <div class="event-detail__body content-body">
+          {{ content.field_content }}
+        </div>
+      {% endif %}
+
+      {# External link #}
+      {% if has_link %}
+        <div class="event-detail__link">
+          {{ content.field_event__link }}
+        </div>
+      {% endif %}
+
+      {# File attachment #}
+      {% if has_file %}
+        <div class="event-detail__attachment">
+          <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+          {{ content.field_event__file }}
+        </div>
+      {% endif %}
+
+      {# Footer with back button #}
+      <div class="event-detail__footer">
+        <div class="event-detail__back">
+          <a href="/events" class="btn btn-primary back-button">
+            <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            <span>{{ 'Back to Events'|t }}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</article>

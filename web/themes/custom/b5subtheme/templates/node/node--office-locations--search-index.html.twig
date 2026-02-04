@@ -1,0 +1,25 @@
+{#
+/**
+ * @file
+ * Search index template for Office Locations content type.
+ *
+ * Minimal markup for Search API Rendered Item processor.
+ * Intentionally omits the embedded office_locations_map view to avoid
+ * session access during post-request indexing (kernel terminate/destruct).
+ *
+ * @see node--office-locations.html.twig (full front-end template)
+ */
+#}
+<article{{ attributes.addClass('node', 'node--office-locations', 'node--view-mode-search-index') }}>
+  {% if label %}
+    <h2>{{ label }}</h2>
+  {% endif %}
+
+  {% if content.field_main_content %}
+    {{ content.field_main_content }}
+  {% endif %}
+
+  {% if content.field_topic_cards %}
+    {{ content.field_topic_cards }}
+  {% endif %}
+</article>

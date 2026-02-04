@@ -1,0 +1,83 @@
+{#
+/**
+ * @file
+ * Theme override for Events listing row (events view, "all" block display).
+ *
+ * Renders each event as a card with date, location, summary, attachment,
+ * and a "View Details" link. Mirrors the Press Room listing card pattern.
+ *
+ * Available fields:
+ * - title: Node title (linked)
+ * - field_event__date: Smart Date (start/end)
+ * - field_event__location_name: Location name (optional)
+ * - field_description: Short description (trimmed 300 chars)
+ * - field_event__file: Document attachment (optional)
+ * - nid: Node ID (hidden, for building URLs)
+ */
+#}
+
+{# Extract the node URL from the title link #}
+{% set node_url = '' %}
+{% if fields.title.content %}
+  {% set title_html = fields.title.content|render|trim %}
+  {% if 'href="' in title_html %}
+    {% set node_url = title_html|split('href="')[1]|split('"')[0] %}
+  {% endif %}
+{% endif %}
+
+{# Get field values #}
+{% set event_date = fields.field_event__date.content|render|trim %}
+{% set location = fields.field_event__location_name.content|render|striptags|trim %}
+{% set description = fields.field_description.content|render|trim %}
+{% set has_file = fields.field_event__file.content|render|striptags|trim is not empty %}
+{% set file_html = fields.field_event__file.content|render|trim %}
+
+<article class="event-entry">
+  {# Title - linked #}
+  {% if fields.title.content %}
+    <h2 class="event-entry__title">
+      {{ fields.title.content }}
+    </h2>
+  {% endif %}
+
+  {# Date/time - prominent display #}
+  {% if event_date %}
+    <div class="event-entry__date">
+      <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+      <span>{{ event_date|raw }}</span>
+    </div>
+  {% endif %}
+
+  {# Location #}
+  {% if location %}
+    <div class="event-entry__location">
+      <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+      <span>{{ location }}</span>
+    </div>
+  {% endif %}
+
+  {# Description / summary #}
+  {% if description %}
+    <div class="event-entry__summary">
+      {{ description|raw }}
+    </div>
+  {% endif %}
+
+  {# File attachment #}
+  {% if has_file %}
+    <div class="event-entry__attachment">
+      <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+      {{ file_html|raw }}
+    </div>
+  {% endif %}
+
+  {# View Details link #}
+  {% if node_url %}
+    <div class="event-entry__cta">
+      <a href="{{ node_url }}" class="event-entry__link">
+        <span>{{ 'View Details'|t }}</span>
+        <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+      </a>
+    </div>
+  {% endif %}
+</article>

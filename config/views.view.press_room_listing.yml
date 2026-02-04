@@ -8,7 +8,6 @@ dependencies:
     - field.storage.node.field_featured_image
     - field.storage.node.field_press_topic
     - field.storage.node.field_publication_date
-    - node.type.event
     - node.type.press_entry
     - taxonomy.vocabulary.press_topics
   module:
@@ -561,7 +560,6 @@ display:
           operator: in
           value:
             press_entry: press_entry
-            event: event
           group: 1
           exposed: false
           expose:

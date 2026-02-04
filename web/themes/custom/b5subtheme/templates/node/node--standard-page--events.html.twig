@@ -1,0 +1,33 @@
+{#
+/**
+ * @file
+ * Template for the Events hub page (standard_page NID 124).
+ *
+ * Mirrors the Press Room pattern: intro content followed by an embedded
+ * events listing View. Uses standard page layout with curved header and
+ * footer (handled by page.html.twig).
+ *
+ * Available variables:
+ * - content: Rendered content fields
+ * - attributes: HTML attributes for the article element
+ * - node: The node entity
+ */
+#}
+
+<article{{ attributes.addClass('node', 'node--events-page') }}>
+
+  {# Main content - intro text from the standard page body field #}
+  {% if content.field_main_content %}
+    <div class="container">
+      {{ content.field_main_content }}
+    </div>
+  {% endif %}
+
+  {# Events Listing Section - embeds the events View "all" block display #}
+  <section class="events-listing-section">
+    <div class="container">
+      {{ drupal_view('events', 'all') }}
+    </div>
+  </section>
+
+</article>

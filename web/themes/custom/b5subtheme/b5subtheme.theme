@@ -122,6 +122,29 @@ function b5subtheme_theme_suggestions_page_alter(array &$suggestions, array $var
 }
 
 /**
+ * Implements hook_theme_suggestions_HOOK_alter() for node templates.
+ *
+ * Adds a targeted template suggestion for the Events hub page (NID 124).
+ * This standard_page node embeds the events listing View, similar to how
+ * the press_room content type embeds press_room_listing.
+ *
+ * Targeting by NID (not alias) is intentional: the NID is stable across
+ * alias changes, language prefixes, and redirects. If the Events hub node
+ * is ever recreated, update the NID constant below.
+ */
+function b5subtheme_theme_suggestions_node_alter(array &$suggestions, array $variables): void {
+  $node = $variables['elements']['#node'] ?? NULL;
+  if (!$node instanceof NodeInterface) {
+    return;
+  }
+
+  // Events hub page: standard_page node 124 gets its own template.
+  if ($node->bundle() === 'standard_page' && (int) $node->id() === 124) {
+    $suggestions[] = 'node__standard_page__events';
+  }
+}
+
+/**
  * Implements hook_preprocess_HOOK() for page templates.
  */
 function b5subtheme_preprocess_page(array &$variables): void {
@@ -187,6 +210,7 @@ function b5subtheme_preprocess_page(array &$variables): void {
       'donate',
       'employment_application',
       'employment',
+      'event',
       'office_information',
       'office_locations',
       'press_entry',
@@ -195,6 +219,11 @@ function b5subtheme_preprocess_page(array &$variables): void {
       'resource',
     ];
     if (in_array($bundle, $custom_layout_types, TRUE)) {
+      $variables['is_custom_layout'] = TRUE;
+    }
+
+    // Events hub page (standard_page NID 124) uses custom layout.
+    if ($bundle === 'standard_page' && (int) $node->id() === 124) {
       $variables['is_custom_layout'] = TRUE;
     }
 
