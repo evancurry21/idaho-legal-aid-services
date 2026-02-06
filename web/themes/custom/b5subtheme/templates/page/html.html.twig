@@ -207,7 +207,7 @@
         // Configure GA4 property with enhanced parameters
         gtag('config', '{{ google_tag_id }}', {
           'send_page_view': true,
-          'allow_google_signals': true,
+          'allow_google_signals': false,
           'transport_type': 'beacon',
           'content_group': '{{ node_type|default("general") }}',
           'page_type': '{{ node_type|default("page") }}'

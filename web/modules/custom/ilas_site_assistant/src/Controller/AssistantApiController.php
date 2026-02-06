@@ -18,8 +18,12 @@ use Drupal\ilas_site_assistant\Service\SafetyResponseTemplates;
 use Drupal\ilas_site_assistant\Service\OutOfScopeClassifier;
 use Drupal\ilas_site_assistant\Service\OutOfScopeResponseTemplates;
 use Drupal\ilas_site_assistant\Service\PerformanceMonitor;
+use Drupal\ilas_site_assistant\Service\ConversationLogger;
 use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Cache\CacheableJsonResponse;
+use Drupal\Core\Cache\CacheableMetadata;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,6 +32,13 @@ use Symfony\Component\HttpFoundation\Request;
  * Controller for Site Assistant API endpoints.
  */
 class AssistantApiController extends ControllerBase {
+
+  /**
+   * Default security headers for all JSON responses.
+   */
+  const SECURITY_HEADERS = [
+    'X-Content-Type-Options' => 'nosniff',
+  ];
 
   /**
    * The config factory.
@@ -88,44 +99,51 @@ class AssistantApiController extends ControllerBase {
   /**
    * The response grounder service.
    *
-   * @var \Drupal\ilas_site_assistant\Service\ResponseGrounder
+   * @var \Drupal\ilas_site_assistant\Service\ResponseGrounder|null
    */
   protected $responseGrounder;
 
   /**
    * The safety classifier service.
    *
-   * @var \Drupal\ilas_site_assistant\Service\SafetyClassifier
+   * @var \Drupal\ilas_site_assistant\Service\SafetyClassifier|null
    */
   protected $safetyClassifier;
 
   /**
    * The safety response templates service.
    *
-   * @var \Drupal\ilas_site_assistant\Service\SafetyResponseTemplates
+   * @var \Drupal\ilas_site_assistant\Service\SafetyResponseTemplates|null
    */
   protected $safetyResponseTemplates;
 
   /**
    * The out-of-scope classifier service.
    *
-   * @var \Drupal\ilas_site_assistant\Service\OutOfScopeClassifier
+   * @var \Drupal\ilas_site_assistant\Service\OutOfScopeClassifier|null
    */
   protected $outOfScopeClassifier;
 
   /**
    * The out-of-scope response templates service.
    *
-   * @var \Drupal\ilas_site_assistant\Service\OutOfScopeResponseTemplates
+   * @var \Drupal\ilas_site_assistant\Service\OutOfScopeResponseTemplates|null
    */
   protected $outOfScopeResponseTemplates;
 
   /**
    * The performance monitor service.
    *
-   * @var \Drupal\ilas_site_assistant\Service\PerformanceMonitor
+   * @var \Drupal\ilas_site_assistant\Service\PerformanceMonitor|null
    */
   protected $performanceMonitor;
+
+  /**
+   * The conversation logger service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\ConversationLogger|null
+   */
+  protected $conversationLogger;
 
   /**
    * The flood service for rate limiting.
@@ -142,6 +160,13 @@ class AssistantApiController extends ControllerBase {
   protected $conversationCache;
 
   /**
+   * The logger.
+   *
+   * @var \Psr\Log\LoggerInterface
+   */
+  protected $logger;
+
+  /**
    * Constructs an AssistantApiController object.
    */
   public function __construct(
@@ -153,12 +178,16 @@ class AssistantApiController extends ControllerBase {
     AnalyticsLogger $analytics_logger,
     LlmEnhancer $llm_enhancer,
     FallbackGate $fallback_gate,
+    FloodInterface $flood,
+    CacheBackendInterface $conversation_cache,
+    LoggerInterface $logger,
     ResponseGrounder $response_grounder = NULL,
     SafetyClassifier $safety_classifier = NULL,
     SafetyResponseTemplates $safety_response_templates = NULL,
     OutOfScopeClassifier $out_of_scope_classifier = NULL,
     OutOfScopeResponseTemplates $out_of_scope_response_templates = NULL,
-    PerformanceMonitor $performance_monitor = NULL
+    PerformanceMonitor $performance_monitor = NULL,
+    ConversationLogger $conversation_logger = NULL
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -168,19 +197,23 @@ class AssistantApiController extends ControllerBase {
     $this->analyticsLogger = $analytics_logger;
     $this->llmEnhancer = $llm_enhancer;
     $this->fallbackGate = $fallback_gate;
+    $this->flood = $flood;
+    $this->conversationCache = $conversation_cache;
+    $this->logger = $logger;
     $this->responseGrounder = $response_grounder;
     $this->safetyClassifier = $safety_classifier;
     $this->safetyResponseTemplates = $safety_response_templates;
     $this->outOfScopeClassifier = $out_of_scope_classifier;
     $this->outOfScopeResponseTemplates = $out_of_scope_response_templates;
     $this->performanceMonitor = $performance_monitor;
+    $this->conversationLogger = $conversation_logger;
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    $instance = new static(
+    return new static(
       $container->get('config.factory'),
       $container->get('ilas_site_assistant.intent_router'),
       $container->get('ilas_site_assistant.faq_index'),
@@ -189,16 +222,34 @@ class AssistantApiController extends ControllerBase {
       $container->get('ilas_site_assistant.analytics_logger'),
       $container->get('ilas_site_assistant.llm_enhancer'),
       $container->get('ilas_site_assistant.fallback_gate'),
+      $container->get('flood'),
+      $container->get('cache.ilas_site_assistant'),
+      $container->get('logger.channel.ilas_site_assistant'),
       $container->has('ilas_site_assistant.response_grounder') ? $container->get('ilas_site_assistant.response_grounder') : NULL,
       $container->has('ilas_site_assistant.safety_classifier') ? $container->get('ilas_site_assistant.safety_classifier') : NULL,
       $container->has('ilas_site_assistant.safety_response_templates') ? $container->get('ilas_site_assistant.safety_response_templates') : NULL,
       $container->has('ilas_site_assistant.out_of_scope_classifier') ? $container->get('ilas_site_assistant.out_of_scope_classifier') : NULL,
       $container->has('ilas_site_assistant.out_of_scope_response_templates') ? $container->get('ilas_site_assistant.out_of_scope_response_templates') : NULL,
-      $container->has('ilas_site_assistant.performance_monitor') ? $container->get('ilas_site_assistant.performance_monitor') : NULL
+      $container->has('ilas_site_assistant.performance_monitor') ? $container->get('ilas_site_assistant.performance_monitor') : NULL,
+      $container->has('ilas_site_assistant.conversation_logger') ? $container->get('ilas_site_assistant.conversation_logger') : NULL
     );
-    $instance->flood = $container->get('flood');
-    $instance->conversationCache = $container->get('cache.default');
-    return $instance;
+  }
+
+  /**
+   * Creates a JSON response with security headers.
+   *
+   * @param array $data
+   *   The response data.
+   * @param int $status
+   *   The HTTP status code.
+   * @param array $extra_headers
+   *   Additional headers to include.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   The JSON response with security headers.
+   */
+  protected function jsonResponse(array $data, int $status = 200, array $extra_headers = []): JsonResponse {
+    return new JsonResponse($data, $status, array_merge(self::SECURITY_HEADERS, $extra_headers));
   }
 
   /**
@@ -219,13 +270,13 @@ class AssistantApiController extends ControllerBase {
     $per_hr = (int) ($config->get('rate_limit_per_hour') ?? 120);
 
     if (!$this->flood->isAllowed('ilas_assistant_min', $per_min, 60, $flood_id)) {
-      return new JsonResponse([
+      return $this->jsonResponse([
         'error' => 'Too many requests. Please wait a moment before trying again.',
         'type' => 'rate_limit',
       ], 429, ['Retry-After' => '60']);
     }
     if (!$this->flood->isAllowed('ilas_assistant_hr', $per_hr, 3600, $flood_id)) {
-      return new JsonResponse([
+      return $this->jsonResponse([
         'error' => 'You have reached the hourly limit. Please try again later.',
         'type' => 'rate_limit',
       ], 429, ['Retry-After' => '3600']);
@@ -262,18 +313,18 @@ class AssistantApiController extends ControllerBase {
     // Validate content type.
     $content_type = $request->headers->get('Content-Type');
     if (strpos($content_type, 'application/json') === FALSE) {
-      return new JsonResponse(['error' => 'Invalid content type'], 400);
+      return $this->jsonResponse(['error' => 'Invalid content type'], 400);
     }
 
     // Parse request body.
     $content = $request->getContent();
     if (strlen($content) > 2000) {
-      return new JsonResponse(['error' => 'Request too large'], 413);
+      return $this->jsonResponse(['error' => 'Request too large'], 413);
     }
 
     $data = json_decode($content, TRUE);
     if (json_last_error() !== JSON_ERROR_NONE || empty($data['message'])) {
-      return new JsonResponse(['error' => 'Invalid request'], 400);
+      return $this->jsonResponse(['error' => 'Invalid request'], 400);
     }
 
     $user_message = $this->sanitizeInput($data['message']);
@@ -294,7 +345,7 @@ class AssistantApiController extends ControllerBase {
       if (count($server_history) >= 3) {
         $recent_messages = array_column(array_slice($server_history, -3), 'text');
         if (count(array_unique($recent_messages)) === 1 && $recent_messages[0] === mb_substr($user_message, 0, 200)) {
-          return new JsonResponse([
+          return $this->jsonResponse([
             'type' => 'escalation',
             'escalation_type' => 'repeated',
             'message' => (string) $this->t('It looks like you may be having trouble. Please call our Legal Advice Line for direct assistance.'),
@@ -362,12 +413,11 @@ class AssistantApiController extends ControllerBase {
           $response_data['_debug'] = $debug_meta;
         }
 
-        return new JsonResponse($response_data);
+        return $this->jsonResponse($response_data);
       }
     }
 
     // Run OutOfScopeClassifier as second-pass check (after safety, before intent).
-    // This catches: non-Idaho, business/commercial, federal matters, emergency services, high-value civil.
     $oos_classification = NULL;
     if ($this->outOfScopeClassifier) {
       $oos_classification = $this->outOfScopeClassifier->classify($user_message);
@@ -415,7 +465,7 @@ class AssistantApiController extends ControllerBase {
           $response_data['_debug'] = $debug_meta;
         }
 
-        return new JsonResponse($response_data);
+        return $this->jsonResponse($response_data);
       }
     }
 
@@ -455,13 +505,11 @@ class AssistantApiController extends ControllerBase {
         $response_data['_debug'] = $debug_meta;
       }
 
-      return new JsonResponse($response_data);
+      return $this->jsonResponse($response_data);
     }
 
     // Quick-action short-circuit: when the request comes from a suggestion
     // button click, bypass all classifiers/routers and use the action directly.
-    // This prevents NavigationIntent, Disambiguator, or TopicRouter from
-    // hijacking deterministic button clicks (e.g. "Apply" returning FAQ).
     $quick_action_intents = [
       'apply' => 'apply_for_help',
       'hotline' => 'legal_advice_line',
@@ -498,7 +546,6 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Early retrieval for gate evaluation (search FAQ/resources for context).
-    // Skip for deterministic intents (greeting, apply) that never need retrieval.
     $early_retrieval = [];
     $config = $this->configFactory->get('ilas_site_assistant.settings');
     $skip_retrieval_intents = ['greeting', 'apply_for_help', 'apply'];
@@ -556,10 +603,6 @@ class AssistantApiController extends ControllerBase {
     $response = $this->processIntent($intent, $user_message, $context);
 
     // CRITICAL: Enforce canonical URL for hard-route intents.
-    // This prevents URL drift where intent is correct but URL is wrong.
-    // We use the safety-flag-aware enforcement to catch cases where
-    // the intent was misclassified as a soft-route (like 'service_area')
-    // but safety flags indicate a high-risk situation.
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
     $builder = new ResponseBuilder($canonical_urls);
     $safety_flags = $debug_meta['safety_flags'] ?? [];
@@ -636,7 +679,7 @@ class AssistantApiController extends ControllerBase {
           $recent_flags = array_merge($recent_flags, $turn['safety_flags'] ?? []);
         }
         if (count($recent_flags) >= 3) {
-          \Drupal::logger('ilas_site_assistant')->warning(
+          $this->logger->warning(
             'Multi-turn safety pattern detected for conversation @id: @flags',
             ['@id' => $conversation_id, '@flags' => implode(', ', $recent_flags)]
           );
@@ -645,9 +688,8 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Opt-in conversation logging (for QA/debugging).
-    if ($conversation_id && \Drupal::hasService('ilas_site_assistant.conversation_logger')) {
-      $conv_logger = \Drupal::service('ilas_site_assistant.conversation_logger');
-      $conv_logger->logExchange(
+    if ($conversation_id && $this->conversationLogger) {
+      $this->conversationLogger->logExchange(
         $conversation_id,
         $user_message,
         $response['message'] ?? '',
@@ -663,7 +705,55 @@ class AssistantApiController extends ControllerBase {
       $this->performanceMonitor->recordRequest($duration_ms, TRUE, $scenario);
     }
 
-    return new JsonResponse($response);
+    return $this->jsonResponse($response);
+  }
+
+  /**
+   * Lightweight analytics tracking endpoint.
+   *
+   * Accepts tracking events without running the full message pipeline.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request object.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   JSON response confirming the event was recorded.
+   */
+  public function track(Request $request) {
+    $content_type = $request->headers->get('Content-Type');
+    if (strpos($content_type, 'application/json') === FALSE) {
+      return $this->jsonResponse(['error' => 'Invalid content type'], 400);
+    }
+
+    $content = $request->getContent();
+    if (strlen($content) > 1000) {
+      return $this->jsonResponse(['error' => 'Request too large'], 413);
+    }
+
+    $data = json_decode($content, TRUE);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+      return $this->jsonResponse(['error' => 'Invalid request'], 400);
+    }
+
+    $event_type = $this->sanitizeInput($data['event_type'] ?? '');
+    $event_value = $this->sanitizeInput($data['event_value'] ?? '');
+
+    if (empty($event_type)) {
+      return $this->jsonResponse(['error' => 'Missing event_type'], 400);
+    }
+
+    // Only allow known event types.
+    $allowed_types = [
+      'chat_open', 'suggestion_click', 'resource_click',
+      'hotline_click', 'apply_click', 'apply_cta_click',
+      'apply_secondary_click', 'service_area_click', 'topic_selected',
+    ];
+
+    if (in_array($event_type, $allowed_types)) {
+      $this->analyticsLogger->log($event_type, $event_value);
+    }
+
+    return $this->jsonResponse(['ok' => TRUE]);
   }
 
   /**
@@ -678,7 +768,6 @@ class AssistantApiController extends ControllerBase {
   protected function classifyScenario(string $intent_type): string {
     $short_types = ['greeting', 'thanks', 'help'];
     $navigation_types = ['apply', 'hotline', 'offices', 'donate', 'feedback', 'services'];
-    // Everything else is retrieval (faq, forms, guides, resources, topic, etc.)
 
     if (in_array($intent_type, $short_types)) {
       return 'short';
@@ -692,10 +781,7 @@ class AssistantApiController extends ControllerBase {
   /**
    * Checks if debug mode is enabled.
    *
-   * Debug mode can be enabled via:
-   * - Environment variable: ILAS_CHATBOT_DEBUG=1
-   * - Request header: X-Debug-Mode: 1
-   * - Request body: { "debug": true }
+   * SECURITY: Debug mode is ONLY enabled via server-side environment variable.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The request object.
@@ -704,17 +790,11 @@ class AssistantApiController extends ControllerBase {
    *   TRUE if debug mode is enabled.
    */
   protected function isDebugMode(Request $request): bool {
-    // SECURITY: Debug mode is ONLY enabled via server-side environment variable.
-    // Client-supplied debug flags (headers, body) are never trusted on public
-    // endpoints. Set ILAS_CHATBOT_DEBUG=1 in .ddev/.env (local) or Pantheon
-    // environment variables (dev/multidev only — never live).
     return getenv('ILAS_CHATBOT_DEBUG') === '1';
   }
 
   /**
    * Extracts keywords from text for debug output.
-   *
-   * Avoids storing raw user text by extracting only keywords.
    *
    * @param string $text
    *   The text to extract keywords from.
@@ -754,32 +834,21 @@ class AssistantApiController extends ControllerBase {
     $flags = [];
     $message_lower = strtolower($message);
 
-    // Domestic violence indicators.
     if (preg_match('/\b(domestic\s*violence|dv|abus|hit.*me|beat.*me|threaten)/i', $message)) {
       $flags[] = 'dv_indicator';
     }
-
-    // Eviction urgency.
     if (preg_match('/\b(evict|sheriff|lock.*out|homeless|thrown?\s*out)/i', $message)) {
       $flags[] = 'eviction_imminent';
     }
-
-    // Identity theft / scam.
     if (preg_match('/\b(identity\s*theft|scam|fraud|stolen\s*identity)/i', $message)) {
       $flags[] = 'identity_theft';
     }
-
-    // Crisis/emergency.
     if (preg_match('/\b(emergency|urgent|suicide|crisis|danger|911)/i', $message)) {
       $flags[] = 'crisis_emergency';
     }
-
-    // Deadline pressure.
     if (preg_match('/\b(deadline|due\s*(today|tomorrow|friday|monday)|court\s*date)/i', $message)) {
       $flags[] = 'deadline_pressure';
     }
-
-    // Criminal matter (out of scope).
     if (preg_match('/\b(arrest|criminal|felony|misdemeanor|jail|prison|dui|dwi)/i', $message)) {
       $flags[] = 'criminal_matter';
     }
@@ -789,8 +858,6 @@ class AssistantApiController extends ControllerBase {
 
   /**
    * Calculates a confidence score for the detected intent.
-   *
-   * Delegates to FallbackGate for centralized confidence calculation.
    *
    * @param array $intent
    *   The detected intent.
@@ -820,17 +887,11 @@ class AssistantApiController extends ControllerBase {
     if (in_array($response_type, $answer_types)) {
       return 'answer';
     }
-
     if (in_array($response_type, $hard_route_types)) {
       return 'hard_route';
     }
-
     if ($response_type === 'fallback') {
       return 'clarify';
-    }
-
-    if ($response_type === 'greeting') {
-      return 'answer';
     }
 
     return 'answer';
@@ -851,23 +912,18 @@ class AssistantApiController extends ControllerBase {
     $type = $response['type'] ?? 'unknown';
     $intent_type = $intent['type'] ?? 'unknown';
 
-    // Build reason code from intent and result.
     if ($type === 'faq' && !empty($response['results'])) {
       return 'faq_match_found';
     }
-
     if ($type === 'resources' && !empty($response['results'])) {
       return 'resource_match_found';
     }
-
     if ($type === 'navigation') {
       return 'direct_navigation_' . $intent_type;
     }
-
     if ($type === 'fallback') {
       return 'no_match_fallback';
     }
-
     if ($type === 'escalation') {
       return 'policy_escalation';
     }
@@ -895,7 +951,6 @@ class AssistantApiController extends ControllerBase {
         'type' => $result['type'] ?? 'unknown',
       ];
 
-      // Include score if available.
       if (isset($result['score'])) {
         $item['score'] = $result['score'];
       }
@@ -912,7 +967,7 @@ class AssistantApiController extends ControllerBase {
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The request object.
    *
-   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   * @return \Drupal\Core\Cache\CacheableJsonResponse
    *   JSON response with suggestions.
    */
   public function suggest(Request $request) {
@@ -947,9 +1002,18 @@ class AssistantApiController extends ControllerBase {
       }
     }
 
-    return new JsonResponse([
+    $response_data = [
       'suggestions' => array_slice($suggestions, 0, 6),
-    ]);
+    ];
+
+    $response = new CacheableJsonResponse($response_data, 200, self::SECURITY_HEADERS);
+    $cache_meta = new CacheableMetadata();
+    $cache_meta->setCacheContexts(['url.query_args:q', 'url.query_args:type']);
+    $cache_meta->setCacheTags(['node_list']);
+    $cache_meta->setCacheMaxAge(300);
+    $response->addCacheableDependency($cache_meta);
+
+    return $response;
   }
 
   /**
@@ -958,35 +1022,45 @@ class AssistantApiController extends ControllerBase {
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The request object.
    *
-   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   * @return \Drupal\Core\Cache\CacheableJsonResponse
    *   JSON response with FAQ data.
    */
   public function faq(Request $request) {
     $query = $request->query->get('q', '');
     $id = $request->query->get('id');
 
+    $cache_meta = new CacheableMetadata();
+    $cache_meta->setCacheContexts(['url.query_args:q', 'url.query_args:id']);
+    $cache_meta->setCacheTags(['node_list', 'config:ilas_site_assistant.settings']);
+    $cache_meta->setCacheMaxAge(300);
+
     if ($id) {
-      // Get specific FAQ item.
       $faq = $this->faqIndex->getById($id);
       if ($faq) {
-        return new JsonResponse(['faq' => $faq]);
+        $response = new CacheableJsonResponse(['faq' => $faq], 200, self::SECURITY_HEADERS);
+        $response->addCacheableDependency($cache_meta);
+        return $response;
       }
-      return new JsonResponse(['error' => 'FAQ not found'], 404);
+      $response = new CacheableJsonResponse(['error' => 'FAQ not found'], 404, self::SECURITY_HEADERS);
+      $response->addCacheableDependency($cache_meta);
+      return $response;
     }
 
-    // Search FAQs.
     if (strlen($query) >= 2) {
       $query = $this->sanitizeInput($query);
       $results = $this->faqIndex->search($query, 5);
-      return new JsonResponse([
+      $response = new CacheableJsonResponse([
         'results' => $results,
         'count' => count($results),
-      ]);
+      ], 200, self::SECURITY_HEADERS);
+      $response->addCacheableDependency($cache_meta);
+      return $response;
     }
 
-    // Return all FAQ categories.
     $categories = $this->faqIndex->getCategories();
-    return new JsonResponse(['categories' => $categories]);
+    $response = new CacheableJsonResponse(['categories' => $categories], 200, self::SECURITY_HEADERS);
+    $response->addCacheableDependency($cache_meta);
+    return $response;
   }
 
   /**
@@ -1014,7 +1088,6 @@ class AssistantApiController extends ControllerBase {
     $intent_type = ResponseBuilder::normalizeIntentType($intent['type'] ?? 'unknown');
 
     // Build the API response from the contract, enriching with service data.
-    // The contract's primary_action and secondary_actions are always present.
     $response = [
       'type' => $contract['type'],
       'message' => $contract['answer_text'],
@@ -1051,13 +1124,9 @@ class AssistantApiController extends ControllerBase {
           $response['message'] = $this->t('You can find forms on our Forms page.');
           break;
         }
-        // Check if this is a bare/generic "find a form" request with no topic.
-        // If so, ask the user what kind of form they need instead of returning
-        // random results from a useless fulltext search on "Find a form".
         $form_query = $intent['topic'] ?? $message;
         $form_topic_keywords = $this->extractFormTopicKeywords($form_query);
         if (empty($form_topic_keywords)) {
-          // No meaningful topic keywords — return clarification prompt.
           $response['type'] = 'form_finder_clarify';
           $response['response_mode'] = 'clarify';
           $response['message'] = $this->t('What kind of form are you looking for? You can type a keyword (e.g., eviction, divorce, debt), or pick a topic:');
@@ -1074,13 +1143,11 @@ class AssistantApiController extends ControllerBase {
             'url' => $canonical_urls['forms'],
           ];
           $response['form_finder_mode'] = TRUE;
-          // Log clarification trigger.
-          \Drupal::logger('ilas_site_assistant')->info('Form Finder clarification triggered for bare query: @query', [
+          $this->logger->info('Form Finder clarification triggered for bare query: @query', [
             '@query' => $message,
           ]);
           break;
         }
-        // Has topic keywords — search with the topic-focused query.
         $results = $this->resourceFinder->findForms($form_topic_keywords, 6);
         $response['results'] = $results;
         $response['fallback_url'] = $canonical_urls['forms'];
@@ -1088,12 +1155,10 @@ class AssistantApiController extends ControllerBase {
         $response['message'] = count($results) > 0
           ? $this->t('Here are some forms that might help:')
           : $this->t('I couldn\'t find matching forms. Browse our Forms page or contact us.');
-        // Add guardrail reminder about legal advice.
         if (count($results) > 0) {
           $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
         }
-        // Log form finder search for debugging.
-        \Drupal::logger('ilas_site_assistant')->info('Form Finder search: query=@query, topic_keywords=@keywords, results=@count', [
+        $this->logger->info('Form Finder search: query=@query, topic_keywords=@keywords, results=@count', [
           '@query' => $message,
           '@keywords' => $form_topic_keywords,
           '@count' => count($results),
@@ -1106,13 +1171,9 @@ class AssistantApiController extends ControllerBase {
           $response['message'] = $this->t('You can find guides on our Guides page.');
           break;
         }
-        // Check if this is a bare/generic "find a guide" request with no topic.
-        // If so, ask the user what kind of guide they need instead of returning
-        // random results from a useless fulltext search on "Find a guide".
         $guide_query = $intent['topic'] ?? $message;
         $guide_topic_keywords = $this->extractFinderTopicKeywords($guide_query, 'guides');
         if (empty($guide_topic_keywords)) {
-          // No meaningful topic keywords — return clarification prompt.
           $response['type'] = 'guide_finder_clarify';
           $response['response_mode'] = 'clarify';
           $response['message'] = $this->t('What kind of guide are you looking for? Type a keyword (e.g., eviction, divorce, debt), or pick a topic:');
@@ -1130,13 +1191,11 @@ class AssistantApiController extends ControllerBase {
             'url' => $canonical_urls['guides'],
           ];
           $response['guide_finder_mode'] = TRUE;
-          // Log clarification trigger.
-          \Drupal::logger('ilas_site_assistant')->info('Guide Finder clarification triggered for bare query: @query', [
+          $this->logger->info('Guide Finder clarification triggered for bare query: @query', [
             '@query' => $message,
           ]);
           break;
         }
-        // Has topic keywords — search with the topic-focused query.
         $results = $this->resourceFinder->findGuides($guide_topic_keywords, 6);
         $response['results'] = $results;
         $response['fallback_url'] = $canonical_urls['guides'];
@@ -1144,12 +1203,10 @@ class AssistantApiController extends ControllerBase {
         $response['message'] = count($results) > 0
           ? $this->t('Here are some guides that might help:')
           : $this->t('I couldn\'t find matching guides for "@query". Browse our Guides page or contact us.', ['@query' => $guide_topic_keywords]);
-        // Add guardrail reminder about legal advice.
         if (count($results) > 0) {
           $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
         }
-        // Log guide finder search for debugging.
-        \Drupal::logger('ilas_site_assistant')->info('Guide Finder search: query=@query, topic_keywords=@keywords, results=@count', [
+        $this->logger->info('Guide Finder search: query=@query, topic_keywords=@keywords, results=@count', [
           '@query' => $message,
           '@keywords' => $guide_topic_keywords,
           '@count' => count($results),
@@ -1288,10 +1345,8 @@ class AssistantApiController extends ControllerBase {
         break;
 
       case 'disambiguation':
-        // IntentRouter detected competing intents - present options.
         $options = $intent['options'] ?? [];
         $question = $intent['question'] ?? $this->t('What are you looking for?');
-
         $option_links = [];
         foreach ($options as $option) {
           $opt_intent = $option['intent'] ?? '';
@@ -1302,7 +1357,6 @@ class AssistantApiController extends ControllerBase {
             'url' => $opt_url,
           ];
         }
-
         if (!empty($intent['competing_intents'])) {
           $best_intent = $intent['competing_intents'][0]['intent'] ?? '';
           $best_url = $builder->resolveIntentUrl($best_intent);
@@ -1312,7 +1366,6 @@ class AssistantApiController extends ControllerBase {
             $response['primary_action'] = ['label' => 'Best Match', 'url' => $best_url];
           }
         }
-
         $response['message'] = $question;
         $response['options'] = $option_links;
         $response['topic_suggestions'] = $option_links;
@@ -1446,9 +1499,6 @@ class AssistantApiController extends ControllerBase {
 
   /**
    * Returns quick suggestion buttons.
-   *
-   * @return array
-   *   Array of suggestions.
    */
   protected function getQuickSuggestions() {
     return [
@@ -1459,13 +1509,8 @@ class AssistantApiController extends ControllerBase {
     ];
   }
 
-  // resolveIntentUrl() has been moved to ResponseBuilder::resolveIntentUrl().
-
   /**
    * Returns escalation action buttons.
-   *
-   * @return array
-   *   Array of escalation actions.
    */
   protected function getEscalationActions() {
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
@@ -1490,29 +1535,13 @@ class AssistantApiController extends ControllerBase {
 
   /**
    * Extracts meaningful topic keywords from a finder query.
-   *
-   * Strips generic "find a form/guide" noise and returns the topic portion.
-   * Returns empty string if the query is bare/generic (no topic).
-   *
-   * @param string $query
-   *   The user's message (e.g., "Find a form", "Find housing guides").
-   * @param string $finder_type
-   *   The finder type: 'forms' or 'guides'. Determines which resource-
-   *   specific noise words to strip.
-   *
-   * @return string
-   *   Topic keywords for searching, or empty string if too generic.
    */
   protected function extractFinderTopicKeywords(string $query, string $finder_type = 'forms'): string {
     $lower = strtolower(trim($query));
-
-    // Resource-type-specific noise words.
     $type_noise = [
       'forms' => '/\b(form|forms|froms|formulario|formularios|paperwork|papers|documents?|court\s*papers?)\b/i',
       'guides' => '/\b(guide|guides|giude|giudes|guia|guias|manual|manuals|handbook|handbooks|instructions?|how[\s-]*to|step[\s-]*by[\s-]*step|self[\s-]*help)\b/i',
     ];
-
-    // Strip common finder preamble phrases + type-specific noise.
     $noise_patterns = [
       '/^(find|get|need|download|where|show|read|browse)\s*(me\s*)?(a|the|is|are|some|any)?\s*/i',
       $type_noise[$finder_type] ?? $type_noise['forms'],
@@ -1520,23 +1549,18 @@ class AssistantApiController extends ControllerBase {
       '/\b(legal|court|i\s*need|looking\s*for|where\s*can\s*i)\b/i',
       '/^\s*(a|an|the|my|some|any)\s+/i',
     ];
-
     $cleaned = $lower;
     foreach ($noise_patterns as $pattern) {
       $cleaned = preg_replace($pattern, ' ', $cleaned);
     }
     $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
-
-    // If nothing meaningful remains (or only stop words), it's a bare request.
     $stop_words = ['a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'for', 'on', 'with', 'is', 'are', 'i', 'me', 'my', 'can', 'do', 'how', 'what', 'where', 'please', 'find', 'get', 'need', 'show', 'download', 'looking', 'browse', 'read'];
     $words = array_filter(explode(' ', $cleaned), function ($w) use ($stop_words) {
       return strlen($w) >= 2 && !in_array($w, $stop_words);
     });
-
     if (empty($words)) {
       return '';
     }
-
     return implode(' ', $words);
   }
 
@@ -1549,33 +1573,17 @@ class AssistantApiController extends ControllerBase {
 
   /**
    * Sanitizes user input.
-   *
-   * @param string $input
-   *   The input string.
-   *
-   * @return string
-   *   Sanitized string.
    */
   protected function sanitizeInput(string $input) {
-    // Remove HTML tags.
     $input = strip_tags($input);
-    // Limit length.
     $input = mb_substr($input, 0, 500);
-    // Remove control characters.
     $input = preg_replace('/[\x00-\x1F\x7F]/u', '', $input);
-    // Normalize whitespace.
     $input = preg_replace('/\s+/', ' ', $input);
     return trim($input);
   }
 
   /**
    * Returns appropriate message for high-risk situations.
-   *
-   * @param string $risk_category
-   *   The risk category (high_risk_dv, high_risk_eviction, etc.).
-   *
-   * @return string
-   *   The appropriate safety message.
    */
   protected function getHighRiskMessage(string $risk_category): string {
     $messages = [
@@ -1585,48 +1593,33 @@ class AssistantApiController extends ControllerBase {
       'high_risk_deadline' => $this->t('With an urgent legal deadline, please call our Legal Advice Line immediately for assistance. Time-sensitive legal matters require prompt attention.'),
       'high_risk_utility' => $this->t('If your utilities have been or are about to be shut off, Idaho Legal Aid may be able to help. Please apply for help or call our hotline immediately.'),
     ];
-
     return $messages[$risk_category] ?? $this->t('We see this may be an urgent situation. Please apply for help or call our Legal Advice Line for immediate assistance.');
   }
 
   /**
    * Checks if the message indicates an emergency requiring 911.
-   *
-   * @param string $message
-   *   The user message.
-   *
-   * @return bool
-   *   TRUE if message indicates emergency.
    */
   protected function isEmergencyMessage(string $message): bool {
-    $emergency_patterns = [
+    $patterns = [
       '/\b(call\s*911|dial\s*911)\b/i',
       '/\b(being\s+attacked|someone\s+is\s+dying)\b/i',
       '/\b(heart\s+attack|stroke|not\s+breathing)\b/i',
       '/\b(breaking\s+in\s+right\s+now)\b/i',
       '/\b(active\s+shooter|gun|weapon)\b/i',
     ];
-
-    foreach ($emergency_patterns as $pattern) {
+    foreach ($patterns as $pattern) {
       if (preg_match($pattern, $message)) {
         return TRUE;
       }
     }
-
     return FALSE;
   }
 
   /**
    * Checks if the message indicates a criminal matter.
-   *
-   * @param string $message
-   *   The user message.
-   *
-   * @return bool
-   *   TRUE if message indicates criminal matter.
    */
   protected function isCriminalMatter(string $message): bool {
-    $criminal_patterns = [
+    $patterns = [
       '/\b(criminal\s+(defense|lawyer|case|charge))\b/i',
       '/\b(arrested|arrest\s+warrant)\b/i',
       '/\b(felony|misdemeanor)\b/i',
@@ -1635,61 +1628,39 @@ class AssistantApiController extends ControllerBase {
       '/\b(jail|prison|incarcerat)\b/i',
       '/\b(probation\s+violation|parole)\b/i',
     ];
-
-    // Don't classify as criminal if it's expungement-related.
     if (preg_match('/\b(expunge|seal|clear)\s+(my\s+)?record/i', $message)) {
       return FALSE;
     }
-
-    foreach ($criminal_patterns as $pattern) {
+    foreach ($patterns as $pattern) {
       if (preg_match($pattern, $message)) {
         return TRUE;
       }
     }
-
     return FALSE;
   }
 
   /**
    * Checks if the message indicates a non-Idaho matter.
-   *
-   * @param string $message
-   *   The user message.
-   *
-   * @return bool
-   *   TRUE if message indicates non-Idaho matter.
    */
   protected function isNonIdaho(string $message): bool {
-    // Don't classify as non-Idaho if Idaho is also mentioned
-    // (e.g. "I moved from Texas to Idaho").
     if (preg_match('/\bidaho\b/i', $message)) {
       return FALSE;
     }
-
-    $non_idaho_patterns = [
-      // Generic out-of-state phrases.
+    $patterns = [
       '/\b(out\s+of\s+state|different\s+state|another\s+state|not\s+in\s+idaho)\b/i',
-
-      // Explicit "I live/reside in [state]" with all US states except Idaho.
       '/\b(live|living|reside|residing|located|based|am\s+in|i\'m\s+in)\s+(in\s+)?(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new\s+hampshire|new\s+jersey|new\s+mexico|new\s+york|north\s+carolina|north\s+dakota|ohio|oklahoma|oregon|pennsylvania|rhode\s+island|south\s+carolina|south\s+dakota|tennessee|texas|utah|vermont|virginia|washington\s+state|west\s+virginia|wisconsin|wyoming)\b/i',
-
-      // Standalone neighboring state mentions (most common confusion).
       '/\b(oregon|washington\s+state|montana|nevada|utah|wyoming)\b/i',
     ];
-
-    foreach ($non_idaho_patterns as $pattern) {
+    foreach ($patterns as $pattern) {
       if (preg_match($pattern, $message)) {
         return TRUE;
       }
     }
-
     return FALSE;
   }
 
   /**
    * Health check endpoint for monitoring.
-   *
-   * Returns basic health status. Use for uptime monitoring.
    *
    * @return \Symfony\Component\HttpFoundation\JsonResponse
    *   JSON response with health status.
@@ -1698,7 +1669,6 @@ class AssistantApiController extends ControllerBase {
     $status = 'healthy';
     $checks = [];
 
-    // Check if performance monitor is available and get summary.
     if ($this->performanceMonitor) {
       $summary = $this->performanceMonitor->getSummary();
       $status = $summary['status'];
@@ -1707,11 +1677,10 @@ class AssistantApiController extends ControllerBase {
       $checks['throughput_per_min'] = $summary['throughput_per_min'];
     }
 
-    // Basic service checks.
     $checks['faq_index'] = $this->faqIndex ? 'ok' : 'unavailable';
     $checks['intent_router'] = $this->intentRouter ? 'ok' : 'unavailable';
 
-    return new JsonResponse([
+    return $this->jsonResponse([
       'status' => $status,
       'timestamp' => date('c'),
       'checks' => $checks,
@@ -1721,21 +1690,19 @@ class AssistantApiController extends ControllerBase {
   /**
    * Detailed metrics endpoint for monitoring dashboards.
    *
-   * Returns performance metrics. Requires admin permission.
-   *
    * @return \Symfony\Component\HttpFoundation\JsonResponse
    *   JSON response with detailed metrics.
    */
   public function metrics() {
     if (!$this->performanceMonitor) {
-      return new JsonResponse([
+      return $this->jsonResponse([
         'error' => 'Performance monitoring not enabled',
       ], 503);
     }
 
     $summary = $this->performanceMonitor->getSummary();
 
-    return new JsonResponse([
+    return $this->jsonResponse([
       'timestamp' => date('c'),
       'metrics' => $summary,
       'thresholds' => [

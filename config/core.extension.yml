@@ -70,7 +70,6 @@ module:
   honeypot: 0
   hreflang: 0
   ilas_announcement_overlay: 0
-  ilas_chatbot: 0
   ilas_donation_inquiry: 0
   ilas_hotspot: 0
   ilas_redirect_automation: 0

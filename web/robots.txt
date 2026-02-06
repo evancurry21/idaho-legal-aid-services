@@ -69,6 +69,11 @@ Disallow: /user/login
 Disallow: /user/logout
 Disallow: /media/oembed
 Disallow: /*/media/oembed
+# Block bots from probing entity admin routes
+Disallow: /media/*/edit
+Disallow: /media/*/delete
+Disallow: /node/*/edit
+Disallow: /node/*/delete
 # Paths (no clean URLs)
 Disallow: /index.php/admin/
 Disallow: /index.php/comment/reply/

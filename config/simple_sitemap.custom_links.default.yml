@@ -20,7 +20,7 @@ links:
     priority: '0.7'
     changefreq: daily
   -
-    path: /what-we-do/resource
+    path: /what-we-do/resources
     priority: '0.8'
     changefreq: weekly
   -

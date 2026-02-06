@@ -7,7 +7,7 @@ label: 'Content: Event'
 tags:
   title: '[node:title] | Events | [site:name]'
   description: '[node:field_seo_description|node:field_description]'
-  og_type: website
+  og_type: article
   og_description: '[node:field_seo_description|node:field_description]'
   schema_event_type: Event
   schema_event_id: '[node:url]#event'

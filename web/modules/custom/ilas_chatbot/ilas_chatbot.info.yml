@@ -1,8 +1,0 @@
-name: 'ILAS Chatbot'
-type: module
-description: 'Google Dialogflow chatbot integration for Idaho Legal Aid Services'
-package: Custom
-core_version_requirement: ^10 || ^11
-dependencies:
-  - drupal:block
-  - drupal:webform

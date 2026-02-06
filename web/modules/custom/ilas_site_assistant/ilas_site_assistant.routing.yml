@@ -53,7 +53,7 @@ ilas_site_assistant.api.health:
     _controller: '\Drupal\ilas_site_assistant\Controller\AssistantApiController::health'
   methods: [GET]
   requirements:
-    _permission: 'access content'
+    _permission: 'view ilas site assistant reports'
 
 ilas_site_assistant.api.metrics:
   path: '/assistant/api/metrics'
@@ -62,3 +62,12 @@ ilas_site_assistant.api.metrics:
   methods: [GET]
   requirements:
     _permission: 'view ilas site assistant reports'
+
+ilas_site_assistant.api.track:
+  path: '/assistant/api/track'
+  defaults:
+    _controller: '\Drupal\ilas_site_assistant\Controller\AssistantApiController::track'
+  methods: [POST]
+  requirements:
+    _permission: 'access content'
+    _csrf_request_header_token: 'TRUE'

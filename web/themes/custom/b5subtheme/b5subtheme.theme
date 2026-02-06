@@ -603,6 +603,7 @@ function _b5subtheme_add_website_search_schema(array &$variables): void {
     '@id' => 'https://idaholegalaid.org/#website',
     'name' => 'Idaho Legal Aid Services',
     'url' => 'https://idaholegalaid.org',
+    'description' => 'Free civil legal assistance for low-income Idahoans. Idaho Legal Aid Services provides legal help with family law, housing, public benefits, consumer rights, and more.',
     'publisher' => [
       '@type' => 'NGO',
       '@id' => 'https://idaholegalaid.org/#organization',

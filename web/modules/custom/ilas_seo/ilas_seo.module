@@ -95,6 +95,27 @@ function ilas_seo_page_attachments_alter(array &$attachments) {
       'robots_noindex',
     ];
   }
+
+  // Add publishingPrinciples to Article schema for article content types.
+  $route_match = \Drupal::routeMatch();
+  $node = $route_match->getParameter('node');
+  if ($node instanceof NodeInterface) {
+    $article_bundles = ['press_entry', 'resource', 'news', 'legal_content'];
+    if (in_array($node->bundle(), $article_bundles, TRUE)) {
+      $attachments['#attached']['html_head'][] = [
+        [
+          '#tag' => 'meta',
+          '#attributes' => [
+            'name' => 'publishingPrinciples',
+            'content' => 'https://idaholegalaid.org/editorial-policy',
+            'group' => 'schema_article',
+            'schema_metatag' => TRUE,
+          ],
+        ],
+        'schema_article_publishing_principles',
+      ];
+    }
+  }
 }
 
 /**
@@ -156,10 +177,15 @@ function ilas_seo_metatags_alter(array &$metatags, array &$context) {
     // Fix 'about' property to use Thing structure (resource and legal_content).
     if (in_array($bundle, ['resource', 'legal_content'], TRUE)) {
       $about_name = '';
-      if ($entity->hasField('field_service_areas') && !$entity->get('field_service_areas')->isEmpty()) {
-        $term = $entity->get('field_service_areas')->entity;
-        if ($term) {
-          $about_name = $term->label();
+      // Resource uses field_service_areas (plural), legal_content uses field_service_area (singular).
+      $about_fields = ['field_service_areas', 'field_service_area'];
+      foreach ($about_fields as $about_field) {
+        if ($entity->hasField($about_field) && !$entity->get($about_field)->isEmpty()) {
+          $term = $entity->get($about_field)->entity;
+          if ($term) {
+            $about_name = $term->label();
+            break;
+          }
         }
       }
       if (!empty($about_name)) {
@@ -189,8 +215,26 @@ function _ilas_seo_fix_event_schema(array &$metatags, NodeInterface $node): void
   // --- Fix dates: read SmartDate field directly, format as ISO 8601 ---
   if ($node->hasField('field_event__date') && !$node->get('field_event__date')->isEmpty()) {
     $date_item = $node->get('field_event__date')->first();
-    $timezone_string = $date_item->timezone ?? 'America/Boise';
-    $timezone = new \DateTimeZone($timezone_string);
+
+    // SmartDate timezone property can be NULL or empty string; guard both.
+    $timezone_string = $date_item->timezone ?? '';
+    if ($timezone_string === '') {
+      // Fall back to Drupal site default, then PHP default, then UTC.
+      $timezone_string = \Drupal::config('system.date')->get('timezone.default')
+        ?: date_default_timezone_get()
+        ?: 'America/Boise';
+    }
+
+    try {
+      $timezone = new \DateTimeZone($timezone_string);
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('ilas_seo')->warning('Invalid timezone "@tz" on event node @nid; falling back to America/Boise.', [
+        '@tz' => $timezone_string,
+        '@nid' => $node->id(),
+      ]);
+      $timezone = new \DateTimeZone('America/Boise');
+    }
 
     $start_value = $date_item->value;
     if (is_numeric($start_value)) {

@@ -44,6 +44,7 @@
         {# Base job posting structure #}
         {% set job_posting = {
           '@type': 'JobPosting',
+          '@id': url('<current>') ~ '#job-' ~ loop.parent.loop.index ~ '-' ~ loop.index,
           'title': job_item.field_accordion_title.value,
           'description': job_item.field_accordion_body.value,
           'datePosted': job_item.field_job_date_posted.value,
