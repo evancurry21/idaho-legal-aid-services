@@ -307,11 +307,12 @@ mix.sass('scss/style.scss', 'css/style.css')
      ] : [],
    });
 
-// Compile JavaScript
-mix.js('js/scripts.js', 'js/scripts.min.js');
+// JavaScript: scripts.js is loaded directly (not bundled through webpack)
+// The file is already ES5-compatible and uses Drupal.behaviors pattern
+// Removed: mix.js('js/scripts.js', 'js/scripts.min.js') - was building unused file
 
-// Copy Bootstrap JS bundle
-mix.copy('node_modules/bootstrap/dist/js/bootstrap.bundle.min.js', 'js/bootstrap.bundle.min.js');
+// Bootstrap JS: Provided by bootstrap5 base theme, no need to copy
+// Removed: mix.copy('node_modules/bootstrap/dist/js/bootstrap.bundle.min.js', ...)
 
 // Copy Font Awesome webfonts (CSS is compiled via SCSS into style.css)
 mix.copy('node_modules/@fortawesome/fontawesome-free/webfonts', 'webfonts');

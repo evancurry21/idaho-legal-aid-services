@@ -169,9 +169,7 @@ topic-cards:
 
 forms:
   version: 1.0
-  css:
-    theme:
-      css/style.css: {}
+  # css/style.css removed - already provided by global-styling dependency (Drupal dedupes, but cleaner to not declare twice)
   js:
     js/topic-nav.js: {}
   dependencies:
@@ -181,9 +179,7 @@ forms:
 
 guides:
   version: 1.0
-  css:
-    theme:
-      css/style.css: {}
+  # css/style.css removed - already provided by global-styling dependency (Drupal dedupes, but cleaner to not declare twice)
   js:
     js/topic-nav.js: {}
   dependencies:

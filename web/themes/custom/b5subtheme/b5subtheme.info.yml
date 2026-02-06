@@ -8,7 +8,7 @@ libraries:
   # bootstrap-icons removed - not used in templates (saves ~87KB)
   # fontawesome removed from global - already compiled into style.css via SCSS (saves ~72KB duplicate)
   - b5subtheme/custom-scripts
-  - b5subtheme/smart-faq
+  # smart-faq removed from global - attached via template where needed (paragraph--faq-smart-section.html.twig)
   - b5subtheme/search-overlay
   - b5subtheme/scroll-behaviors
   - b5subtheme/lazy-loading
