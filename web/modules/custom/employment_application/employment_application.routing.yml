@@ -59,6 +59,39 @@ employment_application.admin:
   options:
     _admin_route: TRUE
 
+employment_application.detail:
+  path: '/admin/employment-applications/{id}'
+  defaults:
+    _controller: '\Drupal\employment_application\Controller\EmploymentApplicationController::adminDetail'
+    _title: 'Application Detail'
+  requirements:
+    _permission: 'administer employment applications'
+    id: \d+
+  options:
+    _admin_route: TRUE
+
+employment_application.status_update:
+  path: '/admin/employment-applications/{id}/status'
+  defaults:
+    _controller: '\Drupal\employment_application\Controller\EmploymentApplicationController::updateStatus'
+  requirements:
+    _permission: 'administer employment applications'
+    _method: 'POST'
+    id: \d+
+  options:
+    _admin_route: TRUE
+
+employment_application.delete:
+  path: '/admin/employment-applications/{id}/delete'
+  defaults:
+    _controller: '\Drupal\employment_application\Controller\EmploymentApplicationController::deleteApplication'
+  requirements:
+    _permission: 'administer employment applications'
+    _method: 'POST'
+    id: \d+
+  options:
+    _admin_route: TRUE
+
 employment_application.download:
   path: '/admin/employment-applications/{id}/download/{fid}'
   defaults:
@@ -69,3 +102,28 @@ employment_application.download:
     id: \d+
   options:
     _admin_route: TRUE
+
+employment_application.draft_save:
+  path: '/employment-application/draft/save'
+  defaults:
+    _controller: '\Drupal\employment_application\Controller\EmploymentApplicationController::saveDraft'
+  requirements:
+    _access: 'TRUE'
+    _method: 'POST'
+  options:
+    _admin_route: FALSE
+    no_cache: TRUE
+    _disable_search_api_indexing: TRUE
+
+employment_application.draft_load:
+  path: '/employment-application/draft/{token}'
+  defaults:
+    _controller: '\Drupal\employment_application\Controller\EmploymentApplicationController::loadDraft'
+  requirements:
+    _access: 'TRUE'
+    _method: 'GET'
+    token: '[a-f0-9]{64}'
+  options:
+    _admin_route: FALSE
+    no_cache: TRUE
+    _disable_search_api_indexing: TRUE

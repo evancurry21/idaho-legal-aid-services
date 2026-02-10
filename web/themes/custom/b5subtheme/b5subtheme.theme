@@ -314,6 +314,26 @@ function b5subtheme_preprocess_node(array &$variables): void {
   if ($variables['content_type'] === 'employment' && $variables['view_mode'] === 'full') {
     _b5subtheme_preprocess_employment_tabs($variables, $node);
   }
+
+  // Employment application: server-side success page detection.
+  if ($variables['content_type'] === 'employment_application' && $variables['view_mode'] === 'full') {
+    $request = \Drupal::request();
+    $submitted = $request->query->get('submitted');
+    if ($submitted === 'success') {
+      $session = $request->getSession();
+      $variables['application_submitted'] = TRUE;
+      $variables['application_id'] = $session->get('employment_app_submitted_id', '');
+      $variables['application_position'] = $session->get('employment_app_submitted_position', '');
+      $variables['application_location'] = $session->get('employment_app_submitted_location', '');
+      // Clear session data after reading (one-time display).
+      $session->remove('employment_app_submitted_id');
+      $session->remove('employment_app_submitted_position');
+      $session->remove('employment_app_submitted_location');
+    }
+    else {
+      $variables['application_submitted'] = FALSE;
+    }
+  }
 }
 
 /**

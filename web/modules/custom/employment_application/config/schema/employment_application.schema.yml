@@ -8,3 +8,6 @@ employment_application.settings:
     notification_enabled:
       type: boolean
       label: 'Enable email notifications'
+    retention_days:
+      type: integer
+      label: 'Data retention period in days (0 = keep forever)'

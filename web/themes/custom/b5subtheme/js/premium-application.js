@@ -83,7 +83,8 @@
       this.setupMultipleFields();
       this.setupConditionalFields();
       this.setupJobSelection();
-      this.loadDraft();
+      this.setupSaveResume();
+      this.loadDraftFromToken() || this.loadDraft();
       console.log('Employment Application Wizard initialized');
     },
 
@@ -877,17 +878,14 @@
       $area.addClass('uploading');
       $area.find('.upload-placeholder').hide();
       $area.find('.upload-progress').show();
-      
-      // Animate progress bar
-      let progress = 0;
-      const interval = setInterval(function() {
-        progress += Math.random() * 30;
-        if (progress >= 95) {
-          progress = 95;
-          clearInterval(interval);
-        }
-        $area.find('.progress-bar').css('--progress', progress + '%');
-      }, 100);
+      $area.find('.progress-text').text('Validating file...');
+
+      // Show brief validation indicator then complete.
+      // Real upload progress happens during form submission via XHR.
+      $area.find('.progress-bar').css('--progress', '100%');
+      setTimeout(function() {
+        $area.find('.progress-text').text('File ready');
+      }, 300);
     },
 
     showFilePreview: function($area, file) {
@@ -1115,6 +1113,11 @@
         isValid = false;
         message = CONFIG.MESSAGES.INVALID_PHONE;
       }
+      // ZIP code validation
+      else if ($field.data('validate') === 'zip' && value && !/^\d{5}(-\d{4})?$/.test(value)) {
+        isValid = false;
+        message = 'Please enter a valid ZIP code (e.g. 83702 or 83702-1234)';
+      }
       
       // Show/clear error
       if (isValid) {
@@ -1252,17 +1255,145 @@
 
     showSaveStatus: function(message, type) {
       const $status = this.$form.find(CONFIG.SELECTORS.AUTO_SAVE_STATUS);
-      
+
       $status.removeClass('visible saving saved error')
         .addClass('visible ' + type)
         .find('.save-text').text(message);
-      
+
       // Hide after delay for success messages
       if (type === 'saved') {
         setTimeout(function() {
           $status.removeClass('visible');
         }, 3000);
       }
+    },
+
+    // Save & Resume Later functionality
+    setupSaveResume: function() {
+      const self = this;
+      const $section = this.$form.closest('.premium-application-page').find('.save-resume-section');
+      if (!$section.length) return;
+
+      const $toggleBtn = $section.find('.btn-save-resume');
+      const $formPanel = $section.find('.save-resume-form');
+      const $sendBtn = $section.find('.btn-send-resume-link');
+      const $emailInput = $section.find('#save-resume-email');
+
+      $toggleBtn.on('click', function() {
+        const expanded = $formPanel.is(':visible');
+        $formPanel.slideToggle(200);
+        $toggleBtn.attr('aria-expanded', !expanded);
+        if (!expanded) {
+          // Pre-fill email from form if available
+          const formEmail = self.$form.find('[name="email"]').val();
+          if (formEmail && !$emailInput.val()) {
+            $emailInput.val(formEmail);
+          }
+          $emailInput.focus();
+        }
+      });
+
+      $sendBtn.on('click', function() {
+        self.saveDraftToServer($emailInput.val(), $section);
+      });
+
+      $emailInput.on('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          self.saveDraftToServer($emailInput.val(), $section);
+        }
+      });
+    },
+
+    saveDraftToServer: function(email, $section) {
+      const $status = $section.find('.save-resume-status');
+      const $sendBtn = $section.find('.btn-send-resume-link');
+
+      if (!email || !CONFIG.VALIDATION.EMAIL_PATTERN.test(email)) {
+        $status.html('<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Please enter a valid email address.</span>');
+        return;
+      }
+
+      $sendBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Sending...');
+      $status.html('');
+
+      const formData = this.collectFormData();
+      formData.currentStep = this.currentStep;
+
+      $.ajax({
+        url: '/employment-application/draft/save',
+        type: 'POST',
+        data: JSON.stringify({
+          email: email,
+          form_data: formData
+        }),
+        contentType: 'application/json',
+        processData: false,
+        success: function(response) {
+          if (response.success) {
+            $status.html('<span class="text-success"><i class="fas fa-check-circle"></i> ' + response.message + '</span>');
+          } else {
+            $status.html('<span class="text-danger"><i class="fas fa-exclamation-circle"></i> ' + (response.message || 'Could not save draft.') + '</span>');
+          }
+        },
+        error: function(xhr) {
+          var msg = 'Could not save draft. Please try again.';
+          if (xhr.responseJSON && xhr.responseJSON.message) {
+            msg = xhr.responseJSON.message;
+          }
+          $status.html('<span class="text-danger"><i class="fas fa-exclamation-circle"></i> ' + msg + '</span>');
+        },
+        complete: function() {
+          $sendBtn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Send Link');
+        }
+      });
+    },
+
+    loadDraftFromToken: function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const resumeToken = urlParams.get('resume');
+      if (!resumeToken || !/^[a-f0-9]{64}$/.test(resumeToken)) {
+        return false;
+      }
+
+      const self = this;
+      this.showSaveStatus('Loading your saved application...', 'saving');
+
+      $.ajax({
+        url: '/employment-application/draft/' + resumeToken,
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+          if (response.success && response.form_data) {
+            self.populateFormData(response.form_data);
+            if (response.form_data.currentStep && response.form_data.currentStep > 1) {
+              self.goToStep(response.form_data.currentStep);
+            }
+            self.showSaveStatus('Draft restored (saved ' + response.saved_at + ')', 'saved');
+            // Also save to localStorage for continued local auto-save
+            localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(response.form_data));
+          } else {
+            self.showSaveStatus('Could not load saved draft.', 'error');
+          }
+        },
+        error: function(xhr) {
+          var msg = 'Could not load saved draft.';
+          if (xhr.responseJSON && xhr.responseJSON.message) {
+            msg = xhr.responseJSON.message;
+          }
+          self.showSaveStatus(msg, 'error');
+        }
+      });
+
+      // Clean the URL
+      var cleanURL = window.location.pathname;
+      var jobParam = urlParams.get('job');
+      if (jobParam) {
+        cleanURL += '?job=' + encodeURIComponent(jobParam);
+      }
+      window.history.replaceState({}, document.title, cleanURL);
+
+      return true;
     },
 
     // Form submission
@@ -1333,6 +1464,16 @@
           data: formData,
           contentType: false,
           processData: false,
+          xhr: function() {
+            var xhr = new window.XMLHttpRequest();
+            xhr.upload.addEventListener('progress', function(e) {
+              if (e.lengthComputable) {
+                var pct = Math.round((e.loaded / e.total) * 100);
+                self.showSaveStatus('Uploading files... ' + pct + '%', 'saving');
+              }
+            }, false);
+            return xhr;
+          },
         };
       } else {
         // Use JSON for submissions without files

@@ -65,6 +65,61 @@ function employment_application_schema() {
     ],
   ];
 
+  $schema['employment_application_drafts'] = [
+    'description' => 'Saved application drafts for cross-device resume.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'resume_token' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+        'description' => 'Unique token for resuming draft.',
+      ],
+      'email' => [
+        'type' => 'varchar',
+        'length' => 254,
+        'not null' => TRUE,
+        'description' => 'Applicant email for sending resume link.',
+      ],
+      'form_data' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE,
+        'description' => 'JSON-encoded draft form data.',
+      ],
+      'created' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Unix timestamp when draft was saved.',
+      ],
+      'updated' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Unix timestamp when draft was last updated.',
+      ],
+      'ip_hash' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+        'description' => 'SHA-256 hash of client IP.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'resume_token' => ['resume_token'],
+    ],
+    'indexes' => [
+      'email' => ['email'],
+      'created' => ['created'],
+    ],
+  ];
+
   return $schema;
 }
 
@@ -107,4 +162,19 @@ function employment_application_update_10001() {
   }
 
   return t('No changes needed.');
+}
+
+/**
+ * Create employment_application_drafts table for cross-device draft resume.
+ */
+function employment_application_update_10002() {
+  $schema = \Drupal::database()->schema();
+
+  if (!$schema->tableExists('employment_application_drafts')) {
+    $module_schema = employment_application_schema();
+    $schema->createTable('employment_application_drafts', $module_schema['employment_application_drafts']);
+    return t('Created employment_application_drafts table.');
+  }
+
+  return t('Table employment_application_drafts already exists.');
 }

@@ -33,3 +33,80 @@ function employment_application_mail($key, &$message, $params) {
       break;
   }
 }
+
+/**
+ * Implements hook_cron().
+ *
+ * Purges employment applications older than the configured retention period.
+ */
+function employment_application_cron() {
+  $config = \Drupal::config('employment_application.settings');
+  $retentionDays = (int) $config->get('retention_days');
+
+  // 0 or unset = keep forever.
+  if ($retentionDays <= 0) {
+    return;
+  }
+
+  $cutoff = \Drupal::time()->getRequestTime() - ($retentionDays * 86400);
+  $database = \Drupal::database();
+  $fileSystem = \Drupal::service('file_system');
+  $logger = \Drupal::logger('employment_application');
+
+  // Find expired applications.
+  $results = $database->select('employment_applications', 'ea')
+    ->fields('ea', ['id', 'application_id', 'file_data'])
+    ->condition('submitted', $cutoff, '<')
+    ->execute();
+
+  $count = 0;
+  foreach ($results as $row) {
+    // Delete associated files.
+    $fileData = json_decode($row->file_data, TRUE);
+    if (is_array($fileData)) {
+      foreach ($fileData as $fieldFiles) {
+        if (!is_array($fieldFiles)) {
+          continue;
+        }
+        foreach ($fieldFiles as $fileRef) {
+          $fid = $fileRef['fid'] ?? NULL;
+          if ($fid) {
+            $file = \Drupal\file\Entity\File::load($fid);
+            if ($file) {
+              $uri = $file->getFileUri();
+              $realPath = $fileSystem->realpath($uri);
+              if ($realPath && file_exists($realPath)) {
+                $fileSystem->delete($uri);
+              }
+              $file->delete();
+            }
+          }
+        }
+      }
+    }
+
+    // Delete DB record.
+    $database->delete('employment_applications')
+      ->condition('id', $row->id)
+      ->execute();
+    $count++;
+  }
+
+  if ($count > 0) {
+    $logger->info('Data retention cron: purged @count applications older than @days days.', [
+      '@count' => $count,
+      '@days' => $retentionDays,
+    ]);
+  }
+
+  // Purge expired drafts (7 days).
+  $draftCutoff = \Drupal::time()->getRequestTime() - (7 * 86400);
+  $draftsDeleted = $database->delete('employment_application_drafts')
+    ->condition('created', $draftCutoff, '<')
+    ->execute();
+  if ($draftsDeleted > 0) {
+    $logger->info('Draft cleanup: purged @count expired drafts.', [
+      '@count' => $draftsDeleted,
+    ]);
+  }
+}

@@ -1,0 +1,9 @@
+services:
+  employment_application.commands:
+    class: Drupal\employment_application\Commands\EmploymentApplicationCommands
+    arguments:
+      - '@database'
+      - '@file_system'
+      - '@config.factory'
+    tags:
+      - { name: drush.command }

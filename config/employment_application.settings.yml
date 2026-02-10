@@ -1,2 +1,3 @@
 admin_email: evancurry@idaholegalaid.org
 notification_enabled: true
+retention_days: 365

@@ -13,12 +13,57 @@
 
   <div{{ content_attributes.addClass('node__content') }}>
 
+    {% if application_submitted %}
+      {# Server-rendered success page — works without JavaScript #}
+      <div class="application-success-server" role="main">
+        <div class="container">
+          <div class="success-content">
+            <div class="success-icon-wrapper">
+              <i class="fas fa-check-circle" aria-hidden="true"></i>
+            </div>
+            <h1>Application Submitted Successfully</h1>
+            <p class="success-message">Thank you for your interest in joining our team. We've received your application and will review it carefully.</p>
+
+            {% if application_id %}
+              <div class="application-reference">
+                <span class="reference-label">Your Application Reference:</span>
+                <span class="reference-id">{{ application_id }}</span>
+              </div>
+            {% endif %}
+
+            {% if application_position %}
+              <p class="success-position">
+                <strong>Position:</strong>
+                {{ application_position }}{% if application_location %} &mdash; {{ application_location }}{% endif %}
+              </p>
+            {% endif %}
+
+            <div class="next-steps">
+              <h2>What happens next?</h2>
+              <ul>
+                <li>We'll acknowledge receipt of your application within 24 hours</li>
+                <li>Our team will review your qualifications</li>
+                <li>If you're a good fit, we'll contact you within 1-2 weeks for next steps</li>
+              </ul>
+            </div>
+
+            <div class="success-actions">
+              <a href="/employment" class="btn btn-primary">
+                <i class="fas fa-briefcase" aria-hidden="true"></i> View Other Positions
+              </a>
+              <a href="/" class="btn btn-outline-secondary">Return Home</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+
     {# Skip Link for Accessibility #}
     <a href="#application-form" class="visually-hidden-focusable">Skip to application form</a>
 
     {# Application Form - Proper Drupal Integration #}
-    <form id="application-form" 
-          class="application-wizard" 
+    <form id="application-form"
+          class="application-wizard"
           action="/employment-application/submit" 
           method="post" 
           enctype="multipart/form-data"
@@ -235,11 +280,16 @@
                     </div>
                     <div class="form-group address-zip">
                       <label for="address_postal_code" class="form-label required">ZIP Code</label>
-                      <input type="text" 
-                             id="address_postal_code" 
-                             name="address[postal_code]" 
+                      <input type="text"
+                             id="address_postal_code"
+                             name="address[postal_code]"
                              class="form-control"
-                             autocomplete="postal-code">
+                             autocomplete="postal-code"
+                             pattern="[0-9]{5}(-[0-9]{4})?"
+                             title="5-digit ZIP code (e.g. 83702) or ZIP+4 (e.g. 83702-1234)"
+                             data-validate="zip"
+                             aria-describedby="postal_code_help">
+                      <small id="postal_code_help" class="form-text text-muted">e.g. 83702 or 83702-1234</small>
                     </div>
                   </div>
                 </div>
@@ -676,15 +726,51 @@
                             placeholder="Share anything else you'd like us to know about your application..."></textarea>
                 </div>
 
+                {# Accommodation Request (ADA/Section 503) #}
+                <div class="form-group full-width">
+                  <div class="accommodation-notice">
+                    <p class="accommodation-notice__text">
+                      Idaho Legal Aid Services is committed to providing reasonable accommodations to qualified individuals with disabilities.
+                      If you need an accommodation to complete this application or participate in the interview process, please describe your request below.
+                    </p>
+                    <label for="accommodation_request" class="form-label">Accommodation Request <span class="optional-label">(optional)</span></label>
+                    <textarea id="accommodation_request"
+                              name="accommodation_request"
+                              class="form-control auto-resize"
+                              rows="3"
+                              placeholder="Describe any accommodations you may need..."></textarea>
+                  </div>
+                </div>
+
+                {# EEO Statement #}
+                <div class="form-group full-width">
+                  <div class="eeo-statement">
+                    <p class="eeo-statement__text">
+                      Idaho Legal Aid Services is an Equal Opportunity Employer. We do not discriminate on the basis of race, color, religion, sex, national origin, age, disability, genetic information, veteran status, sexual orientation, gender identity, or any other legally protected characteristic.
+                    </p>
+                  </div>
+                </div>
+
+                {# Privacy Notice #}
+                <div class="form-group full-width">
+                  <div class="privacy-notice">
+                    <p class="privacy-notice__text">
+                      The personal information you provide in this application will be used solely for the purpose of evaluating your candidacy for employment.
+                      Your data will be stored securely and retained in accordance with our data retention policies.
+                      For more information about how we collect, use, and protect your personal data, please review our <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.
+                    </p>
+                  </div>
+                </div>
+
                 <div class="form-group full-width">
                   <fieldset class="application-agreements" role="group" aria-labelledby="agreements-heading">
                     <legend id="agreements-heading" class="visually-hidden">Application Agreements</legend>
-                    
+
                     <div class="agreement-item">
                       <label class="checkbox-label">
-                        <input type="checkbox" 
-                               id="agreement" 
-                               name="agreement" 
+                        <input type="checkbox"
+                               id="agreement"
+                               name="agreement"
                                required
                                aria-required="true"
                                aria-describedby="agreement_error"
@@ -741,6 +827,31 @@
           <span class="save-text">All changes saved</span>
         </div>
 
+        {# Save & Resume Later #}
+        <div class="save-resume-section">
+          <button type="button" class="btn btn-outline-secondary btn-save-resume" aria-expanded="false" aria-controls="save-resume-form">
+            <i class="fas fa-envelope" aria-hidden="true"></i> Save &amp; Resume Later
+          </button>
+          <div id="save-resume-form" class="save-resume-form" style="display: none;" role="region" aria-label="Save and resume later">
+            <p class="save-resume-description">Enter your email and we'll send you a link to resume this application from any device. The link expires in 7 days.</p>
+            <div class="save-resume-input-group">
+              <label for="save-resume-email" class="visually-hidden">Email address for resume link</label>
+              <input type="email"
+                     id="save-resume-email"
+                     class="form-control"
+                     placeholder="Your email address"
+                     autocomplete="email"
+                     required
+                     aria-describedby="save-resume-help">
+              <button type="button" class="btn btn-primary btn-send-resume-link">
+                <i class="fas fa-paper-plane" aria-hidden="true"></i> Send Link
+              </button>
+            </div>
+            <small id="save-resume-help" class="form-text text-muted">We'll only use this email to send your resume link.</small>
+            <div class="save-resume-status" role="status" aria-live="polite"></div>
+          </div>
+        </div>
+
       </div>
     </form>
 
@@ -774,6 +885,8 @@
         </div>
       </div>
     </div>
+
+    {% endif %}
 
   </div>
 

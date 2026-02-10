@@ -2,6 +2,8 @@
 
 namespace Drupal\employment_application\Service;
 
+use Drupal\Component\Utility\Xss;
+
 /**
  * Validation and ID generation for employment applications.
  *
@@ -15,6 +17,7 @@ class ApplicationValidator {
    */
   public const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx'];
   public const MAX_FILE_SIZE = 5242880; // 5MB
+  public const MAX_TOTAL_UPLOAD_SIZE = 26214400; // 25MB
 
   /**
    * MIME types accepted per extension.
@@ -250,8 +253,9 @@ class ApplicationValidator {
   /**
    * Sanitizes input data (scalar or array).
    *
-   * Strips HTML tags and trims whitespace. For output safety, consumers
-   * must still use htmlspecialchars() in HTML contexts.
+   * Filters dangerous HTML using Drupal's Xss::filter() and trims
+   * whitespace. For output safety, consumers must still use
+   * htmlspecialchars() in HTML contexts.
    *
    * @param mixed $value
    *   The value to sanitize.
@@ -271,7 +275,7 @@ class ApplicationValidator {
     }
 
     if (is_scalar($value)) {
-      return strip_tags(trim((string) $value));
+      return Xss::filter(trim((string) $value));
     }
 
     return '';
@@ -329,6 +333,21 @@ class ApplicationValidator {
       'licensed_other_state' => 'Licensed in Another State',
       default => ucfirst(str_replace('_', ' ', $value)),
     };
+  }
+
+  /**
+   * Validates a US ZIP code format.
+   *
+   * Accepts 5-digit (12345) or ZIP+4 (12345-6789) formats.
+   *
+   * @param string $zip
+   *   The ZIP code to validate.
+   *
+   * @return bool
+   *   TRUE if valid US ZIP code format.
+   */
+  public function validateZipCode(string $zip): bool {
+    return (bool) preg_match('/^\d{5}(-\d{4})?$/', trim($zip));
   }
 
   /**
