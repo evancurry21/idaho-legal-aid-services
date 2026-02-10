@@ -1,0 +1,110 @@
+<?php
+
+/**
+ * @file
+ * Install, update, and uninstall functions for Employment Application.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function employment_application_schema() {
+  $schema['employment_applications'] = [
+    'description' => 'Employment application submissions.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'application_id' => [
+        'type' => 'varchar',
+        'length' => 191,
+        'not null' => TRUE,
+        'description' => 'Human-readable application identifier.',
+      ],
+      'submitted' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Unix timestamp of submission.',
+      ],
+      'form_data' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE,
+        'description' => 'JSON-encoded form data.',
+      ],
+      'file_data' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+        'description' => 'JSON-encoded file references.',
+      ],
+      'status' => [
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => TRUE,
+        'default' => 'submitted',
+        'description' => 'Application status.',
+      ],
+      'ip_hash' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+        'description' => 'SHA-256 hash of client IP (not raw IP).',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'application_id' => ['application_id'],
+    ],
+    'indexes' => [
+      'submitted' => ['submitted'],
+      'status' => ['status'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Create the employment_applications table if it doesn't exist.
+ *
+ * For sites that had the table auto-created at runtime before this .install
+ * file existed. Also renames ip_address → ip_hash.
+ */
+function employment_application_update_10001() {
+  $schema = \Drupal::database()->schema();
+
+  if (!$schema->tableExists('employment_applications')) {
+    // Table doesn't exist yet — create it from hook_schema().
+    $module_schema = employment_application_schema();
+    $schema->createTable('employment_applications', $module_schema['employment_applications']);
+    return t('Created employment_applications table.');
+  }
+
+  // Table exists — migrate ip_address to ip_hash.
+  if ($schema->fieldExists('employment_applications', 'ip_address')) {
+    // Add new column.
+    if (!$schema->fieldExists('employment_applications', 'ip_hash')) {
+      $schema->addField('employment_applications', 'ip_hash', [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+        'description' => 'SHA-256 hash of client IP (not raw IP).',
+      ]);
+    }
+
+    // Hash existing IPs, then drop the raw column.
+    \Drupal::database()->update('employment_applications')
+      ->expression('ip_hash', "SHA2(ip_address, 256)")
+      ->execute();
+
+    $schema->dropField('employment_applications', 'ip_address');
+
+    return t('Migrated ip_address to ip_hash (hashed).');
+  }
+
+  return t('No changes needed.');
+}

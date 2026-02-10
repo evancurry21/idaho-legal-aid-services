@@ -3,15 +3,23 @@
 namespace Drupal\employment_application\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Mail\MailManagerInterface;
 use Drupal\Core\Access\CsrfTokenGenerator;
 use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
+use Drupal\Core\Flood\FloodInterface;
+use Drupal\employment_application\Service\ApplicationValidator;
 use Drupal\file\Entity\File;
 use Drupal\node\Entity\Node;
 use Drupal\paragraphs\Entity\Paragraph;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -49,23 +57,39 @@ class EmploymentApplicationController extends ControllerBase {
   protected MailerInterface $mailer;
 
   /**
-   * File upload configuration.
+   * The application validator service.
    */
-  private const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx'];
-  private const MAX_FILE_SIZE = 5242880; // 5MB
-  private const UPLOAD_DIRECTORY = 'private://employment-applications';
+  protected ApplicationValidator $validator;
 
   /**
-   * Position family labels for display.
+   * The database connection.
    */
-  private const POSITION_FAMILY_LABELS = [
-    'managing_attorney' => 'Managing Attorney',
-    'staff_attorney' => 'Staff Attorney',
-    'paralegal' => 'Paralegal',
-    'legal_assistant' => 'Legal Assistant',
-    'administrative' => 'Administrative Support',
-    'outreach' => 'Community Outreach',
-  ];
+  protected Connection $database;
+
+  /**
+   * The flood service.
+   */
+  protected FloodInterface $flood;
+
+  /**
+   * The logger.
+   */
+  protected LoggerInterface $appLogger;
+
+  /**
+   * The config factory.
+   */
+  protected ConfigFactoryInterface $configFactory;
+
+  /**
+   * The entity type manager.
+   */
+  protected EntityTypeManagerInterface $entityTypeManager;
+
+  /**
+   * File upload directory.
+   */
+  private const UPLOAD_DIRECTORY = 'private://employment-applications';
 
   /**
    * {@inheritdoc}
@@ -76,17 +100,17 @@ class EmploymentApplicationController extends ControllerBase {
     $instance->mailManager = $container->get('plugin.manager.mail');
     $instance->csrfToken = $container->get('csrf_token');
     $instance->mailer = $container->get('symfony_mailer_lite.mailer');
+    $instance->validator = $container->get('employment_application.validator');
+    $instance->database = $container->get('database');
+    $instance->flood = $container->get('flood');
+    $instance->appLogger = $container->get('logger.factory')->get('employment_application');
+    $instance->configFactory = $container->get('config.factory');
+    $instance->entityTypeManager = $container->get('entity_type.manager');
     return $instance;
   }
 
   /**
    * Returns list of currently posted jobs.
-   *
-   * Jobs are considered "posted" if they have a date_posted value and
-   * their valid_through date (if set) is in the future.
-   *
-   * @return \Drupal\Core\Cache\CacheableJsonResponse
-   *   JSON response with jobs list and cache metadata.
    */
   public function getPostedJobs(): CacheableJsonResponse {
     $jobs = $this->loadPostedJobs();
@@ -96,14 +120,12 @@ class EmploymentApplicationController extends ControllerBase {
       'count' => count($jobs),
     ]);
 
-    // Add cache metadata - invalidate when Employment node changes
     $cacheMetadata = new CacheableMetadata();
     $cacheMetadata->setCacheTags(['node_list', 'paragraph_list', 'employment_jobs']);
     $cacheMetadata->setCacheContexts(['url.query_args']);
-    $cacheMetadata->setCacheMaxAge(300); // 5 minute cache
+    $cacheMetadata->setCacheMaxAge(300);
     $response->addCacheableDependency($cacheMetadata);
 
-    // Prevent search indexing
     $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
 
     return $response;
@@ -111,28 +133,17 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Returns a single job by UUID.
-   *
-   * Returns detailed error information for closed/invalid jobs to allow
-   * the frontend to show helpful messages with links back to careers.
-   *
-   * @param string $job_uuid
-   *   The UUID of the job paragraph.
-   *
-   * @return \Drupal\Core\Cache\CacheableJsonResponse
-   *   JSON response with job data or detailed error.
    */
   public function getJobByUuid(string $job_uuid): CacheableJsonResponse {
     $result = $this->loadJobByUuidWithReason($job_uuid);
 
     if ($result['job']) {
-      // Job is valid and active
       $response = new CacheableJsonResponse([
         'job' => $result['job'],
         'valid' => TRUE,
       ]);
     }
     else {
-      // Build detailed error response
       $errorData = [
         'valid' => FALSE,
         'reason' => $result['reason'],
@@ -165,7 +176,6 @@ class EmploymentApplicationController extends ControllerBase {
       $response = new CacheableJsonResponse($errorData, Response::HTTP_NOT_FOUND);
     }
 
-    // Add cache metadata
     $cacheMetadata = new CacheableMetadata();
     $cacheMetadata->setCacheTags(['paragraph_list', 'employment_jobs']);
     $cacheMetadata->setCacheMaxAge(300);
@@ -178,25 +188,11 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Loads all currently posted jobs from the Employment node.
-   *
-   * FILTERING RULES (source of truth for "posted job"):
-   * 1. Job MUST have field_job_date_posted set (marks it as a job posting)
-   * 2. Job is ACTIVE if ANY of these conditions are true:
-   *    - field_job_open_until_filled = TRUE (always active until manually removed)
-   *    - field_job_valid_through (deadline) is NOT set (no deadline = open)
-   *    - field_job_valid_through is set AND is in the future
-   * 3. Job is CLOSED (excluded) if ALL of these are true:
-   *    - field_job_open_until_filled = FALSE or not set
-   *    - field_job_valid_through is set AND is in the past
-   *
-   * @return array
-   *   Array of job data arrays.
    */
   private function loadPostedJobs(): array {
     $jobs = [];
 
-    // Find the Employment node (content type: employment)
-    $query = \Drupal::entityTypeManager()
+    $query = $this->entityTypeManager
       ->getStorage('node')
       ->getQuery()
       ->condition('type', 'employment')
@@ -218,7 +214,6 @@ class EmploymentApplicationController extends ControllerBase {
 
     $now = time();
 
-    // Iterate through job categories
     foreach ($node->get('field_job_listings') as $categoryRef) {
       $category = $categoryRef->entity;
 
@@ -228,7 +223,6 @@ class EmploymentApplicationController extends ControllerBase {
 
       $categoryName = $category->get('field_category_name')->value ?? '';
 
-      // Iterate through jobs in this category
       foreach ($category->get('field_category_jobs') as $jobRef) {
         $jobParagraph = $jobRef->entity;
 
@@ -236,24 +230,20 @@ class EmploymentApplicationController extends ControllerBase {
           continue;
         }
 
-        // RULE 1: Must have date_posted to be considered a job posting
         $datePosted = $jobParagraph->get('field_job_date_posted')->value ?? NULL;
         if (empty($datePosted)) {
-          continue; // Not a job posting, skip
+          continue;
         }
 
-        // Get deadline and open_until_filled values
         $validThrough = $jobParagraph->get('field_job_valid_through')->value ?? NULL;
         $openUntilFilled = (bool) ($jobParagraph->get('field_job_open_until_filled')->value ?? FALSE);
 
-        // RULE 2 & 3: Determine if job is active
         $isActive = $this->isJobActive($validThrough, $openUntilFilled, $now);
 
         if (!$isActive) {
-          continue; // Job is closed, skip
+          continue;
         }
 
-        // Get job details
         $jobTitle = $jobParagraph->get('field_accordion_title')->value ?? '';
         $jobLocation = $jobParagraph->get('field_job_location')->value ?? '';
         $positionFamily = $jobParagraph->get('field_position_family')->value ?? '';
@@ -274,13 +264,11 @@ class EmploymentApplicationController extends ControllerBase {
           'date_posted' => $datePosted,
           'valid_through' => $validThrough,
           'open_until_filled' => $openUntilFilled,
-          // Computed display label
           'label' => $jobLocation ? "{$jobTitle} — {$jobLocation}" : $jobTitle,
         ];
       }
     }
 
-    // Sort jobs by category, then by title
     usort($jobs, function ($a, $b) {
       $catCompare = strcmp($a['category'], $b['category']);
       if ($catCompare !== 0) {
@@ -293,54 +281,27 @@ class EmploymentApplicationController extends ControllerBase {
   }
 
   /**
-   * Determines if a job is currently active based on deadline and open_until_filled.
-   *
-   * @param string|null $validThrough
-   *   The deadline date string (Y-m-d format) or NULL if no deadline.
-   * @param bool $openUntilFilled
-   *   Whether the job is marked as "open until filled".
-   * @param int $now
-   *   Current timestamp for comparison.
-   *
-   * @return bool
-   *   TRUE if job is active, FALSE if closed.
+   * Determines if a job is currently active.
    */
   private function isJobActive(?string $validThrough, bool $openUntilFilled, int $now): bool {
-    // If open_until_filled is TRUE, job is always active
     if ($openUntilFilled) {
       return TRUE;
     }
 
-    // If no deadline is set, job is active
     if (empty($validThrough)) {
       return TRUE;
     }
 
-    // If deadline is set, check if it's in the future.
-    // The field stores date-only values (Y-m-d), so strtotime() returns
-    // midnight UTC on the deadline day. To keep the job active through the
-    // entire calendar day, compare against the start of the NEXT day.
     $dayAfterDeadline = strtotime($validThrough . ' +1 day');
     if ($dayAfterDeadline && $dayAfterDeadline > $now) {
-      return TRUE; // Still within the deadline day
+      return TRUE;
     }
 
-    // Deadline day has fully passed and job is not open_until_filled
     return FALSE;
   }
 
   /**
    * Loads a single job by UUID if it's currently posted.
-   *
-   * Uses the same filtering rules as loadPostedJobs():
-   * - Must have date_posted set
-   * - Must be active (open_until_filled OR no deadline OR deadline in future)
-   *
-   * @param string $uuid
-   *   The paragraph UUID.
-   *
-   * @return array|null
-   *   Job data array or null if not found/not posted.
    */
   private function loadJobByUuid(string $uuid): ?array {
     $result = $this->loadJobByUuidWithReason($uuid);
@@ -348,18 +309,10 @@ class EmploymentApplicationController extends ControllerBase {
   }
 
   /**
-   * Loads a single job by UUID with closure reason for better error messages.
-   *
-   * @param string $uuid
-   *   The paragraph UUID.
-   *
-   * @return array
-   *   Array with 'job' (array|null) and 'reason' (string|null) keys.
-   *   Reason values: 'not_found', 'not_job_posting', 'closed', null (if valid).
+   * Loads a single job by UUID with closure reason.
    */
   private function loadJobByUuidWithReason(string $uuid): array {
-    // Load paragraph by UUID
-    $paragraphs = \Drupal::entityTypeManager()
+    $paragraphs = $this->entityTypeManager
       ->getStorage('paragraph')
       ->loadByProperties(['uuid' => $uuid]);
 
@@ -369,28 +322,23 @@ class EmploymentApplicationController extends ControllerBase {
 
     $jobParagraph = reset($paragraphs);
 
-    // Verify this is an accordion_item with job data
     if ($jobParagraph->bundle() !== 'accordion_item') {
       return ['job' => NULL, 'reason' => 'not_found', 'job_title' => NULL];
     }
 
-    // Get job title early for error messages
     $jobTitle = $jobParagraph->get('field_accordion_title')->value ?? '';
     $jobLocation = $jobParagraph->get('field_job_location')->value ?? '';
 
-    // Check if this is a valid posted job (has date_posted)
     $datePosted = $jobParagraph->get('field_job_date_posted')->value ?? NULL;
 
     if (empty($datePosted)) {
       return ['job' => NULL, 'reason' => 'not_job_posting', 'job_title' => $jobTitle];
     }
 
-    // Get deadline and open_until_filled values
     $validThrough = $jobParagraph->get('field_job_valid_through')->value ?? NULL;
     $openUntilFilled = (bool) ($jobParagraph->get('field_job_open_until_filled')->value ?? FALSE);
     $now = time();
 
-    // Check if job is active using same rules as loadPostedJobs()
     $isActive = $this->isJobActive($validThrough, $openUntilFilled, $now);
 
     if (!$isActive) {
@@ -403,13 +351,11 @@ class EmploymentApplicationController extends ControllerBase {
       ];
     }
 
-    // Job is valid and active - get all details
     $positionFamily = $jobParagraph->get('field_position_family')->value ?? '';
     $employmentType = $jobParagraph->get('field_job_employment_type')->value ?? '';
     $salaryRange = $jobParagraph->get('field_job_salary_range')->value ?? '';
     $workArrangement = $jobParagraph->get('field_job_work_arrangement')->value ?? '';
 
-    // Get category name by finding parent
     $categoryName = $this->getJobCategoryName($jobParagraph);
 
     return [
@@ -434,15 +380,8 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Gets the category name for a job paragraph.
-   *
-   * @param \Drupal\paragraphs\Entity\Paragraph $jobParagraph
-   *   The job paragraph.
-   *
-   * @return string
-   *   The category name or empty string.
    */
   private function getJobCategoryName(Paragraph $jobParagraph): string {
-    // Find parent paragraph (job_category) via parent field
     $parentField = $jobParagraph->get('parent_field_name')->value;
     $parentType = $jobParagraph->get('parent_type')->value;
     $parentId = $jobParagraph->get('parent_id')->value;
@@ -459,20 +398,9 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Validates job_uuid and returns job data if valid.
-   *
-   * @param string $jobUuid
-   *   The job UUID to validate.
-   *
-   * @return array|null
-   *   Job data if valid, null otherwise.
    */
   private function validateJobUuid(string $jobUuid): ?array {
-    if (empty($jobUuid)) {
-      return NULL;
-    }
-
-    // Basic UUID format validation
-    if (!preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $jobUuid)) {
+    if (empty($jobUuid) || !$this->validator->validateUuid($jobUuid)) {
       return NULL;
     }
 
@@ -481,33 +409,26 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Generates and returns CSRF token + session-bound nonce.
-   *
-   * The nonce is stored in the session and must be returned with the
-   * submission. This ties each token fetch to a real browser session,
-   * blocking bots that POST without completing the form flow.
-   *
-   * IMPORTANT: This response MUST NOT be cached. The token and nonce are
-   * per-session. Pantheon Varnish must see no-store to avoid serving a
-   * stale token and stripping the Set-Cookie that establishes the session.
    */
   public function getToken(Request $request): JsonResponse {
-    // Kill Drupal's internal page cache for this response.
     \Drupal::service('page_cache_kill_switch')->trigger();
 
     $token = $this->csrfToken->get('employment_application_form');
 
-    // Generate session-bound nonce (single-use, consumed on submit).
     $nonce = bin2hex(random_bytes(16));
     $session = $request->getSession();
     $session->set('employment_app_nonce', $nonce);
 
+    // Store token issuance time server-side for time-gate validation.
+    // This replaces relying on Twig-rendered form_start_time which can be
+    // cached by Varnish, making the time-gate unreliable.
+    $session->set('employment_app_token_time', time());
+
     $response = new JsonResponse([
       'token' => $token,
-      'build_id' => 'form-' . bin2hex(random_bytes(8)),
       'nonce' => $nonce,
     ]);
 
-    // Explicitly prevent all caching — belt and suspenders for Pantheon CDN.
     $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     $response->headers->set('Surrogate-Control', 'no-store');
     $response->headers->set('Pragma', 'no-cache');
@@ -522,46 +443,50 @@ class EmploymentApplicationController extends ControllerBase {
    * Handles employment application form submission.
    */
   public function submitApplication(Request $request): JsonResponse {
+    // Per-request correlation ID for tracing across log entries.
+    $correlationId = 'EA-' . bin2hex(random_bytes(4));
+
     try {
       $ip = $request->getClientIp();
 
       // =================================================================
       // RATE LIMITING (Flood Control)
       // =================================================================
-      $flood = \Drupal::flood();
-
-      // Per-IP burst: 5/min
-      if (!$flood->isAllowed('employment_app_ip_burst', 5, 60, $ip)) {
-        \Drupal::logger('employment_application')->warning('Rate limit (burst) exceeded for IP: @ip', ['@ip' => $ip]);
+      if (!$this->flood->isAllowed('employment_app_ip_burst', 5, 60, $ip)) {
+        $this->appLogger->warning('[@cid] Rate limit (burst) exceeded for IP: @ip', [
+          '@cid' => $correlationId,
+          '@ip' => $ip,
+        ]);
         return $this->errorResponse('Too many requests. Please wait a moment.', Response::HTTP_TOO_MANY_REQUESTS);
       }
 
-      // Per-IP sustained: 20/hour
-      if (!$flood->isAllowed('employment_app_ip_hour', 20, 3600, $ip)) {
-        \Drupal::logger('employment_application')->warning('Rate limit (hourly) exceeded for IP: @ip', ['@ip' => $ip]);
+      if (!$this->flood->isAllowed('employment_app_ip_hour', 20, 3600, $ip)) {
+        $this->appLogger->warning('[@cid] Rate limit (hourly) exceeded for IP: @ip', [
+          '@cid' => $correlationId,
+          '@ip' => $ip,
+        ]);
         return $this->errorResponse('Submission limit reached. Please try again later.', Response::HTTP_TOO_MANY_REQUESTS);
       }
 
-      // Global burst: 30/min (protects against distributed attacks)
-      if (!$flood->isAllowed('employment_app_global', 30, 60, 'global')) {
-        \Drupal::logger('employment_application')->warning('Global rate limit exceeded');
+      if (!$this->flood->isAllowed('employment_app_global', 30, 60, 'global')) {
+        $this->appLogger->warning('[@cid] Global rate limit exceeded', ['@cid' => $correlationId]);
         return $this->errorResponse('Service temporarily busy. Please try again shortly.', Response::HTTP_TOO_MANY_REQUESTS);
       }
 
-      // Register flood events
-      $flood->register('employment_app_ip_burst', 60, $ip);
-      $flood->register('employment_app_ip_hour', 3600, $ip);
-      $flood->register('employment_app_global', 60, 'global');
+      $this->flood->register('employment_app_ip_burst', 60, $ip);
+      $this->flood->register('employment_app_ip_hour', 3600, $ip);
+      $this->flood->register('employment_app_global', 60, 'global');
 
       // =================================================================
       // CONTENT-TYPE VALIDATION
       // =================================================================
       $contentType = $request->headers->get('Content-Type', '');
-      $isJson = strpos($contentType, 'application/json') !== false;
+      $isJson = strpos($contentType, 'application/json') !== FALSE;
       $isFormData = strpos($contentType, 'multipart/form-data') === 0;
 
       if (!$isJson && !$isFormData) {
-        \Drupal::logger('employment_application')->warning('Invalid Content-Type from @ip: @type', [
+        $this->appLogger->warning('[@cid] Invalid Content-Type from @ip: @type', [
+          '@cid' => $correlationId,
           '@ip' => $ip,
           '@type' => $contentType,
         ]);
@@ -584,7 +509,6 @@ class EmploymentApplicationController extends ControllerBase {
         $formStartTime = (int) $request->request->get('form_start_time', 0);
       }
       else {
-        // Decode JSON early so we can extract security fields.
         $content = $request->getContent();
         if (empty($content)) {
           return $this->errorResponse('No data received.', Response::HTTP_BAD_REQUEST);
@@ -600,10 +524,13 @@ class EmploymentApplicationController extends ControllerBase {
       }
 
       // =================================================================
-      // HONEYPOT CHECK (unified)
+      // HONEYPOT CHECK
       // =================================================================
       if (!empty($honeypotValue)) {
-        \Drupal::logger('employment_application')->notice('Honeypot triggered from @ip', ['@ip' => $ip]);
+        $this->appLogger->notice('[@cid] Honeypot triggered from @ip', [
+          '@cid' => $correlationId,
+          '@ip' => $ip,
+        ]);
         return new JsonResponse([
           'success' => TRUE,
           'message' => 'Application submitted successfully.',
@@ -616,22 +543,28 @@ class EmploymentApplicationController extends ControllerBase {
       $ctx = $this->classifySubmissionRequest($request, $formToken, $formNonce, $formStartTime, $isFormData);
 
       // =================================================================
-      // FORM START TIME — REQUIRED (missing = bot-like)
+      // TIME-GATE: prefer server-side token issuance time over client-sent
+      // form_start_time (which can be cached by Varnish).
       // =================================================================
-      if ($formStartTime <= 0) {
-        \Drupal::logger('employment_application')->notice('Missing form_start_time from @ip [@class] ua=@ua ref=@referer sess=@has_session token=@has_token nonce=@has_nonce fields=@has_fields', [
+      $session = $request->getSession();
+      $tokenIssuedAt = (int) $session->get('employment_app_token_time', 0);
+
+      // Use server-side token time if available, fall back to form_start_time.
+      $effectiveStartTime = $tokenIssuedAt > 0 ? $tokenIssuedAt : $formStartTime;
+
+      if ($effectiveStartTime <= 0) {
+        $this->appLogger->notice('[@cid] Missing timing data from @ip [@class]', [
+          '@cid' => $correlationId,
           '@ip' => $ip,
           '@class' => $ctx['classification'],
         ] + $ctx);
         return $this->errorResponse('Invalid request.', Response::HTTP_BAD_REQUEST);
       }
 
-      // =================================================================
-      // TIME-GATE CHECK
-      // =================================================================
-      if ((time() - $formStartTime) < 3) {
-        \Drupal::logger('employment_application')->notice('Form submitted too quickly (@sec sec) from @ip', [
-          '@sec' => time() - $formStartTime,
+      if ((time() - $effectiveStartTime) < ApplicationValidator::MIN_FORM_TIME_SECONDS) {
+        $this->appLogger->notice('[@cid] Form submitted too quickly (@sec sec) from @ip', [
+          '@cid' => $correlationId,
+          '@sec' => time() - $effectiveStartTime,
           '@ip' => $ip,
         ]);
         return $this->errorResponse('Please take a moment to review your application.', Response::HTTP_BAD_REQUEST);
@@ -640,26 +573,27 @@ class EmploymentApplicationController extends ControllerBase {
       // =================================================================
       // SESSION NONCE VALIDATION
       // =================================================================
-      $session = $request->getSession();
       $sessionNonce = $session->get('employment_app_nonce', '');
       if (empty($formNonce) || empty($sessionNonce) || !hash_equals($sessionNonce, $formNonce)) {
         $nonceType = empty($formNonce) ? 'missing_nonce' : 'invalid_nonce';
         $level = ($ctx['classification'] === 'likely_browser') ? 'warning' : 'notice';
-        \Drupal::logger('employment_application')->$level('Nonce validation failed from @ip [@type] [@class] ua=@ua ref=@referer sess=@has_session token=@has_token nonce=@has_nonce fields=@has_fields', [
+        $this->appLogger->$level('[@cid] Nonce validation failed from @ip [@type] [@class]', [
+          '@cid' => $correlationId,
           '@ip' => $ip,
           '@type' => $nonceType,
           '@class' => $ctx['classification'],
         ] + $ctx);
         return $this->errorResponse('Session expired. Please reload the page and try again.', Response::HTTP_FORBIDDEN);
       }
-      // Consume nonce (single-use — prevents replay).
       $session->remove('employment_app_nonce');
+      $session->remove('employment_app_token_time');
 
       // =================================================================
       // CSRF TOKEN VALIDATION
       // =================================================================
       if (empty($formToken)) {
-        \Drupal::logger('employment_application')->notice('Missing CSRF token from @ip [missing_token] [@class] ua=@ua ref=@referer sess=@has_session nonce=@has_nonce fields=@has_fields', [
+        $this->appLogger->notice('[@cid] Missing CSRF token from @ip [@class]', [
+          '@cid' => $correlationId,
           '@ip' => $ip,
           '@class' => $ctx['classification'],
         ] + $ctx);
@@ -667,14 +601,16 @@ class EmploymentApplicationController extends ControllerBase {
       }
       if (!$this->csrfToken->validate($formToken, 'employment_application_form')) {
         $level = ($ctx['classification'] === 'likely_browser') ? 'warning' : 'notice';
-        \Drupal::logger('employment_application')->$level('Invalid CSRF token from @ip [invalid_token] [@class] ua=@ua ref=@referer sess=@has_session nonce=@has_nonce fields=@has_fields', [
+        $this->appLogger->$level('[@cid] Invalid CSRF token from @ip [@class]', [
+          '@cid' => $correlationId,
           '@ip' => $ip,
           '@class' => $ctx['classification'],
         ] + $ctx);
         return $this->errorResponse('Security token expired. Please reload the page and try again.', Response::HTTP_FORBIDDEN);
       }
 
-      \Drupal::logger('employment_application')->info('Security validation passed from @ip - @type', [
+      $this->appLogger->debug('[@cid] Security validation passed from @ip - @type', [
+        '@cid' => $correlationId,
         '@ip' => $ip,
         '@type' => $isFormData ? 'FormData' : 'JSON',
       ]);
@@ -686,7 +622,8 @@ class EmploymentApplicationController extends ControllerBase {
         $jobUuid = $request->request->get('job_uuid', '');
         $jobData = $this->validateJobUuid($jobUuid);
         if (!$jobData) {
-          \Drupal::logger('employment_application')->warning('Invalid job_uuid from @ip: @uuid', [
+          $this->appLogger->warning('[@cid] Invalid job_uuid from @ip: @uuid', [
+            '@cid' => $correlationId,
             '@ip' => $ip,
             '@uuid' => $jobUuid,
           ]);
@@ -698,17 +635,17 @@ class EmploymentApplicationController extends ControllerBase {
           return $this->errorResponse($formData['errors'], Response::HTTP_BAD_REQUEST);
         }
 
-        $fileData = $this->handleFileUploads($request);
+        $fileData = $this->handleFileUploads($request, $correlationId);
         if (!$fileData['valid']) {
           return $this->errorResponse($fileData['errors'], Response::HTTP_BAD_REQUEST);
         }
       }
       else {
-        // $jsonData was already decoded in the field-extraction block above.
         $jobUuid = $jsonData['job_uuid'] ?? '';
         $jobData = $this->validateJobUuid($jobUuid);
         if (!$jobData) {
-          \Drupal::logger('employment_application')->warning('Invalid job_uuid (JSON) from @ip: @uuid', [
+          $this->appLogger->warning('[@cid] Invalid job_uuid (JSON) from @ip: @uuid', [
+            '@cid' => $correlationId,
             '@ip' => $ip,
             '@uuid' => $jobUuid,
           ]);
@@ -723,18 +660,47 @@ class EmploymentApplicationController extends ControllerBase {
         $fileData = ['valid' => TRUE, 'files' => []];
       }
 
-      // Save application data
-      $applicationId = $this->saveApplication($formData['data'], $fileData['files']);
+      // =================================================================
+      // SAVE (with transaction + file cleanup on failure)
+      // =================================================================
+      $createdFiles = $fileData['files'];
+      $transaction = $this->database->startTransaction();
 
-      \Drupal::logger('employment_application')->info('Application saved with ID: @id', [
+      try {
+        $applicationId = $this->saveApplication(
+          $formData['data'],
+          $createdFiles,
+          $ip,
+          $correlationId
+        );
+
+        $pdfContent = $this->generateApplicationPDF(
+          $formData['data'],
+          $createdFiles,
+          $applicationId
+        );
+
+        // Transaction commits when $transaction goes out of scope.
+        unset($transaction);
+
+      }
+      catch (\Throwable $saveError) {
+        // Rollback DB changes.
+        $transaction->rollBack();
+
+        // Explicitly clean up orphaned files (physical + entities).
+        $this->cleanupCreatedFiles($createdFiles, $correlationId);
+
+        throw $saveError;
+      }
+
+      // Email is outside the transaction — it's OK if it fails after DB commit.
+      $this->sendNotifications($formData['data'], $createdFiles, $applicationId, $pdfContent);
+
+      $this->appLogger->info('[@cid] Application saved: @id', [
+        '@cid' => $correlationId,
         '@id' => $applicationId,
       ]);
-
-      // Generate PDF
-      $pdfContent = $this->generateApplicationPDF($formData['data'], $fileData['files'], $applicationId);
-
-      // Send notifications with PDF attachment
-      $this->sendNotifications($formData['data'], $fileData['files'], $applicationId, $pdfContent);
 
       $response = new JsonResponse([
         'success' => TRUE,
@@ -742,36 +708,82 @@ class EmploymentApplicationController extends ControllerBase {
         'application_id' => $applicationId,
       ]);
 
-      // Prevent search indexing of this response
       $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
 
       return $response;
 
-    } catch (\Throwable $e) {
-      \Drupal::logger('employment_application')->error('Submission error: @error', [
-        '@error' => $e->getMessage(),
-      ]);
+    }
+    catch (\Throwable $e) {
+      $errorClass = get_class($e);
+      $this->appLogger->error(
+        '[@cid] Submission failed: @class — @error in @file:@line',
+        [
+          '@cid' => $correlationId,
+          '@class' => $errorClass,
+          '@error' => $e->getMessage(),
+          '@file' => basename($e->getFile()),
+          '@line' => $e->getLine(),
+        ]
+      );
 
-      return $this->errorResponse('An error occurred while processing your application. Please try again.', Response::HTTP_INTERNAL_SERVER_ERROR);
+      return $this->errorResponse(
+        'An error occurred while processing your application. Reference: ' . $correlationId,
+        Response::HTTP_INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Cleans up File entities and physical files created during a failed attempt.
+   *
+   * A DB transaction rollback reverts the employment_applications row and
+   * file_managed rows, but does NOT undo physical file moves. This method
+   * handles that cleanup explicitly.
+   *
+   * @param array $files
+   *   Nested array of File entities keyed by field name.
+   * @param string $correlationId
+   *   Correlation ID for log tracing.
+   */
+  private function cleanupCreatedFiles(array $files, string $correlationId): void {
+    foreach ($files as $fieldName => $fieldFiles) {
+      foreach ($fieldFiles as $file) {
+        if (!$file instanceof File) {
+          continue;
+        }
+        try {
+          $uri = $file->getFileUri();
+
+          // Delete the physical file.
+          if ($uri) {
+            $realPath = $this->fileSystem->realpath($uri);
+            if ($realPath && file_exists($realPath)) {
+              $this->fileSystem->delete($uri);
+            }
+          }
+
+          // Delete the file entity (may already be rolled back by transaction,
+          // but delete() is safe to call regardless).
+          $file->delete();
+        }
+        catch (\Throwable $cleanupError) {
+          $this->appLogger->warning('[@cid] File cleanup failed for fid @fid: @error', [
+            '@cid' => $correlationId,
+            '@fid' => $file->id() ?? 'unknown',
+            '@error' => $cleanupError->getMessage(),
+          ]);
+        }
+      }
     }
   }
 
   /**
    * Classifies a submission request for structured logging.
-   *
-   * Builds context to distinguish real browser submissions from bot/scanner
-   * traffic. The classification drives log severity: bots get NOTICE,
-   * likely-browser failures get WARNING (so they trigger alerts).
-   *
-   * @return array
-   *   Keyed context array with 'classification' plus '@'-prefixed fields
-   *   suitable for passing directly to \Drupal::logger() placeholders.
    */
   private function classifySubmissionRequest(Request $request, $formToken, $formNonce, int $formStartTime, bool $isFormData): array {
     $ua = $request->headers->get('User-Agent', '');
     $referer = $request->headers->get('Referer', '');
 
-    // Check for Drupal session cookie (SESS* or SSESS*).
     $hasSessionCookie = FALSE;
     foreach ($request->cookies->keys() as $name) {
       if (str_starts_with($name, 'SESS') || str_starts_with($name, 'SSESS')) {
@@ -780,13 +792,11 @@ class EmploymentApplicationController extends ControllerBase {
       }
     }
 
-    // Check for expected form fields (real submissions always have these).
     $hasExpectedFields = FALSE;
     if ($isFormData) {
       $hasExpectedFields = $request->request->has('full_name') && $request->request->has('email');
     }
 
-    // Score browser signals.
     $signals = 0;
     if (!empty($referer) && str_contains($referer, '/eapplication')) {
       $signals++;
@@ -806,7 +816,6 @@ class EmploymentApplicationController extends ControllerBase {
     if ($hasExpectedFields) {
       $signals++;
     }
-    // Plausible browser UA (not empty, not curl/python/etc.)
     if (!preg_match('/^$|curl|python|wget|scrapy|bot|crawl|spider/i', $ua)) {
       $signals++;
     }
@@ -834,31 +843,18 @@ class EmploymentApplicationController extends ControllerBase {
   }
 
   /**
-   * Validates and sanitizes form data.
-   *
-   * @param \Symfony\Component\HttpFoundation\Request $request
-   *   The request object.
-   * @param array $jobData
-   *   The validated job data from server-side lookup.
-   *
-   * @return array
-   *   Validation result with 'valid', 'errors', and 'data' keys.
+   * Validates and sanitizes FormData form data.
    */
   private function validateAndSanitizeData(Request $request, array $jobData): array {
     $errors = [];
     $data = [];
 
-    // =================================================================
-    // SERVER-SIDE JOB DATA (TAMPER-RESISTANT)
-    // =================================================================
-    // These values are derived from the validated job, not user input
     $data['job_uuid'] = $jobData['uuid'];
     $data['job_title'] = $jobData['title'];
     $data['job_location'] = $jobData['location'];
     $data['job_category'] = $jobData['category'];
     $data['position_applied'] = $jobData['position_family'];
 
-    // Required fields validation (excluding position_applied which is derived)
     $requiredFields = [
       'full_name' => 'Full name',
       'email' => 'Email address',
@@ -876,34 +872,34 @@ class EmploymentApplicationController extends ControllerBase {
         $errors[] = "$label is required.";
         continue;
       }
-      $data[$field] = $this->sanitizeInput($value);
+      $data[$field] = $this->validator->sanitizeInput($value);
     }
 
-    // Email validation
-    if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+    // Email validation.
+    if (!empty($data['email']) && !$this->validator->validateEmail($data['email'])) {
       $errors[] = 'Please enter a valid email address.';
     }
 
-    // Phone validation
-    if (!empty($data['phone']) && !preg_match('/^[\+]?[\s\-\(\)]?[\d\s\-\(\)]{10,}$/', $data['phone'])) {
+    // Phone validation.
+    if (!empty($data['phone']) && !$this->validator->validatePhone($data['phone'])) {
       $errors[] = 'Please enter a valid phone number.';
     }
 
-    // Handle address data - check if it's JSON string from FormData
+    // Address data.
     $address = $request->request->get('address');
     if (!empty($address)) {
       if (is_string($address)) {
-        // Decode JSON string from FormData
-        $addressArray = json_decode($address, true);
+        $addressArray = json_decode($address, TRUE);
         if (json_last_error() === JSON_ERROR_NONE && is_array($addressArray)) {
-          $data['address'] = $this->sanitizeInput($addressArray);
+          $data['address'] = $this->validator->sanitizeInput($addressArray);
         }
-      } elseif (is_array($address)) {
-        $data['address'] = $this->sanitizeInput($address);
+      }
+      elseif (is_array($address)) {
+        $data['address'] = $this->validator->sanitizeInput($address);
       }
     }
 
-    // Handle attorney-specific fields if position is attorney
+    // Attorney-specific fields.
     $positionApplied = $data['position_applied'] ?? '';
     if ($positionApplied === 'managing_attorney' || $positionApplied === 'staff_attorney') {
       $attorneyFields = [
@@ -918,20 +914,20 @@ class EmploymentApplicationController extends ControllerBase {
           $errors[] = "$label is required for attorney positions.";
           continue;
         }
-        $data[$field] = $this->sanitizeInput($value);
+        $data[$field] = $this->validator->sanitizeInput($value);
       }
     }
 
-    // Other optional scalar fields
+    // Optional scalar fields.
     $optionalScalarFields = [
       'salary_requirements', 'referral_source',
-      'referral_details', 'additional_comments'
+      'referral_details', 'additional_comments',
     ];
 
     foreach ($optionalScalarFields as $field) {
       $value = $request->request->get($field);
       if (!empty($value) && is_scalar($value)) {
-        $data[$field] = $this->sanitizeInput($value);
+        $data[$field] = $this->validator->sanitizeInput($value);
       }
     }
 
@@ -944,30 +940,17 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Validates and sanitizes JSON form data.
-   *
-   * @param array $jsonData
-   *   The JSON data from the request.
-   * @param array $jobData
-   *   The validated job data from server-side lookup.
-   *
-   * @return array
-   *   Validation result with 'valid', 'errors', and 'data' keys.
    */
   private function validateAndSanitizeJsonData(array $jsonData, array $jobData): array {
     $errors = [];
     $data = [];
 
-    // =================================================================
-    // SERVER-SIDE JOB DATA (TAMPER-RESISTANT)
-    // =================================================================
-    // These values are derived from the validated job, not user input
     $data['job_uuid'] = $jobData['uuid'];
     $data['job_title'] = $jobData['title'];
     $data['job_location'] = $jobData['location'];
     $data['job_category'] = $jobData['category'];
     $data['position_applied'] = $jobData['position_family'];
 
-    // Required fields validation (excluding position_applied which is derived)
     $requiredFields = [
       'full_name' => 'Full name',
       'email' => 'Email address',
@@ -985,25 +968,21 @@ class EmploymentApplicationController extends ControllerBase {
         $errors[] = "$label is required.";
         continue;
       }
-      $data[$field] = $this->sanitizeInput($value);
+      $data[$field] = $this->validator->sanitizeInput($value);
     }
 
-    // Email validation
-    if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+    if (!empty($data['email']) && !$this->validator->validateEmail($data['email'])) {
       $errors[] = 'Please enter a valid email address.';
     }
 
-    // Phone validation
-    if (!empty($data['phone']) && !preg_match('/^[\+]?[\s\-\(\)]?[\d\s\-\(\)]{10,}$/', $data['phone'])) {
+    if (!empty($data['phone']) && !$this->validator->validatePhone($data['phone'])) {
       $errors[] = 'Please enter a valid phone number.';
     }
 
-    // Handle address data (can now be nested)
     if (!empty($jsonData['address']) && is_array($jsonData['address'])) {
-      $data['address'] = $this->sanitizeInput($jsonData['address']);
+      $data['address'] = $this->validator->sanitizeInput($jsonData['address']);
     }
 
-    // Handle attorney-specific fields if position is attorney
     $positionApplied = $data['position_applied'] ?? '';
     if ($positionApplied === 'managing_attorney' || $positionApplied === 'staff_attorney') {
       $attorneyFields = [
@@ -1018,20 +997,19 @@ class EmploymentApplicationController extends ControllerBase {
           $errors[] = "$label is required for attorney positions.";
           continue;
         }
-        $data[$field] = $this->sanitizeInput($value);
+        $data[$field] = $this->validator->sanitizeInput($value);
       }
     }
 
-    // Other optional scalar fields
     $optionalScalarFields = [
       'salary_requirements', 'referral_source',
-      'referral_details', 'additional_comments'
+      'referral_details', 'additional_comments',
     ];
 
     foreach ($optionalScalarFields as $field) {
       $value = $jsonData[$field] ?? '';
       if (!empty($value) && is_scalar($value)) {
-        $data[$field] = $this->sanitizeInput($value);
+        $data[$field] = $this->validator->sanitizeInput($value);
       }
     }
 
@@ -1043,32 +1021,12 @@ class EmploymentApplicationController extends ControllerBase {
   }
 
   /**
-   * Handles file uploads from JSON data.
+   * Handles secure file uploads.
    */
-  private function handleJsonFileUploads(array $jsonData): array {
-    // For Phase 2 implementation: temporarily skip file handling
-    // Files will be handled in Phase 3
-    $files = [];
-    $errors = [];
-
-    // Check if resume is required (for now, we'll make it optional)
-    // TODO: Implement base64 file decoding in Phase 3
-
-    return [
-      'valid' => true, // Always valid for now
-      'errors' => '',
-      'files' => $files,
-    ];
-  }
-
-  /**
-   * Handles secure file uploads (legacy FormData method).
-   */
-  private function handleFileUploads(Request $request): array {
+  private function handleFileUploads(Request $request, string $correlationId): array {
     $errors = [];
     $files = [];
 
-    // Ensure upload directory exists
     $uploadDirectory = self::UPLOAD_DIRECTORY;
     $this->fileSystem->prepareDirectory($uploadDirectory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
 
@@ -1081,7 +1039,6 @@ class EmploymentApplicationController extends ControllerBase {
         continue;
       }
 
-      // Handle multiple files for additional_documents
       if (!is_array($uploadedFiles)) {
         $uploadedFiles = [$uploadedFiles];
       }
@@ -1091,14 +1048,12 @@ class EmploymentApplicationController extends ControllerBase {
           continue;
         }
 
-        // Validate file
-        $validation = $this->validateFile($uploadedFile);
+        $validation = $this->validateUploadedFile($uploadedFile, $correlationId);
         if (!$validation['valid']) {
           $errors[] = $validation['error'];
           continue;
         }
 
-        // Save file
         $savedFile = $this->saveFile($uploadedFile, $field);
         if ($savedFile) {
           $files[$field][] = $savedFile;
@@ -1106,8 +1061,8 @@ class EmploymentApplicationController extends ControllerBase {
       }
     }
 
-    // Resume is required for applications with file uploads
-    if (empty($files['resume']) && !empty($files)) {
+    // Resume is always required for submissions with file upload support.
+    if (empty($files['resume'])) {
       $errors[] = 'Resume is required.';
     }
 
@@ -1119,116 +1074,66 @@ class EmploymentApplicationController extends ControllerBase {
   }
 
   /**
-   * Validates uploaded file.
+   * Validates an uploaded file using the ApplicationValidator service.
    */
-  private function validateFile(\Symfony\Component\HttpFoundation\File\UploadedFile $file): array {
-    // Log file details for debugging
+  private function validateUploadedFile(\Symfony\Component\HttpFoundation\File\UploadedFile $file, string $correlationId): array {
     $extension = strtolower($file->getClientOriginalExtension());
     $mimeType = $file->getMimeType();
     $originalName = $file->getClientOriginalName();
 
-    \Drupal::logger('employment_application')->info('File validation - Name: @name, Extension: @ext, MIME: @mime, Size: @size', [
+    $this->appLogger->debug('[@cid] File validation - Name: @name, Ext: @ext, MIME: @mime, Size: @size', [
+      '@cid' => $correlationId,
       '@name' => $originalName,
       '@ext' => $extension,
       '@mime' => $mimeType,
       '@size' => $file->getSize(),
     ]);
 
-    // Check file size
-    if ($file->getSize() > self::MAX_FILE_SIZE) {
-      return [
-        'valid' => FALSE,
-        'error' => 'File size must be less than 5MB.',
-      ];
-    }
+    $result = $this->validator->validateFile(
+      $extension,
+      $mimeType,
+      $file->getSize(),
+      $file->getPathname()
+    );
 
-    // Check file extension
-    if (!in_array($extension, self::ALLOWED_EXTENSIONS, TRUE)) {
-      \Drupal::logger('employment_application')->error('Invalid extension: @ext, allowed: @allowed', [
-        '@ext' => $extension,
-        '@allowed' => implode(', ', self::ALLOWED_EXTENSIONS),
+    if (!$result['valid']) {
+      $this->appLogger->warning('[@cid] File rejected: @name — @error', [
+        '@cid' => $correlationId,
+        '@name' => $originalName,
+        '@error' => $result['error'],
       ]);
-      return [
-        'valid' => FALSE,
-        'error' => 'Only PDF, DOC, and DOCX files are allowed.',
-      ];
     }
 
-    // MIME types we consider acceptable per extension.
-    // Pantheon can report doc/docx as application/octet-stream, so we allow that too.
-    $allowedMimeTypesByExtension = [
-      'pdf' => [
-        'application/pdf',
-        'application/octet-stream',
-      ],
-      'doc' => [
-        'application/msword',
-        'application/octet-stream',
-      ],
-      'docx' => [
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/octet-stream',
-      ],
-    ];
-
-    // Normalize extension key just in case
-    $extKey = strtolower($extension);
-
-    if (!isset($allowedMimeTypesByExtension[$extKey])) {
-      // Should not happen because we already checked extension, but be safe.
-      \Drupal::logger('employment_application')->error('No MIME rules defined for extension: @ext', [
-        '@ext' => $extKey,
-      ]);
-      return [
-        'valid' => FALSE,
-        'error' => 'Invalid file type.',
-      ];
-    }
-
-    if (!in_array($mimeType, $allowedMimeTypesByExtension[$extKey], TRUE)) {
-      \Drupal::logger('employment_application')->error('Invalid MIME type: @mime for extension @ext', [
-        '@mime' => $mimeType,
-        '@ext' => $extension,
-      ]);
-      return [
-        'valid' => FALSE,
-        'error' => 'Invalid file type.',
-      ];
-    }
-
-    return ['valid' => TRUE];
+    return $result;
   }
-
 
   /**
    * Saves uploaded file securely.
    */
   private function saveFile(\Symfony\Component\HttpFoundation\File\UploadedFile $uploadedFile, string $fieldName): ?File {
     try {
-      $filename = $this->generateSecureFilename($uploadedFile->getClientOriginalName());
+      $filename = $this->validator->generateSecureFilename($uploadedFile->getClientOriginalName());
       $yearMonth = date('Y-m');
       $directoryPath = self::UPLOAD_DIRECTORY . '/' . $yearMonth;
       $destination = $directoryPath . '/' . $filename;
 
-      // Ensure the specific year-month directory exists
       $this->fileSystem->prepareDirectory($directoryPath, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
 
-      // Move file using copy method which returns the URI
       $uri = $this->fileSystem->copy($uploadedFile->getPathname(), $destination, FileSystemInterface::EXISTS_RENAME);
 
-      // Create file entity with the returned URI
       $file = File::create([
         'uid' => \Drupal::currentUser()->id(),
-        'filename' => basename($uri), // Use the actual filename from the URI
+        'filename' => basename($uri),
         'uri' => $uri,
-        'status' => 1, // FILE_STATUS_PERMANENT value is 1 in Drupal 11
+        'status' => 1,
         'filemime' => $uploadedFile->getMimeType(),
       ]);
       $file->save();
 
       return $file;
-    } catch (\Exception $e) {
-      \Drupal::logger('employment_application')->error('File upload error: @error', [
+    }
+    catch (\Exception $e) {
+      $this->appLogger->error('File upload error: @error', [
         '@error' => $e->getMessage(),
       ]);
       return NULL;
@@ -1236,76 +1141,12 @@ class EmploymentApplicationController extends ControllerBase {
   }
 
   /**
-   * Generates human-readable application ID.
-   */
-  private function generateHumanReadableApplicationId(array $data): string {
-    // Parse the full name to extract first and last names
-    $fullName = trim($data['full_name'] ?? 'Unknown');
-    $nameParts = explode(' ', $fullName);
-
-    $firstName = $nameParts[0] ?? 'Unknown';
-    $lastName = count($nameParts) > 1 ? end($nameParts) : 'Unknown';
-
-    // Use job title instead of position family
-    $jobTitle = $data['job_title'] ?? 'Unknown Position';
-
-    // Format date safely for URLs and filenames (YYYY-MM-DD HH-MM-SS)
-    $dateSubmitted = date('Y-m-d H-i-s');
-
-    // Create ID: LastName, FirstName - JobTitle (DateSubmitted)
-    $applicationId = "{$lastName}, {$firstName} - {$jobTitle} ({$dateSubmitted})";
-
-    return $applicationId;
-  }
-
-  /**
-   * Formats position title by removing underscores and proper capitalization.
-   */
-  private function formatPositionTitle(string $position): string {
-    // Check if we have a label for this position family
-    if (isset(self::POSITION_FAMILY_LABELS[$position])) {
-      return self::POSITION_FAMILY_LABELS[$position];
-    }
-
-    // Remove underscores and replace with spaces
-    $formatted = str_replace('_', ' ', $position);
-
-    // Capitalize each word properly
-    $formatted = ucwords(strtolower($formatted));
-
-    return $formatted;
-  }
-
-  /**
-   * Generates secure filename.
-   */
-  private function generateSecureFilename(string $originalName): string {
-    $pathinfo = pathinfo($originalName);
-    $extension = strtolower($pathinfo['extension'] ?? '');
-    $basename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $pathinfo['filename'] ?? 'file');
-    $timestamp = time();
-    $random = bin2hex(random_bytes(4));
-
-    return "{$basename}_{$timestamp}_{$random}.{$extension}";
-  }
-
-  /**
    * Saves application data to database.
    */
-  private function saveApplication(array $data, array $files): string {
-    $database = \Drupal::database();
+  private function saveApplication(array $data, array $files, string $ip, string $correlationId): string {
+    $applicationId = $this->validator->generateApplicationId($data);
 
-    // Create table if it doesn't exist
-    $this->createApplicationTable();
-
-    // Generate human-readable application ID: LastName, FirstName - JobTitle (DateSubmitted)
-    $applicationId = $this->generateHumanReadableApplicationId($data);
-
-    if (strlen($applicationId) > 191) {
-      $applicationId = substr($applicationId, 0, 191);
-    }
-
-    // Prepare file references
+    // Prepare file references.
     $fileData = [];
     foreach ($files as $fieldName => $fieldFiles) {
       foreach ($fieldFiles as $file) {
@@ -1317,7 +1158,6 @@ class EmploymentApplicationController extends ControllerBase {
       }
     }
 
-    // Ensure all data is properly serializable
     $cleanData = [];
     foreach ($data as $key => $value) {
       if (is_scalar($value) || is_array($value)) {
@@ -1325,79 +1165,22 @@ class EmploymentApplicationController extends ControllerBase {
       }
     }
 
-    $database->insert('employment_applications')
+    // Hash IP for privacy — don't store raw IPs.
+    $hashSalt = \Drupal::service('settings')->get('hash_salt', '');
+    $ipHash = $this->validator->hashIp($ip, $hashSalt);
+
+    $this->database->insert('employment_applications')
       ->fields([
         'application_id' => $applicationId,
         'submitted' => time(),
         'form_data' => json_encode($cleanData, JSON_UNESCAPED_UNICODE),
         'file_data' => json_encode($fileData, JSON_UNESCAPED_UNICODE),
         'status' => 'submitted',
-        'ip_address' => \Drupal::request()->getClientIp(),
+        'ip_hash' => $ipHash,
       ])
       ->execute();
 
     return $applicationId;
-  }
-
-  /**
-   * Creates application storage table.
-   */
-  private function createApplicationTable(): void {
-    $database = \Drupal::database();
-
-    if (!$database->schema()->tableExists('employment_applications')) {
-      $schema = [
-        'description' => 'Employment application submissions.',
-        'fields' => [
-          'id' => [
-            'type' => 'serial',
-            'unsigned' => TRUE,
-            'not null' => TRUE,
-          ],
-          'application_id' => [
-            'type' => 'varchar',
-            'length' => 191,
-            'not null' => TRUE,
-          ],
-          'submitted' => [
-            'type' => 'int',
-            'unsigned' => TRUE,
-            'not null' => TRUE,
-          ],
-          'form_data' => [
-            'type' => 'text',
-            'size' => 'big',
-            'not null' => TRUE,
-          ],
-          'file_data' => [
-            'type' => 'text',
-            'size' => 'big',
-            'not null' => FALSE,
-          ],
-          'status' => [
-            'type' => 'varchar',
-            'length' => 20,
-            'not null' => TRUE,
-            'default' => 'submitted',
-          ],
-          'ip_address' => [
-            'type' => 'varchar',
-            'length' => 45,
-            'not null' => FALSE,
-          ],
-        ],
-        'primary key' => ['id'],
-        'unique keys' => [
-          'application_id' => ['application_id'],
-        ],
-        'indexes' => [
-          'submitted' => ['submitted'],
-          'status' => ['status'],
-        ],
-      ];
-
-      $database->schema()->createTable('employment_applications', $schema);
-    }
   }
 
   /**
@@ -1406,72 +1189,27 @@ class EmploymentApplicationController extends ControllerBase {
   private function generateApplicationPDF(array $data, array $files, string $applicationId): string {
     try {
       if (!class_exists(\Dompdf\Options::class)) {
-        \Drupal::logger('employment_application')->error('Dompdf library is not installed. Run: composer require dompdf/dompdf');
+        $this->appLogger->error('Dompdf library is not installed. Run: composer require dompdf/dompdf');
         return '';
       }
       $options = new \Dompdf\Options();
       $options->set('defaultFont', 'DejaVu Sans');
-      $options->set('isRemoteEnabled', false); // Security
-      $options->set('isHtml5ParserEnabled', true);
+      $options->set('isRemoteEnabled', FALSE);
+      $options->set('isHtml5ParserEnabled', TRUE);
 
       $dompdf = new \Dompdf\Dompdf($options);
 
-      // Generate HTML content
       $html = $this->buildApplicationHTML($data, $files, $applicationId);
 
-      // Load HTML into DomPDF
       $dompdf->loadHtml($html);
-
-      // Set paper size
       $dompdf->setPaper('A4', 'portrait');
-
-      // Render PDF
       $dompdf->render();
 
-      // Return PDF content as string
       return $dompdf->output();
 
-    } catch (\Throwable $e) {
-      \Drupal::logger('employment_application')->error('PDF generation failed: @error', [
-        '@error' => $e->getMessage(),
-      ]);
-      return '';
     }
-  }
-
-  /**
-   * Generates the main application PDF (without file content).
-   */
-  private function generateMainApplicationPDF(array $data, array $files, string $applicationId): string {
-    try {
-      if (!class_exists(\Dompdf\Options::class)) {
-        \Drupal::logger('employment_application')->error('Dompdf library is not installed. Run: composer require dompdf/dompdf');
-        return '';
-      }
-      $options = new \Dompdf\Options();
-      $options->set('defaultFont', 'DejaVu Sans');
-      $options->set('isRemoteEnabled', false); // Security
-      $options->set('isHtml5ParserEnabled', true);
-
-      $dompdf = new \Dompdf\Dompdf($options);
-
-      // Generate HTML content
-      $html = $this->buildApplicationHTML($data, $files, $applicationId);
-
-      // Load HTML into DomPDF
-      $dompdf->loadHtml($html);
-
-      // Set paper size
-      $dompdf->setPaper('A4', 'portrait');
-
-      // Render PDF
-      $dompdf->render();
-
-      // Return PDF content as string
-      return $dompdf->output();
-
-    } catch (\Throwable $e) {
-      \Drupal::logger('employment_application')->error('Main PDF generation failed: @error', [
+    catch (\Throwable $e) {
+      $this->appLogger->error('PDF generation failed: @error', [
         '@error' => $e->getMessage(),
       ]);
       return '';
@@ -1482,23 +1220,13 @@ class EmploymentApplicationController extends ControllerBase {
    * Merges the main application PDF with uploaded PDF files.
    */
   private function mergePDFs(string $mainPdfContent, array $pdfFiles): string {
+    $tempMainFile = NULL;
     try {
-      \Drupal::logger('employment_application')->info('Starting PDF merge process with @count files', [
-        '@count' => count($pdfFiles),
-      ]);
-
-      // Create temporary files for processing
       $tempMainFile = tempnam(sys_get_temp_dir(), 'app_main_') . '.pdf';
       file_put_contents($tempMainFile, $mainPdfContent);
 
-      \Drupal::logger('employment_application')->info('Created temp main file: @file', [
-        '@file' => $tempMainFile,
-      ]);
-
-      // Initialize FPDI
       $pdf = new \setasign\Fpdi\Fpdi();
 
-      // Add pages from main application PDF
       $pageCount = $pdf->setSourceFile($tempMainFile);
       for ($i = 1; $i <= $pageCount; $i++) {
         $templateId = $pdf->importPage($i);
@@ -1506,43 +1234,42 @@ class EmploymentApplicationController extends ControllerBase {
         $pdf->useTemplate($templateId);
       }
 
-      // Add pages from uploaded PDF files
       foreach ($pdfFiles as $fileInfo) {
         try {
-          // Add a separator page
           $pdf->addPage();
           $pdf->setFont('Arial', 'B', 16);
-          $pdf->setTextColor(44, 90, 160); // ILAS blue color
+          $pdf->setTextColor(44, 90, 160);
           $pdf->text(50, 50, $fileInfo['label'] . ':');
 
-          // Import and add pages from uploaded PDF
           $uploadedPageCount = $pdf->setSourceFile($fileInfo['path']);
           for ($i = 1; $i <= $uploadedPageCount; $i++) {
             $templateId = $pdf->importPage($i);
             $pdf->addPage();
             $pdf->useTemplate($templateId);
           }
-        } catch (\Exception $e) {
-          \Drupal::logger('employment_application')->warning('Could not merge PDF file @file: @error', [
+        }
+        catch (\Exception $e) {
+          $this->appLogger->warning('Could not merge PDF file @file: @error', [
             '@file' => $fileInfo['path'],
             '@error' => $e->getMessage(),
           ]);
-          // Continue with other files if one fails
         }
       }
 
-      // Clean up temporary file
-      unlink($tempMainFile);
+      return $pdf->output('S');
 
-      // Return merged PDF content
-      return $pdf->output('S'); // 'S' returns string instead of outputting to browser
-
-    } catch (\Exception $e) {
-      \Drupal::logger('employment_application')->error('PDF merging failed: @error', [
+    }
+    catch (\Exception $e) {
+      $this->appLogger->error('PDF merging failed: @error', [
         '@error' => $e->getMessage(),
       ]);
-      // Return main PDF if merging fails
       return $mainPdfContent;
+    }
+    finally {
+      // Always clean up temp file, even on exception.
+      if ($tempMainFile !== NULL && file_exists($tempMainFile)) {
+        @unlink($tempMainFile);
+      }
     }
   }
 
@@ -1550,17 +1277,19 @@ class EmploymentApplicationController extends ControllerBase {
    * Builds HTML content for PDF generation.
    */
   private function buildApplicationHTML(array $data, array $files, string $applicationId): string {
-    $siteName = \Drupal::config('system.site')->get('name') ?: 'Idaho Legal Aid Services';
+    $siteName = htmlspecialchars(
+      $this->configFactory->get('system.site')->get('name') ?: 'Idaho Legal Aid Services',
+      ENT_QUOTES,
+      'UTF-8'
+    );
     $currentDate = date('F j, Y \a\t g:i A');
 
-    // Get job-specific data (server-derived, tamper-resistant)
     $jobTitle = $data['job_title'] ?? '';
     $jobLocation = $data['job_location'] ?? '';
     $jobCategory = $data['job_category'] ?? '';
     $positionFamily = $data['position_applied'] ?? '';
-    $positionFamilyLabel = $this->formatPositionTitle($positionFamily);
+    $positionFamilyLabel = $this->validator->formatPositionTitle($positionFamily);
 
-    // Build the position display string
     $positionDisplay = $jobTitle;
     if ($jobLocation) {
       $positionDisplay .= " — {$jobLocation}";
@@ -1571,7 +1300,7 @@ class EmploymentApplicationController extends ControllerBase {
     <html>
     <head>
         <meta charset="utf-8">
-        <title>Employment Application - ' . htmlspecialchars($applicationId) . '</title>
+        <title>Employment Application - ' . htmlspecialchars($applicationId, ENT_QUOTES, 'UTF-8') . '</title>
         <style>
             body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; margin: 0; padding: 20px; }
             .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #2c5aa0; padding-bottom: 15px; }
@@ -1584,176 +1313,157 @@ class EmploymentApplicationController extends ControllerBase {
             .position-highlight .position-category { font-size: 11px; color: #666; margin-top: 3px; }
             .section { margin-bottom: 25px; }
             .section-title { color: #2c5aa0; font-size: 14px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-            .field-group { margin-bottom: 15px; }
-            .field-label { font-weight: bold; color: #555; margin-bottom: 3px; }
-            .field-value { margin-bottom: 8px; padding: 4px 8px; background: #f8f9fa; border-radius: 3px; }
-            .work-experience, .education { border: 1px solid #e0e0e0; padding: 12px; margin-bottom: 10px; border-radius: 4px; }
-            .experience-title { color: #2c5aa0; font-weight: bold; margin-bottom: 8px; }
-            .file-list { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; }
-            .file-item { margin-bottom: 5px; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
             td { padding: 5px 8px; border: 1px solid #ddd; vertical-align: top; }
             .label-col { background: #f8f9fa; width: 30%; font-weight: bold; }
             .value-col { width: 70%; }
+            .file-list { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 4px; }
+            .file-item { margin-bottom: 5px; }
         </style>
     </head>
     <body>';
 
-    // Header
     $html .= '
         <div class="header">
-            <h1>' . htmlspecialchars($siteName) . '</h1>
+            <h1>' . $siteName . '</h1>
             <h2>Employment Application</h2>
         </div>';
 
-    // Meta information
     $html .= '
         <div class="meta-info">
-            <strong>Application ID:</strong> ' . htmlspecialchars($applicationId) . '<br>
+            <strong>Application ID:</strong> ' . htmlspecialchars($applicationId, ENT_QUOTES, 'UTF-8') . '<br>
             <strong>Submitted:</strong> ' . $currentDate . '<br>
             <strong>Status:</strong> New Application
         </div>';
 
-    // Position Applied For (prominent display)
     $html .= '
         <div class="position-highlight">
             <h3>Position Applied For</h3>
-            <div class="position-name">' . htmlspecialchars($positionDisplay) . '</div>';
+            <div class="position-name">' . htmlspecialchars($positionDisplay, ENT_QUOTES, 'UTF-8') . '</div>';
 
     if ($jobCategory) {
-      $html .= '<div class="position-category">Category: ' . htmlspecialchars($jobCategory) . ' | Family: ' . htmlspecialchars($positionFamilyLabel) . '</div>';
+      $html .= '<div class="position-category">Category: ' . htmlspecialchars($jobCategory, ENT_QUOTES, 'UTF-8') . ' | Family: ' . htmlspecialchars($positionFamilyLabel, ENT_QUOTES, 'UTF-8') . '</div>';
     }
 
     $html .= '</div>';
 
-    // Personal Information
     $html .= '<div class="section">
         <div class="section-title">Personal Information</div>
         <table>
-            <tr><td class="label-col">Full Name</td><td class="value-col">' . htmlspecialchars($data['full_name'] ?? '') . '</td></tr>
-            <tr><td class="label-col">Email</td><td class="value-col">' . htmlspecialchars($data['email'] ?? '') . '</td></tr>
-            <tr><td class="label-col">Phone</td><td class="value-col">' . htmlspecialchars($data['phone'] ?? '') . '</td></tr>';
+            <tr><td class="label-col">Full Name</td><td class="value-col">' . htmlspecialchars($data['full_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</td></tr>
+            <tr><td class="label-col">Email</td><td class="value-col">' . htmlspecialchars($data['email'] ?? '', ENT_QUOTES, 'UTF-8') . '</td></tr>
+            <tr><td class="label-col">Phone</td><td class="value-col">' . htmlspecialchars($data['phone'] ?? '', ENT_QUOTES, 'UTF-8') . '</td></tr>';
 
-    // Address
     if (!empty($data['address'])) {
-        $address = $data['address'];
-        $fullAddress = implode(', ', array_filter([
-            $address['address'] ?? '',
-            $address['city'] ?? '',
-            $address['state_province'] ?? '',
-            $address['postal_code'] ?? ''
-        ]));
-        $html .= '<tr><td class="label-col">Address</td><td class="value-col">' . htmlspecialchars($fullAddress) . '</td></tr>';
+      $address = $data['address'];
+      $fullAddress = implode(', ', array_filter([
+        $address['address'] ?? '',
+        $address['city'] ?? '',
+        $address['state_province'] ?? '',
+        $address['postal_code'] ?? '',
+      ]));
+      $html .= '<tr><td class="label-col">Address</td><td class="value-col">' . htmlspecialchars($fullAddress, ENT_QUOTES, 'UTF-8') . '</td></tr>';
     }
 
     $html .= '</table></div>';
 
-    // Position Information
     $html .= '<div class="section">
         <div class="section-title">Position Information</div>
         <table>
-            <tr><td class="label-col">Position Applied For</td><td class="value-col">' . htmlspecialchars($positionDisplay) . '</td></tr>
-            <tr><td class="label-col">Position Category</td><td class="value-col">' . htmlspecialchars($jobCategory) . '</td></tr>
-            <tr><td class="label-col">Position Family</td><td class="value-col">' . htmlspecialchars($positionFamilyLabel) . '</td></tr>';
+            <tr><td class="label-col">Position Applied For</td><td class="value-col">' . htmlspecialchars($positionDisplay, ENT_QUOTES, 'UTF-8') . '</td></tr>
+            <tr><td class="label-col">Position Category</td><td class="value-col">' . htmlspecialchars($jobCategory, ENT_QUOTES, 'UTF-8') . '</td></tr>
+            <tr><td class="label-col">Position Family</td><td class="value-col">' . htmlspecialchars($positionFamilyLabel, ENT_QUOTES, 'UTF-8') . '</td></tr>';
 
-    $html .= '<tr><td class="label-col">Available Start Date</td><td class="value-col">' . htmlspecialchars($data['available_start_date'] ?? '') . '</td></tr>';
+    $html .= '<tr><td class="label-col">Available Start Date</td><td class="value-col">' . htmlspecialchars($data['available_start_date'] ?? '', ENT_QUOTES, 'UTF-8') . '</td></tr>';
 
     if (!empty($data['salary_requirements'])) {
-        $html .= '<tr><td class="label-col">Salary Requirements</td><td class="value-col">' . htmlspecialchars($data['salary_requirements']) . '</td></tr>';
+      $html .= '<tr><td class="label-col">Salary Requirements</td><td class="value-col">' . htmlspecialchars($data['salary_requirements'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
     }
 
     $html .= '</table></div>';
 
-    // Qualifications & Background
     $html .= '<div class="section">
-        <div class="section-title">Qualifications & Background</div>
+        <div class="section-title">Qualifications &amp; Background</div>
         <table>';
 
-    // Attorney-specific questions
     $positionApplied = $data['position_applied'] ?? '';
     if ($positionApplied === 'managing_attorney' || $positionApplied === 'staff_attorney') {
-        $html .= '<tr><td colspan="2" style="background: #e3f2fd; font-weight: bold; padding: 8px;">Attorney Qualifications</td></tr>';
+      $html .= '<tr><td colspan="2" style="background: #e3f2fd; font-weight: bold; padding: 8px;">Attorney Qualifications</td></tr>';
 
-        if (!empty($data['idaho_bar_licensed'])) {
-            $barStatus = $this->formatYesNoOption($data['idaho_bar_licensed']);
-            $html .= '<tr><td class="label-col">Licensed to practice law in Idaho?</td><td class="value-col">' . htmlspecialchars($barStatus) . '</td></tr>';
-        }
+      if (!empty($data['idaho_bar_licensed'])) {
+        $barStatus = $this->validator->formatYesNoOption($data['idaho_bar_licensed']);
+        $html .= '<tr><td class="label-col">Licensed to practice law in Idaho?</td><td class="value-col">' . htmlspecialchars($barStatus, ENT_QUOTES, 'UTF-8') . '</td></tr>';
+      }
 
-        if (!empty($data['aba_law_school'])) {
-            $abaGrad = $this->formatYesNoOption($data['aba_law_school']);
-            $html .= '<tr><td class="label-col">Graduated from ABA-accredited law school?</td><td class="value-col">' . htmlspecialchars($abaGrad) . '</td></tr>';
-        }
+      if (!empty($data['aba_law_school'])) {
+        $abaGrad = $this->validator->formatYesNoOption($data['aba_law_school']);
+        $html .= '<tr><td class="label-col">Graduated from ABA-accredited law school?</td><td class="value-col">' . htmlspecialchars($abaGrad, ENT_QUOTES, 'UTF-8') . '</td></tr>';
+      }
 
-        if (!empty($data['bar_discipline'])) {
-            $discipline = $this->formatYesNoOption($data['bar_discipline']);
-            $html .= '<tr><td class="label-col">Ever subject to bar discipline?</td><td class="value-col">' . htmlspecialchars($discipline) . '</td></tr>';
-        }
+      if (!empty($data['bar_discipline'])) {
+        $discipline = $this->validator->formatYesNoOption($data['bar_discipline']);
+        $html .= '<tr><td class="label-col">Ever subject to bar discipline?</td><td class="value-col">' . htmlspecialchars($discipline, ENT_QUOTES, 'UTF-8') . '</td></tr>';
+      }
 
-        $html .= '<tr><td colspan="2" style="height: 10px;"></td></tr>';
+      $html .= '<tr><td colspan="2" style="height: 10px;"></td></tr>';
     }
 
-
-    // Sensitive background questions
     $html .= '<tr><td colspan="2" style="background: #fff3cd; font-weight: bold; padding: 8px;">Background Screening</td></tr>';
 
     if (!empty($data['criminal_conviction'])) {
-        $criminal = $this->formatYesNoOption($data['criminal_conviction']);
-        $html .= '<tr><td class="label-col">Ever charged/convicted of domestic violence or violent crime?</td><td class="value-col">' . htmlspecialchars($criminal) . '</td></tr>';
+      $criminal = $this->validator->formatYesNoOption($data['criminal_conviction']);
+      $html .= '<tr><td class="label-col">Ever charged/convicted of domestic violence or violent crime?</td><td class="value-col">' . htmlspecialchars($criminal, ENT_QUOTES, 'UTF-8') . '</td></tr>';
     }
 
     if (!empty($data['protection_order'])) {
-        $protection = $this->formatYesNoOption($data['protection_order']);
-        $html .= '<tr><td class="label-col">Ever subject to protection order/restraining order?</td><td class="value-col">' . htmlspecialchars($protection) . '</td></tr>';
+      $protection = $this->validator->formatYesNoOption($data['protection_order']);
+      $html .= '<tr><td class="label-col">Ever subject to protection order/restraining order?</td><td class="value-col">' . htmlspecialchars($protection, ENT_QUOTES, 'UTF-8') . '</td></tr>';
     }
 
     if (!empty($data['sexual_harassment'])) {
-        $harassment = $this->formatYesNoOption($data['sexual_harassment']);
-        $html .= '<tr><td class="label-col">Ever found to have engaged in sexual harassment?</td><td class="value-col">' . htmlspecialchars($harassment) . '</td></tr>';
+      $harassment = $this->validator->formatYesNoOption($data['sexual_harassment']);
+      $html .= '<tr><td class="label-col">Ever found to have engaged in sexual harassment?</td><td class="value-col">' . htmlspecialchars($harassment, ENT_QUOTES, 'UTF-8') . '</td></tr>';
     }
 
     $html .= '</table></div>';
 
-    // Additional Information
     $html .= '<div class="section">
         <div class="section-title">Additional Information</div>
         <table>';
 
     if (!empty($data['referral_source'])) {
-        $referralText = ucwords(str_replace('_', ' ', $data['referral_source']));
-        $html .= '<tr><td class="label-col">How did you hear about us?</td><td class="value-col">' . htmlspecialchars($referralText) . '</td></tr>';
+      $referralText = ucwords(str_replace('_', ' ', $data['referral_source']));
+      $html .= '<tr><td class="label-col">How did you hear about us?</td><td class="value-col">' . htmlspecialchars($referralText, ENT_QUOTES, 'UTF-8') . '</td></tr>';
     }
 
     if (!empty($data['referral_details'])) {
-        $html .= '<tr><td class="label-col">Referral Details</td><td class="value-col">' . htmlspecialchars($data['referral_details']) . '</td></tr>';
+      $html .= '<tr><td class="label-col">Referral Details</td><td class="value-col">' . htmlspecialchars($data['referral_details'], ENT_QUOTES, 'UTF-8') . '</td></tr>';
     }
 
     if (!empty($data['additional_comments'])) {
-        $html .= '<tr><td class="label-col">Additional Comments</td><td class="value-col">' . nl2br(htmlspecialchars($data['additional_comments'])) . '</td></tr>';
+      $html .= '<tr><td class="label-col">Additional Comments</td><td class="value-col">' . nl2br(htmlspecialchars($data['additional_comments'], ENT_QUOTES, 'UTF-8')) . '</td></tr>';
     }
 
     $html .= '</table></div>';
 
-    // File Attachments
     if (!empty($files)) {
-        $html .= '<div class="section">
+      $html .= '<div class="section">
             <div class="section-title">Submitted Documents</div>
             <div class="file-list">';
 
-        foreach ($files as $fieldName => $fieldFiles) {
-            $fieldLabel = ucwords(str_replace('_', ' ', $fieldName));
-            foreach ($fieldFiles as $file) {
-                // $file is a File object, so use object methods
-                $filename = $file->getFilename();
-                $html .= '<div class="file-item">📄 <strong>' . htmlspecialchars($fieldLabel) . ':</strong> ' . htmlspecialchars($filename) . '</div>';
-            }
+      foreach ($files as $fieldName => $fieldFiles) {
+        $fieldLabel = ucwords(str_replace('_', ' ', $fieldName));
+        foreach ($fieldFiles as $file) {
+          $filename = $file->getFilename();
+          $html .= '<div class="file-item"><strong>' . htmlspecialchars($fieldLabel, ENT_QUOTES, 'UTF-8') . ':</strong> ' . htmlspecialchars($filename, ENT_QUOTES, 'UTF-8') . '</div>';
         }
+      }
 
-        $html .= '</div></div>';
+      $html .= '</div></div>';
     }
 
-    // Footer
     $html .= '<div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 9px; color: #666; text-align: center;">
-        Generated on ' . $currentDate . ' | ' . htmlspecialchars($siteName) . ' Employment Application System
+        Generated on ' . $currentDate . ' | ' . $siteName . ' Employment Application System
     </div>';
 
     $html .= '</body></html>';
@@ -1766,23 +1476,20 @@ class EmploymentApplicationController extends ControllerBase {
    */
   private function sendNotifications(array $data, array $files, string $applicationId, string $pdfContent = ''): void {
     try {
-      $siteConfig = \Drupal::config('system.site');
-      $appConfig = \Drupal::config('employment_application.settings');
+      $siteConfig = $this->configFactory->get('system.site');
+      $appConfig = $this->configFactory->get('employment_application.settings');
 
       $siteName = $siteConfig->get('name') ?: 'Idaho Legal Aid Services';
 
-      // Get admin email from module config, fallback to site mail
       $adminEmailAddress = $appConfig->get('admin_email')
         ?: $siteConfig->get('mail')
         ?: 'admin@idaholegalaid.org';
 
-      // Check if notifications are enabled
       if ($appConfig->get('notification_enabled') === FALSE) {
-        \Drupal::logger('employment_application')->info('Email notifications disabled by config');
+        $this->appLogger->debug('Email notifications disabled by config');
         return;
       }
 
-      // Get job-specific data for email subject
       $jobTitle = $data['job_title'] ?? '';
       $jobLocation = $data['job_location'] ?? '';
       $positionDisplay = $jobTitle;
@@ -1790,7 +1497,6 @@ class EmploymentApplicationController extends ControllerBase {
         $positionDisplay .= " — {$jobLocation}";
       }
 
-      // Create admin email with PDF attachment
       $adminEmail = (new Email())
         ->from('noreply@idaholegalaid.org')
         ->to($adminEmailAddress)
@@ -1799,16 +1505,14 @@ class EmploymentApplicationController extends ControllerBase {
         ->text($this->formatAdminEmail($data, $files, $applicationId))
         ->html($this->formatAdminEmailHTML($data, $files, $applicationId));
 
-      // Add PDF summary attachment if generated
       if (!empty($pdfContent)) {
         $filename = 'employment-application-summary-' . preg_replace('/[^a-zA-Z0-9-_]/', '_', $applicationId) . '.pdf';
         $adminEmail->addPart(new DataPart($pdfContent, $filename, 'application/pdf'));
       }
 
-      // Add original uploaded files as separate attachments
       foreach ($files as $fieldName => $fieldFiles) {
         foreach ($fieldFiles as $file) {
-          $filepath = \Drupal::service('file_system')->realpath($file->getFileUri());
+          $filepath = $this->fileSystem->realpath($file->getFileUri());
           if ($filepath && file_exists($filepath)) {
             $fileContent = file_get_contents($filepath);
             $filename = $file->getFilename();
@@ -1817,12 +1521,10 @@ class EmploymentApplicationController extends ControllerBase {
         }
       }
 
-      // Send admin email
       $this->mailer->send($adminEmail);
 
-      \Drupal::logger('employment_application')->info('Admin email sent successfully');
+      $this->appLogger->debug('Admin email sent for application: @id', ['@id' => $applicationId]);
 
-      // Send confirmation email to applicant (no PDF needed)
       if (!empty($data['email'])) {
         $confirmEmail = (new Email())
           ->from('noreply@idaholegalaid.org')
@@ -1834,35 +1536,19 @@ class EmploymentApplicationController extends ControllerBase {
 
         $this->mailer->send($confirmEmail);
 
-        \Drupal::logger('employment_application')->info('Confirmation email sent successfully');
+        $this->appLogger->debug('Confirmation email sent for application: @id', ['@id' => $applicationId]);
       }
 
-    } catch (\Throwable $e) {
-      \Drupal::logger('employment_application')->error('Email sending failed: @error', [
+    }
+    catch (\Throwable $e) {
+      $this->appLogger->error('Email sending failed: @error', [
         '@error' => $e->getMessage(),
       ]);
-      // Don't fail the whole process if email fails
     }
   }
 
   /**
-   * Formats Yes/No/Other options for display.
-   */
-  private function formatYesNoOption(string $value): string {
-    switch (strtolower($value)) {
-      case 'yes':
-        return 'Yes';
-      case 'no':
-        return 'No';
-      case 'licensed_other_state':
-        return 'Licensed in Another State';
-      default:
-        return ucfirst(str_replace('_', ' ', $value));
-    }
-  }
-
-  /**
-   * Formats admin notification email.
+   * Formats admin notification email (plain text).
    */
   private function formatAdminEmail(array $data, array $files, string $applicationId): string {
     $jobTitle = $data['job_title'] ?? '';
@@ -1887,7 +1573,6 @@ class EmploymentApplicationController extends ControllerBase {
       $message .= "UPLOADED FILES:\n";
       foreach ($files as $fieldName => $fieldFiles) {
         foreach ($fieldFiles as $file) {
-          // $file is a File object, so use object methods
           $filename = $file->getFilename();
           $message .= "- " . ucfirst(str_replace('_', ' ', $fieldName)) . ": " . $filename . "\n";
         }
@@ -1898,10 +1583,10 @@ class EmploymentApplicationController extends ControllerBase {
   }
 
   /**
-   * Formats confirmation email to applicant.
+   * Formats confirmation email to applicant (plain text).
    */
   private function formatConfirmationEmail(array $data, string $applicationId): string {
-    $siteName = \Drupal::config('system.site')->get('name');
+    $siteName = $this->configFactory->get('system.site')->get('name');
     $jobTitle = $data['job_title'] ?? '';
     $jobLocation = $data['job_location'] ?? '';
     $positionDisplay = $jobLocation ? "{$jobTitle} — {$jobLocation}" : $jobTitle;
@@ -1911,15 +1596,14 @@ class EmploymentApplicationController extends ControllerBase {
            "Application ID: $applicationId\n" .
            "Position: $positionDisplay\n\n" .
            "What happens next?\n" .
-           "• We'll acknowledge receipt of your application within 24 hours\n" .
-           "• Our team will review your qualifications\n" .
-           "• If you're a good fit, we'll contact you within 1-2 weeks for next steps\n\n" .
+           "Our team will review your qualifications.\n" .
+           "If you're a good fit, we'll contact you within 1-2 weeks for next steps.\n\n" .
            "Thank you for your interest in our mission.\n\n" .
            "Best regards,\n$siteName Team";
   }
 
   /**
-   * Formats admin notification email (HTML version).
+   * Formats admin notification email (HTML).
    */
   private function formatAdminEmailHTML(array $data, array $files, string $applicationId): string {
     $jobTitle = $data['job_title'] ?? '';
@@ -1927,28 +1611,27 @@ class EmploymentApplicationController extends ControllerBase {
     $positionDisplay = $jobLocation ? "{$jobTitle} — {$jobLocation}" : $jobTitle;
 
     $message = "<h2>New Employment Application Received</h2>";
-    $message .= "<p><strong>Application ID:</strong> " . htmlspecialchars($applicationId) . "<br>";
+    $message .= "<p><strong>Application ID:</strong> " . htmlspecialchars($applicationId, ENT_QUOTES, 'UTF-8') . "<br>";
     $message .= "<strong>Submitted:</strong> " . date('Y-m-d H:i:s') . "</p>";
 
     $message .= "<h3>Position Applied For</h3>";
-    $message .= "<p style='font-size: 16px; color: #2c5aa0; font-weight: bold;'>" . htmlspecialchars($positionDisplay) . "</p>";
-    $message .= "<p><strong>Category:</strong> " . htmlspecialchars($data['job_category'] ?? 'N/A') . "</p>";
+    $message .= "<p style='font-size: 16px; color: #2c5aa0; font-weight: bold;'>" . htmlspecialchars($positionDisplay, ENT_QUOTES, 'UTF-8') . "</p>";
+    $message .= "<p><strong>Category:</strong> " . htmlspecialchars($data['job_category'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</p>";
 
     $message .= "<h3>Applicant Information</h3>";
     $message .= "<ul>";
-    $message .= "<li><strong>Name:</strong> " . htmlspecialchars($data['full_name'] ?? 'N/A') . "</li>";
-    $message .= "<li><strong>Email:</strong> " . htmlspecialchars($data['email'] ?? 'N/A') . "</li>";
-    $message .= "<li><strong>Phone:</strong> " . htmlspecialchars($data['phone'] ?? 'N/A') . "</li>";
-    $message .= "<li><strong>Start Date:</strong> " . htmlspecialchars($data['available_start_date'] ?? 'N/A') . "</li>";
+    $message .= "<li><strong>Name:</strong> " . htmlspecialchars($data['full_name'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</li>";
+    $message .= "<li><strong>Email:</strong> " . htmlspecialchars($data['email'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</li>";
+    $message .= "<li><strong>Phone:</strong> " . htmlspecialchars($data['phone'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</li>";
+    $message .= "<li><strong>Start Date:</strong> " . htmlspecialchars($data['available_start_date'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . "</li>";
     $message .= "</ul>";
 
     if (!empty($files)) {
       $message .= "<h3>Uploaded Files</h3><ul>";
       foreach ($files as $fieldName => $fieldFiles) {
         foreach ($fieldFiles as $file) {
-          // $file is a File object, so use object methods
           $filename = $file->getFilename();
-          $message .= "<li>" . ucfirst(str_replace('_', ' ', $fieldName)) . ": " . htmlspecialchars($filename) . "</li>";
+          $message .= "<li>" . ucfirst(str_replace('_', ' ', $fieldName)) . ": " . htmlspecialchars($filename, ENT_QUOTES, 'UTF-8') . "</li>";
         }
       }
       $message .= "</ul>";
@@ -1960,48 +1643,30 @@ class EmploymentApplicationController extends ControllerBase {
   }
 
   /**
-   * Formats confirmation email to applicant (HTML version).
+   * Formats confirmation email to applicant (HTML).
    */
   private function formatConfirmationEmailHTML(array $data, string $applicationId): string {
-    $siteName = \Drupal::config('system.site')->get('name');
+    $siteName = htmlspecialchars(
+      $this->configFactory->get('system.site')->get('name') ?: 'Idaho Legal Aid Services',
+      ENT_QUOTES,
+      'UTF-8'
+    );
     $jobTitle = $data['job_title'] ?? '';
     $jobLocation = $data['job_location'] ?? '';
     $positionDisplay = $jobLocation ? "{$jobTitle} — {$jobLocation}" : $jobTitle;
 
     return "<h2>Application Received</h2>" .
-           "<p>Dear " . htmlspecialchars($data['full_name'] ?? 'Applicant') . ",</p>" .
-           "<p>Thank you for your interest in joining $siteName. We have successfully received your application.</p>" .
-           "<p><strong>Application ID:</strong> " . htmlspecialchars($applicationId) . "<br>" .
-           "<strong>Position:</strong> " . htmlspecialchars($positionDisplay) . "</p>" .
+           "<p>Dear " . htmlspecialchars($data['full_name'] ?? 'Applicant', ENT_QUOTES, 'UTF-8') . ",</p>" .
+           "<p>Thank you for your interest in joining " . $siteName . ". We have successfully received your application.</p>" .
+           "<p><strong>Application ID:</strong> " . htmlspecialchars($applicationId, ENT_QUOTES, 'UTF-8') . "<br>" .
+           "<strong>Position:</strong> " . htmlspecialchars($positionDisplay, ENT_QUOTES, 'UTF-8') . "</p>" .
            "<h3>What happens next?</h3>" .
            "<ul>" .
-           "<li>We'll acknowledge receipt of your application within 24 hours</li>" .
            "<li>Our team will review your qualifications</li>" .
            "<li>If you're a good fit, we'll contact you within 1-2 weeks for next steps</li>" .
            "</ul>" .
            "<p>Thank you for your interest in our mission.</p>" .
-           "<p>Best regards,<br>$siteName Team</p>";
-  }
-
-  /**
-   * Sanitizes input data.
-   */
-  private function sanitizeInput($value): string|array {
-    if (is_array($value)) {
-      $sanitized = [];
-      foreach ($value as $key => $val) {
-        if (is_array($val) || is_scalar($val)) {
-          $sanitized[$key] = $this->sanitizeInput($val);
-        }
-      }
-      return $sanitized;
-    }
-
-    if (is_scalar($value)) {
-      return strip_tags(trim((string) $value));
-    }
-
-    return '';
+           "<p>Best regards,<br>" . $siteName . " Team</p>";
   }
 
   /**
@@ -2013,7 +1678,6 @@ class EmploymentApplicationController extends ControllerBase {
       'message' => $message,
     ], $status);
 
-    // Prevent search indexing of error responses
     $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
 
     return $response;
@@ -2023,9 +1687,7 @@ class EmploymentApplicationController extends ControllerBase {
    * Admin list of employment applications.
    */
   public function adminList(): array {
-    $database = \Drupal::database();
-
-    $query = $database->select('employment_applications', 'ea')
+    $query = $this->database->select('employment_applications', 'ea')
       ->fields('ea')
       ->orderBy('submitted', 'DESC')
       ->extend('Drupal\Core\Database\Query\PagerSelectExtender')
@@ -2039,7 +1701,7 @@ class EmploymentApplicationController extends ControllerBase {
       'Applicant',
       'Position',
       'Files',
-      'Actions'
+      'Actions',
     ];
 
     $rows = [];
@@ -2047,7 +1709,6 @@ class EmploymentApplicationController extends ControllerBase {
       $formData = json_decode($app->form_data, TRUE);
       $fileData = json_decode($app->file_data, TRUE);
 
-      // Use job_title and job_location for position display
       $jobTitle = $formData['job_title'] ?? '';
       $jobLocation = $formData['job_location'] ?? '';
       $positionDisplay = $jobLocation ? "{$jobTitle} — {$jobLocation}" : $jobTitle;
@@ -2055,20 +1716,23 @@ class EmploymentApplicationController extends ControllerBase {
       $filesList = '';
       if (!empty($fileData)) {
         foreach ($fileData as $fieldName => $fieldFiles) {
+          if (!is_array($fieldFiles)) {
+            continue;
+          }
           foreach ($fieldFiles as $file) {
             $downloadUrl = '/admin/employment-applications/' . $app->id . '/download/' . $file['fid'];
-            $filesList .= '<a href="' . $downloadUrl . '">' . htmlspecialchars($file['filename']) . '</a><br>';
+            $filesList .= '<a href="' . htmlspecialchars($downloadUrl, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($file['filename'], ENT_QUOTES, 'UTF-8') . '</a><br>';
           }
         }
       }
 
       $rows[] = [
-        $app->application_id,
+        htmlspecialchars($app->application_id, ENT_QUOTES, 'UTF-8'),
         date('Y-m-d H:i:s', $app->submitted),
-        $formData['full_name'] ?? '',
-        $positionDisplay,
+        htmlspecialchars($formData['full_name'] ?? '', ENT_QUOTES, 'UTF-8'),
+        htmlspecialchars($positionDisplay, ENT_QUOTES, 'UTF-8'),
         ['data' => ['#markup' => $filesList]],
-        ['data' => ['#markup' => '<a href="mailto:' . ($formData['email'] ?? '') . '">Contact</a>']],
+        ['data' => ['#markup' => '<a href="mailto:' . htmlspecialchars($formData['email'] ?? '', ENT_QUOTES, 'UTF-8') . '">Contact</a>']],
       ];
     }
 
@@ -2085,18 +1749,9 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Download uploaded file.
-   *
-   * @param string $application_id
-   *   The application ID the file belongs to.
-   * @param int $fid
-   *   The file ID to download.
-   *
-   * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
-   *   The file download response.
    */
   public function downloadFile(int $id, int $fid): BinaryFileResponse {
-    // Load application record to verify file ownership
-    $application = \Drupal::database()->select('employment_applications', 'ea')
+    $application = $this->database->select('employment_applications', 'ea')
       ->fields('ea', ['file_data'])
       ->condition('id', $id)
       ->execute()
@@ -2106,7 +1761,6 @@ class EmploymentApplicationController extends ControllerBase {
       throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('Application not found.');
     }
 
-    // Verify fid belongs to this application - short-circuit on match
     $fileData = json_decode($application->file_data, TRUE);
     $fidBelongsToApplication = FALSE;
 
@@ -2118,37 +1772,35 @@ class EmploymentApplicationController extends ControllerBase {
         foreach ($fieldFiles as $file) {
           if (isset($file['fid']) && (int) $file['fid'] === $fid) {
             $fidBelongsToApplication = TRUE;
-            break 2; // Short-circuit
+            break 2;
           }
         }
       }
     }
 
     if (!$fidBelongsToApplication) {
-      \Drupal::logger('employment_application')->warning('IDOR attempt: fid @fid not in application @app', [
+      $this->appLogger->warning('IDOR attempt: fid @fid not in application @app', [
         '@fid' => $fid,
         '@app' => $id,
       ]);
       throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('File does not belong to this application.');
     }
 
-    // Load file entity
     $file = File::load($fid);
     if (!$file) {
       throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('File not found.');
     }
 
-    // Verify file is in private scheme (defense in depth)
     $uri = $file->getFileUri();
     if (strpos($uri, 'private://') !== 0) {
-      \Drupal::logger('employment_application')->warning('File @fid not in private scheme: @uri', [
+      $this->appLogger->warning('File @fid not in private scheme: @uri', [
         '@fid' => $fid,
         '@uri' => $uri,
       ]);
       throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('Invalid file location.');
     }
 
-    $filepath = \Drupal::service('file_system')->realpath($uri);
+    $filepath = $this->fileSystem->realpath($uri);
     if (!$filepath || !file_exists($filepath)) {
       throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('Physical file not found.');
     }
@@ -2158,8 +1810,13 @@ class EmploymentApplicationController extends ControllerBase {
       200,
       [
         'Content-Type' => $file->getMimeType(),
-        'Content-Disposition' => 'attachment; filename="' . $file->getFilename() . '"',
+        'Content-Disposition' => HeaderUtils::makeDisposition(
+          'attachment',
+          $file->getFilename(),
+          'download'
+        ),
       ]
     );
   }
+
 }

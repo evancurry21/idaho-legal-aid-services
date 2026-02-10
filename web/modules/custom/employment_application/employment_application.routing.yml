@@ -44,7 +44,7 @@ employment_application.job:
   requirements:
     _access: 'TRUE'
     _method: 'GET'
-    job_uuid: '[a-f0-9\-]+'
+    job_uuid: '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
   options:
     _admin_route: FALSE
     _disable_search_api_indexing: TRUE

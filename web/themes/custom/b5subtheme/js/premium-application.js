@@ -1292,8 +1292,6 @@
 
       // Serialize form data
       const formDataObj = this.serializeFormToJSON();
-      console.log('Serialized form data:', formDataObj);
-      
       this.showSaveStatus('Submitting application...', 'saving');
       
       // Check if we have files
