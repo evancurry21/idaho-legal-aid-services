@@ -1,12 +1,52 @@
 display:
   default:
     display_options:
+      exposed_form:
+        options:
+          submit_button: Filter
+          reset_button_label: 'Opnieuw instellen'
+          exposed_sorts_label: 'Sorteren op'
+          sort_asc_label: Oplopend
+          sort_desc_label: Aflopend
       fields:
         node_bulk_form:
           action_title: Actie
         title:
           label: Titel
+          separator: ', '
+        type:
+          separator: ', '
+        name:
+          separator: ', '
+        status:
+          label: Status
+          separator: ', '
+        publish_on:
+          separator: ', '
+        unpublish_on:
+          separator: ', '
+        operations:
+          label: Bewerkingen
       filters:
         title:
           expose:
             label: Titel
+        status:
+          expose:
+            label: Status
+        langcode:
+          expose:
+            label: Taal
+  overview:
+    display_options:
+      tab_options:
+        title: Inhoud
+  user_page:
+    display_options:
+      tab_options:
+        title: Inhoud
+      arguments:
+        uid:
+          exception:
+            title: Alle
+    display_title: Gebruiker

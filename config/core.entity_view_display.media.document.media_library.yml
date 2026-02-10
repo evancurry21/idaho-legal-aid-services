@@ -29,6 +29,8 @@ content:
     region: content
 hidden:
   created: true
+  field_document_topics: true
+  field_document_type: true
   field_media_document: true
   langcode: true
   name: true

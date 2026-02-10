@@ -336,7 +336,6 @@ display:
     display_plugin: block
     position: 1
     display_options:
-      display_description: 'Block display for embedding in Events hub page with upcoming/past tabs.'
       fields:
         title:
           id: title
@@ -832,25 +831,25 @@ display:
             widget: select
             multiple: false
             remember: false
-            default_group: 1
+            default_group: '1'
             default_group_multiple: {  }
             group_items:
               1:
                 title: 'Upcoming Events'
                 operator: '>='
                 value:
-                  type: offset
-                  value: now
                   min: ''
                   max: ''
+                  value: now
+                  type: offset
               2:
                 title: 'Past Events'
                 operator: '<'
                 value:
-                  type: offset
-                  value: now
                   min: ''
                   max: ''
+                  value: now
+                  type: offset
         langcode:
           id: langcode
           table: node_field_data
@@ -905,24 +904,25 @@ display:
           default_row_class: true
       row:
         type: fields
-      header: {  }
       defaults:
+        empty: false
         title: true
-        fields: false
         pager: false
         exposed_form: false
-        empty: false
+        style: false
+        row: false
+        fields: false
         sorts: false
         filters: false
         filter_groups: false
-        style: false
-        row: false
         header: false
       use_ajax: true
+      display_description: 'Block display for embedding in Events hub page with upcoming/past tabs.'
+      header: {  }
+      display_extenders: {  }
       block_description: 'Events Listing'
       block_category: Content
       block_hide_empty: true
-      display_extenders: {  }
     cache_metadata:
       max-age: -1
       contexts:

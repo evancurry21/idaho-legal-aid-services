@@ -1,19 +1,8 @@
+label: Taxonomieterm
 display:
   default:
     display_title: Standaard
     display_options:
-      fields:
-        type:
-          label: Type
-        timestamp:
-          label: Datum
-        message:
-          label: Bericht
-        name:
-          label: Gebruiker
-          separator: ', '
-        link:
-          label: Bewerkingen
       pager:
         options:
           tags:
@@ -25,14 +14,14 @@ display:
             offset_label: Offset
       exposed_form:
         options:
-          submit_button: Filter
+          submit_button: Toepassen
           reset_button_label: 'Opnieuw instellen'
           exposed_sorts_label: 'Sorteren op'
           sort_asc_label: Oplopend
           sort_desc_label: Aflopend
-      filters:
-        type:
-          expose:
-            label: Type
-  page:
+      arguments:
+        tid:
+          exception:
+            title: Alle
+  page_1:
     display_title: Pagina

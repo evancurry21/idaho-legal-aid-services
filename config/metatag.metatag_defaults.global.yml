@@ -18,7 +18,6 @@ tags:
   og_image_height: '630'
   og_image_type: image/png
   og_locale: en_US
-  og_locale_alternative: es_US
   referrer: strict-origin-when-cross-origin
   rights: 'Copyright ©[date:html_year] Idaho Legal Aid Services. All rights reserved.'
   title: '[current-page:title] | [site:name]'

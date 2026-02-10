@@ -3,7 +3,7 @@ display:
     display_options:
       exposed_form:
         options:
-          submit_button: Toepassen
+          submit_button: Filter
           reset_button_label: 'Opnieuw instellen'
           exposed_sorts_label: 'Sorteren op'
           sort_asc_label: Oplopend
@@ -15,12 +15,13 @@ display:
             items_per_page_options_all_label: '- Alle -'
             offset_label: Offset
       fields:
+        redirect_source__path:
+          separator: ', '
         created:
           label: Aangemaakt
-        name:
-          label: Naam
-          separator: ', '
-      arguments:
-        tjid:
-          exception:
-            title: Alle
+      filters:
+        redirect_redirect__uri:
+          expose:
+            label: Naar
+  page_1:
+    display_title: Pagina

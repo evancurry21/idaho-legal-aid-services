@@ -1,0 +1,4 @@
+settings:
+  default_submit_button_label: Indienen
+  default_reset_button_label: 'Opnieuw instellen'
+  default_delete_button_label: Verwijderen

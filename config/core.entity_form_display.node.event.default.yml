@@ -1,3 +1,4 @@
+uuid: 9c738a4b-27e0-489a-a3c6-f8a3eaef9cfa
 langcode: en
 status: true
 dependencies:
@@ -30,13 +31,35 @@ targetEntityType: node
 bundle: event
 mode: default
 content:
-  title:
+  created:
+    type: datetime_timestamp
+    weight: 2
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_content:
+    type: text_textarea
+    weight: 14
+    region: content
+    settings:
+      rows: 9
+      placeholder: ''
+    third_party_settings: {  }
+  field_description:
+    type: string_textarea
+    weight: 13
+    region: content
+    settings:
+      rows: 5
+      placeholder: 'Short summary for listings and search results'
+    third_party_settings: {  }
+  field_event__contact:
     type: string_textfield
-    weight: 0
+    weight: 12
     region: content
     settings:
       size: 60
-      placeholder: ''
+      placeholder: 'e.g. Jane Doe, 208-555-1234'
     third_party_settings: {  }
   field_event__date:
     type: smartdate_inline
@@ -58,44 +81,12 @@ content:
       duration_overlay: true
       separator: to
     third_party_settings: {  }
-  field_event__location_name:
-    type: string_textfield
-    weight: 10
+  field_event__file:
+    type: media_library_widget
+    weight: 16
     region: content
     settings:
-      size: 60
-      placeholder: 'e.g. ILAS Boise Office'
-    third_party_settings: {  }
-  field_event__location_address:
-    type: address_default
-    weight: 11
-    region: content
-    settings:
-      wrapper_type: fieldset
-    third_party_settings: {  }
-  field_event__contact:
-    type: string_textfield
-    weight: 12
-    region: content
-    settings:
-      size: 60
-      placeholder: 'e.g. Jane Doe, 208-555-1234'
-    third_party_settings: {  }
-  field_description:
-    type: string_textarea
-    weight: 13
-    region: content
-    settings:
-      rows: 5
-      placeholder: 'Short summary for listings and search results'
-    third_party_settings: {  }
-  field_content:
-    type: text_textarea
-    weight: 14
-    region: content
-    settings:
-      rows: 9
-      placeholder: ''
+      media_types: {  }
     third_party_settings: {  }
   field_event__link:
     type: link_default
@@ -105,12 +96,20 @@ content:
       placeholder_url: ''
       placeholder_title: ''
     third_party_settings: {  }
-  field_event__file:
-    type: media_library_widget
-    weight: 16
+  field_event__location_address:
+    type: address_default
+    weight: 11
     region: content
     settings:
-      media_types: {  }
+      wrapper_type: fieldset
+    third_party_settings: {  }
+  field_event__location_name:
+    type: string_textfield
+    weight: 10
+    region: content
+    settings:
+      size: 60
+      placeholder: 'e.g. ILAS Boise Office'
     third_party_settings: {  }
   field_featured_image:
     type: media_library_widget
@@ -129,22 +128,6 @@ content:
       size: 60
       placeholder: ''
     third_party_settings: {  }
-  uid:
-    type: entity_reference_autocomplete
-    weight: 1
-    region: content
-    settings:
-      match_operator: CONTAINS
-      match_limit: 10
-      size: 60
-      placeholder: ''
-    third_party_settings: {  }
-  created:
-    type: datetime_timestamp
-    weight: 2
-    region: content
-    settings: {  }
-    third_party_settings: {  }
   langcode:
     type: language_select
     weight: 8
@@ -152,24 +135,17 @@ content:
     settings:
       include_locked: true
     third_party_settings: {  }
-  path:
-    type: path
-    weight: 30
-    region: content
-    settings: {  }
-    third_party_settings: {  }
   moderation_state:
     type: moderation_state_default
     weight: 100
     region: content
     settings: {  }
     third_party_settings: {  }
-  status:
-    type: boolean_checkbox
-    weight: 120
+  path:
+    type: path
+    weight: 30
     region: content
-    settings:
-      display_label: true
+    settings: {  }
     third_party_settings: {  }
   scheduler_settings:
     weight: 50
@@ -181,12 +157,38 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
+  status:
+    type: boolean_checkbox
+    weight: 120
+    region: content
+    settings:
+      display_label: true
+    third_party_settings: {  }
+  title:
+    type: string_textfield
+    weight: 0
+    region: content
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  uid:
+    type: entity_reference_autocomplete
+    weight: 1
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
   url_redirects:
     weight: 50
     region: content
     settings: {  }
     third_party_settings: {  }
 hidden:
+  field_event__format: true
   field_geofield: true
   field_press_topic: true
   promote: true

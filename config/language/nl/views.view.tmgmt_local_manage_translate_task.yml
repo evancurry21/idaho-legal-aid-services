@@ -1,56 +1,215 @@
 display:
   default:
     display_options:
+      exposed_form:
+        options:
+          submit_button: Filter
+          reset_button_label: 'Opnieuw instellen'
+          exposed_sorts_label: 'Sorteren op'
+          sort_asc_label: Oplopend
+          sort_desc_label: Aflopend
+      pager:
+        options:
+          tags:
+            first: '« Eerste'
+            last: 'Laatste »'
+          expose:
+            items_per_page_label: 'Items per pagina'
+            items_per_page_options_all_label: '- Alle -'
+            offset_label: Offset
       fields:
         title:
           label: Titel
+          separator: ', '
   assigned:
     display_options:
       fields:
+        status:
+          label: Status
+          separator: ', '
+        tuid:
+          separator: ', '
         title:
           label: Titel
+          separator: ', '
+        source_language:
+          separator: ', '
+        target_language:
+          label: Naar
+          separator: ', '
+        loop_count:
+          separator: ', '
+        operations:
+          label: Bewerkingen
       filters:
+        source_language:
+          expose:
+            label: Brontaal
+        target_language:
+          expose:
+            label: Doeltaal
+        uid:
+          expose:
+            label: Provider
         title:
           expose:
             label: Titel
   closed:
+    display_title: Gesloten
     display_options:
+      menu:
+        title: Gesloten
       fields:
+        status:
+          label: Status
+          separator: ', '
+        created:
+          label: Aangemaakt
+          separator: ', '
+        tuid:
+          separator: ', '
         title:
           label: Titel
+          separator: ', '
+        source_language:
+          separator: ', '
+        target_language:
+          label: Naar
+          separator: ', '
+        loop_count:
+          separator: ', '
+        operations:
+          label: Bewerkingen
       filters:
+        source_language:
+          expose:
+            label: Brontaal
+        target_language:
+          expose:
+            label: Doeltaal
+        uid:
+          expose:
+            label: Provider
         title:
           expose:
             label: Titel
   completed:
     display_options:
       fields:
+        status:
+          label: Status
+          separator: ', '
+        created:
+          label: Aangemaakt
+          separator: ', '
+        tuid:
+          separator: ', '
         title:
           label: Titel
+          separator: ', '
+        source_language:
+          separator: ', '
+        target_language:
+          label: Naar
+          separator: ', '
+        loop_count:
+          separator: ', '
+        operations:
+          label: Bewerkingen
       filters:
+        source_language:
+          expose:
+            label: Brontaal
+        target_language:
+          expose:
+            label: Doeltaal
+        uid:
+          expose:
+            label: Provider
         title:
           expose:
             label: Titel
   pending:
     display_options:
       fields:
+        status:
+          label: Status
+        tuid:
+          separator: ', '
         title:
           label: Titel
+          separator: ', '
+        source_language:
+          separator: ', '
+        target_language:
+          label: Naar
+          separator: ', '
+        loop_count:
+          separator: ', '
+        operations:
+          label: Bewerkingen
       filters:
+        source_language:
+          expose:
+            label: Brontaal
+        target_language:
+          expose:
+            label: Doeltaal
+        uid:
+          expose:
+            label: Provider
         title:
           expose:
             label: Titel
   rejected:
     display_options:
       fields:
+        status:
+          label: Status
+        created:
+          label: Aangemaakt
+          separator: ', '
+        tuid:
+          separator: ', '
         title:
           label: Titel
+          separator: ', '
+        source_language:
+          separator: ', '
+        target_language:
+          label: Naar
+          separator: ', '
+        loop_count:
+          separator: ', '
+        operations:
+          label: Bewerkingen
       filters:
+        source_language:
+          expose:
+            label: Brontaal
+        target_language:
+          expose:
+            label: Doeltaal
+        uid:
+          expose:
+            label: Provider
         title:
           expose:
             label: Titel
   unassigned:
     display_options:
       fields:
+        status:
+          label: Status
         title:
           label: Titel
+          separator: ', '
+        source_language:
+          separator: ', '
+        target_language:
+          label: Naar
+          separator: ', '
+        loop_count:
+          separator: ', '
+        operations:
+          label: Bewerkingen

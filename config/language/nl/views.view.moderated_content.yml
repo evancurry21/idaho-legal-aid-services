@@ -1,10 +1,41 @@
 display:
   default:
+    display_title: Standaard
     display_options:
       fields:
         title:
           label: Titel
+          separator: ', '
+        type:
+          separator: ', '
+        name:
+          separator: ', '
+        moderation_state:
+          separator: ', '
+        changed:
+          separator: ', '
+        operations:
+          label: Bewerkingen
+      pager:
+        options:
+          tags:
+            first: '« Eerste'
+            last: 'Laatste »'
+          expose:
+            items_per_page_label: 'Items per pagina'
+            items_per_page_options_all_label: '- Alle -'
+            offset_label: Offset
+      exposed_form:
+        options:
+          submit_button: Filter
+          reset_button_label: 'Opnieuw instellen'
+          exposed_sorts_label: 'Sorteren op'
+          sort_asc_label: Oplopend
+          sort_desc_label: Aflopend
       filters:
         title:
           expose:
             label: Titel
+        langcode:
+          expose:
+            label: Taal

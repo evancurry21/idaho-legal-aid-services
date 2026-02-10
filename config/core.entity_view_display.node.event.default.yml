@@ -1,3 +1,4 @@
+uuid: 4d319deb-1a3e-4832-b426-75d8823eba1f
 langcode: en
 status: true
 dependencies:
@@ -26,6 +27,26 @@ targetEntityType: node
 bundle: event
 mode: default
 content:
+  content_moderation_control:
+    settings: {  }
+    third_party_settings: {  }
+    weight: -20
+    region: content
+  field_content:
+    type: text_default
+    label: hidden
+    settings: {  }
+    third_party_settings: {  }
+    weight: 4
+    region: content
+  field_event__contact:
+    type: string
+    label: hidden
+    settings:
+      link_to_entity: false
+    third_party_settings: {  }
+    weight: 3
+    region: content
   field_event__date:
     type: smartdate_default
     label: hidden
@@ -37,35 +58,14 @@ content:
     third_party_settings: {  }
     weight: 0
     region: content
-  field_event__location_name:
-    type: string
+  field_event__file:
+    type: entity_reference_entity_view
     label: hidden
     settings:
-      link_to_entity: false
+      view_mode: default
+      link: false
     third_party_settings: {  }
-    weight: 1
-    region: content
-  field_event__location_address:
-    type: address_default
-    label: hidden
-    settings: {  }
-    third_party_settings: {  }
-    weight: 2
-    region: content
-  field_event__contact:
-    type: string
-    label: hidden
-    settings:
-      link_to_entity: false
-    third_party_settings: {  }
-    weight: 3
-    region: content
-  field_content:
-    type: text_default
-    label: hidden
-    settings: {  }
-    third_party_settings: {  }
-    weight: 4
+    weight: 6
     region: content
   field_event__link:
     type: link
@@ -79,14 +79,20 @@ content:
     third_party_settings: {  }
     weight: 5
     region: content
-  field_event__file:
-    type: entity_reference_entity_view
+  field_event__location_address:
+    type: address_default
+    label: hidden
+    settings: {  }
+    third_party_settings: {  }
+    weight: 2
+    region: content
+  field_event__location_name:
+    type: string
     label: hidden
     settings:
-      view_mode: default
-      link: false
+      link_to_entity: false
     third_party_settings: {  }
-    weight: 6
+    weight: 1
     region: content
   field_tags:
     type: entity_reference_label
@@ -98,8 +104,10 @@ content:
     region: content
 hidden:
   field_description: true
+  field_event__format: true
   field_featured_image: true
   field_geofield: true
   field_press_topic: true
   langcode: true
   links: true
+  search_api_excerpt: true

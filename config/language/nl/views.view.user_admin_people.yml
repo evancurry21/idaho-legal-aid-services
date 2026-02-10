@@ -1,26 +1,25 @@
-label: Inhoud
 display:
   default:
     display_title: Standaard
     display_options:
-      title: Inhoud
       fields:
-        title:
-          label: Titel
-        type:
-          separator: ', '
         status:
           label: Status
-        langcode:
-          label: Taal
-          separator: ', '
+        roles_target_id:
+          label: Rollen
         operations:
           label: Bewerkingen
+        mail:
+          separator: ', '
       pager:
         options:
           tags:
             first: '« Eerste'
             last: 'Laatste »'
+          expose:
+            items_per_page_label: 'Items per pagina'
+            items_per_page_options_all_label: '- Alle -'
+            offset_label: Offset
       exposed_form:
         options:
           submit_button: Filter
@@ -29,19 +28,14 @@ display:
           sort_asc_label: Oplopend
           sort_desc_label: Aflopend
       filters:
-        title:
-          expose:
-            label: Titel
         status:
-          expose:
+          group_info:
             label: Status
-        langcode:
+        roles_target_id:
           expose:
-            label: Taal
+            label: Rol
   page_1:
     display_title: Pagina
     display_options:
       menu:
-        title: Inhoud
-      tab_options:
-        title: Inhoud
+        title: Lijst

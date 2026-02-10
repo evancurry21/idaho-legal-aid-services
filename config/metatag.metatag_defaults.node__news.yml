@@ -9,7 +9,6 @@ tags:
   article_published_time: '[node:created:custom:c]'
   article_modified_time: '[node:changed:custom:c]'
   article_section: News
-  article_tag: '[node:field_tags:entity:name]'
   title: '[node:title] | News | [site:name]'
   description: '[node:field_seo_description|node:field_description]'
   og_description: '[node:field_seo_description|node:field_description]'

@@ -23,6 +23,8 @@ content:
     region: content
 hidden:
   created: true
+  field_document_topics: true
+  field_document_type: true
   langcode: true
   name: true
   search_api_excerpt: true
