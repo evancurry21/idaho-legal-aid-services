@@ -85,3 +85,11 @@ services:
   ilas_site_assistant.conversation_logger:
     class: Drupal\ilas_site_assistant\Service\ConversationLogger
     arguments: ['@database', '@config.factory', '@datetime.time', '@ilas_site_assistant.policy_filter']
+
+  ilas_site_assistant.safety_alert:
+    class: Drupal\ilas_site_assistant\Service\SafetyAlertService
+    arguments: ['@config.factory', '@database', '@plugin.manager.mail', '@state', '@datetime.time', '@logger.channel.ilas_site_assistant']
+
+  ilas_site_assistant.ab_testing:
+    class: Drupal\ilas_site_assistant\Service\AbTestingService
+    arguments: ['@config.factory']

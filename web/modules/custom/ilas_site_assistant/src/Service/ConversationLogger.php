@@ -83,13 +83,16 @@ class ConversationLogger {
    *   The detected intent type.
    * @param string $responseType
    *   The response type (faq, navigation, escalation, etc.).
+   * @param string $requestId
+   *   Per-request correlation UUID for tracing across logs.
    */
   public function logExchange(
     string $conversationId,
     string $userMessage,
     string $assistantMessage,
     string $intent,
-    string $responseType
+    string $responseType,
+    string $requestId = ''
   ): void {
     if (!$this->isEnabled()) {
       return;
@@ -112,29 +115,43 @@ class ConversationLogger {
     $redactedUser = mb_substr($redactedUser, 0, 500);
     $assistantMessage = mb_substr(strip_tags($assistantMessage), 0, 1000);
 
+    // Sanitize request_id to valid UUID or NULL.
+    $storedRequestId = NULL;
+    if ($requestId !== '' && preg_match('/^[a-f0-9\-]{36}$/i', $requestId)) {
+      $storedRequestId = $requestId;
+    }
+
     try {
       // Log user message.
+      $fields = [
+        'conversation_id' => mb_substr($conversationId, 0, 36),
+        'direction' => 'user',
+        'redacted_message' => $redactedUser,
+        'intent' => $intent,
+        'response_type' => NULL,
+        'created' => $now,
+      ];
+      if ($storedRequestId !== NULL) {
+        $fields['request_id'] = $storedRequestId;
+      }
       $this->database->insert('ilas_site_assistant_conversations')
-        ->fields([
-          'conversation_id' => mb_substr($conversationId, 0, 36),
-          'direction' => 'user',
-          'redacted_message' => $redactedUser,
-          'intent' => $intent,
-          'response_type' => NULL,
-          'created' => $now,
-        ])
+        ->fields($fields)
         ->execute();
 
       // Log assistant response.
+      $fields = [
+        'conversation_id' => mb_substr($conversationId, 0, 36),
+        'direction' => 'assistant',
+        'redacted_message' => $assistantMessage,
+        'intent' => $intent,
+        'response_type' => $responseType,
+        'created' => $now,
+      ];
+      if ($storedRequestId !== NULL) {
+        $fields['request_id'] = $storedRequestId;
+      }
       $this->database->insert('ilas_site_assistant_conversations')
-        ->fields([
-          'conversation_id' => mb_substr($conversationId, 0, 36),
-          'direction' => 'assistant',
-          'redacted_message' => $assistantMessage,
-          'intent' => $intent,
-          'response_type' => $responseType,
-          'created' => $now,
-        ])
+        ->fields($fields)
         ->execute();
     }
     catch (\Exception $e) {

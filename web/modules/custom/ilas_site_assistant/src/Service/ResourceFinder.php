@@ -63,9 +63,14 @@ class ResourceFinder {
   const CACHE_ID = 'ilas_site_assistant.resources';
 
   /**
-   * The Search API index ID.
+   * The dedicated Search API index ID for assistant resources.
    */
-  const INDEX_ID = 'content';
+  const INDEX_ID = 'assistant_resources';
+
+  /**
+   * Fallback Search API index ID (generic content index).
+   */
+  const FALLBACK_INDEX_ID = 'content';
 
   /**
    * Constructs a ResourceFinder object.
@@ -97,14 +102,33 @@ class ResourceFinder {
   /**
    * Gets the Search API index.
    *
+   * Tries the dedicated assistant_resources index first. Falls back to the
+   * generic content index if the dedicated index is unavailable.
+   *
    * @return \Drupal\search_api\IndexInterface|null
    *   The index or NULL if not available.
    */
   protected function getIndex() {
     if ($this->index === NULL) {
+      // Try dedicated assistant resources index first.
       $this->index = Index::load(self::INDEX_ID);
+      if (!$this->index || !$this->index->status()) {
+        // Fall back to generic content index.
+        $this->index = Index::load(self::FALLBACK_INDEX_ID);
+      }
     }
     return $this->index;
+  }
+
+  /**
+   * Checks if the dedicated assistant resources index is in use.
+   *
+   * @return bool
+   *   TRUE if using the dedicated index, FALSE if using fallback.
+   */
+  public function isUsingDedicatedIndex(): bool {
+    $index = $this->getIndex();
+    return $index && $index->id() === self::INDEX_ID;
   }
 
   /**
@@ -357,13 +381,17 @@ class ResourceFinder {
    */
   protected function findByTypeSearchApi(string $query, ?string $type, int $limit) {
     $index = $this->getIndex();
+    $using_dedicated = ($index->id() === self::INDEX_ID);
 
     try {
       $search_query = $index->query();
       $search_query->keys($query);
 
-      // Filter to resource content type only.
-      $search_query->addCondition('type', 'resource');
+      // Only filter by content type when using the generic content index.
+      // The dedicated assistant_resources index only contains resource nodes.
+      if (!$using_dedicated) {
+        $search_query->addCondition('type', 'resource');
+      }
 
       // Filter by current language to avoid duplicate results for translations.
       $langcode = $this->getCurrentLanguage();
@@ -377,7 +405,8 @@ class ResourceFinder {
       $items = [];
 
       // Extract keywords from query for relevance filtering.
-      $query_keywords = $this->extractKeywords($query);
+      // Only needed for the generic index which may return boilerplate matches.
+      $query_keywords = $using_dedicated ? [] : $this->extractKeywords($query);
 
       foreach ($results->getResultItems() as $result_item) {
         try {
@@ -399,9 +428,11 @@ class ResourceFinder {
           $item['type'] = $resource_type;
           $item['score'] = $result_item->getScore() ?? 0;
 
-          // Relevance check: ensure at least one keyword appears in title or description.
-          // This filters out false positives from boilerplate/footer content.
-          if (!empty($query_keywords) && !$this->hasRelevantMatch($item, $query_keywords)) {
+          // Relevance check: only needed for the generic content index to
+          // filter out false positives from boilerplate/footer content.
+          // The dedicated index only indexes relevant fields (title, body,
+          // topics, service areas) so its scores are trustworthy.
+          if (!$using_dedicated && !empty($query_keywords) && !$this->hasRelevantMatch($item, $query_keywords)) {
             continue;
           }
 

@@ -174,6 +174,27 @@ function ilas_seo_metatags_alter(array &$metatags, array &$context) {
     // Add inLanguage for better multi-language schema understanding.
     $metatags['schema_article_in_language'] = $entity->language()->getId();
 
+    // Fix article_tag for multi-value taxonomy fields.
+    // Token [node:field:entity:name] only returns the first delta; we need all
+    // values comma-separated so the article_tag plugin (multiple=TRUE) can
+    // split them into individual <meta property="article:tag"> elements.
+    $tag_field_map = [
+      'news' => 'field_tags',
+      'resource' => 'field_topics',
+    ];
+    if (isset($tag_field_map[$bundle])) {
+      $tag_field = $tag_field_map[$bundle];
+      if ($entity->hasField($tag_field) && !$entity->get($tag_field)->isEmpty()) {
+        $tag_names = [];
+        foreach ($entity->get($tag_field)->referencedEntities() as $term) {
+          $tag_names[] = $term->label();
+        }
+        if (!empty($tag_names)) {
+          $metatags['article_tag'] = implode(',', $tag_names);
+        }
+      }
+    }
+
     // Fix 'about' property to use Thing structure (resource and legal_content).
     if (in_array($bundle, ['resource', 'legal_content'], TRUE)) {
       $about_name = '';

@@ -113,3 +113,25 @@ fallback_gate:
     # Message characteristics
     short_message_words: 3      # Messages this short get lower confidence
     ambiguous_message_words: 2  # Very short = ask for clarification
+
+# Safety spike alerting (cron-driven, default OFF)
+# Sends email when safety violations exceed threshold within window.
+safety_alerting:
+  enabled: false
+  threshold: 20               # Number of violations to trigger alert
+  window_hours: 1             # Lookback window in hours
+  cooldown_minutes: 60        # Minimum gap between alerts
+  recipients: ''              # Comma-separated email addresses
+
+# A/B testing framework (minimal, default OFF)
+# Deterministic variant assignment per conversation_id.
+ab_testing:
+  enabled: false
+  experiments:
+    - id: 'welcome_v2'
+      variants:
+        - 'control'
+        - 'expanded_welcome'
+      allocation:
+        - 50
+        - 50

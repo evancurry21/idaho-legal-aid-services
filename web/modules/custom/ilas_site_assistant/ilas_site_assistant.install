@@ -151,11 +151,20 @@ function ilas_site_assistant_schema() {
         'not null' => TRUE,
         'description' => 'Unix timestamp.',
       ],
+      'request_id' => [
+        'type' => 'varchar',
+        'length' => 36,
+        'not null' => FALSE,
+        'default' => NULL,
+        'description' => 'Per-request correlation UUID for tracing across logs.',
+      ],
     ],
     'primary key' => ['id'],
     'indexes' => [
       'conversation' => ['conversation_id'],
       'created' => ['created'],
+      'intent_created' => ['intent', 'created'],
+      'request_id' => ['request_id'],
     ],
   ];
 
@@ -221,6 +230,57 @@ function ilas_site_assistant_update_10001() {
       ],
     ];
     $schema->createTable('ilas_site_assistant_conversations', $table);
+  }
+}
+
+/**
+ * Add request_id column and intent_created index to conversations table.
+ */
+function ilas_site_assistant_update_10002() {
+  $schema = \Drupal::database()->schema();
+  $table = 'ilas_site_assistant_conversations';
+
+  if (!$schema->tableExists($table)) {
+    return;
+  }
+
+  // Add request_id column for per-request correlation.
+  if (!$schema->fieldExists($table, 'request_id')) {
+    $schema->addField($table, 'request_id', [
+      'type' => 'varchar',
+      'length' => 36,
+      'not null' => FALSE,
+      'default' => NULL,
+      'description' => 'Per-request correlation UUID for tracing across logs.',
+    ]);
+    $schema->addIndex($table, 'request_id', ['request_id'], [
+      'fields' => [
+        'request_id' => [
+          'type' => 'varchar',
+          'length' => 36,
+        ],
+      ],
+    ]);
+  }
+
+  // Add composite index for conversation viewer filtering.
+  // Drupal's addIndex requires the full field spec for the index.
+  try {
+    $schema->addIndex($table, 'intent_created', ['intent', 'created'], [
+      'fields' => [
+        'intent' => [
+          'type' => 'varchar',
+          'length' => 64,
+        ],
+        'created' => [
+          'type' => 'int',
+          'unsigned' => TRUE,
+        ],
+      ],
+    ]);
+  }
+  catch (\Exception $e) {
+    // Index may already exist.
   }
 }
 

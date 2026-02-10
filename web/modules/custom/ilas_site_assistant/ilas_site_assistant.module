@@ -134,4 +134,21 @@ function ilas_site_assistant_cron() {
   if (\Drupal::hasService('ilas_site_assistant.conversation_logger')) {
     \Drupal::service('ilas_site_assistant.conversation_logger')->cleanup();
   }
+
+  // Check for safety spike alerts.
+  if (\Drupal::hasService('ilas_site_assistant.safety_alert')) {
+    \Drupal::service('ilas_site_assistant.safety_alert')->checkThresholds();
+  }
+}
+
+/**
+ * Implements hook_mail().
+ */
+function ilas_site_assistant_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'safety_alert':
+      $message['subject'] = $params['subject'];
+      $message['body'][] = $params['body'];
+      break;
+  }
 }

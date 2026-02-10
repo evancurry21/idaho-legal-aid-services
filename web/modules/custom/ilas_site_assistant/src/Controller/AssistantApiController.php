@@ -19,6 +19,8 @@ use Drupal\ilas_site_assistant\Service\OutOfScopeClassifier;
 use Drupal\ilas_site_assistant\Service\OutOfScopeResponseTemplates;
 use Drupal\ilas_site_assistant\Service\PerformanceMonitor;
 use Drupal\ilas_site_assistant\Service\ConversationLogger;
+use Drupal\ilas_site_assistant\Service\AbTestingService;
+use Drupal\Component\Uuid\Php as UuidGenerator;
 use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheableJsonResponse;
@@ -146,6 +148,13 @@ class AssistantApiController extends ControllerBase {
   protected $conversationLogger;
 
   /**
+   * The A/B testing service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\AbTestingService|null
+   */
+  protected $abTesting;
+
+  /**
    * The flood service for rate limiting.
    *
    * @var \Drupal\Core\Flood\FloodInterface
@@ -187,7 +196,8 @@ class AssistantApiController extends ControllerBase {
     OutOfScopeClassifier $out_of_scope_classifier = NULL,
     OutOfScopeResponseTemplates $out_of_scope_response_templates = NULL,
     PerformanceMonitor $performance_monitor = NULL,
-    ConversationLogger $conversation_logger = NULL
+    ConversationLogger $conversation_logger = NULL,
+    AbTestingService $ab_testing = NULL
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -207,6 +217,7 @@ class AssistantApiController extends ControllerBase {
     $this->outOfScopeResponseTemplates = $out_of_scope_response_templates;
     $this->performanceMonitor = $performance_monitor;
     $this->conversationLogger = $conversation_logger;
+    $this->abTesting = $ab_testing;
   }
 
   /**
@@ -231,7 +242,8 @@ class AssistantApiController extends ControllerBase {
       $container->has('ilas_site_assistant.out_of_scope_classifier') ? $container->get('ilas_site_assistant.out_of_scope_classifier') : NULL,
       $container->has('ilas_site_assistant.out_of_scope_response_templates') ? $container->get('ilas_site_assistant.out_of_scope_response_templates') : NULL,
       $container->has('ilas_site_assistant.performance_monitor') ? $container->get('ilas_site_assistant.performance_monitor') : NULL,
-      $container->has('ilas_site_assistant.conversation_logger') ? $container->get('ilas_site_assistant.conversation_logger') : NULL
+      $container->has('ilas_site_assistant.conversation_logger') ? $container->get('ilas_site_assistant.conversation_logger') : NULL,
+      $container->has('ilas_site_assistant.ab_testing') ? $container->get('ilas_site_assistant.ab_testing') : NULL
     );
   }
 
@@ -283,6 +295,10 @@ class AssistantApiController extends ControllerBase {
     }
     $this->flood->register('ilas_assistant_min', 60, $flood_id);
     $this->flood->register('ilas_assistant_hr', 3600, $flood_id);
+
+    // Generate per-request correlation ID for tracing across logs.
+    $uuid_generator = new UuidGenerator();
+    $request_id = $uuid_generator->generate();
 
     // Start performance tracking.
     $start_time = microtime(TRUE);
@@ -355,9 +371,21 @@ class AssistantApiController extends ControllerBase {
       }
     }
 
+    // Compute A/B testing variant assignments (deterministic per conversation).
+    $ab_assignments = [];
+    if ($conversation_id && $this->abTesting && $this->abTesting->isEnabled()) {
+      $ab_assignments = $this->abTesting->getAssignments($conversation_id);
+      if (!empty($ab_assignments)) {
+        $this->analyticsLogger->log('ab_assignment', json_encode($ab_assignments));
+      }
+    }
+
     // Extract keywords for debug (avoid storing raw user text).
     if ($debug_mode) {
       $debug_meta['extracted_keywords'] = $this->extractKeywords($user_message);
+      if (!empty($ab_assignments)) {
+        $debug_meta['ab_assignments'] = $ab_assignments;
+      }
       $debug_meta['processing_stages'][] = 'input_sanitized';
     }
 
@@ -600,7 +628,7 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Process based on intent.
-    $response = $this->processIntent($intent, $user_message, $context);
+    $response = $this->processIntent($intent, $user_message, $context, $request_id);
 
     // CRITICAL: Enforce canonical URL for hard-route intents.
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
@@ -665,10 +693,22 @@ class AssistantApiController extends ControllerBase {
       ];
       // Keep only last 10 entries (5 exchanges).
       $server_history = array_slice($server_history, -10);
+
+      // Build cache data: history + A/B variant assignments.
+      $cache_data = $server_history;
+      if (!empty($ab_assignments)) {
+        // Store assignments alongside history keyed separately so they persist.
+        $this->conversationCache->set(
+          'ilas_conv_ab:' . $conversation_id,
+          $ab_assignments,
+          time() + 1800
+        );
+      }
+
       // Store with 30-minute TTL.
       $this->conversationCache->set(
         'ilas_conv:' . $conversation_id,
-        $server_history,
+        $cache_data,
         time() + 1800
       );
 
@@ -680,8 +720,8 @@ class AssistantApiController extends ControllerBase {
         }
         if (count($recent_flags) >= 3) {
           $this->logger->warning(
-            'Multi-turn safety pattern detected for conversation @id: @flags',
-            ['@id' => $conversation_id, '@flags' => implode(', ', $recent_flags)]
+            '[@request_id] Multi-turn safety pattern detected for conversation @id: @flags',
+            ['@request_id' => $request_id, '@id' => $conversation_id, '@flags' => implode(', ', $recent_flags)]
           );
         }
       }
@@ -694,8 +734,14 @@ class AssistantApiController extends ControllerBase {
         $user_message,
         $response['message'] ?? '',
         $intent['type'] ?? 'unknown',
-        $response['type'] ?? 'unknown'
+        $response['type'] ?? 'unknown',
+        $request_id
       );
+    }
+
+    // Attach A/B variant assignments to response for frontend consumption.
+    if (!empty($ab_assignments)) {
+      $response['ab_variants'] = $ab_assignments;
     }
 
     // Record performance metrics.
@@ -1072,11 +1118,13 @@ class AssistantApiController extends ControllerBase {
    *   The user's message.
    * @param array $context
    *   Conversation context.
+   * @param string $request_id
+   *   Per-request correlation UUID for structured logging.
    *
    * @return array
    *   Response data.
    */
-  protected function processIntent(array $intent, string $message, array $context) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '') {
     $config = $this->configFactory->get('ilas_site_assistant.settings');
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
 
@@ -1143,7 +1191,8 @@ class AssistantApiController extends ControllerBase {
             'url' => $canonical_urls['forms'],
           ];
           $response['form_finder_mode'] = TRUE;
-          $this->logger->info('Form Finder clarification triggered for bare query: @query', [
+          $this->logger->info('[@request_id] Form Finder clarification triggered for bare query: @query', [
+            '@request_id' => $request_id,
             '@query' => $message,
           ]);
           break;
@@ -1158,7 +1207,8 @@ class AssistantApiController extends ControllerBase {
         if (count($results) > 0) {
           $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
         }
-        $this->logger->info('Form Finder search: query=@query, topic_keywords=@keywords, results=@count', [
+        $this->logger->info('[@request_id] Form Finder search: query=@query, topic_keywords=@keywords, results=@count', [
+          '@request_id' => $request_id,
           '@query' => $message,
           '@keywords' => $form_topic_keywords,
           '@count' => count($results),
@@ -1191,7 +1241,8 @@ class AssistantApiController extends ControllerBase {
             'url' => $canonical_urls['guides'],
           ];
           $response['guide_finder_mode'] = TRUE;
-          $this->logger->info('Guide Finder clarification triggered for bare query: @query', [
+          $this->logger->info('[@request_id] Guide Finder clarification triggered for bare query: @query', [
+            '@request_id' => $request_id,
             '@query' => $message,
           ]);
           break;
@@ -1206,7 +1257,8 @@ class AssistantApiController extends ControllerBase {
         if (count($results) > 0) {
           $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
         }
-        $this->logger->info('Guide Finder search: query=@query, topic_keywords=@keywords, results=@count', [
+        $this->logger->info('[@request_id] Guide Finder search: query=@query, topic_keywords=@keywords, results=@count', [
+          '@request_id' => $request_id,
           '@query' => $message,
           '@keywords' => $guide_topic_keywords,
           '@count' => count($results),
