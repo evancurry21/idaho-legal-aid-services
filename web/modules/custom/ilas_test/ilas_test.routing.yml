@@ -13,6 +13,7 @@ ilas_test.run:
   requirements:
     _permission: 'run ilas tests'
     _format: 'json'
+  methods: [POST]
 
 ilas_test.history:
   path: '/admin/config/development/ilas-test/history'
@@ -29,3 +30,4 @@ ilas_test.report:
     _title: 'Test Report'
   requirements:
     _permission: 'view test reports'
+    report_id: '[a-zA-Z0-9_-]+'
