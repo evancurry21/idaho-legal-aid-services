@@ -166,3 +166,7 @@ web/themes/custom/b5subtheme/images/optimized/
 data/private/
 seo-audit.md
 chatbotreview.md
+
+# Local assessment / debug scripts
+SECURITY-ASSESSMENT-2026-02-11.md
+check_embed_models.php

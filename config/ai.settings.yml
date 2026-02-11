@@ -2,4 +2,10 @@ _core:
   default_config_hash: RGedRkFydKZjS0ZJ6vbtZH00KbhYVGsK-ABILHdQLyw
 prompt_logging: false
 prompt_logging_tags: ''
-default_providers: {  }
+default_providers:
+  chat:
+    provider_id: gemini
+    model_id: models/gemini-2.0-flash
+  embeddings:
+    provider_id: gemini
+    model_id: models/text-embedding-004

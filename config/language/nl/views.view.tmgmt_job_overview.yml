@@ -3,6 +3,7 @@ display:
     display_options:
       fields:
         state:
+          label: Status
           separator: ', '
         label:
           label: Label
@@ -31,6 +32,9 @@ display:
           sort_asc_label: Oplopend
           sort_desc_label: Aflopend
       filters:
+        state:
+          expose:
+            label: Status
         source_language:
           expose:
             label: Brontaal

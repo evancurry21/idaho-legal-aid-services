@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "31a349c70b8bb531b5baad9080fbbb2a",
+    "content-hash": "85ff83d200351079c426314ac4a00634",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -1981,6 +1981,107 @@
             }
         },
         {
+            "name": "drupal/ai-ai_search",
+            "version": "1.2.8",
+            "require": {
+                "drupal/ai": "^1",
+                "drupal/core": "^10.4 || ^11"
+            },
+            "require-dev": {
+                "drupal/ai": "*",
+                "drupal/search_api": "*"
+            },
+            "type": "metapackage",
+            "extra": {
+                "drupal": {
+                    "version": "1.2.8",
+                    "datestamp": "1770217606",
+                    "security-coverage": {
+                        "status": "covered",
+                        "message": "Covered by Drupal's security advisory policy"
+                    }
+                }
+            },
+            "notification-url": "https://packages.drupal.org/8/downloads",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "a.dmitriiev",
+                    "homepage": "https://www.drupal.org/user/3235287"
+                },
+                {
+                    "name": "abhisekmazumdar",
+                    "homepage": "https://www.drupal.org/user/3557964"
+                },
+                {
+                    "name": "andrewbelcher",
+                    "homepage": "https://www.drupal.org/user/655282"
+                },
+                {
+                    "name": "anjaliprasannan",
+                    "homepage": "https://www.drupal.org/user/3637917"
+                },
+                {
+                    "name": "b_sharpe",
+                    "homepage": "https://www.drupal.org/user/2512258"
+                },
+                {
+                    "name": "fago",
+                    "homepage": "https://www.drupal.org/user/16747"
+                },
+                {
+                    "name": "gxleano",
+                    "homepage": "https://www.drupal.org/user/3591999"
+                },
+                {
+                    "name": "kevinquillen",
+                    "homepage": "https://www.drupal.org/user/317279"
+                },
+                {
+                    "name": "kristen pol",
+                    "homepage": "https://www.drupal.org/user/8389"
+                },
+                {
+                    "name": "marcus_johansson",
+                    "homepage": "https://www.drupal.org/user/385947"
+                },
+                {
+                    "name": "murz",
+                    "homepage": "https://www.drupal.org/user/157092"
+                },
+                {
+                    "name": "robloach",
+                    "homepage": "https://www.drupal.org/user/61114"
+                },
+                {
+                    "name": "scott_euser",
+                    "homepage": "https://www.drupal.org/user/3267594"
+                },
+                {
+                    "name": "seogow",
+                    "homepage": "https://www.drupal.org/user/3065779"
+                },
+                {
+                    "name": "valthebald",
+                    "homepage": "https://www.drupal.org/user/239562"
+                },
+                {
+                    "name": "wouters_f",
+                    "homepage": "https://www.drupal.org/user/721548"
+                },
+                {
+                    "name": "yautja_cetanu",
+                    "homepage": "https://www.drupal.org/user/626050"
+                }
+            ],
+            "homepage": "https://www.drupal.org/project/ai",
+            "support": {
+                "source": "https://git.drupalcode.org/project/ai"
+            }
+        },
+        {
             "name": "drupal/ai_agents",
             "version": "1.2.1",
             "source": {
@@ -2364,6 +2465,70 @@
             "support": {
                 "source": "https://git.drupalcode.org/project/ai_seo",
                 "issues": "https://drupal.org/project/ai_seo"
+            }
+        },
+        {
+            "name": "drupal/ai_vdb_provider_pinecone",
+            "version": "1.1.0-beta3",
+            "source": {
+                "type": "git",
+                "url": "https://git.drupalcode.org/project/ai_vdb_provider_pinecone.git",
+                "reference": "1.1.0-beta3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://ftp.drupal.org/files/projects/ai_vdb_provider_pinecone-1.1.0-beta3.zip",
+                "reference": "1.1.0-beta3",
+                "shasum": "e6a4e5da0662fd129cea0d846bdd7861d405ce31"
+            },
+            "require": {
+                "drupal/ai": "^1.1.0",
+                "drupal/ai-ai_search": "*",
+                "drupal/core": "^10.2 || ^11",
+                "drupal/key": "^1.18",
+                "drupal/search_api": "*",
+                "scotteuser/pinecone-php": "^1.0.2"
+            },
+            "require-dev": {
+                "drupal/search_api": "^1.35"
+            },
+            "type": "drupal-module",
+            "extra": {
+                "drupal": {
+                    "version": "1.1.0-beta3",
+                    "datestamp": "1749792577",
+                    "security-coverage": {
+                        "status": "not-covered",
+                        "message": "Beta releases are not covered by Drupal security advisories."
+                    }
+                }
+            },
+            "notification-url": "https://packages.drupal.org/8/downloads",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "gxleano",
+                    "homepage": "https://www.drupal.org/user/3591999"
+                },
+                {
+                    "name": "marcus_johansson",
+                    "homepage": "https://www.drupal.org/user/385947"
+                },
+                {
+                    "name": "scott_euser",
+                    "homepage": "https://www.drupal.org/user/3267594"
+                },
+                {
+                    "name": "vivek panicker",
+                    "homepage": "https://www.drupal.org/user/3540616"
+                }
+            ],
+            "description": "Pinecone VDB provider implementation for the AI module for Drupal",
+            "homepage": "https://www.drupal.org/project/ai_vdb_provider_pinecone",
+            "support": {
+                "source": "https://git.drupalcode.org/project/ai_vdb_provider_pinecone"
             }
         },
         {
@@ -5593,6 +5758,57 @@
             "support": {
                 "source": "https://git.drupal.org/project/friendlycaptcha.git",
                 "issues": "https://www.drupal.org/project/issues/friendlycaptcha"
+            }
+        },
+        {
+            "name": "drupal/gemini_provider",
+            "version": "1.0.1-beta1",
+            "source": {
+                "type": "git",
+                "url": "https://git.drupalcode.org/project/gemini_provider.git",
+                "reference": "1.0.1-beta1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://ftp.drupal.org/files/projects/gemini_provider-1.0.1-beta1.zip",
+                "reference": "1.0.1-beta1",
+                "shasum": "b3a15b8b6101038f2b1de393e8f0f7cf237fa1da"
+            },
+            "require": {
+                "drupal/ai": "^1",
+                "drupal/core": "^10 || ^11",
+                "drupal/key": "*",
+                "google-gemini-php/client": "^1.0"
+            },
+            "type": "drupal-module",
+            "extra": {
+                "drupal": {
+                    "version": "1.0.1-beta1",
+                    "datestamp": "1756316707",
+                    "security-coverage": {
+                        "status": "not-covered",
+                        "message": "Project has not opted into security advisory coverage!"
+                    }
+                }
+            },
+            "notification-url": "https://packages.drupal.org/8/downloads",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "jibla",
+                    "homepage": "https://www.drupal.org/user/1013184"
+                },
+                {
+                    "name": "lekso surameli",
+                    "homepage": "https://www.drupal.org/user/3709459"
+                }
+            ],
+            "description": "Gemini provider for AI module.",
+            "homepage": "https://www.drupal.org/project/gemini_provider",
+            "support": {
+                "source": "https://git.drupalcode.org/project/gemini_provider"
             }
         },
         {
@@ -9981,6 +10197,69 @@
             "time": "2018-01-19T23:11:36+00:00"
         },
         {
+            "name": "google-gemini-php/client",
+            "version": "1.0.15",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/google-gemini-php/client.git",
+                "reference": "6dca9a5e6a6de39b230fe4593a8d041efd02e34e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/google-gemini-php/client/zipball/6dca9a5e6a6de39b230fe4593a8d041efd02e34e",
+                "reference": "6dca9a5e6a6de39b230fe4593a8d041efd02e34e",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1.0",
+                "php-http/discovery": "^1.19.2"
+            },
+            "require-dev": {
+                "guzzlehttp/guzzle": "^7.8.1",
+                "guzzlehttp/psr7": "^2.6.2",
+                "laravel/pint": "^1.18.1",
+                "mockery/mockery": "^1.6.7",
+                "pestphp/pest": "^2.30",
+                "phpstan/phpstan": "^1.10"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/Gemini.php"
+                ],
+                "psr-4": {
+                    "Gemini\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fatih AYDIN",
+                    "email": "aydinfatih52@gmail.com"
+                }
+            ],
+            "description": "Gemini API is a supercharged PHP API client that allows you to interact with the Gemini API",
+            "keywords": [
+                "Gemini",
+                "client",
+                "gemini-pro",
+                "language",
+                "natural",
+                "nlp",
+                "php",
+                "processing",
+                "sdk"
+            ],
+            "support": {
+                "issues": "https://github.com/google-gemini-php/client/issues",
+                "source": "https://github.com/google-gemini-php/client/tree/1.0.15"
+            },
+            "time": "2024-12-29T12:53:49+00:00"
+        },
+        {
             "name": "google/auth",
             "version": "v1.50.0",
             "source": {
@@ -13471,6 +13750,144 @@
                 "source": "https://github.com/MyIntervals/PHP-CSS-Parser/tree/v9.1.0"
             },
             "time": "2025-09-14T07:37:21+00:00"
+        },
+        {
+            "name": "saloonphp/saloon",
+            "version": "v3.14.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/saloonphp/saloon.git",
+                "reference": "634be16ca5eb0b71ab01533f58dc88d174a2e28b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/saloonphp/saloon/zipball/634be16ca5eb0b71ab01533f58dc88d174a2e28b",
+                "reference": "634be16ca5eb0b71ab01533f58dc88d174a2e28b",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^7.6",
+                "guzzlehttp/promises": "^1.5 || ^2.0",
+                "guzzlehttp/psr7": "^2.0",
+                "php": "^8.2",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^1.1 || ^2.0"
+            },
+            "conflict": {
+                "sammyjo20/saloon": "*"
+            },
+            "require-dev": {
+                "ext-simplexml": "*",
+                "friendsofphp/php-cs-fixer": "^3.5",
+                "illuminate/collections": "^10.0 || ^11.0 || ^12.0",
+                "league/flysystem": "^3.0",
+                "pestphp/pest": "^2.36.0 || ^3.8.2 || ^4.1.4",
+                "phpstan/phpstan": "^2.1.13",
+                "saloonphp/xml-wrangler": "^1.1",
+                "spatie/invade": "^2.1",
+                "symfony/dom-crawler": "^6.0 || ^7.0",
+                "symfony/var-dumper": "^6.3 || ^7.0"
+            },
+            "suggest": {
+                "illuminate/collections": "Required for the response collect() method.",
+                "saloonphp/xml-wrangler": "Required for the response xmlReader() method.",
+                "symfony/dom-crawler": "Required for the response dom() method.",
+                "symfony/var-dumper": "Required for default debugging drivers."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Saloon\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sam Carré",
+                    "email": "29132017+Sammyjo20@users.noreply.github.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Build beautiful API integrations and SDKs with Saloon",
+            "homepage": "https://github.com/saloonphp/saloon",
+            "keywords": [
+                "api",
+                "api-integrations",
+                "saloon",
+                "sammyjo20",
+                "sdk"
+            ],
+            "support": {
+                "issues": "https://github.com/saloonphp/saloon/issues",
+                "source": "https://github.com/saloonphp/saloon/tree/v3.14.2"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/sammyjo20",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-11-20T21:42:32+00:00"
+        },
+        {
+            "name": "scotteuser/pinecone-php",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/scotteuser/pinecone-php.git",
+                "reference": "a211d2bfeed0409a8fd8d7435404416a336f16d0"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/scotteuser/pinecone-php/zipball/a211d2bfeed0409a8fd8d7435404416a336f16d0",
+                "reference": "a211d2bfeed0409a8fd8d7435404416a336f16d0",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "saloonphp/saloon": "^3.6"
+            },
+            "require-dev": {
+                "pestphp/pest": "^2.4",
+                "pestphp/pest-plugin-faker": "^2.0",
+                "pestphp/pest-plugin-watch": "^2.0",
+                "phpstan/phpstan": "^1.10",
+                "symfony/var-dumper": "^6.2",
+                "vlucas/phpdotenv": "^5.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Tests\\": "tests/",
+                    "Probots\\Pinecone\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Marcus Pohorely",
+                    "email": "marcus@probots.io"
+                }
+            ],
+            "description": "Unofficial PHP Client for Pinecone Vector Database (pinecone.io)",
+            "homepage": "https://probots.io",
+            "keywords": [
+                "client",
+                "database",
+                "pinecone",
+                "sdk",
+                "vector"
+            ],
+            "support": {
+                "source": "https://github.com/scotteuser/pinecone-php/tree/1.0.2"
+            },
+            "time": "2024-10-02T14:40:16+00:00"
         },
         {
             "name": "sebastian/diff",
@@ -18870,6 +19287,8 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "drupal/ai": 10,
+        "drupal/ai_vdb_provider_pinecone": 10,
+        "drupal/gemini_provider": 10,
         "drupal/project_browser": 10,
         "drupal/recipe_installer_kit": 15,
         "drupal/webform": 10,
@@ -18879,5 +19298,5 @@
     "prefer-lowest": false,
     "platform": {},
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

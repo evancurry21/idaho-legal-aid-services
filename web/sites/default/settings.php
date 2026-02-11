@@ -166,6 +166,38 @@ if ($ilas_vertex_sa) {
 }
 
 /**
+ * Gemini API key for Drupal AI module (Google AI Studio).
+ * Key entity "gemini_api_key" (config provider, empty default).
+ * Reuses the same secret as ilas_site_assistant above.
+ */
+$gemini_for_ai = _ilas_get_secret('ILAS_GEMINI_API_KEY');
+if ($gemini_for_ai) {
+  $config['key.key.gemini_api_key']['key_provider_settings']['key_value'] = $gemini_for_ai;
+}
+
+/**
+ * Vertex AI credentials for Drupal AI module (fallback provider).
+ * Key entity "vertex_sa_credentials" (config provider, empty default).
+ * Reuses the same SA JSON secret as ilas_site_assistant above.
+ */
+$vertex_sa_for_ai = _ilas_get_secret('ILAS_VERTEX_SA_JSON');
+if ($vertex_sa_for_ai) {
+  $config['key.key.vertex_sa_credentials']['key_provider_settings']['key_value'] = $vertex_sa_for_ai;
+}
+
+/**
+ * Pinecone API key for AI Search vector database.
+ * Key entity "pinecone_api_key" (config provider, empty default).
+ *
+ * On Pantheon: type "runtime", scope "web", key "ILAS_PINECONE_API_KEY".
+ * Locally (DDEV): add ILAS_PINECONE_API_KEY=<value> to .ddev/.env, then ddev restart.
+ */
+$pinecone_key = _ilas_get_secret('ILAS_PINECONE_API_KEY');
+if ($pinecone_key) {
+  $config['key.key.pinecone_api_key']['key_provider_settings']['key_value'] = $pinecone_key;
+}
+
+/**
  * Include DDEV settings if present.
  * Safe: this file doesn't exist on Pantheon.
  */

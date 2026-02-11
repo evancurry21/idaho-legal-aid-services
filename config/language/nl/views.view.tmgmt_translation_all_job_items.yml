@@ -18,6 +18,8 @@ display:
             first: '« Eerste'
             last: 'Laatste »'
       fields:
+        state:
+          label: Status
         label:
           label: Label
         type:
@@ -37,6 +39,9 @@ display:
         operations:
           label: Bewerkingen
       filters:
+        state:
+          group_info:
+            label: Status
         source_language:
           expose:
             label: Brontaal
