@@ -35,10 +35,10 @@
     {% for faq in faq_items %}
         {
           "@type": "Question",
-          "name": {{ faq.field_faq_question.value|json_encode|raw }},
+          "name": {{ faq.field_faq_question.value|default('')|json_encode|raw }},
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": {{ faq.field_faq_answer.value|json_encode|raw }}
+            "text": {{ faq.field_faq_answer.value|default('')|json_encode|raw }}
           }
         }{% if not loop.last %},{% endif %}
     {% endfor %}

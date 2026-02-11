@@ -66,12 +66,14 @@
                data-bs-parent="#{{ accordion_id }}">
             <div class="accordion-body">
               {# Body content — rendered through text format filters for XSS safety #}
-              {% set body_safe = {
-                '#type': 'processed_text',
-                '#text': item.field_accordion_body.value,
-                '#format': item.field_accordion_body.format,
-              } %}
-              {{ body_safe }}
+              {% if item.field_accordion_body|length > 0 %}
+                {% set body_safe = {
+                  '#type': 'processed_text',
+                  '#text': item.field_accordion_body.value,
+                  '#format': item.field_accordion_body.format,
+                } %}
+                {{ body_safe }}
+              {% endif %}
 
               {# Loop through each uploaded file (now unlimited) #}
               {% for ref in item.field_accordion_file %}
