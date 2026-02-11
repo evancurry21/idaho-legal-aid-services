@@ -30,6 +30,10 @@ const purgecssConfig = {
     // Drupal core and contrib templates that might be used
     '../../contrib/bootstrap5/templates/**/*.twig',
     '../../../core/themes/stable9/templates/**/*.twig',
+    // Custom modules (templates, JS, PHP that reference CSS classes)
+    '../../../modules/custom/*/templates/**/*.twig',
+    '../../../modules/custom/*/js/**/*.js',
+    '../../../modules/custom/*/src/**/*.php',
   ],
   // Drupal-safe safelist - patterns that should never be purged
   safelist: {
@@ -156,97 +160,22 @@ const purgecssConfig = {
       /^is-invalid/,
       /^valid-/,
       /^invalid-/,
-      // Font Awesome - base classes only (icons specified below)
+      // Font Awesome — blanket safelist for all FA classes
+      // Covers: base (.fa, .fas, .far, .fab), FA6 style prefixes (.fa-solid,
+      // .fa-regular, .fa-brands), utilities (.fa-spin, .fa-fw, .fa-lg, .fa-2x),
+      // and ALL icon classes (.fa-calendar, .fa-heart, .fa-comment-dots, etc.).
+      // This is necessary because:
+      //   1. Benefit-card paragraph uses admin-entered icon classes
+      //      (e.g. {{ paragraph.field_benefit_icon.value }} = "fas fa-heart-pulse")
+      //   2. Assistant widget renders data-driven icons (fa-{{ suggestion.icon }})
+      //   3. Individual icon lists inevitably go stale as templates change
+      // Cost: ~2000 tiny ::before content rules (~40-50KB gzipped). Acceptable
+      // vs. the alternative of icons silently disappearing in production.
       /^fa$/,
       /^fas$/,
       /^far$/,
       /^fab$/,
-      /^fa-solid$/,
-      /^fa-brands$/,
-      /^fa-regular$/,
-      // Font Awesome utility classes
-      'fa-spin',
-      'fa-fw',
-      'fa-lg',
-      'fa-2x',
-      'fa-3x',
-      // Font Awesome ICONS USED (63 total - audited 2024-12-16)
-      // Solid icons
-      'fa-arrow-circle-right',
-      'fa-arrow-down',
-      'fa-arrow-left',
-      'fa-arrow-right',
-      'fa-arrow-right-from-bracket',
-      'fa-arrow-right-long',
-      'fa-arrow-up',
-      'fa-balance-scale',
-      'fa-briefcase',
-      'fa-calendar',
-      'fa-calendar-alt',
-      'fa-calendar-week',
-      'fa-chart-line',
-      'fa-chart-pie',
-      'fa-check-circle',
-      'fa-chevron-down',
-      'fa-chevron-left',
-      'fa-chevron-right',
-      'fa-chevron-up',
-      'fa-clock',
-      'fa-cloud-upload-alt',
-      'fa-cog',
-      'fa-dollar-sign',
-      'fa-donate',
-      'fa-download',
-      'fa-exclamation-triangle',
-      'fa-external-link-alt',
-      'fa-file-alt',
-      'fa-file-contract',
-      'fa-file-invoice-dollar',
-      'fa-folder',
-      'fa-folder-open',
-      'fa-gavel',
-      'fa-globe',
-      'fa-graduation-cap',
-      'fa-hand-holding-heart',
-      'fa-hands-helping',
-      'fa-heart',
-      'fa-info-circle',
-      'fa-list',
-      'fa-lock',
-      'fa-magnifying-glass',
-      'fa-map',
-      'fa-map-marker-alt',
-      'fa-paper-plane',
-      'fa-percentage',
-      'fa-phone-volume',
-      'fa-plus',
-      'fa-save',
-      'fa-spinner',
-      'fa-star',
-      'fa-sync-alt',
-      'fa-target',
-      'fa-ticket-alt',
-      'fa-times',
-      'fa-user-check',
-      'fa-users',
-      'fa-xmark',
-      // Employment page icons
-      'fa-ban',
-      'fa-bolt-lightning',
-      'fa-building',
-      'fa-check',
-      'fa-comments',
-      'fa-file-pdf',
-      'fa-hourglass-half',
-      'fa-house-laptop',
-      'fa-location-dot',
-      'fa-sack-dollar',
-      // Brand icons
-      'fa-bluesky',
-      'fa-facebook',
-      'fa-instagram',
-      'fa-linkedin',
-      'fa-youtube',
+      /^fa-/,
       // CKEditor block styles / callout classes (applied via CKEditor, not in templates)
       'callout-info',
       'callout-highlight',
@@ -305,10 +234,7 @@ const purgecssConfig = {
       /progress/,
       /list-group/,
     ],
-    // Greedy patterns (matches entire selector if pattern found anywhere)
-    greedy: [
-      // Font Awesome greedy pattern removed - specific icons listed in standard
-    ],
+    greedy: [],
   },
   // Keep CSS variables
   variables: true,
