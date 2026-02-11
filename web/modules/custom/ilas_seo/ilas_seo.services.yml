@@ -1,0 +1,6 @@
+services:
+  ilas_seo.response_subscriber:
+    class: Drupal\ilas_seo\EventSubscriber\ResponseSubscriber
+    arguments: ['@current_user']
+    tags:
+      - { name: event_subscriber }
