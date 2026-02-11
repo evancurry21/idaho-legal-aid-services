@@ -169,9 +169,12 @@ class ExecuteTestsForm extends FormBase {
       ];
     }
     catch (\Exception $e) {
+      $this->getLogger('ilas_test')->error('Test run failed: @message', [
+        '@message' => $e->getMessage(),
+      ]);
       $form['results']['error'] = [
-        '#markup' => '<div class="messages messages--error">' . 
-                    $this->t('Error running tests: @error', ['@error' => $e->getMessage()]) . 
+        '#markup' => '<div class="messages messages--error">' .
+                    $this->t('Test execution failed. Check the site logs for details.') .
                     '</div>',
       ];
     }
