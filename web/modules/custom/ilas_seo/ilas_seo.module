@@ -72,6 +72,15 @@ function ilas_seo_page_attachments_alter(array &$attachments) {
     }
   }
 
+  // Remove the Drupal generator meta tag to reduce CMS fingerprinting (L-1).
+  if (isset($attachments['#attached']['html_head'])) {
+    foreach ($attachments['#attached']['html_head'] as $key => $tag) {
+      if (isset($tag[1]) && $tag[1] === 'system_meta_generator') {
+        unset($attachments['#attached']['html_head'][$key]);
+      }
+    }
+  }
+
   // Apply noindex if conditions are met.
   if ($should_noindex) {
     // Remove any existing robots meta tag first.

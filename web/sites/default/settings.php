@@ -45,6 +45,22 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['SCRIPT_NAME'])) {
 }
 
 /**
+ * SECURITY: Block core documentation files that disclose Drupal version (L-2).
+ *
+ * These text files are served as static assets by nginx/Apache before Drupal
+ * bootstraps, so they must be blocked here in settings.php (early enough for
+ * Pantheon's infrastructure). REQUEST_URI is used because SCRIPT_NAME always
+ * points to index.php for routed requests.
+ */
+if (PHP_SAPI !== 'cli' && isset($_SERVER['REQUEST_URI'])) {
+  $request_path = strtok($_SERVER['REQUEST_URI'], '?');
+  if (preg_match('#^/core/(CHANGELOG|COPYRIGHT|INSTALL|LICENSE|MAINTAINERS|UPDATE)\.txt$#i', $request_path)) {
+    header('HTTP/1.1 404 Not Found');
+    die('Not found.');
+  }
+}
+
+/**
  * Load services definition file.
  */
 $settings['container_yamls'][] = __DIR__ . '/services.yml';
