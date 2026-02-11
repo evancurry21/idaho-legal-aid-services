@@ -8,6 +8,7 @@ use Drupal\Component\Utility\EmailValidatorInterface;
 use Drupal\Core\Access\CsrfTokenGenerator;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Mail\MailManagerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
@@ -85,6 +86,11 @@ class DonationInquiryController extends ControllerBase {
   protected LoggerChannelFactoryInterface $donationLoggerFactory;
 
   /**
+   * Flood control service.
+   */
+  protected FloodInterface $donationFlood;
+
+  /**
    * DonationInquiryController constructor.
    */
   public function __construct(
@@ -94,7 +100,8 @@ class DonationInquiryController extends ControllerBase {
     ConfigFactoryInterface $configFactory,
     LanguageManagerInterface $languageManager,
     ClientInterface $httpClient,
-    LoggerChannelFactoryInterface $loggerFactory
+    LoggerChannelFactoryInterface $loggerFactory,
+    FloodInterface $flood
   ) {
     $this->donationMailManager = $mailManager;
     $this->donationEmailValidator = $emailValidator;
@@ -103,6 +110,7 @@ class DonationInquiryController extends ControllerBase {
     $this->languageManager = $languageManager;
     $this->donationHttpClient = $httpClient;
     $this->donationLoggerFactory = $loggerFactory;
+    $this->donationFlood = $flood;
   }
 
   /**
@@ -116,7 +124,8 @@ class DonationInquiryController extends ControllerBase {
       $container->get('config.factory'),
       $container->get('language_manager'),
       $container->get('http_client'),
-      $container->get('logger.factory')
+      $container->get('logger.factory'),
+      $container->get('flood')
     );
   }
 
@@ -124,6 +133,13 @@ class DonationInquiryController extends ControllerBase {
    * Handles submission of the donation inquiry form.
    */
   public function submit(Request $request): JsonResponse {
+    // Flood control (M-10): limit to 5 submissions per hour per IP.
+    $clientIp = $request->getClientIp() ?: 'unknown';
+    if (!$this->donationFlood->isAllowed('donation_inquiry_submit', 5, 3600, $clientIp)) {
+      $this->donationLoggerFactory->get('ilas_donation_inquiry')->warning('Flood control triggered for donation inquiry from @ip', ['@ip' => $clientIp]);
+      return $this->jsonError('Too many submissions. Please try again later.', 429);
+    }
+
     $data = $this->extractPayload($request);
 
     // CSRF validation.
@@ -189,6 +205,9 @@ class DonationInquiryController extends ControllerBase {
       $this->donationLoggerFactory->get('ilas_donation_inquiry')->error('Failed to send donation inquiry email.');
       return $this->jsonError('We were unable to send your request. Please try again later.', 500);
     }
+
+    // Register successful submission against flood control.
+    $this->donationFlood->register('donation_inquiry_submit', 3600, $clientIp);
 
     $this->donationLoggerFactory->get('ilas_donation_inquiry')->notice('Donation inquiry email successfully dispatched for @email', [
       '@email' => $this->maskEmail($data['email'] ?? ''),
@@ -365,8 +384,10 @@ class DonationInquiryController extends ControllerBase {
       $sections['Other Ways - Additional'] = $data['other_ways_additional'];
     }
 
-    $sourceUrl = $data['source_url'] ?? $request->headers->get('referer');
-    if (empty($sourceUrl)) {
+    // Validate source_url is on the same host (L-10).
+    $sourceUrl = $data['source_url'] ?? $request->headers->get('referer') ?? '';
+    $parsedUrl = parse_url($sourceUrl);
+    if (empty($sourceUrl) || (!empty($parsedUrl['host']) && $parsedUrl['host'] !== $request->getHost())) {
       $sourceUrl = $request->getUri();
     }
 
