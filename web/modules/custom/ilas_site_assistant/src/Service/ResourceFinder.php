@@ -4,6 +4,7 @@ namespace Drupal\ilas_site_assistant\Service;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\search_api\Entity\Index;
 
@@ -12,6 +13,9 @@ use Drupal\search_api\Entity\Index;
  *
  * Uses Search API content index for text search with fallback to
  * direct entity queries when the index is unavailable.
+ *
+ * When vector search is enabled, supplements sparse lexical results with
+ * semantic search from a Pinecone-backed vector index.
  */
 class ResourceFinder {
 
@@ -28,6 +32,13 @@ class ResourceFinder {
    * @var \Drupal\ilas_site_assistant\Service\TopicResolver
    */
   protected $topicResolver;
+
+  /**
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
 
   /**
    * The cache backend.
@@ -80,13 +91,15 @@ class ResourceFinder {
     TopicResolver $topic_resolver,
     CacheBackendInterface $cache,
     LanguageManagerInterface $language_manager,
-    RankingEnhancer $ranking_enhancer = NULL
+    RankingEnhancer $ranking_enhancer = NULL,
+    ConfigFactoryInterface $config_factory = NULL
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->topicResolver = $topic_resolver;
     $this->cache = $cache;
     $this->languageManager = $language_manager;
     $this->rankingEnhancer = $ranking_enhancer;
+    $this->configFactory = $config_factory;
   }
 
   /**
@@ -469,6 +482,9 @@ class ResourceFinder {
         }
       }
 
+      // Supplement with vector search if still sparse.
+      $items = $this->supplementWithVectorResults($items, $query, $type, $limit);
+
       return $items;
     }
     catch (\Exception $e) {
@@ -562,6 +578,183 @@ class ResourceFinder {
     }
 
     return FALSE;
+  }
+
+  // =========================================================================
+  // Vector search methods (Pinecone fallback enrichment)
+  // =========================================================================
+
+  /**
+   * Gets the vector search configuration.
+   *
+   * @return array
+   *   Vector search config with keys: enabled, resource_index_id,
+   *   fallback_threshold, min_vector_score, score_normalization_factor.
+   */
+  protected function getVectorSearchConfig(): array {
+    if (!$this->configFactory) {
+      return ['enabled' => FALSE];
+    }
+    $config = $this->configFactory->get('ilas_site_assistant.settings');
+    return $config->get('vector_search') ?? ['enabled' => FALSE];
+  }
+
+  /**
+   * Supplements lexical results with vector search when results are sparse.
+   *
+   * Only fires when vector search is enabled and lexical results are below
+   * the fallback threshold. Merges by node ID, keeping the higher-scored
+   * version of any duplicate.
+   *
+   * @param array $lexical_items
+   *   Results from lexical search.
+   * @param string $query
+   *   The original search query.
+   * @param string|null $type
+   *   Optional resource type filter.
+   * @param int $limit
+   *   Maximum total results to return.
+   *
+   * @return array
+   *   Merged results, limited to $limit.
+   */
+  protected function supplementWithVectorResults(array $lexical_items, string $query, ?string $type, int $limit): array {
+    $vector_config = $this->getVectorSearchConfig();
+
+    if (empty($vector_config['enabled'])) {
+      return $lexical_items;
+    }
+
+    $threshold = $vector_config['fallback_threshold'] ?? 2;
+
+    // Only fire vector search if lexical results are sparse.
+    if (count($lexical_items) >= $threshold) {
+      return $lexical_items;
+    }
+
+    $vector_items = $this->findByTypeVector($query, $type, $limit);
+
+    if (empty($vector_items)) {
+      return $lexical_items;
+    }
+
+    // Build a map of existing items keyed by node ID.
+    $merged = [];
+    foreach ($lexical_items as $item) {
+      $merged[$item['id']] = $item;
+    }
+
+    // Merge vector items, keeping higher-scored version for duplicates.
+    foreach ($vector_items as $item) {
+      if (!isset($merged[$item['id']])) {
+        $merged[$item['id']] = $item;
+      }
+      elseif (($item['score'] ?? 0) > ($merged[$item['id']]['score'] ?? 0)) {
+        $merged[$item['id']] = $item;
+      }
+    }
+
+    // Sort by score descending and limit.
+    $results = array_values($merged);
+    usort($results, function ($a, $b) {
+      return ($b['score'] ?? 0) <=> ($a['score'] ?? 0);
+    });
+
+    return array_slice($results, 0, $limit);
+  }
+
+  /**
+   * Searches resources using the vector (Pinecone) index.
+   *
+   * @param string $query
+   *   The search query.
+   * @param string|null $type
+   *   Optional resource type filter (form, guide, or NULL for all).
+   * @param int $limit
+   *   Maximum results to return.
+   *
+   * @return array
+   *   Array of matching resource items with normalized scores.
+   */
+  protected function findByTypeVector(string $query, ?string $type, int $limit): array {
+    $vector_config = $this->getVectorSearchConfig();
+    $index_id = $vector_config['resource_index_id'] ?? 'assistant_resources_vector';
+    $min_score = $vector_config['min_vector_score'] ?? 0.70;
+    $normalization = $vector_config['score_normalization_factor'] ?? 100;
+
+    try {
+      $vector_index = Index::load($index_id);
+      if (!$vector_index || !$vector_index->status()) {
+        return [];
+      }
+
+      $search_query = $vector_index->query();
+      $search_query->keys($query);
+
+      // Fetch extra results to allow for type filtering.
+      $fetch_limit = $type ? $limit * 3 : $limit;
+      $search_query->range(0, $fetch_limit);
+
+      // Filter by current language.
+      $langcode = $this->getCurrentLanguage();
+      $search_query->addCondition('search_api_language', $langcode);
+
+      $results = $search_query->execute();
+      $items = [];
+
+      foreach ($results->getResultItems() as $result_item) {
+        try {
+          // Get the raw cosine similarity score (0-1).
+          $raw_score = $result_item->getScore() ?? 0;
+
+          // Skip results below the minimum vector score threshold.
+          if ($raw_score < $min_score) {
+            continue;
+          }
+
+          $node = $result_item->getOriginalObject()->getValue();
+          if (!$node) {
+            continue;
+          }
+
+          // Filter by resource type if specified.
+          $resource_type = $this->determineResourceType($node);
+          if ($type !== NULL && $resource_type !== $type) {
+            continue;
+          }
+
+          $item = $this->buildResourceItem($node);
+          $item['type'] = $resource_type;
+          // Normalize vector score to be comparable with lexical scores.
+          $item['score'] = $raw_score * $normalization;
+          $item['vector_score'] = $raw_score;
+          $item['source'] = 'vector';
+          $items[] = $item;
+
+          if (count($items) >= $limit) {
+            break;
+          }
+        }
+        catch (\Exception $e) {
+          continue;
+        }
+      }
+
+      if (!empty($items)) {
+        \Drupal::logger('ilas_site_assistant')->info('Vector resource search returned @count results for query "@query"', [
+          '@count' => count($items),
+          '@query' => $query,
+        ]);
+      }
+
+      return $items;
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('ilas_site_assistant')->warning('Vector resource search failed: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return [];
+    }
   }
 
   /**

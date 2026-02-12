@@ -36,7 +36,7 @@ services:
 
   ilas_site_assistant.resource_finder:
     class: Drupal\ilas_site_assistant\Service\ResourceFinder
-    arguments: ['@entity_type.manager', '@ilas_site_assistant.topic_resolver', '@cache.default', '@language_manager', '@ilas_site_assistant.ranking_enhancer']
+    arguments: ['@entity_type.manager', '@ilas_site_assistant.topic_resolver', '@cache.default', '@language_manager', '@ilas_site_assistant.ranking_enhancer', '@config.factory']
 
   ilas_site_assistant.analytics_logger:
     class: Drupal\ilas_site_assistant\Service\AnalyticsLogger

@@ -207,6 +207,90 @@ class AssistantSettingsForm extends ConfigFormBase {
       '#default_value' => $config->get('faq_node_path') ?? '/faq',
     ];
 
+    // Vector Search Enhancement Settings.
+    $form['vector_search'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Vector Search Enhancement'),
+      '#description' => $this->t('Supplements lexical search with semantic vector search via Pinecone when lexical results are sparse. Requires the pinecone_vector Search API server and vector indexes to be configured and indexed.'),
+      '#open' => FALSE,
+    ];
+
+    $vector_config = $config->get('vector_search') ?? [];
+
+    $form['vector_search']['vector_search_enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Vector Search Fallback'),
+      '#description' => $this->t('When enabled, sparse lexical results will be supplemented with semantic vector search results from Pinecone.'),
+      '#default_value' => $vector_config['enabled'] ?? FALSE,
+    ];
+
+    $form['vector_search']['vector_search_faq_index_id'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('FAQ Vector Index ID'),
+      '#description' => $this->t('The Search API index ID for FAQ/accordion vector search.'),
+      '#default_value' => $vector_config['faq_index_id'] ?? 'faq_accordion_vector',
+      '#states' => [
+        'visible' => [
+          ':input[name="vector_search_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['vector_search']['vector_search_resource_index_id'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Resource Vector Index ID'),
+      '#description' => $this->t('The Search API index ID for resource vector search.'),
+      '#default_value' => $vector_config['resource_index_id'] ?? 'assistant_resources_vector',
+      '#states' => [
+        'visible' => [
+          ':input[name="vector_search_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['vector_search']['vector_search_fallback_threshold'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Fallback Threshold'),
+      '#description' => $this->t('Minimum number of lexical results before vector search fires. If lexical returns fewer results than this, vector search supplements them.'),
+      '#default_value' => $vector_config['fallback_threshold'] ?? 2,
+      '#min' => 0,
+      '#max' => 10,
+      '#states' => [
+        'visible' => [
+          ':input[name="vector_search_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['vector_search']['vector_search_min_score'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Minimum Vector Score'),
+      '#description' => $this->t('Minimum cosine similarity score (0-1) for a vector result to be included. Higher values are more selective.'),
+      '#default_value' => $vector_config['min_vector_score'] ?? 0.70,
+      '#min' => 0,
+      '#max' => 1,
+      '#step' => 0.05,
+      '#states' => [
+        'visible' => [
+          ':input[name="vector_search_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['vector_search']['vector_search_normalization_factor'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Score Normalization Factor'),
+      '#description' => $this->t('Multiply cosine similarity scores by this value to bring them into the same range as lexical scores for ranking comparison.'),
+      '#default_value' => $vector_config['score_normalization_factor'] ?? 100,
+      '#min' => 1,
+      '#max' => 1000,
+      '#states' => [
+        'visible' => [
+          ':input[name="vector_search_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
     // LLM Enhancement Settings.
     $form['llm'] = [
       '#type' => 'details',
@@ -419,6 +503,16 @@ class AssistantSettingsForm extends ConfigFormBase {
       ],
     ];
 
+    // Build vector search config array.
+    $vector_search_config = [
+      'enabled' => (bool) $form_state->getValue('vector_search_enabled'),
+      'faq_index_id' => $form_state->getValue('vector_search_faq_index_id'),
+      'resource_index_id' => $form_state->getValue('vector_search_resource_index_id'),
+      'fallback_threshold' => (int) $form_state->getValue('vector_search_fallback_threshold'),
+      'min_vector_score' => (float) $form_state->getValue('vector_search_min_score'),
+      'score_normalization_factor' => (int) $form_state->getValue('vector_search_normalization_factor'),
+    ];
+
     // Build LLM config array.
     $llm_config = [
       'enabled' => (bool) $form_state->getValue('llm_enabled'),
@@ -448,6 +542,7 @@ class AssistantSettingsForm extends ConfigFormBase {
       ->set('log_retention_days', $form_state->getValue('log_retention_days'))
       ->set('canonical_urls', $canonical_urls)
       ->set('faq_node_path', $form_state->getValue('faq_node_path'))
+      ->set('vector_search', $vector_search_config)
       ->set('llm', $llm_config)
       ->save();
 

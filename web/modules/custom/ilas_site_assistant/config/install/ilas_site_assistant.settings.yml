@@ -114,6 +114,17 @@ fallback_gate:
     short_message_words: 3      # Messages this short get lower confidence
     ambiguous_message_words: 2  # Very short = ask for clarification
 
+# Vector Search Enhancement (Option A: fallback enrichment)
+# When lexical results are sparse, supplements with Pinecone semantic search.
+# Requires pinecone_vector Search API server and vector indexes to be configured.
+vector_search:
+  enabled: false
+  faq_index_id: 'faq_accordion_vector'
+  resource_index_id: 'assistant_resources_vector'
+  fallback_threshold: 2        # Min lexical results before vector fires
+  min_vector_score: 0.70       # Min cosine similarity to include (0-1)
+  score_normalization_factor: 100  # Multiply cosine score by this for ranking parity
+
 # Safety spike alerting (cron-driven, default OFF)
 # Sends email when safety violations exceed threshold within window.
 safety_alerting:

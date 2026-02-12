@@ -1,0 +1,29 @@
+uuid: f8a1c3e7-9b2d-4f6a-8e5c-1d7b3a9f2e4d
+langcode: en
+status: true
+dependencies:
+  module:
+    - ai_search
+    - ai_vdb_provider_pinecone
+id: pinecone_vector
+name: 'Pinecone Vector Search'
+description: 'AI Search backend using Pinecone for semantic vector search.'
+backend: search_api_ai_search
+backend_config:
+  chat_model: 'models/gemini-2.0-flash'
+  database: pinecone
+  database_settings:
+    database_name: ilas-assistant
+    collection: default
+    metric: cosine
+  embeddings_engine: 'gemini__models/text-embedding-004'
+  embeddings_engine_configuration:
+    set_dimensions: true
+    dimensions: 768
+  embedding_strategy: contextual_chunks
+  embedding_strategy_configuration:
+    chunk_size: '500'
+    chunk_min_overlap: '50'
+    contextual_content_max_percentage: '25'
+  embedding_strategy_details: ''
+  include_raw_embedding_vector: false

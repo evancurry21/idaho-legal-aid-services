@@ -13,6 +13,9 @@ use Drupal\search_api\Entity\Index;
  *
  * Uses the faq_accordion Search API index to provide full-text search
  * with stemming, partial matching, and deep-link URL generation.
+ *
+ * When vector search is enabled, supplements sparse lexical results with
+ * semantic search from a Pinecone-backed vector index.
  */
 class FaqIndex {
 
@@ -170,6 +173,9 @@ class FaqIndex {
           continue;
         }
       }
+
+      // Supplement with vector search if lexical results are sparse.
+      $items = $this->supplementWithVectorResults($items, $query, $limit, $type);
 
       return $items;
     }
@@ -491,6 +497,170 @@ class FaqIndex {
    */
   public function clearCache() {
     $this->cache->delete(self::PARENT_URL_CACHE_ID);
+  }
+
+  // =========================================================================
+  // Vector search methods (Pinecone fallback enrichment)
+  // =========================================================================
+
+  /**
+   * Gets the vector search configuration.
+   *
+   * @return array
+   *   Vector search config with keys: enabled, faq_index_id,
+   *   fallback_threshold, min_vector_score, score_normalization_factor.
+   */
+  protected function getVectorSearchConfig(): array {
+    $config = $this->configFactory->get('ilas_site_assistant.settings');
+    return $config->get('vector_search') ?? ['enabled' => FALSE];
+  }
+
+  /**
+   * Supplements lexical results with vector search when results are sparse.
+   *
+   * Only fires when vector search is enabled and lexical results are below
+   * the fallback threshold. Merges by paragraph_id, keeping the higher-scored
+   * version of any duplicate.
+   *
+   * @param array $lexical_items
+   *   Results from lexical search.
+   * @param string $query
+   *   The original search query.
+   * @param int $limit
+   *   Maximum total results to return.
+   * @param string|null $type
+   *   Optional paragraph type filter.
+   *
+   * @return array
+   *   Merged results, limited to $limit.
+   */
+  protected function supplementWithVectorResults(array $lexical_items, string $query, int $limit, ?string $type = NULL): array {
+    $vector_config = $this->getVectorSearchConfig();
+
+    if (empty($vector_config['enabled'])) {
+      return $lexical_items;
+    }
+
+    $threshold = $vector_config['fallback_threshold'] ?? 2;
+
+    // Only fire vector search if lexical results are sparse.
+    if (count($lexical_items) >= $threshold) {
+      return $lexical_items;
+    }
+
+    $vector_items = $this->searchVector($query, $limit, $type);
+
+    if (empty($vector_items)) {
+      return $lexical_items;
+    }
+
+    // Build a map of existing items keyed by paragraph_id.
+    $merged = [];
+    foreach ($lexical_items as $item) {
+      $pid = $item['paragraph_id'] ?? $item['id'];
+      $merged[$pid] = $item;
+    }
+
+    // Merge vector items, keeping higher-scored version for duplicates.
+    foreach ($vector_items as $item) {
+      $pid = $item['paragraph_id'] ?? $item['id'];
+      if (!isset($merged[$pid])) {
+        $merged[$pid] = $item;
+      }
+      elseif (($item['score'] ?? 0) > ($merged[$pid]['score'] ?? 0)) {
+        $merged[$pid] = $item;
+      }
+    }
+
+    // Sort by score descending and limit.
+    $results = array_values($merged);
+    usort($results, function ($a, $b) {
+      return ($b['score'] ?? 0) <=> ($a['score'] ?? 0);
+    });
+
+    return array_slice($results, 0, $limit);
+  }
+
+  /**
+   * Searches FAQs using the vector (Pinecone) index.
+   *
+   * @param string $query
+   *   The search query.
+   * @param int $limit
+   *   Maximum results to return.
+   * @param string|null $type
+   *   Optional paragraph type filter.
+   *
+   * @return array
+   *   Array of matching items with normalized scores.
+   */
+  protected function searchVector(string $query, int $limit, ?string $type = NULL): array {
+    $vector_config = $this->getVectorSearchConfig();
+    $index_id = $vector_config['faq_index_id'] ?? 'faq_accordion_vector';
+    $min_score = $vector_config['min_vector_score'] ?? 0.70;
+    $normalization = $vector_config['score_normalization_factor'] ?? 100;
+
+    try {
+      $vector_index = Index::load($index_id);
+      if (!$vector_index || !$vector_index->status()) {
+        return [];
+      }
+
+      $search_query = $vector_index->query();
+      $search_query->keys($query);
+      $search_query->range(0, $limit);
+
+      // Filter by current language.
+      $langcode = $this->getCurrentLanguage();
+      $search_query->addCondition('search_api_language', $langcode);
+
+      // Filter by paragraph type if specified.
+      if ($type) {
+        $search_query->addCondition('paragraph_type', $type);
+      }
+
+      $results = $search_query->execute();
+      $items = [];
+
+      foreach ($results->getResultItems() as $result_item) {
+        try {
+          // Get the raw cosine similarity score (0-1).
+          $raw_score = $result_item->getScore() ?? 0;
+
+          // Skip results below the minimum vector score threshold.
+          if ($raw_score < $min_score) {
+            continue;
+          }
+
+          $item = $this->buildResultItem($result_item);
+          if ($item) {
+            // Normalize vector score to be comparable with lexical scores.
+            $item['score'] = $raw_score * $normalization;
+            $item['vector_score'] = $raw_score;
+            $item['source'] = 'vector';
+            $items[] = $item;
+          }
+        }
+        catch (\Exception $e) {
+          continue;
+        }
+      }
+
+      if (!empty($items)) {
+        \Drupal::logger('ilas_site_assistant')->info('Vector search returned @count results for query "@query"', [
+          '@count' => count($items),
+          '@query' => $query,
+        ]);
+      }
+
+      return $items;
+    }
+    catch (\Exception $e) {
+      \Drupal::logger('ilas_site_assistant')->warning('Vector search query failed: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return [];
+    }
   }
 
   // =========================================================================

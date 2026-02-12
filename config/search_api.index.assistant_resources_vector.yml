@@ -1,0 +1,67 @@
+uuid: b4c6d8e0-f2a3-4b7c-9d1e-3f5a7b9c0d2e
+langcode: en
+status: true
+dependencies:
+  config:
+    - search_api.server.pinecone_vector
+  module:
+    - node
+    - search_api
+id: assistant_resources_vector
+name: 'Assistant Resources (Vector)'
+description: 'Vector search index for resource content used by the site assistant.'
+read_only: false
+field_settings:
+  title:
+    label: Title
+    datasource_id: 'entity:node'
+    property_path: title
+    type: text
+    dependencies:
+      module:
+        - node
+  field_main_content:
+    label: 'Main Content'
+    datasource_id: 'entity:node'
+    property_path: field_main_content
+    type: text
+  field_topics:
+    label: Topics
+    datasource_id: 'entity:node'
+    property_path: 'field_topics:entity:name'
+    type: string
+  field_service_areas:
+    label: 'Service Areas'
+    datasource_id: 'entity:node'
+    property_path: 'field_service_areas:entity:name'
+    type: string
+  type:
+    label: 'Content type'
+    datasource_id: 'entity:node'
+    property_path: type
+    type: string
+    dependencies:
+      module:
+        - node
+datasource_settings:
+  'entity:node':
+    bundles:
+      default: false
+      selected:
+        - resource
+    languages:
+      default: true
+      selected: {  }
+processor_settings:
+  add_url: {  }
+  entity_status: {  }
+  language_with_fallback: {  }
+tracker_settings:
+  default:
+    indexing_order: fifo
+options:
+  cron_limit: 50
+  delete_on_fail: true
+  index_directly: true
+  track_changes_in_references: true
+server: pinecone_vector

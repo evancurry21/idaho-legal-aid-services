@@ -1,0 +1,67 @@
+uuid: a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c1d
+langcode: en
+status: true
+dependencies:
+  config:
+    - search_api.server.pinecone_vector
+  module:
+    - paragraphs
+    - search_api
+id: faq_accordion_vector
+name: 'FAQ Accordion (Vector)'
+description: 'Vector search index for FAQ and accordion paragraph content.'
+read_only: false
+field_settings:
+  field_faq_question:
+    label: 'FAQ Question'
+    datasource_id: 'entity:paragraph'
+    property_path: field_faq_question
+    type: text
+  field_faq_answer:
+    label: 'FAQ Answer'
+    datasource_id: 'entity:paragraph'
+    property_path: field_faq_answer
+    type: text
+  field_accordion_title:
+    label: 'Accordion Title'
+    datasource_id: 'entity:paragraph'
+    property_path: field_accordion_title
+    type: text
+  field_accordion_body:
+    label: 'Accordion Body'
+    datasource_id: 'entity:paragraph'
+    property_path: field_accordion_body
+    type: text
+  field_anchor_id:
+    label: 'Anchor ID'
+    datasource_id: 'entity:paragraph'
+    property_path: field_anchor_id
+    type: string
+  paragraph_type:
+    label: 'Paragraph type'
+    datasource_id: 'entity:paragraph'
+    property_path: type
+    type: string
+datasource_settings:
+  'entity:paragraph':
+    bundles:
+      default: false
+      selected:
+        - faq_item
+        - accordion_item
+    languages:
+      default: true
+      selected: {  }
+processor_settings:
+  add_url: {  }
+  entity_status: {  }
+  language_with_fallback: {  }
+tracker_settings:
+  default:
+    indexing_order: fifo
+options:
+  cron_limit: 50
+  delete_on_fail: true
+  index_directly: true
+  track_changes_in_references: true
+server: pinecone_vector
