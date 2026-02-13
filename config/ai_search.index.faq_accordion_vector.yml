@@ -1,0 +1,24 @@
+indexing_options:
+  combined_embedding_text:
+    indexing_option: main_content
+    max: -1
+  field_faq_question:
+    indexing_option: contextual_content
+    max: -1
+  field_accordion_title:
+    indexing_option: contextual_content
+    max: -1
+  field_faq_answer:
+    indexing_option: ignore
+    max: -1
+  field_accordion_body:
+    indexing_option: ignore
+    max: -1
+  field_anchor_id:
+    indexing_option: attributes
+    max: -1
+  paragraph_type:
+    indexing_option: attributes
+    max: -1
+control_field_max_length: false
+exclude_chunk_from_metadata: false

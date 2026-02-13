@@ -12,6 +12,16 @@ name: 'FAQ Accordion (Vector)'
 description: 'Vector search index for FAQ and accordion paragraph content.'
 read_only: false
 field_settings:
+  combined_embedding_text:
+    label: 'Combined Embedding Text'
+    property_path: aggregated_field
+    type: text
+    configuration:
+      type: concat
+      separator: "\n\n"
+      fields:
+        - 'entity:paragraph/field_accordion_body'
+        - 'entity:paragraph/field_faq_answer'
   field_faq_question:
     label: 'FAQ Question'
     datasource_id: 'entity:paragraph'
@@ -54,6 +64,9 @@ datasource_settings:
       selected: {  }
 processor_settings:
   add_url: {  }
+  aggregated_field:
+    weights:
+      add_properties: 20
   entity_status: {  }
   language_with_fallback: {  }
 tracker_settings:
