@@ -308,7 +308,7 @@
 
           <div class="assistant-disclaimer">
             <i class="fas fa-info-circle" aria-hidden="true"></i>
-            <span>${this.config.disclaimer || (Drupal.t('I can help you find information on our website. But I') + ' <strong>' + Drupal.t('cannot') + '</strong> ' + Drupal.t('provide legal advice.'))}</span>
+            <span>${this.config.disclaimer || Drupal.t('I search our website for you — I\'m not a lawyer and can\'t give legal advice.')}</span>
           </div>
 
           <div class="assistant-chat" role="log" aria-live="polite"></div>
@@ -497,7 +497,7 @@
      * Show welcome message.
      */
     showWelcomeMessage: function () {
-      const message = this.config.welcomeMessage || Drupal.t('Hi, I\'m Aila (eye-luh), your guide to Idaho Legal Aid Services. How can I help you today?');
+      const message = this.config.welcomeMessage || Drupal.t('Hi, I\'m Aila (eye-luh). I can help you find forms, guides, and answers on our website. What are you looking for?');
       this.addMessage('assistant', message);
     },
 
@@ -538,7 +538,7 @@
         })
         .catch(error => {
           this.hideTyping();
-          this.addMessage('assistant', Drupal.t('Sorry, something went wrong. Please try again or contact us directly.'));
+          this.addMessage('assistant', Drupal.t('I\'m having trouble right now. You can try again, or reach us directly through our hotline.'));
           console.error('ILAS Assistant API error:', error);
         });
     },
@@ -555,13 +555,6 @@
         apply: Drupal.t('Apply for help'),
         hotline: Drupal.t('Call the hotline'),
         topics: Drupal.t('What services do you offer?'),
-        // Topic/service area actions.
-        topic_housing: Drupal.t('Help with housing'),
-        topic_family: Drupal.t('Help with family law'),
-        topic_seniors: Drupal.t('Help for seniors'),
-        topic_benefits: Drupal.t('Help with benefits'),
-        topic_consumer: Drupal.t('Help with debt'),
-        topic_civil_rights: Drupal.t('Help with discrimination'),
         // Form Finder topic actions.
         forms_housing: Drupal.t('Find housing and eviction forms'),
         forms_family: Drupal.t('Find family and divorce forms'),
@@ -695,12 +688,8 @@
           break;
 
         case 'fallback':
-          // Show topic suggestions first if present.
           if (response.topic_suggestions) {
             html += this.renderTopicSuggestions(response.topic_suggestions);
-          }
-          if (response.suggestions) {
-            html += this.renderSuggestions(response.suggestions);
           }
           if (response.actions) {
             html += this.renderEscalation(response.actions);
@@ -718,6 +707,66 @@
     },
 
     /**
+     * Classify results into rendering modes based on score distribution.
+     *
+     * @param {Array} results - Array of result objects with optional score.
+     * @return {string} One of: 'empty', 'single_best', 'best_match', 'ambiguous'.
+     */
+    classifyResults: function (results) {
+      if (!results || results.length === 0) {
+        return 'empty';
+      }
+      if (results.length === 1) {
+        return 'single_best';
+      }
+      // Check score gap between first and second result.
+      var first = results[0].score || 0;
+      var second = results[1].score || 0;
+      if (first > 0 && second > 0) {
+        var gap = (first - second) / first;
+        if (gap >= 0.30) {
+          return 'best_match';
+        }
+      }
+      return 'ambiguous';
+    },
+
+    /**
+     * Render semantic source indicator for vector-sourced results.
+     *
+     * @param {Object} result - A result object with optional source field.
+     * @return {string} HTML string for the indicator, or empty string.
+     */
+    renderSourceIndicator: function (result) {
+      if (!result || result.source !== 'vector') {
+        return '';
+      }
+      return '<span class="source-indicator" aria-label="' + Drupal.t('Found via similar questions') + '">' +
+        '<span aria-hidden="true">💡</span> ' +
+        Drupal.t('Based on similar questions') +
+        '</span>';
+    },
+
+    /**
+     * Truncate text to a character limit, breaking at word boundary.
+     *
+     * @param {string} text - The text to truncate.
+     * @param {number} limit - Maximum characters.
+     * @return {string} Truncated text with ellipsis if needed.
+     */
+    truncateText: function (text, limit) {
+      if (!text || text.length <= limit) {
+        return text || '';
+      }
+      var truncated = text.substring(0, limit);
+      var lastSpace = truncated.lastIndexOf(' ');
+      if (lastSpace > limit * 0.6) {
+        truncated = truncated.substring(0, lastSpace);
+      }
+      return truncated + '…';
+    },
+
+    /**
      * Render FAQ results.
      */
     renderFaqResults: function (results, fallbackUrl) {
@@ -725,15 +774,56 @@
         return `<p><a href="${fallbackUrl}" class="result-link" data-assistant-track="resource_click">${Drupal.t('Browse all FAQs')}</a></p>`;
       }
 
+      var mode = this.classifyResults(results);
       let html = '<div class="faq-results">';
-      results.forEach(faq => {
-        html += `
-          <div class="faq-result">
-            <h4 class="faq-question">${this.escapeHtml(faq.question)}</h4>
-            <p class="faq-answer">${this.escapeHtml(faq.answer)}</p>
-            <a href="${faq.url}" class="faq-link" data-assistant-track="resource_click">${Drupal.t('Read more')}</a>
-          </div>
-        `;
+
+      if (mode === 'ambiguous') {
+        html += `<p class="results-framing">${Drupal.t('I found a few options that might help:')}</p>`;
+      }
+
+      results.forEach((faq, index) => {
+        var isBest = (index === 0 && (mode === 'single_best' || mode === 'best_match'));
+        var isSecondary = (!isBest && (mode === 'single_best' || mode === 'best_match'));
+        var sourceIndicator = this.renderSourceIndicator(faq);
+
+        if (isBest) {
+          // Elevated best-match card.
+          var truncatedAnswer = this.truncateText(this.escapeHtml(faq.answer), 120);
+          html += `
+            <div class="faq-result faq-result--best">
+              <span class="best-match-label">${Drupal.t('Best match')}</span>
+              ${sourceIndicator}
+              <h4 class="faq-question">${this.escapeHtml(faq.question)}</h4>
+              <p class="faq-answer">${truncatedAnswer}</p>
+              <a href="${faq.url}" class="faq-link" data-assistant-track="resource_click">${Drupal.t('Read more on page')} →</a>
+            </div>
+          `;
+        }
+        else if (isSecondary) {
+          // Show "Also helpful" heading before the first secondary result.
+          if (index === 1) {
+            html += `<p class="also-helpful-heading">${Drupal.t('Also helpful:')}</p>`;
+          }
+          // Secondary: question + link only.
+          html += `
+            <div class="faq-result faq-result--secondary">
+              ${sourceIndicator}
+              <a href="${faq.url}" class="faq-link" data-assistant-track="resource_click">${this.escapeHtml(faq.question)}</a>
+            </div>
+          `;
+        }
+        else {
+          // Ambiguous mode: all results equally with truncated answers.
+          var truncatedAnswer = this.truncateText(this.escapeHtml(faq.answer), 120);
+          html += `
+            <div class="faq-result">
+              ${sourceIndicator}
+              <h4 class="faq-question">${this.escapeHtml(faq.question)}</h4>
+              <p class="faq-answer">${truncatedAnswer}</p>
+              <a href="${faq.url}" class="faq-link" data-assistant-track="resource_click">${Drupal.t('Read more on page')} →</a>
+            </div>
+          `;
+        }
       });
       html += '</div>';
       return html;
@@ -748,19 +838,64 @@
         return `<p><a href="${fallbackUrl}" class="result-link" data-assistant-track="resource_click">${label}</a></p>`;
       }
 
+      var mode = this.classifyResults(results);
       let html = '<ul class="resource-results">';
-      results.forEach(resource => {
+
+      if (mode === 'ambiguous') {
+        html = `<p class="results-framing">${Drupal.t('I found a few options that might help:')}</p>` + html;
+      }
+
+      results.forEach((resource, index) => {
+        var isBest = (index === 0 && (mode === 'single_best' || mode === 'best_match'));
+        var isSecondary = (!isBest && (mode === 'single_best' || mode === 'best_match'));
         const icon = resource.type === 'form' ? 'file-alt' : (resource.type === 'guide' ? 'book' : 'file');
-        html += `
-          <li class="resource-result">
-            <a href="${resource.url}" class="resource-link" data-assistant-track="resource_click">
-              <i class="fas fa-${icon}" aria-hidden="true"></i>
-              <span class="resource-title">${this.escapeHtml(resource.title)}</span>
-              ${resource.has_file ? '<span class="badge">PDF</span>' : ''}
-            </a>
-            ${resource.description ? `<p class="resource-desc">${this.escapeHtml(resource.description)}</p>` : ''}
-          </li>
-        `;
+        var sourceIndicator = this.renderSourceIndicator(resource);
+
+        if (isBest) {
+          html += `
+            <li class="resource-result resource-result--best">
+              <span class="best-match-label">${Drupal.t('Best match')}</span>
+              ${sourceIndicator}
+              <a href="${resource.url}" class="resource-link" data-assistant-track="resource_click">
+                <i class="fas fa-${icon}" aria-hidden="true"></i>
+                <span class="resource-title">${this.escapeHtml(resource.title)}</span>
+                ${resource.has_file ? '<span class="badge">PDF</span>' : ''}
+              </a>
+              ${resource.description ? `<p class="resource-desc">${this.escapeHtml(resource.description)}</p>` : ''}
+            </li>
+          `;
+          // "Also helpful" heading after best match if there are more results.
+          if (results.length > 1) {
+            html += `<li class="also-helpful-heading" aria-hidden="true">${Drupal.t('Also helpful:')}</li>`;
+          }
+        }
+        else if (isSecondary) {
+          // Secondary: link only, no description, no background.
+          html += `
+            <li class="resource-result resource-result--secondary">
+              ${sourceIndicator}
+              <a href="${resource.url}" class="resource-link resource-link--secondary" data-assistant-track="resource_click">
+                <i class="fas fa-${icon}" aria-hidden="true"></i>
+                <span class="resource-title">${this.escapeHtml(resource.title)}</span>
+                ${resource.has_file ? '<span class="badge">PDF</span>' : ''}
+              </a>
+            </li>
+          `;
+        }
+        else {
+          // Ambiguous: all equal.
+          html += `
+            <li class="resource-result">
+              ${sourceIndicator}
+              <a href="${resource.url}" class="resource-link" data-assistant-track="resource_click">
+                <i class="fas fa-${icon}" aria-hidden="true"></i>
+                <span class="resource-title">${this.escapeHtml(resource.title)}</span>
+                ${resource.has_file ? '<span class="badge">PDF</span>' : ''}
+              </a>
+              ${resource.description ? `<p class="resource-desc">${this.escapeHtml(resource.description)}</p>` : ''}
+            </li>
+          `;
+        }
       });
       html += '</ul>';
       return html;

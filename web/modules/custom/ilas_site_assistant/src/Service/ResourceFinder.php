@@ -539,6 +539,8 @@ class ResourceFinder {
       $item['description'] = $this->cleanDescription(strip_tags($body), $node->getTitle());
     }
 
+    $item['source'] = 'lexical';
+
     return $item;
   }
 
@@ -842,6 +844,7 @@ class ResourceFinder {
           'has_link' => $resource['has_link'],
           'topics' => $resource['topic_names'],
           'score' => $score,
+          'source' => 'lexical',
         ];
       }
     }
@@ -879,6 +882,7 @@ class ResourceFinder {
           'description' => $resource['description'],
           'has_file' => $resource['has_file'],
           'has_link' => $resource['has_link'],
+          'source' => 'lexical',
         ];
       }
     }
@@ -910,6 +914,7 @@ class ResourceFinder {
             'url' => $resource['url'],
             'type' => $resource['type'],
             'description' => $resource['description'],
+            'source' => 'lexical',
           ];
           break;
         }

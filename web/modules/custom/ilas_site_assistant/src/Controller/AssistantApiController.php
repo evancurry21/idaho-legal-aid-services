@@ -1378,7 +1378,6 @@ class AssistantApiController extends ControllerBase {
 
       case 'greeting':
         $response['message'] = $config->get('welcome_message');
-        $response['suggestions'] = $this->getQuickSuggestions();
         break;
 
       case 'eligibility':
@@ -1393,7 +1392,9 @@ class AssistantApiController extends ControllerBase {
 
       case 'service_area':
         $area = $intent['area'] ?? '';
-        $response['message'] = $this->t('Here\'s our @area legal help page:', ['@area' => ucfirst(str_replace('_', ' ', $area))]);
+        $area_label = ucfirst(str_replace('_', ' ', $area));
+        $response['message'] = $this->t('Here\'s our @area legal help page:', ['@area' => $area_label]);
+        $response['cta'] = $this->t('View @area Resources', ['@area' => $area_label]);
         break;
 
       case 'disambiguation':
@@ -1421,19 +1422,10 @@ class AssistantApiController extends ControllerBase {
         $response['message'] = $question;
         $response['options'] = $option_links;
         $response['topic_suggestions'] = $option_links;
-        $response['suggestions'] = $this->getQuickSuggestions();
         break;
 
       case 'clarify':
-        $response['message'] = $this->t('I want to make sure I understand. Could you tell me more about what you\'re looking for?');
-        $response['topic_suggestions'] = [
-          ['label' => $this->t('Apply for Legal Help'), 'action' => 'apply', 'url' => $canonical_urls['apply']],
-          ['label' => $this->t('Find Forms'), 'action' => 'forms', 'url' => $canonical_urls['forms']],
-          ['label' => $this->t('Search FAQs'), 'action' => 'faq', 'url' => $canonical_urls['faq']],
-          ['label' => $this->t('Call Hotline'), 'action' => 'hotline', 'url' => $canonical_urls['hotline']],
-        ];
-        $response['suggestions'] = $this->getQuickSuggestions();
-        $response['clarification_requested'] = TRUE;
+        $response['message'] = $this->t("I'd like to help! Could you describe your legal issue in a bit more detail? For example, try typing something like \"I'm being evicted\", \"custody questions\", or \"help with debt\". You can also use the buttons below to find forms, guides, or FAQs.");
         break;
 
       case 'high_risk':
@@ -1532,16 +1524,7 @@ class AssistantApiController extends ControllerBase {
           }
         }
 
-        $response['message'] = $this->t('I\'m not sure I understood. Are you looking for help with one of these areas?');
-        $response['topic_suggestions'] = [
-          ['label' => $this->t('Housing'), 'action' => 'topic_housing', 'url' => $canonical_urls['service_areas']['housing']],
-          ['label' => $this->t('Family'), 'action' => 'topic_family', 'url' => $canonical_urls['service_areas']['family']],
-          ['label' => $this->t('Seniors'), 'action' => 'topic_seniors', 'url' => $canonical_urls['service_areas']['seniors']],
-          ['label' => $this->t('Benefits'), 'action' => 'topic_benefits', 'url' => $canonical_urls['service_areas']['health']],
-          ['label' => $this->t('Consumer'), 'action' => 'topic_consumer', 'url' => $canonical_urls['service_areas']['consumer']],
-          ['label' => $this->t('Civil Rights'), 'action' => 'topic_civil_rights', 'url' => $canonical_urls['service_areas']['civil_rights']],
-        ];
-        $response['suggestions'] = $this->getQuickSuggestions();
+        $response['message'] = $this->t("I wasn't able to find a match for that. Try describing your legal issue — for example, \"I'm being evicted\" or \"I need help with custody\". You can also use the buttons below to search forms, guides, or FAQs.");
         $response['actions'] = $this->getEscalationActions();
         break;
     }

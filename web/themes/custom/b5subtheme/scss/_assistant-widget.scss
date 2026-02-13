@@ -229,9 +229,9 @@
 // =============================================================================
 .assistant-disclaimer {
   padding: $spacer-sm $spacer;
-  background: $color-primary;
-  color: $color-white;
-  font-size: 0.875rem;
+  background: $color-gray-light;
+  color: $color-gray-text;
+  font-size: 0.8rem;
   display: flex;
   align-items: flex-start;
   gap: $spacer-sm;
@@ -407,24 +407,26 @@
 .assistant-quick-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: $spacer-sm;
+  gap: $spacer-xs;
   padding: $spacer-sm $spacer;
   border-top: 1px solid $color-gray-border-light;
   background: $color-white;
 }
 
-// Quick action buttons follow btn-primary pattern (filled, inverts on hover)
+// Quick action buttons – compact utility size for the widget context.
+// Still above WCAG 2.2 AA minimum (24px target); total tap area (button + gap)
+// comfortably exceeds 44px.
 .quick-action-btn {
   @include button-no-underline;
   flex: 1 1 auto;
   min-width: calc(50% - #{$spacer-xs});
-  min-height: 48px; // Touch target
-  padding: $btn-padding-y-mobile $btn-padding-x-mobile;
+  min-height: 40px;
+  padding: 6px 12px;
   background: $color-primary;
   border: 2px solid $color-primary;
   border-radius: $border-radius-sm;
   color: $color-white;
-  font-size: $btn-font-size-mobile;
+  font-size: 0.8rem;
   font-weight: $weight-button;
   line-height: 1.5;
   cursor: pointer;
@@ -434,11 +436,11 @@
   justify-content: center;
   gap: $spacer-xs * 1.5;
 
-  // Desktop/tablet: larger text, uppercase, match .btn padding.
+  // Desktop/tablet: slightly larger but still compact for widget.
   @media (min-width: $tablet-breakpoint) {
-    font-size: 1rem;
+    font-size: 0.875rem;
     text-transform: uppercase;
-    padding: $btn-padding-y $btn-padding-x;
+    padding: 8px 14px;
   }
 
   // Hover: invert colors (matches btn-primary)
@@ -460,7 +462,7 @@
   }
 
   @include mobile {
-    min-height: 44px;
+    min-height: 38px;
 
     &:hover {
       transform: none;
@@ -609,6 +611,78 @@
   }
 }
 
+// Best-match FAQ card
+.faq-result--best {
+  background: $color-white;
+  border-left: 3px solid $color-primary;
+  padding: $spacer-sm * 1.5;
+  border-radius: 0 $border-radius-lg $border-radius-lg 0;
+  margin-bottom: $spacer-sm;
+
+  .faq-answer {
+    overflow-wrap: break-word;
+  }
+}
+
+// Secondary FAQ results (question + link only)
+.faq-result--secondary {
+  background: transparent;
+  padding: $spacer-xs $spacer-sm * 1.5;
+  border-bottom: 1px solid $color-gray-border-light;
+  margin-bottom: 0;
+  border-radius: 0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .faq-link {
+    font-size: 0.9rem;
+    font-weight: $weight-nav-dropdown;
+  }
+}
+
+// Best-match label
+.best-match-label {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: $weight-button;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: $color-primary;
+  margin-bottom: $spacer-xs;
+}
+
+// "Also helpful:" heading
+.also-helpful-heading {
+  font-size: 0.8rem;
+  font-weight: $weight-button;
+  text-transform: uppercase;
+  color: $color-gray-text;
+  margin: $spacer-sm 0 $spacer-xs;
+  list-style: none;
+}
+
+// Framing copy for ambiguous results
+.results-framing {
+  font-size: 0.9rem;
+  color: $color-gray-text;
+  margin-bottom: $spacer-sm;
+  font-style: italic;
+}
+
+// Semantic source indicator (vector results)
+.source-indicator {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: $color-gray-text;
+  margin-bottom: $spacer-xs;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 // Resource Results
 .resource-results {
   list-style: none;
@@ -659,6 +733,29 @@
   padding-left: $spacer-sm * 1.5;
   font-size: 0.85rem;
   color: $color-gray-text;
+}
+
+// Best-match resource card
+.resource-result--best {
+  border-left: 3px solid $color-primary;
+  padding: $spacer-sm;
+  background: $color-white;
+  border-radius: 0 $border-radius-lg $border-radius-lg 0;
+  margin-bottom: $spacer-sm;
+
+  .resource-link {
+    background: transparent;
+  }
+}
+
+// Secondary resource (reduced visual weight)
+.resource-result--secondary {
+  margin-bottom: $spacer-xs;
+
+  .resource-link--secondary {
+    background: transparent;
+    padding: $spacer-xs $spacer-sm;
+  }
 }
 
 .resource-disclaimer {
@@ -1121,6 +1218,21 @@
   .ilas-assistant-page .suggestions-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  // Best-match card mobile safety
+  .faq-result--best,
+  .resource-result--best {
+    max-width: 100%;
+
+    .faq-answer {
+      overflow-wrap: break-word;
+    }
+  }
+
+  // Source indicator truncation on small screens
+  .source-indicator {
+    max-width: 100%;
+  }
 }
 
 // =============================================================================
@@ -1134,6 +1246,8 @@
   .resource-link,
   .escalation-btn,
   .chat-jump-btn,
+  .faq-result--best,
+  .resource-result--best,
   .ilas-assistant-page .suggestion-btn {
     animation: none;
     transition: $transition-fade;
@@ -1164,5 +1278,10 @@
   .ilas-assistant-page .suggestion-btn {
     border-width: 2px;
     border-color: $color-black;
+  }
+
+  .faq-result--best,
+  .resource-result--best {
+    border-left-width: 5px;
   }
 }

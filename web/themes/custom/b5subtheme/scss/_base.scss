@@ -5,6 +5,19 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
+// HEADING BASELINE: Protect against UA h1-in-sectioning-content deprecation
+// Chrome is removing the UA rule that shrinks h1 inside <section>/<article>/
+// <nav>/<aside>. This :where() rule (zero specificity) ensures h1 always has
+// an explicit author-defined font-size. Any component rule with higher
+// specificity (e.g., .curved-page-header-title) will override this.
+// See: https://developer.chrome.com/blog/h1-in-sectioning-elements
+// -----------------------------------------------------------------------------
+:where(h1) {
+  font-size: $h1-font-size;            // 2rem (from Bootswatch Lux)
+  font-weight: $headings-font-weight;  // 700 (from _variables_bootstrap.scss)
+}
+
+// -----------------------------------------------------------------------------
 // PAGE LAYOUT: Flexbox sticky footer pattern
 // Ensures footer stays at bottom even on short-content pages
 // -----------------------------------------------------------------------------

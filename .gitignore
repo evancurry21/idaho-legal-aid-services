@@ -171,3 +171,10 @@ chatbotreview.md
 SECURITY-ASSESSMENT-2026-02-11.md
 check_embed_models.php
 web/modules/custom/ilas_site_assistant/MODULE_SUMMARY.md
+
+# Promptfoo evaluation tooling (local-only, not needed on Pantheon)
+node_modules/
+output/
+package.json
+package-lock.json
+promptfoo-evals/

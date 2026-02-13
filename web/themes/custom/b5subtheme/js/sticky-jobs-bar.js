@@ -131,13 +131,10 @@
           });
         }
 
-        /**
-         * Cleanup observers on page unload (good practice for SPAs/AJAX).
-         */
-        window.addEventListener('unload', function () {
-          introObserver.disconnect();
-          listingsObserver.disconnect();
-        });
+        // IntersectionObservers are garbage-collected when the page is destroyed.
+        // No unload/pagehide cleanup needed. Removing the previous 'unload'
+        // listener enables bfcache for faster back/forward navigation. The
+        // once() wrapper prevents double-attachment on Drupal AJAX navigation.
       });
     }
   };

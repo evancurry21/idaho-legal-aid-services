@@ -58,7 +58,7 @@ policy_keywords:
 rate_limit_per_minute: 15
 rate_limit_per_hour: 120
 conversation_logging:
-  enabled: false
+  enabled: true
   retention_hours: 72
   redact_pii: true
   show_user_notice: true

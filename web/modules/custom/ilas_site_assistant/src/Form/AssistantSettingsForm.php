@@ -119,6 +119,54 @@ class AssistantSettingsForm extends ConfigFormBase {
       '#max' => 365,
     ];
 
+    // Conversation logging (detailed per-exchange logs for QA/debugging).
+    $conversation_logging = $config->get('conversation_logging') ?? [];
+
+    $form['logging']['conversation_logging_enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enable Conversation Logging'),
+      '#description' => $this->t('Log individual chat exchanges (with PII redaction) for QA and debugging. Viewable at <em>Reports &gt; ILAS Assistant &gt; Conversations</em>.'),
+      '#default_value' => $conversation_logging['enabled'] ?? FALSE,
+    ];
+
+    $form['logging']['conversation_logging_retention_hours'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Conversation Retention (Hours)'),
+      '#description' => $this->t('How long to keep individual conversation logs before automatic cleanup.'),
+      '#default_value' => $conversation_logging['retention_hours'] ?? 72,
+      '#min' => 1,
+      '#max' => 720,
+      '#states' => [
+        'visible' => [
+          ':input[name="conversation_logging_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['logging']['conversation_logging_redact_pii'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Redact PII'),
+      '#description' => $this->t('Automatically redact personally identifiable information (emails, phone numbers, SSNs) before storing conversation logs.'),
+      '#default_value' => $conversation_logging['redact_pii'] ?? TRUE,
+      '#states' => [
+        'visible' => [
+          ':input[name="conversation_logging_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
+    $form['logging']['conversation_logging_show_user_notice'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Show User Notice'),
+      '#description' => $this->t('Display a notice to users that their conversation may be logged for quality purposes.'),
+      '#default_value' => $conversation_logging['show_user_notice'] ?? TRUE,
+      '#states' => [
+        'visible' => [
+          ':input[name="conversation_logging_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
     $form['urls'] = [
       '#type' => 'details',
       '#title' => $this->t('Canonical URLs'),
@@ -530,6 +578,14 @@ class AssistantSettingsForm extends ConfigFormBase {
       'fallback_on_error' => (bool) $form_state->getValue('llm_fallback_on_error'),
     ];
 
+    // Build conversation logging config array.
+    $conversation_logging_config = [
+      'enabled' => (bool) $form_state->getValue('conversation_logging_enabled'),
+      'retention_hours' => (int) $form_state->getValue('conversation_logging_retention_hours'),
+      'redact_pii' => (bool) $form_state->getValue('conversation_logging_redact_pii'),
+      'show_user_notice' => (bool) $form_state->getValue('conversation_logging_show_user_notice'),
+    ];
+
     $config
       ->set('disclaimer_text', $form_state->getValue('disclaimer_text'))
       ->set('welcome_message', $form_state->getValue('welcome_message'))
@@ -544,6 +600,7 @@ class AssistantSettingsForm extends ConfigFormBase {
       ->set('faq_node_path', $form_state->getValue('faq_node_path'))
       ->set('vector_search', $vector_search_config)
       ->set('llm', $llm_config)
+      ->set('conversation_logging', $conversation_logging_config)
       ->save();
 
     parent::submitForm($form, $form_state);

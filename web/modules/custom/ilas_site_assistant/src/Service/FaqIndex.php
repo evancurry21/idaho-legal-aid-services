@@ -236,6 +236,7 @@ class FaqIndex {
     $item['parent_url'] = $parent_info['url'] ?? $this->getDefaultUrl();
     $item['url'] = $item['parent_url'] . '#' . $item['anchor'];
     $item['source_url'] = $item['url'];
+    $item['source'] = 'lexical';
 
     return $item;
   }
@@ -423,6 +424,7 @@ class FaqIndex {
     $item['parent_url'] = $parent_info['url'];
     $item['url'] = $item['parent_url'] . '#' . $item['anchor'];
     $item['source_url'] = $item['url'];
+    $item['source'] = 'lexical';
 
     return $item;
   }
@@ -721,6 +723,7 @@ class FaqIndex {
 
       if ($score > 0) {
         $item['score'] = $score;
+        $item['source'] = 'lexical';
         $results[] = $item;
       }
     }
