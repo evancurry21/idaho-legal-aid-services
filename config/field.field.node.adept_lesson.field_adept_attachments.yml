@@ -1,0 +1,28 @@
+uuid: 945f0d13-0b75-4a86-abe6-40bc492e606a
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_adept_attachments
+    - media.type.document
+    - node.type.adept_lesson
+id: node.adept_lesson.field_adept_attachments
+field_name: field_adept_attachments
+entity_type: node
+bundle: adept_lesson
+label: Attachments
+description: 'Upload PDFs and documents via the Media Library.'
+required: false
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:media'
+  handler_settings:
+    target_bundles:
+      document: document
+    sort:
+      field: _none
+    auto_create: false
+field_type: entity_reference
+

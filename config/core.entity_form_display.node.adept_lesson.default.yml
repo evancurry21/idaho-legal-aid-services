@@ -3,6 +3,7 @@ langcode: en
 status: true
 dependencies:
   config:
+    - field.field.node.adept_lesson.field_adept_attachments
     - field.field.node.adept_lesson.field_adept_downloads
     - field.field.node.adept_lesson.field_adept_est_time
     - field.field.node.adept_lesson.field_adept_external_url
@@ -13,7 +14,9 @@ dependencies:
     - field.field.node.adept_lesson.field_adept_short_desc
     - node.type.adept_lesson
   module:
+    - content_moderation
     - link
+    - media_library
     - path
     - text
 id: node.adept_lesson.default
@@ -26,6 +29,14 @@ content:
     weight: 50
     region: content
     settings: {  }
+    third_party_settings: {  }
+  field_adept_attachments:
+    type: media_library_widget
+    weight: 32
+    region: content
+    settings:
+      media_types:
+        - document
     third_party_settings: {  }
   field_adept_downloads:
     type: link_default
@@ -160,3 +171,4 @@ hidden:
   publish_state: true
   unpublish_on: true
   unpublish_state: true
+
