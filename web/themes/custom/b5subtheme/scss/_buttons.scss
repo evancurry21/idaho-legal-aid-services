@@ -201,6 +201,21 @@ input[type="button"] {
   }
 }
 
+// Nav button variant — subtle gray for secondary navigation actions
+// Shared by ADEPT lesson nav, employment application wizard, etc.
+.btn-nav {
+  background-color: $color-gray-bg;
+  border-color: $color-gray-border-light;
+  color: $color-gray-muted;
+
+  &:hover,
+  &:focus {
+    background-color: darken($color-gray-bg, 5%);
+    border-color: $color-gray-border;
+    color: $color-body;
+  }
+}
+
 // Success button variant (uses $color-success from _variables_theme.scss)
 .btn-success {
   background-color: $color-success;

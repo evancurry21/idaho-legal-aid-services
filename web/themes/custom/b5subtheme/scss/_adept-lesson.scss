@@ -2,8 +2,7 @@
 // Interactive autism education curriculum (UC Davis MIND Institute)
 
 .adept-lesson {
-  max-width: 1060px;
-  margin: 0 auto;
+  // Let .container be the width constraint — embed fills full width
 
   // Keep text content at readable width
   &__header,
@@ -62,6 +61,93 @@
   }
 }
 
+// Lesson card on module landing pages
+.adept-lesson-card {
+  background: $color-white;
+  border: 1px solid $color-gray-border-light;
+  border-radius: $border-radius-lg;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  transition: box-shadow 0.2s ease;
+  position: relative;
+
+  &:hover {
+    box-shadow: $shadow-hover;
+  }
+
+  &__body {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 1.15rem;
+    font-weight: $weight-title;
+    margin: 0 0 0.5rem;
+
+    a {
+      color: $color-primary;
+      text-decoration: none;
+
+      &:hover,
+      &:focus {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &__description {
+    font-size: 0.95rem;
+    color: $color-gray-muted;
+    margin-bottom: 0;
+
+    p { margin: 0; }
+  }
+
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  &__status {
+    min-height: 1.5em; // Reserve space to prevent layout shift
+  }
+}
+
+// Status badges for lesson cards (populated by JS)
+.adept-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: $font-weight-semibold;
+  padding: 4px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+
+  &--completed {
+    background-color: rgba($color-success, 0.1);
+    color: darken($color-success, 10%);
+    border: 1px solid rgba($color-success, 0.3);
+  }
+
+  &--in-progress {
+    background-color: rgba($color-warning, 0.12);
+    color: darken($color-warning, 25%);
+    border: 1px solid rgba($color-warning, 0.35);
+  }
+}
+
 // Embed container — responsive iframe
 .adept-embed-container {
   position: relative;
@@ -113,22 +199,13 @@
   margin-bottom: 1.5rem;
 }
 
-// Completed lesson card on module landing page.
-// JS adds .is-completed to the article element inside .views-row.
+// Completed/in-progress card accents on module landing page
 .view-adept-lessons article.is-completed {
-  position: relative;
-  border-left: 4px solid var(--bs-success);
+  border-left: 3px solid $color-success;
+}
 
-  &::after {
-    content: '\f00c'; // fa-check
-    font-family: 'Font Awesome 6 Free';
-    font-weight: 900;
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    color: var(--bs-success);
-    font-size: 1rem;
-  }
+.view-adept-lessons article.is-in-progress {
+  border-left: 3px solid $color-warning;
 }
 
 // Mark Complete button states
@@ -184,18 +261,9 @@
   }
 }
 
-// Prev/Next navigation buttons
+// Prev/Next navigation buttons — extends shared .btn-nav from _buttons.scss
 .adept-nav-btn {
-  background-color: $color-gray-bg;
-  border-color: $color-gray-border-light;
-  color: $color-gray-muted;
-
-  &:hover,
-  &:focus {
-    background-color: darken($color-gray-bg, 5%);
-    border-color: $color-gray-border;
-    color: $color-body;
-  }
+  @extend .btn-nav;
 }
 
 // Responsive adjustments
@@ -217,5 +285,29 @@
       max-width: none;
       text-align: center;
     }
+  }
+}
+
+// Module landing page content area
+.adept-module-content {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.adept-module-main-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+// Mobile adjustments for lesson cards
+@include mobile {
+  .adept-lesson-card__body {
+    flex-direction: column;
+  }
+
+  .adept-lesson-card__footer {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
   }
 }

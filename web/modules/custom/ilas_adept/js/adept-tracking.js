@@ -483,9 +483,23 @@
         var cardLessonId = parseInt(card.getAttribute('data-adept-lesson'), 10);
         if (!isNaN(cardLessonId)) {
           var rec = getLessonRecord(moduleId, cardLessonId);
+          var statusEl = card.querySelector('.adept-lesson-card__status');
+
           if (rec.status === 'completed') {
             completedCount++;
             card.classList.add('is-completed');
+            if (statusEl) {
+              statusEl.innerHTML = '<span class="adept-status-badge adept-status-badge--completed">'
+                + '<i class="fa-solid fa-check" aria-hidden="true"></i> '
+                + Drupal.t('Completed') + '</span>';
+            }
+          } else if (rec.status === 'in_progress') {
+            card.classList.add('is-in-progress');
+            if (statusEl) {
+              statusEl.innerHTML = '<span class="adept-status-badge adept-status-badge--in-progress">'
+                + '<i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i> '
+                + Drupal.t('In Progress') + '</span>';
+            }
           }
         }
       });

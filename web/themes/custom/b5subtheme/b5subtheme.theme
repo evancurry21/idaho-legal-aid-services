@@ -183,6 +183,7 @@ function b5subtheme_preprocess_page(array &$variables): void {
       'forms_categories',
       'resources_by_service',
       'search',
+      'adept_lessons',
     ];
 
     if (in_array($variables['views_page_id'], $views_with_own_header, TRUE)) {

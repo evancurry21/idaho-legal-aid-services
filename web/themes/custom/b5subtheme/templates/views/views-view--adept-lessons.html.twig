@@ -1,0 +1,44 @@
+{#
+/**
+ * @file
+ * Theme override for the ADEPT Lessons view.
+ * Displays lesson cards for Module 1 or Module 2 landing pages.
+ *
+ * @see views-view--guides.html.twig (same curved-header pattern)
+ */
+#}
+
+<div{{ attributes.addClass('view', 'view-adept-lessons') }}>
+
+  {# Curved page header with module title #}
+  <section class="curved-page-header">
+    <div class="container">
+      {% if view.current_display == 'page_2' %}
+        <h1 class="curved-page-header-title">{{ 'ADEPT - Module 2'|t }}</h1>
+      {% else %}
+        <h1 class="curved-page-header-title">{{ 'ADEPT - Module 1'|t }}</h1>
+      {% endif %}
+      <div class="text-center mt-3">
+        <a href="/education/adept" class="btn btn-primary back-button">
+          <i class="fas fa-arrow-left" aria-hidden="true"></i>
+          <span>{{ 'Back to ADEPT'|t }}</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  {# Content area #}
+  <div class="adept-module-content">
+    <div class="container">
+      <div class="adept-module-main-content">
+        {# Progress bar is injected here by JS (prepended to .view-adept-lessons) #}
+        {% if rows %}
+          {{ rows }}
+        {% elseif empty %}
+          {{ empty }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>

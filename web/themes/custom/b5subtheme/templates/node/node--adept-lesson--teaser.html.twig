@@ -3,28 +3,34 @@
  * @file
  * Teaser template for ADEPT Lesson content type.
  *
- * Minimal card markup for Views landing pages (/education/adept/module-1, etc.).
- * Omits schema, breadcrumbs, interactive elements, and navigation
- * that belong only on the full lesson page.
+ * Card-based layout for Views landing pages (/education/adept/module-1, etc.).
+ * Status badges (.adept-lesson-card__status) are populated by adept-tracking.js.
  *
  * @see node--adept-lesson.html.twig (full front-end template)
  */
 #}
-<article{{ attributes.addClass('node', 'node--adept-lesson', 'node--view-mode-teaser') }}>
-  {{ title_prefix }}
-  <h3{{ title_attributes }}>
-    <a href="{{ url }}" rel="bookmark">{{ label }}</a>
-  </h3>
-  {{ title_suffix }}
-  {% if content.field_adept_short_desc|render|trim %}
-    <div class="adept-lesson__description">
-      {{ content.field_adept_short_desc }}
+<article{{ attributes.addClass('adept-lesson-card') }}>
+  <div class="adept-lesson-card__body">
+    <div class="adept-lesson-card__content">
+      {{ title_prefix }}
+      <h3 class="adept-lesson-card__title">
+        <a href="{{ url }}" rel="bookmark">{{ label }}</a>
+      </h3>
+      {{ title_suffix }}
+      {% if content.field_adept_short_desc|render|trim %}
+        <div class="adept-lesson-card__description">
+          {{ content.field_adept_short_desc }}
+        </div>
+      {% endif %}
     </div>
-  {% endif %}
-  {% if ilas_adept.est_time %}
-    <span class="badge bg-secondary">
-      <i class="fa-regular fa-clock" aria-hidden="true"></i>
-      {{ '~@min min'|t({'@min': ilas_adept.est_time}) }}
-    </span>
-  {% endif %}
+    <div class="adept-lesson-card__footer">
+      {% if ilas_adept.est_time %}
+        <span class="adept-badge adept-badge--time">
+          <i class="fa-regular fa-clock" aria-hidden="true"></i>
+          {{ '~@min min'|t({'@min': ilas_adept.est_time}) }}
+        </span>
+      {% endif %}
+      <span class="adept-lesson-card__status" aria-live="polite"></span>
+    </div>
+  </div>
 </article>
