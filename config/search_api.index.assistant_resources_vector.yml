@@ -12,6 +12,21 @@ name: 'Assistant Resources (Vector)'
 description: 'Vector search index for resource content used by the site assistant.'
 read_only: false
 field_settings:
+  field_main_content:
+    label: 'Main Content'
+    datasource_id: 'entity:node'
+    property_path: field_main_content
+    type: text
+  field_service_areas:
+    label: 'Service Areas'
+    datasource_id: 'entity:node'
+    property_path: 'field_service_areas:entity:name'
+    type: string
+  field_topics:
+    label: Topics
+    datasource_id: 'entity:node'
+    property_path: 'field_topics:entity:name'
+    type: string
   title:
     label: Title
     datasource_id: 'entity:node'
@@ -20,21 +35,6 @@ field_settings:
     dependencies:
       module:
         - node
-  field_main_content:
-    label: 'Main Content'
-    datasource_id: 'entity:node'
-    property_path: field_main_content
-    type: text
-  field_topics:
-    label: Topics
-    datasource_id: 'entity:node'
-    property_path: 'field_topics:entity:name'
-    type: string
-  field_service_areas:
-    label: 'Service Areas'
-    datasource_id: 'entity:node'
-    property_path: 'field_service_areas:entity:name'
-    type: string
   type:
     label: 'Content type'
     datasource_id: 'entity:node'

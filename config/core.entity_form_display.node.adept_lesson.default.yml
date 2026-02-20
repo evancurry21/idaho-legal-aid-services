@@ -1,3 +1,4 @@
+uuid: 3843dad9-cd8c-4233-8ac5-78bb4f9b340f
 langcode: en
 status: true
 dependencies:
@@ -20,19 +21,34 @@ targetEntityType: node
 bundle: adept_lesson
 mode: default
 content:
-  title:
-    type: string_textfield
-    weight: -5
-    region: content
-    settings:
-      size: 60
-      placeholder: 'e.g., Introduction to ADEPT'
-    third_party_settings: {  }
-  field_adept_module:
-    type: options_select
-    weight: 0
+  created:
+    type: datetime_timestamp
+    weight: 50
     region: content
     settings: {  }
+    third_party_settings: {  }
+  field_adept_downloads:
+    type: link_default
+    weight: 30
+    region: content
+    settings:
+      placeholder_url: 'https://...'
+      placeholder_title: 'Worksheet PDF'
+    third_party_settings: {  }
+  field_adept_est_time:
+    type: number
+    weight: 20
+    region: content
+    settings:
+      placeholder: '15'
+    third_party_settings: {  }
+  field_adept_external_url:
+    type: link_default
+    weight: 15
+    region: content
+    settings:
+      placeholder_url: 'https://mindadept.s3-us-west-1.amazonaws.com/...'
+      placeholder_title: ''
     third_party_settings: {  }
   field_adept_lesson_number:
     type: number
@@ -47,36 +63,11 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
-  field_adept_external_url:
-    type: link_default
-    weight: 15
+  field_adept_module:
+    type: options_select
+    weight: 0
     region: content
-    settings:
-      placeholder_url: 'https://mindadept.s3-us-west-1.amazonaws.com/...'
-      placeholder_title: ''
-    third_party_settings: {  }
-  field_adept_est_time:
-    type: number
-    weight: 20
-    region: content
-    settings:
-      placeholder: '15'
-    third_party_settings: {  }
-  field_adept_short_desc:
-    type: text_textarea
-    weight: 25
-    region: content
-    settings:
-      rows: 5
-      placeholder: ''
-    third_party_settings: {  }
-  field_adept_downloads:
-    type: link_default
-    weight: 30
-    region: content
-    settings:
-      placeholder_url: 'https://...'
-      placeholder_title: 'Worksheet PDF'
+    settings: {  }
     third_party_settings: {  }
   field_adept_prereq:
     type: entity_reference_autocomplete
@@ -88,6 +79,14 @@ content:
       size: 60
       placeholder: ''
     third_party_settings: {  }
+  field_adept_short_desc:
+    type: text_textarea
+    weight: 25
+    region: content
+    settings:
+      rows: 5
+      placeholder: ''
+    third_party_settings: {  }
   langcode:
     type: language_select
     weight: 2
@@ -95,38 +94,33 @@ content:
     settings:
       include_locked: true
     third_party_settings: {  }
+  moderation_state:
+    type: moderation_state_default
+    weight: 100
+    region: content
+    settings: {  }
+    third_party_settings: {  }
   path:
     type: path
     weight: 40
     region: content
     settings: {  }
     third_party_settings: {  }
-  status:
+  promote:
     type: boolean_checkbox
-    weight: 100
+    weight: 55
     region: content
     settings:
       display_label: true
     third_party_settings: {  }
-  created:
-    type: datetime_timestamp
-    weight: 50
+  simple_sitemap:
+    weight: 60
     region: content
     settings: {  }
     third_party_settings: {  }
-  uid:
-    type: entity_reference_autocomplete
-    weight: 45
-    region: content
-    settings:
-      match_operator: CONTAINS
-      match_limit: 10
-      size: 60
-      placeholder: ''
-    third_party_settings: {  }
-  promote:
+  status:
     type: boolean_checkbox
-    weight: 55
+    weight: 100
     region: content
     settings:
       display_label: true
@@ -138,14 +132,31 @@ content:
     settings:
       display_label: true
     third_party_settings: {  }
-  simple_sitemap:
-    weight: 60
+  title:
+    type: string_textfield
+    weight: -5
     region: content
-    settings: {  }
+    settings:
+      size: 60
+      placeholder: 'e.g., Introduction to ADEPT'
+    third_party_settings: {  }
+  uid:
+    type: entity_reference_autocomplete
+    weight: 45
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
     third_party_settings: {  }
   url_redirects:
     weight: 65
     region: content
     settings: {  }
     third_party_settings: {  }
-hidden: {  }
+hidden:
+  publish_on: true
+  publish_state: true
+  unpublish_on: true
+  unpublish_state: true

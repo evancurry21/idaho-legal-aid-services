@@ -10,13 +10,13 @@ name: 'Pinecone Vector Search'
 description: 'AI Search backend using Pinecone for semantic vector search.'
 backend: search_api_ai_search
 backend_config:
-  chat_model: 'gemini__models/gemini-2.0-flash'
+  chat_model: gemini__models/gemini-2.0-flash
   database: pinecone
   database_settings:
     database_name: ilas-assistant
     collection: default
     metric: cosine_similarity
-  embeddings_engine: 'gemini__models/gemini-embedding-001'
+  embeddings_engine: gemini__models/gemini-embedding-001
   embeddings_engine_configuration:
     set_dimensions: true
     dimensions: 3072

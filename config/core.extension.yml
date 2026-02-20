@@ -74,6 +74,7 @@ module:
   google_translator: 0
   honeypot: 0
   hreflang: 0
+  ilas_adept: 0
   ilas_announcement_overlay: 0
   ilas_donation_inquiry: 0
   ilas_hotspot: 0

@@ -102,6 +102,7 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+*:Zone.Identifier
 
 # Environment files (secrets)
 .env
@@ -178,6 +179,12 @@ web/modules/custom/ilas_site_assistant/OBSERVABILITY_RUNBOOK.md
 web/modules/custom/ilas_site_assistant/PRODUCTION_AUDIT_2026.md
 web/modules/custom/ilas_site_assistant/docs/observability.md
 web/modules/custom/ilas_site_assistant/js/HARDENING_CHANGELOG.md
+web/modules/custom/ilas_adept/adept_implementation_plan.md
+web/modules/custom/ilas_adept/deep-research-report.md
+
+# One-time content seeding/fix scripts (not needed on Pantheon)
+scripts/create-adept-content.php
+scripts/fix-adept-content.php
 
 # Local evaluation scripts and fixtures (not needed on Pantheon)
 scripts/eval/

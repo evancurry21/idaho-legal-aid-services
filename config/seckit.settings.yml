@@ -31,11 +31,6 @@ seckit_clickjacking:
   noscript_message: 'Sorry, you need to enable JavaScript to visit this website.'
   x_frame: '1'
   x_frame_allow_from: ''
-# NOTE: Pantheon's edge/CDN layer adds a duplicate HSTS header (max-age=300).
-# This cannot be suppressed from the application layer. SecKit's stronger header
-# (max-age=31536000) is intentionally kept. Contact Pantheon support to request
-# they either suppress their HSTS or increase its max-age to match.
-# See: Finding H-5 in security audit (Feb 2026).
 seckit_ssl:
   hsts: true
   hsts_subdomains: true

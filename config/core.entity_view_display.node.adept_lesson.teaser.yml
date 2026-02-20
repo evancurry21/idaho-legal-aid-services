@@ -1,3 +1,4 @@
+uuid: 7b9172f4-6cfe-4bf0-b7d5-3ae6ceaecfd3
 langcode: en
 status: true
 dependencies:
@@ -20,14 +21,6 @@ targetEntityType: node
 bundle: adept_lesson
 mode: teaser
 content:
-  field_adept_short_desc:
-    type: text_trimmed
-    label: hidden
-    settings:
-      trim_length: 200
-    third_party_settings: {  }
-    weight: 0
-    region: content
   field_adept_est_time:
     type: number_integer
     label: inline
@@ -36,6 +29,14 @@ content:
       prefix_suffix: true
     third_party_settings: {  }
     weight: 5
+    region: content
+  field_adept_short_desc:
+    type: text_trimmed
+    label: hidden
+    settings:
+      trim_length: 200
+    third_party_settings: {  }
+    weight: 0
     region: content
 hidden:
   field_adept_downloads: true

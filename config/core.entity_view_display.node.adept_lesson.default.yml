@@ -1,3 +1,4 @@
+uuid: ab729c81-8a0d-4e17-9968-be7e1b7d080a
 langcode: en
 status: true
 dependencies:
@@ -21,13 +22,6 @@ targetEntityType: node
 bundle: adept_lesson
 mode: default
 content:
-  field_adept_short_desc:
-    type: text_default
-    label: hidden
-    settings: {  }
-    third_party_settings: {  }
-    weight: 0
-    region: content
   field_adept_downloads:
     type: link
     label: above
@@ -39,6 +33,13 @@ content:
       target: _blank
     third_party_settings: {  }
     weight: 10
+    region: content
+  field_adept_short_desc:
+    type: text_default
+    label: hidden
+    settings: {  }
+    third_party_settings: {  }
+    weight: 0
     region: content
 hidden:
   field_adept_est_time: true

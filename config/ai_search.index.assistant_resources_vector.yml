@@ -1,3 +1,5 @@
+control_field_max_length: false
+exclude_chunk_from_metadata: false
 indexing_options:
   field_main_content:
     indexing_option: main_content
@@ -14,5 +16,3 @@ indexing_options:
   field_topics:
     indexing_option: attributes
     max: -1
-control_field_max_length: false
-exclude_chunk_from_metadata: false

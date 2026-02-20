@@ -18,35 +18,37 @@ field_settings:
     type: text
     configuration:
       type: concat
-      separator: "\n\n"
+      separator: |+
+
+
       fields:
         - 'entity:paragraph/field_accordion_body'
         - 'entity:paragraph/field_faq_answer'
-  field_faq_question:
-    label: 'FAQ Question'
+  field_accordion_body:
+    label: 'Accordion Body'
     datasource_id: 'entity:paragraph'
-    property_path: field_faq_question
-    type: text
-  field_faq_answer:
-    label: 'FAQ Answer'
-    datasource_id: 'entity:paragraph'
-    property_path: field_faq_answer
+    property_path: field_accordion_body
     type: text
   field_accordion_title:
     label: 'Accordion Title'
     datasource_id: 'entity:paragraph'
     property_path: field_accordion_title
     type: text
-  field_accordion_body:
-    label: 'Accordion Body'
-    datasource_id: 'entity:paragraph'
-    property_path: field_accordion_body
-    type: text
   field_anchor_id:
     label: 'Anchor ID'
     datasource_id: 'entity:paragraph'
     property_path: field_anchor_id
     type: string
+  field_faq_answer:
+    label: 'FAQ Answer'
+    datasource_id: 'entity:paragraph'
+    property_path: field_faq_answer
+    type: text
+  field_faq_question:
+    label: 'FAQ Question'
+    datasource_id: 'entity:paragraph'
+    property_path: field_faq_question
+    type: text
   paragraph_type:
     label: 'Paragraph type'
     datasource_id: 'entity:paragraph'
@@ -57,8 +59,8 @@ datasource_settings:
     bundles:
       default: false
       selected:
-        - faq_item
         - accordion_item
+        - faq_item
     languages:
       default: true
       selected: {  }
