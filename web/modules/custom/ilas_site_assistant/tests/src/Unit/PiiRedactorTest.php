@@ -397,4 +397,25 @@ class PiiRedactorTest extends TestCase {
     $this->assertSame($input, PiiRedactor::redact($input));
   }
 
+  /**
+   * Tests that PII in a typical user message is redacted for cache storage.
+   *
+   * Regression test for ILAS-AILA-PRIVACY-001: conversation cache must never
+   * contain raw PII.
+   *
+   * @covers ::redactForStorage
+   */
+  public function testNameRedactedInCachedHistory(): void {
+    $cached_text = PiiRedactor::redactForStorage('my name is John Smith and I need help', 200);
+
+    $this->assertStringContainsString(PiiRedactor::TOKEN_NAME, $cached_text,
+      'Name should be replaced with [REDACTED-NAME] token');
+    $this->assertStringNotContainsString('John', $cached_text,
+      'Raw first name must not appear in cached text');
+    $this->assertStringNotContainsString('Smith', $cached_text,
+      'Raw last name must not appear in cached text');
+    $this->assertStringContainsString('and I need help', $cached_text,
+      'Non-PII portion of message should be preserved');
+  }
+
 }

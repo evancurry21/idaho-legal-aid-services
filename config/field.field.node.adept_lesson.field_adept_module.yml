@@ -1,0 +1,22 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_adept_module
+    - node.type.adept_lesson
+  module:
+    - options
+id: node.adept_lesson.field_adept_module
+field_name: field_adept_module
+entity_type: node
+bundle: adept_lesson
+label: Module
+description: 'Which ADEPT module this lesson belongs to.'
+required: true
+translatable: false
+default_value:
+  -
+    value: 1
+default_value_callback: ''
+settings: {  }
+field_type: list_integer

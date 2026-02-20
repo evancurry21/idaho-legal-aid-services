@@ -334,6 +334,102 @@ function b5subtheme_preprocess_node(array &$variables): void {
       $variables['application_submitted'] = FALSE;
     }
   }
+
+  // ADEPT lesson: extract field values for template rendering.
+  if ($variables['content_type'] === 'adept_lesson' && $variables['view_mode'] === 'full') {
+    _b5subtheme_preprocess_adept_lesson($variables, $node);
+  }
+}
+
+/**
+ * Prepares ADEPT lesson variables for the node template.
+ *
+ * Extracts field values into simple template variables and computes
+ * prev/next lesson navigation links.
+ *
+ * @param array $variables
+ *   The node template variables.
+ * @param \Drupal\node\NodeInterface $node
+ *   The ADEPT lesson node.
+ */
+function _b5subtheme_preprocess_adept_lesson(array &$variables, NodeInterface $node): void {
+  $variables['adept_module_number'] = (int) ($node->get('field_adept_module')->value ?? 1);
+  $variables['adept_lesson_number'] = (int) ($node->get('field_adept_lesson_number')->value ?? 0);
+  $variables['adept_mode'] = $node->get('field_adept_mode')->value ?? 'embed';
+  $variables['adept_est_time'] = $node->get('field_adept_est_time')->value ? (int) $node->get('field_adept_est_time')->value : NULL;
+
+  // External URL — extract the URI from the link field.
+  $variables['adept_external_url'] = '';
+  if (!$node->get('field_adept_external_url')->isEmpty()) {
+    $variables['adept_external_url'] = $node->get('field_adept_external_url')->first()->getUrl()->toString();
+  }
+
+  // Self-host URL (computed from module/lesson number if self_host mode).
+  $variables['adept_self_host_url'] = '';
+  if ($variables['adept_mode'] === 'self_host') {
+    $module_num = $variables['adept_module_number'];
+    $lesson_num = $variables['adept_lesson_number'];
+    $variables['adept_self_host_url'] = "/sites/default/files/adept/ADEPT-{$module_num}/lesson-{$lesson_num}/index.html";
+  }
+
+  // Prev/next lesson navigation.
+  _b5subtheme_adept_prev_next($variables, $node);
+}
+
+/**
+ * Computes previous and next lesson links for ADEPT lesson navigation.
+ *
+ * @param array $variables
+ *   The node template variables (modified by reference).
+ * @param \Drupal\node\NodeInterface $node
+ *   The current ADEPT lesson node.
+ */
+function _b5subtheme_adept_prev_next(array &$variables, NodeInterface $node): void {
+  $variables['adept_prev_lesson'] = NULL;
+  $variables['adept_next_lesson'] = NULL;
+
+  $module_num = $variables['adept_module_number'];
+  $current_lesson = $variables['adept_lesson_number'];
+
+  // Query all published lessons in the same module, sorted by lesson number.
+  $query = \Drupal::entityTypeManager()->getStorage('node')->getQuery()
+    ->condition('type', 'adept_lesson')
+    ->condition('status', 1)
+    ->condition('field_adept_module', $module_num)
+    ->sort('field_adept_lesson_number', 'ASC')
+    ->accessCheck(TRUE);
+  $nids = $query->execute();
+
+  if (empty($nids)) {
+    return;
+  }
+
+  $nodes = \Drupal::entityTypeManager()->getStorage('node')->loadMultiple($nids);
+  $ordered = [];
+  foreach ($nodes as $lesson_node) {
+    $ordered[] = $lesson_node;
+  }
+
+  // Find current node position and set prev/next.
+  foreach ($ordered as $index => $lesson_node) {
+    if ($lesson_node->id() === $node->id()) {
+      if ($index > 0) {
+        $prev = $ordered[$index - 1];
+        $variables['adept_prev_lesson'] = [
+          'url' => $prev->toUrl()->toString(),
+          'title' => $prev->getTitle(),
+        ];
+      }
+      if ($index < count($ordered) - 1) {
+        $next = $ordered[$index + 1];
+        $variables['adept_next_lesson'] = [
+          'url' => $next->toUrl()->toString(),
+          'title' => $next->getTitle(),
+        ];
+      }
+      break;
+    }
+  }
 }
 
 /**

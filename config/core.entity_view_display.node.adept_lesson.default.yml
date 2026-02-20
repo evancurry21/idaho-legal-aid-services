@@ -1,0 +1,52 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.adept_lesson.field_adept_downloads
+    - field.field.node.adept_lesson.field_adept_est_time
+    - field.field.node.adept_lesson.field_adept_external_url
+    - field.field.node.adept_lesson.field_adept_lesson_number
+    - field.field.node.adept_lesson.field_adept_mode
+    - field.field.node.adept_lesson.field_adept_module
+    - field.field.node.adept_lesson.field_adept_prereq
+    - field.field.node.adept_lesson.field_adept_short_desc
+    - node.type.adept_lesson
+  module:
+    - link
+    - options
+    - text
+    - user
+id: node.adept_lesson.default
+targetEntityType: node
+bundle: adept_lesson
+mode: default
+content:
+  field_adept_short_desc:
+    type: text_default
+    label: hidden
+    settings: {  }
+    third_party_settings: {  }
+    weight: 0
+    region: content
+  field_adept_downloads:
+    type: link
+    label: above
+    settings:
+      trim_length: 80
+      url_only: false
+      url_plain: false
+      rel: nofollow
+      target: _blank
+    third_party_settings: {  }
+    weight: 10
+    region: content
+hidden:
+  field_adept_est_time: true
+  field_adept_external_url: true
+  field_adept_lesson_number: true
+  field_adept_mode: true
+  field_adept_module: true
+  field_adept_prereq: true
+  langcode: true
+  links: true
+  search_api_excerpt: true

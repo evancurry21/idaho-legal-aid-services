@@ -424,7 +424,7 @@ class AssistantApiController extends ControllerBase {
       // Abuse detection: repeated identical messages.
       if (count($server_history) >= 3) {
         $recent_messages = array_column(array_slice($server_history, -3), 'text');
-        if (count(array_unique($recent_messages)) === 1 && $recent_messages[0] === mb_substr($user_message, 0, 200)) {
+        if (count(array_unique($recent_messages)) === 1 && $recent_messages[0] === PiiRedactor::redactForStorage($user_message, 200)) {
           return $this->jsonResponse([
             'type' => 'escalation',
             'escalation_type' => 'repeated',
@@ -908,6 +908,15 @@ class AssistantApiController extends ControllerBase {
       $debug_meta['processing_stages'][] = 'llm_enhancement';
     }
 
+    if ($debug_mode) {
+      $rateLimiter = $this->llmEnhancer->getRateLimiter();
+      if ($rateLimiter && $rateLimiter->wasRateLimited()) {
+        $debug_meta['global_rate_limit_triggered'] = TRUE;
+        $debug_meta['processing_stages'][] = 'global_rate_limit_triggered';
+        $debug_meta['global_rate_limit_state'] = $rateLimiter->getCurrentState();
+      }
+    }
+
     // Post-generation safety enforcement: block legal advice in LLM output,
     // enforce _requires_review flag, and strip internal flags.
     $this->langfuseTracer?->startSpan('safety.post_generation');
@@ -1064,6 +1073,18 @@ class AssistantApiController extends ControllerBase {
           '@safety' => isset($safety_classification) ? ($safety_classification['class'] ?? 'unknown') : 'pre_safety',
         ]
       );
+
+      // Capture to Sentry with assistant-specific tags.
+      if (function_exists('\Sentry\captureException')) {
+        \Sentry\configureScope(function (\Sentry\State\Scope $scope) use ($request_id, $intent, $safety_classification) {
+          $scope->setTag('module', 'ilas_site_assistant');
+          $scope->setTag('endpoint', 'message');
+          $scope->setTag('request_id', $request_id);
+          $scope->setTag('intent', isset($intent) ? ($intent['type'] ?? 'unknown') : 'pre_intent');
+          $scope->setTag('safety', isset($safety_classification) ? ($safety_classification['class'] ?? 'unknown') : 'pre_safety');
+        });
+        \Sentry\captureException($e);
+      }
 
       // End Langfuse trace on error.
       $this->langfuseTracer?->addEvent('error', [
@@ -2194,7 +2215,7 @@ class AssistantApiController extends ControllerBase {
     // Store conversation turn.
     $server_history[] = [
       'role' => 'user',
-      'text' => mb_substr($user_message, 0, 200),
+      'text' => PiiRedactor::redactForStorage($user_message, 200),
       'intent' => 'office_location_followup',
       'safety_flags' => $debug_meta['safety_flags'] ?? $this->detectSafetyFlags($user_message),
       'timestamp' => time(),
@@ -2281,7 +2302,7 @@ class AssistantApiController extends ControllerBase {
     // Store conversation turn.
     $server_history[] = [
       'role' => 'user',
-      'text' => mb_substr($user_message, 0, 200),
+      'text' => PiiRedactor::redactForStorage($user_message, 200),
       'intent' => 'office_location_followup_miss',
       'safety_flags' => $debug_meta['safety_flags'] ?? $this->detectSafetyFlags($user_message),
       'timestamp' => time(),

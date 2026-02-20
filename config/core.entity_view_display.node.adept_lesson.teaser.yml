@@ -1,0 +1,49 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_view_mode.node.teaser
+    - field.field.node.adept_lesson.field_adept_downloads
+    - field.field.node.adept_lesson.field_adept_est_time
+    - field.field.node.adept_lesson.field_adept_external_url
+    - field.field.node.adept_lesson.field_adept_lesson_number
+    - field.field.node.adept_lesson.field_adept_mode
+    - field.field.node.adept_lesson.field_adept_module
+    - field.field.node.adept_lesson.field_adept_prereq
+    - field.field.node.adept_lesson.field_adept_short_desc
+    - node.type.adept_lesson
+  module:
+    - text
+    - user
+id: node.adept_lesson.teaser
+targetEntityType: node
+bundle: adept_lesson
+mode: teaser
+content:
+  field_adept_short_desc:
+    type: text_trimmed
+    label: hidden
+    settings:
+      trim_length: 200
+    third_party_settings: {  }
+    weight: 0
+    region: content
+  field_adept_est_time:
+    type: number_integer
+    label: inline
+    settings:
+      thousand_separator: ''
+      prefix_suffix: true
+    third_party_settings: {  }
+    weight: 5
+    region: content
+hidden:
+  field_adept_downloads: true
+  field_adept_external_url: true
+  field_adept_lesson_number: true
+  field_adept_mode: true
+  field_adept_module: true
+  field_adept_prereq: true
+  langcode: true
+  links: true
+  search_api_excerpt: true

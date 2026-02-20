@@ -19,6 +19,7 @@ apply:
     - ayuda          # Spanish
   qualify:
     - quailfy        # Typo
+    - quailify       # Typo (extra 'i')
     - qualfy         # Typo
     - calificar      # Spanish
   assistance:

@@ -253,6 +253,28 @@ if ($pinecone_key) {
 }
 
 /**
+ * Sentry error tracking via drupal/raven.
+ *
+ * On Pantheon: type "runtime", scope "web", key "SENTRY_DSN".
+ * Locally (DDEV): add SENTRY_DSN=<value> to .ddev/.env, then ddev restart.
+ */
+$sentry_dsn = _ilas_get_secret('SENTRY_DSN');
+if ($sentry_dsn) {
+  $config['raven.settings']['client_key'] = $sentry_dsn;
+  $config['raven.settings']['environment'] = getenv('PANTHEON_ENVIRONMENT') ?: 'local';
+  $config['raven.settings']['log_levels'] = [
+    'emergency' => TRUE,
+    'alert' => TRUE,
+    'critical' => TRUE,
+    'error' => TRUE,
+    'warning' => FALSE,
+    'notice' => FALSE,
+    'info' => FALSE,
+    'debug' => FALSE,
+  ];
+}
+
+/**
  * Include DDEV settings if present.
  * Safe: this file doesn't exist on Pantheon.
  */

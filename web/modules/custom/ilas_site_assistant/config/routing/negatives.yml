@@ -202,6 +202,15 @@ out_of_scope:
     - someone is dying
     - heart attack
     - being attacked
+    # Traffic violations (civil/criminal - out of ILAS scope)
+    - traffic ticket
+    - traffic tickets
+    - traffic violation
+    - traffic citation
+    - traffic infraction
+    - moving violation
+    - speeding ticket
+    - red light ticket
 
 # High-risk escalation triggers - route to safety resources
 high_risk_dv:
@@ -228,6 +237,11 @@ high_risk_dv:
     - abusivo
     - violencia domestica
     - tengo miedo
+    # Spanish restraining/protection order variants (Gap 6)
+    - orden de restriccion
+    - orden de alejamiento
+    - quiero una orden
+    - necesito una orden
 
 high_risk_eviction:
   triggers:

@@ -1,0 +1,289 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_view_mode.node.teaser
+    - field.storage.node.field_adept_lesson_number
+    - field.storage.node.field_adept_module
+    - node.type.adept_lesson
+  module:
+    - node
+    - user
+id: adept_lessons
+label: 'ADEPT Lessons'
+module: views
+description: 'Lists ADEPT lessons by module with a progress bar header.'
+tag: ''
+base_table: node_field_data
+base_field: nid
+display:
+  default:
+    id: default
+    display_title: Default
+    display_plugin: default
+    position: 0
+    display_options:
+      title: 'ADEPT Lessons'
+      fields: {  }
+      pager:
+        type: none
+        options:
+          offset: 0
+      sorts:
+        field_adept_lesson_number_value:
+          id: field_adept_lesson_number_value
+          table: node__field_adept_lesson_number
+          field: field_adept_lesson_number_value
+          relationship: none
+          group_type: group
+          admin_label: ''
+          entity_type: node
+          entity_field: field_adept_lesson_number
+          plugin_id: standard
+          order: ASC
+          expose:
+            label: ''
+            field_identifier: field_adept_lesson_number_value
+          exposed: false
+      filters:
+        type:
+          id: type
+          table: node_field_data
+          field: type
+          entity_type: node
+          entity_field: type
+          plugin_id: bundle
+          value:
+            adept_lesson: adept_lesson
+          group: 1
+        status:
+          id: status
+          table: node_field_data
+          field: status
+          entity_type: node
+          entity_field: status
+          plugin_id: boolean
+          value: '1'
+          group: 1
+          expose:
+            operator: ''
+            label: ''
+      filter_groups:
+        operator: AND
+        groups:
+          1: AND
+      style:
+        type: default
+        options:
+          grouping: {  }
+          row_class: ''
+          default_row_class: true
+      row:
+        type: 'entity:node'
+        options:
+          relationship: none
+          view_mode: teaser
+      header:
+        area:
+          id: area
+          table: views
+          field: area
+          relationship: none
+          group_type: group
+          admin_label: 'Progress Bar'
+          plugin_id: text
+          empty: false
+          content:
+            value: '<div class="adept-progress-wrapper mb-4"><h2 class="h5">Your Progress</h2><div class="adept-progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-total-lessons="11"><div class="adept-progress-fill" style="width: 0%"></div></div><div class="adept-progress-label">0 of 11 lessons completed (0%)</div></div>'
+            format: full_html
+          tokenize: false
+      footer: {  }
+      empty: {  }
+      relationships: {  }
+      arguments: {  }
+      display_extenders: {  }
+      access:
+        type: perm
+        options:
+          perm: 'access content'
+      cache:
+        type: tag
+        options: {  }
+      query:
+        type: views_query
+        options:
+          query_comment: ''
+          disable_sql_rewrite: false
+          distinct: false
+          replica: false
+          query_tags: {  }
+      use_ajax: false
+      use_more: false
+      use_more_always: false
+      use_more_text: More
+      link_display: ''
+      link_url: ''
+      group_by: false
+      css_class: ''
+  page_1:
+    id: page_1
+    display_title: 'Module 1'
+    display_plugin: page
+    position: 1
+    display_options:
+      title: 'ADEPT Module 1: Understanding Autism'
+      display_description: 'ADEPT Module 1 lesson listing'
+      path: education/adept/module-1
+      filters:
+        type:
+          id: type
+          table: node_field_data
+          field: type
+          entity_type: node
+          entity_field: type
+          plugin_id: bundle
+          value:
+            adept_lesson: adept_lesson
+          group: 1
+        status:
+          id: status
+          table: node_field_data
+          field: status
+          entity_type: node
+          entity_field: status
+          plugin_id: boolean
+          value: '1'
+          group: 1
+          expose:
+            operator: ''
+            label: ''
+        field_adept_module_value:
+          id: field_adept_module_value
+          table: node__field_adept_module
+          field: field_adept_module_value
+          relationship: none
+          group_type: group
+          admin_label: ''
+          plugin_id: list_field
+          operator: or
+          value:
+            1: '1'
+          group: 1
+          exposed: false
+          expose:
+            operator_id: ''
+            label: ''
+            description: ''
+            use_operator: false
+            operator: ''
+            operator_limit_selection: false
+            operator_list: {  }
+            identifier: ''
+            required: false
+            remember: false
+            multiple: false
+            remember_roles:
+              authenticated: authenticated
+            reduce: false
+          is_grouped: false
+          group_info:
+            label: ''
+            description: ''
+            identifier: ''
+            optional: true
+            widget: select
+            multiple: false
+            remember: false
+            default_group: All
+            default_group_multiple: {  }
+            group_items: {  }
+      defaults:
+        title: false
+        filters: false
+        filter_groups: false
+      filter_groups:
+        operator: AND
+        groups:
+          1: AND
+      display_extenders: {  }
+  page_2:
+    id: page_2
+    display_title: 'Module 2'
+    display_plugin: page
+    position: 2
+    display_options:
+      title: 'ADEPT Module 2: Strategies & Supports'
+      display_description: 'ADEPT Module 2 lesson listing'
+      path: education/adept/module-2
+      filters:
+        type:
+          id: type
+          table: node_field_data
+          field: type
+          entity_type: node
+          entity_field: type
+          plugin_id: bundle
+          value:
+            adept_lesson: adept_lesson
+          group: 1
+        status:
+          id: status
+          table: node_field_data
+          field: status
+          entity_type: node
+          entity_field: status
+          plugin_id: boolean
+          value: '1'
+          group: 1
+          expose:
+            operator: ''
+            label: ''
+        field_adept_module_value:
+          id: field_adept_module_value
+          table: node__field_adept_module
+          field: field_adept_module_value
+          relationship: none
+          group_type: group
+          admin_label: ''
+          plugin_id: list_field
+          operator: or
+          value:
+            2: '2'
+          group: 1
+          exposed: false
+          expose:
+            operator_id: ''
+            label: ''
+            description: ''
+            use_operator: false
+            operator: ''
+            operator_limit_selection: false
+            operator_list: {  }
+            identifier: ''
+            required: false
+            remember: false
+            multiple: false
+            remember_roles:
+              authenticated: authenticated
+            reduce: false
+          is_grouped: false
+          group_info:
+            label: ''
+            description: ''
+            identifier: ''
+            optional: true
+            widget: select
+            multiple: false
+            remember: false
+            default_group: All
+            default_group_multiple: {  }
+            group_items: {  }
+      defaults:
+        title: false
+        filters: false
+        filter_groups: false
+      filter_groups:
+        operator: AND
+        groups:
+          1: AND
+      display_extenders: {  }

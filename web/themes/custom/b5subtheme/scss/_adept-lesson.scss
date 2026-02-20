@@ -1,0 +1,136 @@
+// ADEPT Lesson styling
+// Interactive autism education curriculum (UC Davis MIND Institute)
+
+.adept-lesson {
+  max-width: 900px;
+  margin: 0 auto;
+
+  &__header {
+    border-bottom: 2px solid var(--bs-primary);
+    padding-bottom: 1rem;
+  }
+
+  &__title {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+}
+
+// Embed container — responsive iframe
+.adept-embed-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; // 16:9 aspect ratio
+  background: var(--bs-light);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.adept-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+// Progress bar (module landing pages)
+.adept-progress-wrapper {
+  max-width: 600px;
+}
+
+.adept-progress-bar {
+  background: var(--bs-gray-200);
+  border-radius: 0.5rem;
+  height: 1.5rem;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.adept-progress-fill {
+  background: var(--bs-success);
+  height: 100%;
+  border-radius: 0.5rem;
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+
+.adept-progress-label {
+  font-size: 0.875rem;
+  color: var(--bs-secondary);
+  margin-bottom: 1.5rem;
+}
+
+// Completed lesson card on module landing page
+.view-adept-lessons .views-row.is-completed {
+  position: relative;
+  border-left: 4px solid var(--bs-success);
+
+  &::after {
+    content: '\f00c'; // fa-check
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    color: var(--bs-success);
+    font-size: 1rem;
+  }
+}
+
+// Mark Complete button states
+.adept-mark-complete {
+  &.btn-success {
+    pointer-events: none;
+  }
+}
+
+// Download links
+.adept-lesson__downloads {
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .adept-download-link {
+    .field__item {
+      margin-bottom: 0.5rem;
+
+      a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        &::before {
+          content: '\f019'; // fa-download
+          font-family: 'Font Awesome 6 Free';
+          font-weight: 900;
+          font-size: 0.875rem;
+        }
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .adept-lesson__title {
+    font-size: 1.5rem;
+  }
+
+  .adept-embed-container {
+    padding-bottom: 75%; // Taller ratio for Captivate content on mobile
+  }
+
+  .adept-lesson__nav {
+    flex-direction: column;
+    gap: 0.75rem;
+
+    .btn {
+      width: 100%;
+      text-align: center;
+    }
+  }
+}

@@ -1,0 +1,17 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - menu_ui
+third_party_settings:
+  menu_ui:
+    available_menus:
+      - main
+    parent: 'main:'
+name: 'ADEPT Lesson'
+type: adept_lesson
+description: 'An interactive ADEPT autism education lesson from UC Davis MIND Institute.'
+help: 'Enter the lesson details including module number, lesson number, external URL, and display mode.'
+new_revision: true
+preview_mode: 1
+display_submitted: false

@@ -175,7 +175,12 @@ web/modules/custom/ilas_site_assistant/CANONICAL_KEYS.md
 web/modules/custom/ilas_site_assistant/HOSTILE_AUDIT_REPORT.md
 web/modules/custom/ilas_site_assistant/ILAS_ASSISTANT_REPORT.md
 web/modules/custom/ilas_site_assistant/OBSERVABILITY_RUNBOOK.md
+web/modules/custom/ilas_site_assistant/PRODUCTION_AUDIT_2026.md
+web/modules/custom/ilas_site_assistant/docs/observability.md
 web/modules/custom/ilas_site_assistant/js/HARDENING_CHANGELOG.md
+
+# Local evaluation scripts and fixtures (not needed on Pantheon)
+scripts/eval/
 
 # Promptfoo evaluation tooling (local-only, not needed on Pantheon)
 node_modules/

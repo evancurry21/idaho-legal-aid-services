@@ -1,0 +1,9 @@
+<?php
+
+/**
+ * @file
+ * ILAS ADEPT module - provides ADEPT autism education curriculum integration.
+ *
+ * Handles library definition and tracking JS for UC Davis MIND Institute
+ * ADEPT Modules hosted via iframe embed, link-out, or self-host modes.
+ */

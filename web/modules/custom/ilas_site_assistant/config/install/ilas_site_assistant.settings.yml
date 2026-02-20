@@ -74,6 +74,13 @@ llm:
   safety_threshold: 'BLOCK_MEDIUM_AND_ABOVE'  # BLOCK_LOW_AND_ABOVE | BLOCK_MEDIUM_AND_ABOVE | BLOCK_ONLY_HIGH
   cache_ttl: 3600  # Response cache TTL in seconds (0 = disabled)
   max_retries: 2   # Max retry attempts on transient failures (0 = no retries)
+  circuit_breaker:
+    failure_threshold: 3      # Consecutive failures to open circuit
+    failure_window_seconds: 60  # Time window for counting consecutive failures
+    cooldown_seconds: 300     # Seconds to keep circuit open before half-open probe
+  global_rate_limit:
+    max_per_hour: 500           # Maximum LLM API calls per hour (0 = unlimited)
+    window_seconds: 3600        # Window size in seconds
 
 # Rate limiting (per IP)
 rate_limit_per_minute: 15

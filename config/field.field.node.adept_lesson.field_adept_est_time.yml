@@ -1,0 +1,22 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_adept_est_time
+    - node.type.adept_lesson
+id: node.adept_lesson.field_adept_est_time
+field_name: field_adept_est_time
+entity_type: node
+bundle: adept_lesson
+label: 'Estimated Time (minutes)'
+description: 'Estimated time to complete the lesson in minutes.'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: 1
+  max: 120
+  prefix: ''
+  suffix: ' minutes'
+field_type: integer

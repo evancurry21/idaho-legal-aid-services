@@ -1,0 +1,22 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_adept_mode
+    - node.type.adept_lesson
+  module:
+    - options
+id: node.adept_lesson.field_adept_mode
+field_name: field_adept_mode
+entity_type: node
+bundle: adept_lesson
+label: 'Display Mode'
+description: 'How the lesson content is displayed: embedded iframe, link to external site, or self-hosted.'
+required: true
+translatable: false
+default_value:
+  -
+    value: embed
+default_value_callback: ''
+settings: {  }
+field_type: list_string

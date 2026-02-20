@@ -1,0 +1,8 @@
+tracking:
+  version: 1.0
+  js:
+    js/adept-tracking.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once

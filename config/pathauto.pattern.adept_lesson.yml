@@ -1,0 +1,20 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - node
+id: adept_lesson
+label: 'ADEPT Lesson'
+type: 'canonical_entities:node'
+pattern: '/education/adept/module-[node:field_adept_module]/lesson-[node:field_adept_lesson_number]'
+selection_criteria:
+  adept_lesson_bundle:
+    id: 'entity_bundle:node'
+    negate: false
+    context_mapping:
+      node: node
+    bundles:
+      adept_lesson: adept_lesson
+selection_logic: and
+weight: -5
+relationships: {  }

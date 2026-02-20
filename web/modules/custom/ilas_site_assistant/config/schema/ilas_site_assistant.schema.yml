@@ -187,6 +187,29 @@ ilas_site_assistant.settings:
         max_retries:
           type: integer
           label: 'Max retry attempts on transient API failures (0 = no retries)'
+        circuit_breaker:
+          type: mapping
+          label: 'Circuit breaker settings'
+          mapping:
+            failure_threshold:
+              type: integer
+              label: 'Consecutive failures to open circuit'
+            failure_window_seconds:
+              type: integer
+              label: 'Time window for counting consecutive failures'
+            cooldown_seconds:
+              type: integer
+              label: 'Seconds to keep circuit open before half-open probe'
+        global_rate_limit:
+          type: mapping
+          label: 'Global LLM rate limit settings'
+          mapping:
+            max_per_hour:
+              type: integer
+              label: 'Maximum LLM API calls per hour (0 = unlimited)'
+            window_seconds:
+              type: integer
+              label: 'Rate limit window in seconds (default: 3600)'
     fallback_gate:
       type: mapping
       label: 'Fallback Gate Configuration'

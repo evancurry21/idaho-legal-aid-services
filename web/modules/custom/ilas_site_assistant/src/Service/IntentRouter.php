@@ -144,6 +144,13 @@ class IntentRouter {
           '/\b(como\s*(aplico|aplicar)|aplicar\s*para)/i',
           '/\bayuda\s*(legal|con\s*mi\s*caso)/i',
           '/\babogado\s*gratis/i',
+          // Gap 2: free lawyer / pro bono patterns (also matches normalized free_lawyer token).
+          '/\bfree[_\s]lawyer\b|\bfree[_\s]legal\b|\bfree[_\s]attorney\b/i',
+          '/\b(free|pro\s*bono)\s+(lawyer|attorney|legal\s+(?:aid|help))\b/i',
+          // Gap 4: veterans seeking legal help.
+          '/\bveteran[_\s]legal[_\s]help\b/i',
+          '/\blegal\s+(help|aid|services?|assistance)\s+(for\s+)?(veterans?|military|vets?)\b/i',
+          '/\b(veterans?|military|vets?)\s+(legal\s+)?(help|aid|services?|assistance|lawyer|attorney)\b/i',
         ],
         'keywords' => ['apply', 'application', 'sign_up', 'get_help', 'need_help', 'get_started', 'necesito', 'aplicar', 'abogado'],
         'weight' => 0.95,
@@ -246,6 +253,10 @@ class IntentRouter {
           '/\bexplain\s+(what|the)/i',
           '/\bhow\s+(does|do|can)\s+.{2,}\s+(work|mean)/i',
           '/\bpreguntas\s*frecuentes/i',
+          // Gap 3: small claims / filing fees.
+          '/\bsmall[_\s]claims\b/i',
+          '/\b(court|filing)\s+fees?\b/i',
+          '/\bhow\s+much\s+(does\s+it\s+cost|to\s+file)\b/i',
         ],
         'keywords' => ['faq', 'question', 'questions', 'frequently_asked', 'preguntas'],
         'weight' => 0.75,
@@ -264,6 +275,9 @@ class IntentRouter {
           '/\bchild\s*custody\s*(form|papers)/i',
           '/\b(documentos|formularios)\s*(para|de)/i',
           '/\bpapeles\s*(de|para)/i',
+          // Gap 6: Spanish protection/restraining order forms.
+          '/\border[_\s]de[_\s](restricci[oó]n|protecci[oó]n)\b/ui',
+          '/\b(formulario|forma|papeles)\s+(para\s+)?(orden|protecci[oó]n)\b/ui',
         ],
         'keywords' => ['form', 'forms', 'paperwork', 'document', 'application_form', 'court_papers', 'formulario', 'documentos'],
         'weight' => 0.85,
@@ -409,6 +423,9 @@ class IntentRouter {
           '/\b(drugs?|meth|heroin|fentanyl|substance)\s*(around|near|with)\s*(my\s*)?(kids?|children)/i',
           '/\b(kids?|children)\s*(around|exposed\s*to|near)\s*(drugs?|meth|substances?)/i',
           '/\b(ex|partner|spouse)\s*(is\s*)?(using|on|doing)\s*(drugs?|meth|heroin|fentanyl)/i',
+          // Gap 6: Spanish restraining/protection order queries.
+          '/\border[_\s]de[_\s](restricci[oó]n|protecci[oó]n|alejamiento)\b/ui',
+          '/\b(como|donde|cu[aá]ndo)\s+(consigo|obtengo|pido|solicito)\s+(una\s+)?orden\b/ui',
         ],
         'keywords' => ['family', 'divorce', 'custody', 'child_support', 'visitation', 'adoption', 'domestic', 'protection_order', 'divorcio', 'custodia', 'child_safety'],
         'service_area' => 'family',
@@ -479,6 +496,10 @@ class IntentRouter {
           '/\b(payday\s*loan|predatory\s*lending)/i',
           '/\bgot\s*scammed/i',
           '/\bfake\s*contractor/i',
+          // Gap 5: contractor disputes / business disputes.
+          '/\bcontractor\s+(who\s+)?(took|stole|kept|ran\s+off\s+with)\s+(my\s+|the\s+)?money\b/i',
+          '/\b(business|contract)\s+dispute\b/i',
+          '/\bcontractor\s+(fraud|dispute|problem|issue|scam|rip.?off)\b/i',
           // Medical debt patterns (consumer issue, not health)
           '/\b(medical|hospital)\s*(bills?|debt|collection)/i',
           '/\b(can\'?t|cannot|can\s*not)\s*pay\s*(my\s*)?(medical|hospital|doctor)/i',
