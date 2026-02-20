@@ -121,7 +121,7 @@ display:
           plugin_id: text
           empty: false
           content:
-            value: '<div class="adept-progress-wrapper mb-4"><h2 class="h5">Your Progress</h2><div class="adept-progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" data-total-lessons="11"><div class="adept-progress-fill" style="width: 0%"></div></div><div class="adept-progress-label">0 of 11 lessons completed (0%)</div></div>'
+            value: '<div class="adept-progress-wrapper mb-4"><h2 class="h5">Your Progress</h2><div class="adept-progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="0"><div class="adept-progress-fill" style="width: 0%"></div></div><div class="adept-progress-label"></div></div>'
             format: full_html
           tokenize: false
       footer: {  }

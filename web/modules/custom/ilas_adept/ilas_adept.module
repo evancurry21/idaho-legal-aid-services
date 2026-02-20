@@ -4,6 +4,195 @@
  * @file
  * ILAS ADEPT module - provides ADEPT autism education curriculum integration.
  *
- * Handles library definition and tracking JS for UC Davis MIND Institute
- * ADEPT Modules hosted via iframe embed, link-out, or self-host modes.
+ * Handles library attachment, drupalSettings injection, prev/next navigation,
+ * and GA4 tracking for UC Davis MIND Institute ADEPT Modules hosted via
+ * iframe embed, link-out, or self-host modes.
  */
+
+use Drupal\node\NodeInterface;
+use Drupal\views\ViewExecutable;
+
+/**
+ * Implements hook_preprocess_node() for adept_lesson nodes.
+ *
+ * - All view modes: adds data-adept-module and data-adept-lesson attributes
+ *   so landing page JS can identify lesson cards.
+ * - Full view mode: attaches library, populates ilas_adept template namespace,
+ *   and injects drupalSettings.ilasAdept.currentLesson for GA4 tracking.
+ */
+function ilas_adept_preprocess_node(array &$variables): void {
+  /** @var \Drupal\node\NodeInterface $node */
+  $node = $variables['node'];
+
+  if ($node->bundle() !== 'adept_lesson') {
+    return;
+  }
+
+  $module_id = (int) ($node->get('field_adept_module')->value ?? 1);
+  $lesson_id = (int) ($node->get('field_adept_lesson_number')->value ?? 0);
+
+  // All view modes: add data attributes for landing page card identification.
+  $variables['attributes']['data-adept-module'] = $module_id;
+  $variables['attributes']['data-adept-lesson'] = $lesson_id;
+
+  // Set safe defaults for non-full view modes.
+  // Prevents TypeError if the main template is used for teaser/search_index/etc.
+  $variables['ilas_adept'] = [
+    'module_id' => $module_id,
+    'lesson_id' => $lesson_id,
+    'mode' => $node->get('field_adept_mode')->value ?? 'embed',
+    'external_url' => '',
+    'effective_url' => '',
+    'est_time' => NULL,
+    'module_landing_path' => "/education/adept/module-{$module_id}",
+    'prev' => NULL,
+    'next' => NULL,
+  ];
+
+  if ($variables['view_mode'] !== 'full') {
+    return;
+  }
+
+  // Full view mode: attach library and populate template variables.
+  $variables['#attached']['library'][] = 'ilas_adept/adept';
+
+  $mode = $node->get('field_adept_mode')->value ?? 'embed';
+  $est_time = $node->get('field_adept_est_time')->value
+    ? (int) $node->get('field_adept_est_time')->value
+    : NULL;
+
+  // Extract external URL from link field.
+  $external_url = '';
+  if (!$node->get('field_adept_external_url')->isEmpty()) {
+    $external_url = $node->get('field_adept_external_url')->first()->getUrl()->toString();
+  }
+
+  // Compute effective URL (resolves self_host vs external).
+  if ($mode === 'self_host') {
+    $effective_url = "/sites/default/files/adept/ADEPT-{$module_id}/lesson-{$lesson_id}/index.html";
+  }
+  else {
+    $effective_url = $external_url;
+  }
+
+  // Prev/next navigation.
+  $prev_node = _ilas_adept_load_adjacent_lesson($module_id, $lesson_id, -1);
+  $next_node = _ilas_adept_load_adjacent_lesson($module_id, $lesson_id, 1);
+
+  $prev = $prev_node ? [
+    'url' => $prev_node->toUrl()->toString(),
+    'title' => $prev_node->getTitle(),
+  ] : NULL;
+
+  $next = $next_node ? [
+    'url' => $next_node->toUrl()->toString(),
+    'title' => $next_node->getTitle(),
+  ] : NULL;
+
+  $module_landing_path = "/education/adept/module-{$module_id}";
+
+  // Namespaced template variables.
+  $variables['ilas_adept'] = [
+    'module_id' => $module_id,
+    'lesson_id' => $lesson_id,
+    'mode' => $mode,
+    'external_url' => $external_url,
+    'effective_url' => $effective_url,
+    'est_time' => $est_time,
+    'module_landing_path' => $module_landing_path,
+    'prev' => $prev,
+    'next' => $next,
+  ];
+
+  // drupalSettings for GA4 tracking JS.
+  $variables['#attached']['drupalSettings']['ilasAdept']['currentLesson'] = [
+    'module_id' => $module_id,
+    'lesson_id' => $lesson_id,
+    'lesson_title' => $node->label(),
+    'mode' => $mode,
+    'external_url' => $external_url,
+    'effective_url' => $effective_url,
+  ];
+
+  // Cache metadata: invalidate when any node is created/deleted,
+  // and when adjacent lesson nodes change.
+  $variables['#cache']['tags'][] = 'node_list';
+  if ($prev_node) {
+    $variables['#cache']['tags'][] = 'node:' . $prev_node->id();
+  }
+  if ($next_node) {
+    $variables['#cache']['tags'][] = 'node:' . $next_node->id();
+  }
+}
+
+/**
+ * Loads the nearest adjacent lesson node in a given direction.
+ *
+ * Uses range queries (< or >) with sort instead of exact match, so it
+ * correctly handles gaps in lesson numbering (e.g., 1, 2, 5).
+ *
+ * @param int $module_id
+ *   The ADEPT module number.
+ * @param int $lesson_id
+ *   The current lesson number.
+ * @param int $direction
+ *   -1 for previous lesson, +1 for next lesson.
+ *
+ * @return \Drupal\node\NodeInterface|null
+ *   The adjacent lesson node, or NULL if none exists.
+ */
+function _ilas_adept_load_adjacent_lesson(int $module_id, int $lesson_id, int $direction): ?NodeInterface {
+  $query = \Drupal::entityTypeManager()->getStorage('node')->getQuery()
+    ->condition('type', 'adept_lesson')
+    ->condition('status', 1)
+    ->condition('field_adept_module', $module_id)
+    ->accessCheck(TRUE)
+    ->range(0, 1);
+
+  if ($direction < 0) {
+    // Previous: lesson number less than current, closest first.
+    $query->condition('field_adept_lesson_number', $lesson_id, '<')
+      ->sort('field_adept_lesson_number', 'DESC');
+  }
+  else {
+    // Next: lesson number greater than current, closest first.
+    $query->condition('field_adept_lesson_number', $lesson_id, '>')
+      ->sort('field_adept_lesson_number', 'ASC');
+  }
+
+  $nids = $query->execute();
+
+  if (empty($nids)) {
+    return NULL;
+  }
+
+  return \Drupal::entityTypeManager()->getStorage('node')->load(reset($nids));
+}
+
+/**
+ * Implements hook_views_pre_render() for the adept_lessons view.
+ *
+ * Attaches the ADEPT library and injects drupalSettings.ilasAdept.moduleLanding
+ * with the dynamic total_lessons count from the view results.
+ */
+function ilas_adept_views_pre_render(ViewExecutable $view): void {
+  if ($view->id() !== 'adept_lessons') {
+    return;
+  }
+
+  $view->element['#attached']['library'][] = 'ilas_adept/adept';
+
+  // Map display_id to module number.
+  $display_map = [
+    'page_1' => 1,
+    'page_2' => 2,
+  ];
+  $module_id = $display_map[$view->current_display] ?? NULL;
+
+  $total_lessons = count($view->result);
+
+  $view->element['#attached']['drupalSettings']['ilasAdept']['moduleLanding'] = [
+    'module_id' => $module_id,
+    'total_lessons' => $total_lessons,
+  ];
+}

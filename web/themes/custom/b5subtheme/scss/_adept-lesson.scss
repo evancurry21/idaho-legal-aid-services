@@ -63,8 +63,9 @@
   margin-bottom: 1.5rem;
 }
 
-// Completed lesson card on module landing page
-.view-adept-lessons .views-row.is-completed {
+// Completed lesson card on module landing page.
+// JS adds .is-completed to the article element inside .views-row.
+.view-adept-lessons article.is-completed {
   position: relative;
   border-left: 4px solid var(--bs-success);
 

@@ -181,6 +181,7 @@ web/modules/custom/ilas_site_assistant/docs/observability.md
 web/modules/custom/ilas_site_assistant/js/HARDENING_CHANGELOG.md
 web/modules/custom/ilas_adept/adept_implementation_plan.md
 web/modules/custom/ilas_adept/deep-research-report.md
+web/modules/custom/ilas_adept/ADEPT_REFACTOR_STATUS.md
 
 # One-time content seeding/fix scripts (not needed on Pantheon)
 scripts/create-adept-content.php

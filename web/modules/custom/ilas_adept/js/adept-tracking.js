@@ -1,35 +1,50 @@
 /**
  * @file
  * ADEPT lesson tracking — GA4 events + localStorage progress + embed handling.
+ *
+ * localStorage keys: adept:module:{id}:lesson:{id}
+ *   → {status: 'not_started'|'in_progress'|'completed', startedAt, completedAt}
+ *
+ * GA4 events (DL-1 locked params):
+ *   adept_module_view   — module_id, total_lessons
+ *   adept_lesson_view   — module_id, lesson_id, lesson_title, mode
+ *   adept_lesson_start  — module_id, lesson_id, mode, destination
+ *   adept_lesson_complete — module_id, lesson_id, time_to_complete_sec, mode
+ *   adept_download_click — module_id, lesson_id, file_label, file_url
  */
 (function (Drupal, drupalSettings, once) {
   'use strict';
 
-  var STORAGE_KEY = 'adept_progress_data';
+  // --------------- localStorage helpers ---------------
 
   /**
-   * Reads progress data from localStorage.
-   *
-   * @return {Object} Progress data with modules map.
+   * Builds the per-lesson localStorage key.
    */
-  function getProgressData() {
+  function storageKey(moduleId, lessonId) {
+    return 'adept:module:' + moduleId + ':lesson:' + lessonId;
+  }
+
+  /**
+   * Reads a lesson record from localStorage.
+   *
+   * @return {Object} {status, startedAt, completedAt}
+   */
+  function getLessonRecord(moduleId, lessonId) {
     try {
-      var data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : { modules: {} };
+      var raw = localStorage.getItem(storageKey(moduleId, lessonId));
+      return raw ? JSON.parse(raw) : { status: 'not_started', startedAt: null, completedAt: null };
     }
     catch (e) {
-      return { modules: {} };
+      return { status: 'not_started', startedAt: null, completedAt: null };
     }
   }
 
   /**
-   * Saves progress data to localStorage.
-   *
-   * @param {Object} data - Progress data to save.
+   * Writes a lesson record to localStorage.
    */
-  function saveProgressData(data) {
+  function setLessonRecord(moduleId, lessonId, record) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      localStorage.setItem(storageKey(moduleId, lessonId), JSON.stringify(record));
     }
     catch (e) {
       // localStorage unavailable or full — fail silently.
@@ -37,87 +52,139 @@
   }
 
   /**
-   * Checks if a lesson has been completed.
-   *
-   * @param {number} moduleNum - Module number.
-   * @param {number} lessonNum - Lesson number.
-   * @return {boolean} Whether the lesson is completed.
+   * One-time migration: reads old adept_progress_data, converts to per-lesson
+   * keys, then deletes the old key.
    */
-  function isLessonCompleted(moduleNum, lessonNum) {
-    var data = getProgressData();
-    var mod = data.modules[String(moduleNum)];
-    return mod && mod.completed && mod.completed.indexOf(lessonNum) !== -1;
+  function migrateOldStorage() {
+    try {
+      var raw = localStorage.getItem('adept_progress_data');
+      if (!raw) {
+        return;
+      }
+      var data = JSON.parse(raw);
+      if (!data || !data.modules) {
+        localStorage.removeItem('adept_progress_data');
+        return;
+      }
+      var modules = data.modules;
+      for (var modKey in modules) {
+        if (!modules.hasOwnProperty(modKey)) {
+          continue;
+        }
+        var mod = modules[modKey];
+        var completed = (mod && mod.completed) ? mod.completed : [];
+        for (var i = 0; i < completed.length; i++) {
+          var lessonId = completed[i];
+          var existing = getLessonRecord(modKey, lessonId);
+          // Don't overwrite if already migrated.
+          if (existing.status === 'not_started') {
+            setLessonRecord(modKey, lessonId, {
+              status: 'completed',
+              startedAt: mod.lastUpdated || null,
+              completedAt: mod.lastUpdated || null
+            });
+          }
+        }
+      }
+      localStorage.removeItem('adept_progress_data');
+    }
+    catch (e) {
+      // Migration failed — old data stays, no harm.
+    }
+  }
+
+  // --------------- GA4 helpers ---------------
+
+  /**
+   * Strips query string and hash from a URL for analytics safety.
+   *
+   * @param {string} url - The URL to sanitize.
+   * @return {string} URL with origin + pathname only.
+   */
+  function sanitizeUrlForAnalytics(url) {
+    if (!url) {
+      return '';
+    }
+    try {
+      var parsed = new URL(url, window.location.origin);
+      return parsed.origin + parsed.pathname;
+    }
+    catch (e) {
+      return url;
+    }
   }
 
   /**
-   * Marks a lesson as completed in localStorage.
-   *
-   * @param {number} moduleNum - Module number.
-   * @param {number} lessonNum - Lesson number.
-   */
-  function markLessonCompleted(moduleNum, lessonNum) {
-    var data = getProgressData();
-    var modKey = String(moduleNum);
-    if (!data.modules[modKey]) {
-      data.modules[modKey] = { completed: [], lastUpdated: '' };
-    }
-    if (data.modules[modKey].completed.indexOf(lessonNum) === -1) {
-      data.modules[modKey].completed.push(lessonNum);
-    }
-    data.modules[modKey].lastUpdated = new Date().toISOString();
-    saveProgressData(data);
-  }
-
-  /**
-   * Sends a GA4 event via gtag or dataLayer.
+   * Sends a GA4 event via gtag. No-op if gtag is absent.
+   * DL-2: gtag-only dispatch, no dataLayer fallback.
    *
    * @param {string} eventName - GA4 event name.
    * @param {Object} params - Event parameters.
+   * @param {Function} [callback] - Optional callback for outbound link safety.
    */
-  function trackEvent(eventName, params) {
-    if (typeof gtag === 'function') {
-      gtag('event', eventName, params);
+  function sendEvent(eventName, params, callback) {
+    if (typeof window.gtag === 'function') {
+      if (callback) {
+        var called = false;
+        var safe = function () { if (!called) { called = true; callback(); } };
+        params.event_callback = safe;
+        window.gtag('event', eventName, params);
+        setTimeout(safe, 1000);
+      } else {
+        window.gtag('event', eventName, params);
+      }
+    } else if (callback) {
+      callback();
     }
-    else if (window.dataLayer && Array.isArray(window.dataLayer)) {
-      window.dataLayer.push(Object.assign({ event: eventName }, params));
-    }
-    // Fails silently if neither gtag nor dataLayer exists.
   }
+
+  // --------------- Run migration on first load ---------------
+  migrateOldStorage();
+
+  // --------------- Behavior: lesson pages ---------------
 
   /**
    * Behavior for individual ADEPT lesson pages.
    *
-   * Reads data attributes from the article element, fires GA4 events,
-   * handles iframe injection for embed mode, and manages completion state.
+   * Reads drupalSettings.ilasAdept.currentLesson for GA4 event params.
+   * DOM data attributes kept for CSS hooks only.
    */
   Drupal.behaviors.adeptLessonTracking = {
     attach: function (context) {
-      var articles = once('adept-lesson', '[data-adept-module]', context);
+      var articles = once('adept-lesson', '[data-adept-lesson-page]', context);
       if (!articles.length) {
         return;
       }
 
-      var article = articles[0];
-      var moduleNum = parseInt(article.getAttribute('data-adept-module'), 10);
-      var lessonNum = parseInt(article.getAttribute('data-adept-lesson'), 10);
-      var mode = article.getAttribute('data-adept-mode');
-      var title = article.getAttribute('data-adept-title');
+      var settings = (drupalSettings.ilasAdept && drupalSettings.ilasAdept.currentLesson)
+        ? drupalSettings.ilasAdept.currentLesson
+        : null;
 
-      var eventParams = {
-        adept_module: moduleNum,
-        adept_lesson: lessonNum,
-        adept_lesson_title: title,
-        adept_mode: mode
-      };
+      if (!settings) {
+        return;
+      }
+
+      var article = articles[0];
+      var moduleId = settings.module_id;
+      var lessonId = settings.lesson_id;
+      var lessonTitle = settings.lesson_title;
+      var mode = settings.mode;
+      var effectiveUrl = settings.effective_url;
 
       // Fire lesson view event.
-      trackEvent('adept_lesson_view', eventParams);
+      sendEvent('adept_lesson_view', {
+        module_id: moduleId,
+        lesson_id: lessonId,
+        lesson_title: lessonTitle,
+        mode: mode
+      });
 
       var completeBtn = article.querySelector('.adept-mark-complete');
       var statusBadge = article.querySelector('.adept-completion-status');
+      var record = getLessonRecord(moduleId, lessonId);
 
       // Reflect prior completion state.
-      if (isLessonCompleted(moduleNum, lessonNum)) {
+      if (record.status === 'completed') {
         if (completeBtn) {
           completeBtn.disabled = true;
           completeBtn.textContent = Drupal.t('Completed');
@@ -132,13 +199,35 @@
       // Start lesson button.
       var startBtn = article.querySelector('.adept-start-lesson');
       var embedContainer = article.querySelector('.adept-embed-container');
+      var statusRegion = article.querySelector('#adept-lesson-status');
 
       if (startBtn) {
         startBtn.addEventListener('click', function (e) {
-          trackEvent('adept_lesson_start', eventParams);
+          var destination = sanitizeUrlForAnalytics(effectiveUrl);
+
+          sendEvent('adept_lesson_start', {
+            module_id: moduleId,
+            lesson_id: lessonId,
+            mode: mode,
+            destination: destination
+          });
+
+          // Mark as in_progress (unless already completed).
+          var current = getLessonRecord(moduleId, lessonId);
+          if (current.status === 'not_started') {
+            setLessonRecord(moduleId, lessonId, {
+              status: 'in_progress',
+              startedAt: new Date().toISOString(),
+              completedAt: null
+            });
+          }
+
+          if (statusRegion) {
+            statusRegion.textContent = Drupal.t('Lesson started');
+          }
 
           if (mode === 'link') {
-            // Link mode — open in new tab. The <a> tag handles navigation.
+            // Link mode — the <a> tag handles navigation to new tab.
             return;
           }
 
@@ -149,7 +238,7 @@
             if (iframeSrc) {
               var iframe = document.createElement('iframe');
               iframe.src = iframeSrc;
-              iframe.setAttribute('title', Drupal.t('ADEPT Lesson: @title', { '@title': title }));
+              iframe.setAttribute('title', Drupal.t('ADEPT Lesson: @title', { '@title': lessonTitle }));
               iframe.setAttribute('allowfullscreen', '');
               iframe.setAttribute('loading', 'lazy');
               iframe.classList.add('adept-iframe');
@@ -169,6 +258,9 @@
                 behavior: prefersReducedMotion ? 'auto' : 'smooth',
                 block: 'start'
               });
+
+              // Move focus to the embed container for keyboard users.
+              embedContainer.focus({ preventScroll: true });
             }
           }
 
@@ -180,10 +272,37 @@
       }
 
       // Mark complete button.
-      if (completeBtn && !isLessonCompleted(moduleNum, lessonNum)) {
+      if (completeBtn && record.status !== 'completed') {
         completeBtn.addEventListener('click', function () {
-          markLessonCompleted(moduleNum, lessonNum);
-          trackEvent('adept_lesson_complete', eventParams);
+          var now = new Date().toISOString();
+          var current = getLessonRecord(moduleId, lessonId);
+          var startedAt = current.startedAt || now;
+
+          // Compute time_to_complete_sec.
+          var timeToComplete = null;
+          try {
+            var startMs = new Date(startedAt).getTime();
+            var endMs = new Date(now).getTime();
+            if (!isNaN(startMs) && !isNaN(endMs)) {
+              timeToComplete = Math.round((endMs - startMs) / 1000);
+            }
+          }
+          catch (e) {
+            // Leave as null.
+          }
+
+          setLessonRecord(moduleId, lessonId, {
+            status: 'completed',
+            startedAt: startedAt,
+            completedAt: now
+          });
+
+          sendEvent('adept_lesson_complete', {
+            module_id: moduleId,
+            lesson_id: lessonId,
+            time_to_complete_sec: timeToComplete,
+            mode: mode
+          });
 
           completeBtn.disabled = true;
           completeBtn.textContent = Drupal.t('Completed');
@@ -193,29 +312,47 @@
           if (statusBadge) {
             statusBadge.classList.remove('d-none');
           }
+
+          if (statusRegion) {
+            statusRegion.textContent = Drupal.t('Lesson marked complete');
+          }
         });
       }
 
-      // Download link tracking.
+      // Download link tracking with outbound safety.
       var downloadLinks = article.querySelectorAll('.adept-download-link a');
       downloadLinks.forEach(function (link) {
-        link.addEventListener('click', function () {
-          trackEvent('adept_download_click', {
-            adept_module: moduleNum,
-            adept_lesson: lessonNum,
-            adept_lesson_title: title,
-            adept_download_url: link.href
-          });
+        link.addEventListener('click', function (e) {
+          var fileLabel = (link.textContent || '').trim().substring(0, 100);
+          var params = {
+            module_id: moduleId,
+            lesson_id: lessonId,
+            file_label: fileLabel,
+            file_url: sanitizeUrlForAnalytics(link.href)
+          };
+
+          var isSameTab = (!link.target || link.target === '_self') && !link.hasAttribute('download');
+          if (isSameTab) {
+            e.preventDefault();
+            var href = link.href;
+            sendEvent('adept_download_click', params, function () {
+              window.location.href = href;
+            });
+          } else {
+            sendEvent('adept_download_click', params);
+          }
         });
       });
     }
   };
 
+  // --------------- Behavior: module landing pages ---------------
+
   /**
    * Behavior for ADEPT module landing pages (Views).
    *
-   * Updates the progress bar and marks completed lesson cards
-   * based on localStorage data.
+   * Reads drupalSettings.ilasAdept.moduleLanding for module_id and total_lessons.
+   * Updates progress bar and marks completed lesson cards from localStorage.
    */
   Drupal.behaviors.adeptModuleProgress = {
     attach: function (context) {
@@ -224,57 +361,57 @@
         return;
       }
 
-      var view = views[0];
+      var settings = (drupalSettings.ilasAdept && drupalSettings.ilasAdept.moduleLanding)
+        ? drupalSettings.ilasAdept.moduleLanding
+        : null;
 
-      // Determine module number from URL path.
-      var pathMatch = window.location.pathname.match(/module-(\d+)/);
-      if (!pathMatch) {
+      if (!settings || !settings.module_id) {
         return;
       }
 
-      var moduleNum = parseInt(pathMatch[1], 10);
+      var view = views[0];
+      var moduleId = settings.module_id;
+      var totalLessons = settings.total_lessons;
 
-      trackEvent('adept_module_view', {
-        adept_module: moduleNum
+      sendEvent('adept_module_view', {
+        module_id: moduleId,
+        total_lessons: totalLessons
       });
 
-      var data = getProgressData();
-      var mod = data.modules[String(moduleNum)];
-      var completedLessons = (mod && mod.completed) ? mod.completed : [];
+      // Count completed lessons from DOM lesson cards + localStorage.
+      // Uses actual lesson IDs from data attributes instead of assuming sequential numbering.
+      var completedCount = 0;
+      var lessonCards = view.querySelectorAll('article[data-adept-module][data-adept-lesson]');
+      lessonCards.forEach(function (card) {
+        var cardLessonId = parseInt(card.getAttribute('data-adept-lesson'), 10);
+        if (!isNaN(cardLessonId)) {
+          var rec = getLessonRecord(moduleId, cardLessonId);
+          if (rec.status === 'completed') {
+            completedCount++;
+            card.classList.add('is-completed');
+          }
+        }
+      });
 
       // Update progress bar.
       var progressBar = view.querySelector('.adept-progress-bar');
-      if (progressBar) {
-        var totalLessons = parseInt(progressBar.getAttribute('data-total-lessons') || '11', 10);
-        var completedCount = completedLessons.length;
-        var percentage = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+      if (progressBar && totalLessons > 0) {
+        var percentage = Math.round((completedCount / totalLessons) * 100);
+
+        // ARIA on the progressbar element (count-based, not percentage).
+        progressBar.setAttribute('aria-valuemax', totalLessons);
+        progressBar.setAttribute('aria-valuenow', completedCount);
 
         var fill = progressBar.querySelector('.adept-progress-fill');
         var label = view.querySelector('.adept-progress-label');
 
         if (fill) {
           fill.style.width = percentage + '%';
-          fill.setAttribute('aria-valuenow', percentage);
         }
         if (label) {
           label.textContent = completedCount + ' of ' + totalLessons + ' lessons completed (' + percentage + '%)';
         }
       }
-
-      // Mark completed lesson cards.
-      var lessonCards = view.querySelectorAll('.views-row');
-      lessonCards.forEach(function (card) {
-        var lessonLink = card.querySelector('a[href*="lesson-"]');
-        if (lessonLink) {
-          var lessonMatch = lessonLink.getAttribute('href').match(/lesson-(\d+)/);
-          if (lessonMatch) {
-            var lessonNum = parseInt(lessonMatch[1], 10);
-            if (completedLessons.indexOf(lessonNum) !== -1) {
-              card.classList.add('is-completed');
-            }
-          }
-        }
-      });
     }
   };
 

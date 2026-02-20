@@ -1,4 +1,4 @@
-tracking:
+adept:
   version: 1.0
   js:
     js/adept-tracking.js: {}

@@ -9,18 +9,15 @@
  *
  * Available variables:
  * - content: Rendered content fields
- * - adept_module_number: Module number (1 or 2)
- * - adept_lesson_number: Lesson number (0 = Introduction)
- * - adept_mode: Display mode (link, embed, self_host)
- * - adept_est_time: Estimated time in minutes
- * - adept_external_url: External URL for lesson content
- * - adept_self_host_url: Self-hosted URL (if applicable)
- * - adept_prev_lesson: Previous lesson {url, title}
- * - adept_next_lesson: Next lesson {url, title}
+ * - ilas_adept.module_id: Module number (1 or 2)
+ * - ilas_adept.lesson_id: Lesson number (0 = Introduction)
+ * - ilas_adept.mode: Display mode (link, embed, self_host)
+ * - ilas_adept.est_time: Estimated time in minutes
+ * - ilas_adept.effective_url: Resolved URL (self-host or external)
+ * - ilas_adept.prev: Previous lesson {url, title}
+ * - ilas_adept.next: Next lesson {url, title}
  */
 #}
-
-{{ attach_library('ilas_adept/tracking') }}
 
 {# ========== LearningResource Schema ========== #}
 {% set current_page_url = url('<current>')|render|trim %}
@@ -46,17 +43,16 @@
   "inLanguage": "en",
   "isPartOf": {
     "@type": "Course",
-    "name": "ADEPT Module {{ adept_module_number }}"
-  }{% if adept_est_time %},
-  "timeRequired": "PT{{ adept_est_time }}M"{% endif %},
+    "name": "ADEPT Module {{ ilas_adept.module_id }}"
+  }{% if ilas_adept.est_time %},
+  "timeRequired": "PT{{ ilas_adept.est_time }}M"{% endif %},
   "url": "{{ current_page_url }}"
 }
 </script>
 
-<article{{ attributes.addClass('adept-lesson', 'adept-lesson--module-' ~ adept_module_number, 'adept-lesson--mode-' ~ adept_mode) }}
-  data-adept-module="{{ adept_module_number }}"
-  data-adept-lesson="{{ adept_lesson_number }}"
-  data-adept-mode="{{ adept_mode }}"
+<article{{ attributes.addClass('adept-lesson', 'adept-lesson--module-' ~ ilas_adept.module_id, 'adept-lesson--mode-' ~ ilas_adept.mode) }}
+  data-adept-lesson-page
+  data-adept-mode="{{ ilas_adept.mode }}"
   data-adept-title="{{ clean_title|e('html_attr') }}">
 
   {# Breadcrumb navigation #}
@@ -64,13 +60,13 @@
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/education/adept">{{ 'ADEPT'|t }}</a></li>
       <li class="breadcrumb-item">
-        <a href="/education/adept/module-{{ adept_module_number }}">{{ 'Module @num'|t({'@num': adept_module_number}) }}</a>
+        <a href="/education/adept/module-{{ ilas_adept.module_id }}">{{ 'Module @num'|t({'@num': ilas_adept.module_id}) }}</a>
       </li>
       <li class="breadcrumb-item active" aria-current="page">
-        {% if adept_lesson_number == 0 %}
+        {% if ilas_adept.lesson_id == 0 %}
           {{ 'Introduction'|t }}
         {% else %}
-          {{ 'Lesson @num'|t({'@num': adept_lesson_number}) }}
+          {{ 'Lesson @num'|t({'@num': ilas_adept.lesson_id}) }}
         {% endif %}
       </li>
     </ol>
@@ -80,11 +76,11 @@
   <header class="adept-lesson__header mb-4">
     <h1 class="adept-lesson__title">{{ label }}</h1>
     <div class="adept-lesson__meta d-flex flex-wrap gap-2 mt-2">
-      <span class="badge bg-primary">{{ 'Module @num'|t({'@num': adept_module_number}) }}</span>
-      {% if adept_est_time %}
+      <span class="badge bg-primary">{{ 'Module @num'|t({'@num': ilas_adept.module_id}) }}</span>
+      {% if ilas_adept.est_time %}
         <span class="badge bg-secondary">
           <i class="fa-regular fa-clock" aria-hidden="true"></i>
-          {{ '~@min min'|t({'@min': adept_est_time}) }}
+          {{ '~@min min'|t({'@min': ilas_adept.est_time}) }}
         </span>
       {% endif %}
       <span class="adept-completion-status badge bg-success d-none">
@@ -103,36 +99,40 @@
 
   {# Content area — mode dependent #}
   <div class="adept-lesson__content mb-4">
-    {% if adept_mode == 'link' %}
+    {% if ilas_adept.mode == 'link' %}
       {# Link-out mode: opens in new tab #}
-      <a href="{{ adept_external_url }}"
+      <a href="{{ ilas_adept.effective_url }}"
          class="btn btn-primary btn-lg adept-start-lesson"
-         data-adept-url="{{ adept_external_url }}"
+         data-adept-url="{{ ilas_adept.effective_url }}"
          target="_blank"
          rel="noopener noreferrer">
         <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
         {{ 'Start Lesson'|t }}
+        <span class="visually-hidden">{{ '(opens in a new tab)'|t }}</span>
       </a>
       <p class="text-muted mt-2">
         <small>{{ 'Opens in a new tab on the UC Davis MIND Institute site.'|t }}</small>
       </p>
 
-    {% elseif adept_mode == 'embed' or adept_mode == 'self_host' %}
+    {% elseif ilas_adept.mode == 'embed' or ilas_adept.mode == 'self_host' %}
       {# Embed / Self-host mode: JS injects iframe into container #}
-      {% set embed_url = (adept_mode == 'self_host' and adept_self_host_url) ? adept_self_host_url : adept_external_url %}
       <button type="button"
               class="btn btn-primary btn-lg adept-start-lesson"
-              data-adept-url="{{ embed_url }}">
+              data-adept-url="{{ ilas_adept.effective_url }}">
         <i class="fa-solid fa-play" aria-hidden="true"></i>
         {{ 'Start Lesson'|t }}
       </button>
       <div class="adept-embed-container d-none mt-3"
            role="region"
-           aria-label="{{ 'ADEPT lesson content'|t }}">
+           aria-label="{{ 'ADEPT lesson content'|t }}"
+           tabindex="-1">
         {# iframe injected by adept-tracking.js #}
       </div>
     {% endif %}
   </div>
+
+  {# SR announcements for lesson state changes #}
+  <div class="visually-hidden" role="status" aria-live="polite" aria-atomic="true" id="adept-lesson-status"></div>
 
   {# Mark Complete button (hidden until lesson started, disabled once completed) #}
   <div class="adept-lesson__actions mb-4">
@@ -154,20 +154,20 @@
   {% endif %}
 
   {# Prev/Next navigation #}
-  {% if adept_prev_lesson or adept_next_lesson %}
+  {% if ilas_adept.prev or ilas_adept.next %}
     <nav class="adept-lesson__nav d-flex justify-content-between mt-5 pt-4 border-top"
          aria-label="{{ 'Lesson navigation'|t }}">
-      {% if adept_prev_lesson %}
-        <a href="{{ adept_prev_lesson.url }}" class="btn btn-outline-secondary">
+      {% if ilas_adept.prev %}
+        <a href="{{ ilas_adept.prev.url }}" class="btn btn-outline-secondary">
           <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-          {{ adept_prev_lesson.title }}
+          {{ ilas_adept.prev.title }}
         </a>
       {% else %}
         <span></span>
       {% endif %}
-      {% if adept_next_lesson %}
-        <a href="{{ adept_next_lesson.url }}" class="btn btn-outline-secondary">
-          {{ adept_next_lesson.title }}
+      {% if ilas_adept.next %}
+        <a href="{{ ilas_adept.next.url }}" class="btn btn-outline-secondary">
+          {{ ilas_adept.next.title }}
           <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
         </a>
       {% endif %}

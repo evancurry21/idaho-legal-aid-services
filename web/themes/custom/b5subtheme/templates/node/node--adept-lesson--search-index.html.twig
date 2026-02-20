@@ -1,0 +1,21 @@
+{#
+/**
+ * @file
+ * Search index template for ADEPT Lesson content type.
+ *
+ * Minimal markup for Search API Rendered Item processor.
+ * Omits structured data, navigation, and interactive elements
+ * that are only relevant for the full front-end display.
+ *
+ * @see node--adept-lesson.html.twig (full front-end template)
+ */
+#}
+<article{{ attributes.addClass('node', 'node--adept-lesson', 'node--view-mode-search-index') }}>
+  {% if label %}
+    <h2>{{ label }}</h2>
+  {% endif %}
+
+  {% if content.field_adept_short_desc %}
+    {{ content.field_adept_short_desc }}
+  {% endif %}
+</article>

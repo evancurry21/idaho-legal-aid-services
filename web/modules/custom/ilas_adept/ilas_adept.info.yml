@@ -2,8 +2,11 @@ name: 'ILAS ADEPT'
 type: module
 description: 'Provides ADEPT autism education module integration with GA4 tracking and localStorage progress.'
 package: ILAS
-core_version_requirement: ^10 || ^11
+core_version_requirement: ^11
 dependencies:
   - drupal:node
   - drupal:link
   - drupal:options
+  - drupal:field
+  - drupal:text
+  - drupal:views
