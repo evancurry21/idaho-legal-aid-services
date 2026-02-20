@@ -10,3 +10,4 @@ dependencies:
   - drupal:field
   - drupal:text
   - drupal:views
+  - drupal:media_library

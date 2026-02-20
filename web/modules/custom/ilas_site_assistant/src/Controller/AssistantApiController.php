@@ -1735,7 +1735,7 @@ class AssistantApiController extends ControllerBase {
         break;
 
       case 'greeting':
-        $response['message'] = $config->get('welcome_message');
+        $response['message'] = $this->t('Hi there! What can I help you find?');
         break;
 
       case 'eligibility':

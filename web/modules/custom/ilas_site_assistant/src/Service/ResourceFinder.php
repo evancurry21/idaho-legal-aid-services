@@ -1025,8 +1025,12 @@ class ResourceFinder {
    *   Cleaned description suitable for display.
    */
   protected function cleanDescription(string $raw_text, string $title = ''): string {
+    // Decode HTML entities left behind by strip_tags() (e.g. &nbsp; -> U+00A0).
+    $text = html_entity_decode($raw_text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    // Replace non-breaking spaces (U+00A0) with normal spaces.
+    $text = str_replace("\xC2\xA0", ' ', $text);
     // Normalize whitespace (collapse newlines, tabs, multiple spaces).
-    $text = preg_replace('/\s+/', ' ', trim($raw_text));
+    $text = preg_replace('/\s+/', ' ', trim($text));
 
     if (empty($text)) {
       return '';

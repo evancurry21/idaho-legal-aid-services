@@ -2,8 +2,16 @@
 // Interactive autism education curriculum (UC Davis MIND Institute)
 
 .adept-lesson {
-  max-width: 900px;
+  max-width: 1060px;
   margin: 0 auto;
+
+  // Keep text content at readable width
+  &__header,
+  &__description,
+  &__actions,
+  &__downloads {
+    max-width: 900px;
+  }
 
   &__header {
     border-bottom: 2px solid var(--bs-primary);
@@ -13,6 +21,44 @@
   &__title {
     font-size: 2rem;
     font-weight: 700;
+  }
+}
+
+// ADEPT badge sizing — matches job-badges Row 1 primary sizing
+.adept-badge {
+  font-size: 1rem;
+  font-weight: $font-weight-bold;
+  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 4px;
+
+  i {
+    font-size: 0.875rem;
+  }
+
+  @include mobile {
+    font-size: 0.8125rem;
+    padding: 4px 10px;
+
+    i {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+.adept-badge--module {
+  border-color: $color-primary;
+}
+
+.adept-badge--time {
+  background-color: $color-gray-bg;
+  color: $color-gray-muted;
+  border: 1px solid $color-gray-border-light;
+
+  i {
+    color: $color-gray-text;
   }
 }
 
@@ -55,6 +101,10 @@
   border-radius: 0.5rem;
   transition: width 0.4s ease;
   min-width: 0;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 }
 
 .adept-progress-label {
@@ -113,6 +163,39 @@
       }
     }
   }
+
+  .adept-attachments {
+    .field__item {
+      margin-bottom: 0.5rem;
+
+      a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        &::before {
+          content: '\f15b'; // fa-file
+          font-family: 'Font Awesome 6 Free';
+          font-weight: 400;
+          font-size: 0.875rem;
+        }
+      }
+    }
+  }
+}
+
+// Prev/Next navigation buttons
+.adept-nav-btn {
+  background-color: $color-gray-bg;
+  border-color: $color-gray-border-light;
+  color: $color-gray-muted;
+
+  &:hover,
+  &:focus {
+    background-color: darken($color-gray-bg, 5%);
+    border-color: $color-gray-border;
+    color: $color-body;
+  }
 }
 
 // Responsive adjustments
@@ -131,6 +214,7 @@
 
     .btn {
       width: 100%;
+      max-width: none;
       text-align: center;
     }
   }

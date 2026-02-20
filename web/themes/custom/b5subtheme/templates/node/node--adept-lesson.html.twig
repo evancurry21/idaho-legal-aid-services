@@ -56,7 +56,8 @@
   data-adept-title="{{ clean_title|e('html_attr') }}">
 
   {# Breadcrumb navigation #}
-  <nav aria-label="{{ 'ADEPT lesson breadcrumb'|t }}" class="adept-breadcrumb mb-3">
+  <nav aria-label="{{ 'breadcrumb'|t }}" class="adept-breadcrumb mb-3">
+    <h2 id="adept-breadcrumb" class="visually-hidden">{{ 'Breadcrumb'|t }}</h2>
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="/education/adept">{{ 'ADEPT'|t }}</a></li>
       <li class="breadcrumb-item">
@@ -76,14 +77,14 @@
   <header class="adept-lesson__header mb-4">
     <h1 class="adept-lesson__title">{{ label }}</h1>
     <div class="adept-lesson__meta d-flex flex-wrap gap-2 mt-2">
-      <span class="badge bg-primary">{{ 'Module @num'|t({'@num': ilas_adept.module_id}) }}</span>
+      <span class="badge bg-primary adept-badge adept-badge--module">{{ 'Module @num'|t({'@num': ilas_adept.module_id}) }}</span>
       {% if ilas_adept.est_time %}
-        <span class="badge bg-secondary">
+        <span class="badge adept-badge adept-badge--time">
           <i class="fa-regular fa-clock" aria-hidden="true"></i>
           {{ '~@min min'|t({'@min': ilas_adept.est_time}) }}
         </span>
       {% endif %}
-      <span class="adept-completion-status badge bg-success d-none">
+      <span class="adept-completion-status badge bg-success adept-badge d-none">
         <i class="fa-solid fa-check" aria-hidden="true"></i>
         {{ 'Completed'|t }}
       </span>
@@ -96,6 +97,9 @@
       {{ content.field_adept_short_desc }}
     </div>
   {% endif %}
+
+  {# Prerequisite gate — JS populates if prereqs unmet #}
+  <div class="adept-prereq-alert alert alert-warning d-none"></div>
 
   {# Content area — mode dependent #}
   <div class="adept-lesson__content mb-4">
@@ -137,19 +141,28 @@
   {# Mark Complete button (hidden until lesson started, disabled once completed) #}
   <div class="adept-lesson__actions mb-4">
     <button type="button"
-            class="btn btn-outline-primary adept-mark-complete d-none">
+            class="btn btn-primary adept-mark-complete d-none">
       <i class="fa-solid fa-check" aria-hidden="true"></i>
       {{ 'Mark as Complete'|t }}
     </button>
   </div>
 
-  {# Downloads #}
-  {% if content.field_adept_downloads|render|trim %}
+  {# Downloads & Attachments #}
+  {% set has_downloads = content.field_adept_downloads|render|trim %}
+  {% set has_attachments = content.field_adept_attachments|render|trim %}
+  {% if has_downloads or has_attachments %}
     <div class="adept-lesson__downloads mb-4">
       <h2>{{ 'Downloads & Resources'|t }}</h2>
-      <div class="adept-download-link">
-        {{ content.field_adept_downloads }}
-      </div>
+      {% if has_downloads %}
+        <div class="adept-download-link adept-downloads">
+          {{ content.field_adept_downloads }}
+        </div>
+      {% endif %}
+      {% if has_attachments %}
+        <div class="adept-attachments">
+          {{ content.field_adept_attachments }}
+        </div>
+      {% endif %}
     </div>
   {% endif %}
 
@@ -158,16 +171,18 @@
     <nav class="adept-lesson__nav d-flex justify-content-between mt-5 pt-4 border-top"
          aria-label="{{ 'Lesson navigation'|t }}">
       {% if ilas_adept.prev %}
-        <a href="{{ ilas_adept.prev.url }}" class="btn btn-outline-secondary">
+        <a href="{{ ilas_adept.prev.url }}" class="btn adept-nav-btn"
+           aria-label="{{ 'Previous: @title'|t({'@title': ilas_adept.prev.title}) }}">
           <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-          {{ ilas_adept.prev.title }}
+          {{ ilas_adept.prev.short_title }}
         </a>
       {% else %}
         <span></span>
       {% endif %}
       {% if ilas_adept.next %}
-        <a href="{{ ilas_adept.next.url }}" class="btn btn-outline-secondary">
-          {{ ilas_adept.next.title }}
+        <a href="{{ ilas_adept.next.url }}" class="btn adept-nav-btn"
+           aria-label="{{ 'Next: @title'|t({'@title': ilas_adept.next.title}) }}">
+          {{ ilas_adept.next.short_title }}
           <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
         </a>
       {% endif %}

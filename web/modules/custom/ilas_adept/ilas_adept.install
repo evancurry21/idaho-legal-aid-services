@@ -1,0 +1,84 @@
+<?php
+
+/**
+ * @file
+ * Install/update hooks for the ILAS ADEPT module.
+ */
+
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\Core\Entity\Entity\EntityFormDisplay;
+use Drupal\Core\Entity\Entity\EntityViewDisplay;
+
+/**
+ * Add field_adept_attachments (media entity reference) to adept_lesson.
+ */
+function ilas_adept_update_10001() {
+  // 1. Create field storage.
+  if (!FieldStorageConfig::loadByName('node', 'field_adept_attachments')) {
+    FieldStorageConfig::create([
+      'field_name' => 'field_adept_attachments',
+      'entity_type' => 'node',
+      'type' => 'entity_reference',
+      'settings' => [
+        'target_type' => 'media',
+      ],
+      'cardinality' => -1,
+      'translatable' => FALSE,
+    ])->save();
+  }
+
+  // 2. Create field instance on adept_lesson bundle.
+  if (!FieldConfig::loadByName('node', 'adept_lesson', 'field_adept_attachments')) {
+    FieldConfig::create([
+      'field_name' => 'field_adept_attachments',
+      'entity_type' => 'node',
+      'bundle' => 'adept_lesson',
+      'label' => 'Attachments',
+      'description' => 'Upload PDFs and documents via the Media Library.',
+      'required' => FALSE,
+      'settings' => [
+        'handler' => 'default:media',
+        'handler_settings' => [
+          'target_bundles' => [
+            'document' => 'document',
+          ],
+          'sort' => [
+            'field' => '_none',
+          ],
+          'auto_create' => FALSE,
+        ],
+      ],
+    ])->save();
+  }
+
+  // 3. Update form display — media_library_widget, weight 32.
+  $form_display = EntityFormDisplay::load('node.adept_lesson.default');
+  if ($form_display && !$form_display->getComponent('field_adept_attachments')) {
+    $form_display->setComponent('field_adept_attachments', [
+      'type' => 'media_library_widget',
+      'weight' => 32,
+      'region' => 'content',
+      'settings' => [
+        'media_types' => ['document'],
+      ],
+      'third_party_settings' => [],
+    ])->save();
+  }
+
+  // 4. Update view display — entity_reference_entity_view, weight 11.
+  $view_display = EntityViewDisplay::load('node.adept_lesson.default');
+  if ($view_display && !$view_display->getComponent('field_adept_attachments')) {
+    $view_display->setComponent('field_adept_attachments', [
+      'type' => 'entity_reference_entity_view',
+      'label' => 'hidden',
+      'weight' => 11,
+      'region' => 'content',
+      'settings' => [
+        'view_mode' => 'default',
+        'link' => FALSE,
+      ],
+      'third_party_settings' => [],
+    ])->save();
+  }
+}

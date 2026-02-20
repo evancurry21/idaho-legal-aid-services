@@ -180,7 +180,11 @@ class FormFinderTest extends TestCase {
    * Calls the cleanDescription method logic.
    */
   protected function callCleanDescription(string $raw_text, string $title = ''): string {
-    $text = preg_replace('/\s+/', ' ', trim($raw_text));
+    // Decode HTML entities left behind by strip_tags() (e.g. &nbsp; -> U+00A0).
+    $text = html_entity_decode($raw_text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    // Replace non-breaking spaces (U+00A0) with normal spaces.
+    $text = str_replace("\xC2\xA0", ' ', $text);
+    $text = preg_replace('/\s+/', ' ', trim($text));
 
     if (empty($text)) {
       return '';
@@ -233,6 +237,16 @@ class FormFinderTest extends TestCase {
     }
 
     return $text;
+  }
+
+  /**
+   * Tests that HTML entities like &nbsp; are decoded in descriptions.
+   */
+  public function testCleanDescriptionHandlesHtmlEntities(): void {
+    $text = 'Guides about&nbsp;bankruptcy and&nbsp;debt collection.';
+    $result = $this->callCleanDescription($text, 'Test Resource');
+    $this->assertStringNotContainsString('&nbsp;', $result);
+    $this->assertStringContainsString('Guides about bankruptcy', $result);
   }
 
 }

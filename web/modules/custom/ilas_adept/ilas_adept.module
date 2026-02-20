@@ -84,11 +84,13 @@ function ilas_adept_preprocess_node(array &$variables): void {
   $prev = $prev_node ? [
     'url' => $prev_node->toUrl()->toString(),
     'title' => $prev_node->getTitle(),
+    'short_title' => _ilas_adept_short_title($prev_node),
   ] : NULL;
 
   $next = $next_node ? [
     'url' => $next_node->toUrl()->toString(),
     'title' => $next_node->getTitle(),
+    'short_title' => _ilas_adept_short_title($next_node),
   ] : NULL;
 
   $module_landing_path = "/education/adept/module-{$module_id}";
@@ -106,6 +108,25 @@ function ilas_adept_preprocess_node(array &$variables): void {
     'next' => $next,
   ];
 
+  // Prereq data for soft gating.
+  $prereqs = [];
+  if (!$node->get('field_adept_prereq')->isEmpty()) {
+    $prereq_node = $node->get('field_adept_prereq')->entity;
+    if ($prereq_node instanceof NodeInterface && $prereq_node->isPublished()) {
+      $prereq_module_id = $prereq_node->get('field_adept_module')->value;
+      $prereq_lesson_id = $prereq_node->get('field_adept_lesson_number')->value;
+      if ($prereq_module_id !== NULL && $prereq_lesson_id !== NULL) {
+        $prereqs[] = [
+          'module_id' => (int) $prereq_module_id,
+          'lesson_id' => (int) $prereq_lesson_id,
+          'title' => $prereq_node->label(),
+          'url' => $prereq_node->toUrl()->toString(),
+        ];
+      }
+      $variables['#cache']['tags'][] = 'node:' . $prereq_node->id();
+    }
+  }
+
   // drupalSettings for GA4 tracking JS.
   $variables['#attached']['drupalSettings']['ilasAdept']['currentLesson'] = [
     'module_id' => $module_id,
@@ -114,6 +135,7 @@ function ilas_adept_preprocess_node(array &$variables): void {
     'mode' => $mode,
     'external_url' => $external_url,
     'effective_url' => $effective_url,
+    'prereqs' => $prereqs,
   ];
 
   // Cache metadata: invalidate when any node is created/deleted,
@@ -169,6 +191,26 @@ function _ilas_adept_load_adjacent_lesson(int $module_id, int $lesson_id, int $d
   }
 
   return \Drupal::entityTypeManager()->getStorage('node')->load(reset($nids));
+}
+
+/**
+ * Returns a short display title for prev/next navigation buttons.
+ *
+ * Uses the lesson number field to produce compact labels like "Introduction"
+ * or "Lesson 2" instead of the full node title.
+ *
+ * @param \Drupal\node\NodeInterface $node
+ *   An adept_lesson node.
+ *
+ * @return \Drupal\Core\StringTranslation\TranslatableMarkup
+ *   A translatable short title.
+ */
+function _ilas_adept_short_title(NodeInterface $node): \Drupal\Core\StringTranslation\TranslatableMarkup {
+  $lesson_id = (int) ($node->get('field_adept_lesson_number')->value ?? 0);
+  if ($lesson_id === 0) {
+    return t('Introduction');
+  }
+  return t('Lesson @num', ['@num' => $lesson_id]);
 }
 
 /**

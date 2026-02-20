@@ -170,14 +170,73 @@
       var lessonTitle = settings.lesson_title;
       var mode = settings.mode;
       var effectiveUrl = settings.effective_url;
+      var prereqs = settings.prereqs || [];
 
-      // Fire lesson view event.
+      // Fire lesson view event (fires even on gated pages for analytics).
       sendEvent('adept_lesson_view', {
         module_id: moduleId,
         lesson_id: lessonId,
         lesson_title: lessonTitle,
         mode: mode
       });
+
+      // Prerequisite gating: check localStorage for unmet prereqs.
+      if (prereqs.length > 0) {
+        // Test localStorage availability — fail-open if unavailable.
+        var storageAvailable = true;
+        try {
+          var testKey = '__adept_storage_test__';
+          localStorage.setItem(testKey, '1');
+          localStorage.getItem(testKey);
+          localStorage.removeItem(testKey);
+        }
+        catch (e) {
+          storageAvailable = false;
+        }
+
+        if (storageAvailable) {
+          var unmetPrereqs = [];
+          for (var i = 0; i < prereqs.length; i++) {
+            var prereq = prereqs[i];
+            var prereqRecord = getLessonRecord(prereq.module_id, prereq.lesson_id);
+            if (prereqRecord.status !== 'completed') {
+              unmetPrereqs.push(prereq);
+            }
+          }
+
+          if (unmetPrereqs.length > 0) {
+            // Disable start button.
+            var startBtnGate = article.querySelector('.adept-start-lesson');
+            if (startBtnGate) {
+              startBtnGate.disabled = true;
+              startBtnGate.setAttribute('aria-disabled', 'true');
+            }
+
+            // Populate prereq alert.
+            var alertEl = article.querySelector('.adept-prereq-alert');
+            if (alertEl) {
+              var msg = document.createElement('p');
+              msg.textContent = Drupal.t('Complete the following before starting this lesson:');
+              alertEl.appendChild(msg);
+
+              var list = document.createElement('ul');
+              for (var j = 0; j < unmetPrereqs.length; j++) {
+                var li = document.createElement('li');
+                var link = document.createElement('a');
+                link.href = unmetPrereqs[j].url;
+                link.textContent = unmetPrereqs[j].title;
+                li.appendChild(link);
+                list.appendChild(li);
+              }
+              alertEl.appendChild(list);
+              alertEl.classList.remove('d-none');
+            }
+
+            // Skip Start/Complete/Download wiring — lesson is gated.
+            return;
+          }
+        }
+      }
 
       var completeBtn = article.querySelector('.adept-mark-complete');
       var statusBadge = article.querySelector('.adept-completion-status');
@@ -189,7 +248,7 @@
           completeBtn.disabled = true;
           completeBtn.textContent = Drupal.t('Completed');
           completeBtn.classList.add('btn-success');
-          completeBtn.classList.remove('btn-outline-primary');
+          completeBtn.classList.remove('btn-primary');
         }
         if (statusBadge) {
           statusBadge.classList.remove('d-none');
@@ -307,7 +366,7 @@
           completeBtn.disabled = true;
           completeBtn.textContent = Drupal.t('Completed');
           completeBtn.classList.add('btn-success');
-          completeBtn.classList.remove('btn-outline-primary');
+          completeBtn.classList.remove('btn-primary');
 
           if (statusBadge) {
             statusBadge.classList.remove('d-none');
@@ -319,8 +378,17 @@
         });
       }
 
+      // Force new-tab on media attachment links (file_default has no target attr).
+      var attachmentLinks = article.querySelectorAll('.adept-attachments a');
+      attachmentLinks.forEach(function (link) {
+        if (!link.target) {
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+        }
+      });
+
       // Download link tracking with outbound safety.
-      var downloadLinks = article.querySelectorAll('.adept-download-link a');
+      var downloadLinks = article.querySelectorAll('.adept-download-link a, .adept-attachments a');
       downloadLinks.forEach(function (link) {
         link.addEventListener('click', function (e) {
           var fileLabel = (link.textContent || '').trim().substring(0, 100);
@@ -373,6 +441,35 @@
       var moduleId = settings.module_id;
       var totalLessons = settings.total_lessons;
 
+      // Build progress bar DOM (Views header HTML stripped by check_markup).
+      var wrapper = document.createElement('div');
+      wrapper.className = 'adept-progress-wrapper mb-4';
+
+      var heading = document.createElement('h2');
+      heading.className = 'h5';
+      heading.textContent = Drupal.t('Your Progress');
+      wrapper.appendChild(heading);
+
+      var progressBar = document.createElement('div');
+      progressBar.className = 'adept-progress-bar';
+      progressBar.setAttribute('role', 'progressbar');
+      progressBar.setAttribute('aria-valuemin', '0');
+      progressBar.setAttribute('aria-valuemax', totalLessons);
+      progressBar.setAttribute('aria-valuenow', '0');
+      progressBar.setAttribute('aria-label', Drupal.t('Lesson completion progress'));
+
+      var fill = document.createElement('div');
+      fill.className = 'adept-progress-fill';
+      fill.style.width = '0%';
+      progressBar.appendChild(fill);
+      wrapper.appendChild(progressBar);
+
+      var label = document.createElement('div');
+      label.className = 'adept-progress-label';
+      wrapper.appendChild(label);
+
+      view.insertBefore(wrapper, view.firstChild);
+
       sendEvent('adept_module_view', {
         module_id: moduleId,
         total_lessons: totalLessons
@@ -393,24 +490,12 @@
         }
       });
 
-      // Update progress bar.
-      var progressBar = view.querySelector('.adept-progress-bar');
-      if (progressBar && totalLessons > 0) {
+      // Update progress bar using direct references.
+      if (totalLessons > 0) {
         var percentage = Math.round((completedCount / totalLessons) * 100);
-
-        // ARIA on the progressbar element (count-based, not percentage).
-        progressBar.setAttribute('aria-valuemax', totalLessons);
         progressBar.setAttribute('aria-valuenow', completedCount);
-
-        var fill = progressBar.querySelector('.adept-progress-fill');
-        var label = view.querySelector('.adept-progress-label');
-
-        if (fill) {
-          fill.style.width = percentage + '%';
-        }
-        if (label) {
-          label.textContent = completedCount + ' of ' + totalLessons + ' lessons completed (' + percentage + '%)';
-        }
+        fill.style.width = percentage + '%';
+        label.textContent = completedCount + ' of ' + totalLessons + ' lessons completed (' + percentage + '%)';
       }
     }
   };

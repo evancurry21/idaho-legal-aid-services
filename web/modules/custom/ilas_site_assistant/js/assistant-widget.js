@@ -853,10 +853,6 @@
       var mode = this.classifyResults(results);
       var html = '<div class="faq-results">';
 
-      if (mode === 'ambiguous') {
-        html += '<p class="results-framing">' + Drupal.t('I found a few options that might help:') + '</p>';
-      }
-
       results.forEach(function (faq, index) {
         var isBest = (index === 0 && (mode === 'single_best' || mode === 'best_match'));
         var isSecondary = (!isBest && (mode === 'single_best' || mode === 'best_match'));
@@ -912,10 +908,6 @@
       var self = this;
       var mode = this.classifyResults(results);
       var html = '<ul class="resource-results">';
-
-      if (mode === 'ambiguous') {
-        html = '<p class="results-framing">' + Drupal.t('I found a few options that might help:') + '</p>' + html;
-      }
 
       results.forEach(function (resource, index) {
         var isBest = (index === 0 && (mode === 'single_best' || mode === 'best_match'));
