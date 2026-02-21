@@ -468,7 +468,12 @@
       label.className = 'adept-progress-label';
       wrapper.appendChild(label);
 
-      view.insertBefore(wrapper, view.firstChild);
+      var contentArea = view.querySelector('.adept-module-main-content');
+      if (contentArea) {
+        contentArea.insertBefore(wrapper, contentArea.firstChild);
+      } else {
+        view.insertBefore(wrapper, view.firstChild);
+      }
 
       sendEvent('adept_module_view', {
         module_id: moduleId,
@@ -505,6 +510,81 @@
       });
 
       // Update progress bar using direct references.
+      if (totalLessons > 0) {
+        var percentage = Math.round((completedCount / totalLessons) * 100);
+        progressBar.setAttribute('aria-valuenow', completedCount);
+        fill.style.width = percentage + '%';
+        label.textContent = completedCount + ' of ' + totalLessons + ' lessons completed (' + percentage + '%)';
+      }
+    }
+  };
+
+  // --------------- Behavior: lesson page progress bar ---------------
+
+  /**
+   * Renders a progress bar on individual lesson pages using localStorage data.
+   *
+   * Reads drupalSettings.ilasAdept.currentLesson for module_id and total_lessons,
+   * then counts completed lessons from localStorage keys.
+   */
+  Drupal.behaviors.adeptLessonProgress = {
+    attach: function (context) {
+      var containers = once('adept-lesson-progress', '.adept-lesson-progress', context);
+      if (!containers.length) {
+        return;
+      }
+
+      var settings = (drupalSettings.ilasAdept && drupalSettings.ilasAdept.currentLesson)
+        ? drupalSettings.ilasAdept.currentLesson
+        : null;
+
+      if (!settings || !settings.module_id || !settings.total_lessons) {
+        return;
+      }
+
+      var container = containers[0];
+      var moduleId = settings.module_id;
+      var totalLessons = settings.total_lessons;
+
+      // Build progress bar DOM (same structure as module landing page).
+      var wrapper = document.createElement('div');
+      wrapper.className = 'adept-progress-wrapper mb-4';
+
+      var heading = document.createElement('h2');
+      heading.className = 'h5';
+      heading.textContent = Drupal.t('Your Progress');
+      wrapper.appendChild(heading);
+
+      var progressBar = document.createElement('div');
+      progressBar.className = 'adept-progress-bar';
+      progressBar.setAttribute('role', 'progressbar');
+      progressBar.setAttribute('aria-valuemin', '0');
+      progressBar.setAttribute('aria-valuemax', totalLessons);
+      progressBar.setAttribute('aria-valuenow', '0');
+      progressBar.setAttribute('aria-label', Drupal.t('Lesson completion progress'));
+
+      var fill = document.createElement('div');
+      fill.className = 'adept-progress-fill';
+      fill.style.width = '0%';
+      progressBar.appendChild(fill);
+      wrapper.appendChild(progressBar);
+
+      var label = document.createElement('div');
+      label.className = 'adept-progress-label';
+      wrapper.appendChild(label);
+
+      container.appendChild(wrapper);
+
+      // Count completed lessons by iterating localStorage keys for this module.
+      var completedCount = 0;
+      for (var i = 0; i < totalLessons; i++) {
+        var rec = getLessonRecord(moduleId, i);
+        if (rec.status === 'completed') {
+          completedCount++;
+        }
+      }
+
+      // Update progress bar.
       if (totalLessons > 0) {
         var percentage = Math.round((completedCount / totalLessons) * 100);
         progressBar.setAttribute('aria-valuenow', completedCount);

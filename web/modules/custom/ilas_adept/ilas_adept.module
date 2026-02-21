@@ -127,6 +127,15 @@ function ilas_adept_preprocess_node(array &$variables): void {
     }
   }
 
+  // Count total lessons in this module for progress bar.
+  $total_query = \Drupal::entityQuery('node')
+    ->condition('type', 'adept_lesson')
+    ->condition('status', 1)
+    ->condition('field_adept_module', $module_id)
+    ->accessCheck(FALSE)
+    ->count();
+  $total_lessons = (int) $total_query->execute();
+
   // drupalSettings for GA4 tracking JS.
   $variables['#attached']['drupalSettings']['ilasAdept']['currentLesson'] = [
     'module_id' => $module_id,
@@ -136,6 +145,7 @@ function ilas_adept_preprocess_node(array &$variables): void {
     'external_url' => $external_url,
     'effective_url' => $effective_url,
     'prereqs' => $prereqs,
+    'total_lessons' => $total_lessons,
   ];
 
   // Cache metadata: invalidate when any node is created/deleted,

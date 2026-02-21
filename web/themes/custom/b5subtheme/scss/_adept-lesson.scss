@@ -52,18 +52,18 @@
 }
 
 .adept-badge--time {
-  background-color: $color-gray-bg;
-  color: $color-gray-muted;
-  border: 1px solid $color-gray-border-light;
+  background-color: $color-primary;
+  color: $color-white;
+  border: 1px solid $color-primary;
 
   i {
-    color: $color-gray-text;
+    color: $color-white;
   }
 }
 
 // Lesson card on module landing pages
 .adept-lesson-card {
-  background: $color-white;
+  background: $color-gray-bg;
   border: 1px solid $color-gray-border-light;
   border-radius: $border-radius-lg;
   padding: 1.25rem;

@@ -55,6 +55,9 @@
   data-adept-mode="{{ ilas_adept.mode }}"
   data-adept-title="{{ clean_title|e('html_attr') }}">
 
+  {# Progress bar — populated by JS from localStorage #}
+  <div class="adept-lesson-progress"></div>
+
   {# Breadcrumb navigation #}
   <nav aria-label="{{ 'breadcrumb'|t }}" class="adept-breadcrumb mb-3">
     <h2 id="adept-breadcrumb" class="visually-hidden">{{ 'Breadcrumb'|t }}</h2>

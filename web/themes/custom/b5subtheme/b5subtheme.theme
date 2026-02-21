@@ -223,6 +223,18 @@ function b5subtheme_preprocess_page(array &$variables): void {
       $variables['is_custom_layout'] = TRUE;
     }
 
+    // ADEPT lesson pages: show "Module # - Lesson #" in the curved header.
+    if ($bundle === 'adept_lesson') {
+      $module_num = $node->get('field_adept_module')->value ?? '';
+      $lesson_num = $node->get('field_adept_lesson_number')->value ?? '';
+      if ($lesson_num == 0) {
+        $variables['page_header_title'] = t('Module @mod - Introduction', ['@mod' => $module_num]);
+      }
+      else {
+        $variables['page_header_title'] = t('Module @mod - Lesson @les', ['@mod' => $module_num, '@les' => $lesson_num]);
+      }
+    }
+
     // Events hub page (standard_page NID 124) uses custom layout.
     if ($bundle === 'standard_page' && (int) $node->id() === 124) {
       $variables['is_custom_layout'] = TRUE;

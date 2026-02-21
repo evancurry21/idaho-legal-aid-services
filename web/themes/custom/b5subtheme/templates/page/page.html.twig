@@ -167,7 +167,7 @@
               <span class="d-sm-none">EQUAL ACCESS</span>
             </h1>
           {% else %}
-            <h1 class="curved-page-header-title">{{ node.getTitle() }}</h1>
+            <h1 class="curved-page-header-title">{{ page_header_title|default(node.getTitle()) }}</h1>
           {% endif %}
         </div>
       </section>
@@ -219,7 +219,7 @@
                 <span class="d-sm-none">CAREERS</span>
               </h1>
             {% else %}
-              <h1 class="curved-page-header-title">{{ node.getTitle() }}</h1>
+              <h1 class="curved-page-header-title">{{ page_header_title|default(node.getTitle()) }}</h1>
             {% endif %}
           </div>
         </section>
