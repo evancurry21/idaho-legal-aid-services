@@ -13,7 +13,7 @@ bundle: adept_lesson
 label: Attachments
 description: 'Upload PDFs and documents via the Media Library.'
 required: false
-translatable: true
+translatable: false
 default_value: {  }
 default_value_callback: ''
 settings:

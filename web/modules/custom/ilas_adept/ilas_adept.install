@@ -37,6 +37,7 @@ function ilas_adept_update_10001() {
       'label' => 'Attachments',
       'description' => 'Upload PDFs and documents via the Media Library.',
       'required' => FALSE,
+      'translatable' => FALSE,
       'settings' => [
         'handler' => 'default:media',
         'handler_settings' => [
