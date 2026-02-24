@@ -11,3 +11,31 @@ employment_application.settings:
     retention_days:
       type: integer
       label: 'Data retention period in days (0 = keep forever)'
+    rate_limits:
+      type: mapping
+      label: 'Rate limiting thresholds'
+      mapping:
+        ip_burst_limit:
+          type: integer
+          label: 'Max submissions per IP in burst window'
+        ip_burst_window:
+          type: integer
+          label: 'Burst window in seconds'
+        ip_hour_limit:
+          type: integer
+          label: 'Max submissions per IP in hourly window'
+        ip_hour_window:
+          type: integer
+          label: 'Hourly window in seconds'
+        global_limit:
+          type: integer
+          label: 'Max global submissions in global window'
+        global_window:
+          type: integer
+          label: 'Global window in seconds'
+        unvalidated_ip_limit:
+          type: integer
+          label: 'Max unvalidated requests per IP in unvalidated window'
+        unvalidated_ip_window:
+          type: integer
+          label: 'Unvalidated request window in seconds'

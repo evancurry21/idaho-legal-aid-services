@@ -446,32 +446,66 @@ class EmploymentApplicationController extends ControllerBase {
       $ip = $request->getClientIp();
 
       // =================================================================
-      // RATE LIMITING (Flood Control)
+      // LOAD CONFIGURABLE RATE-LIMIT THRESHOLDS
       // =================================================================
-      if (!$this->flood->isAllowed('employment_app_ip_burst', 5, 60, $ip)) {
-        $this->appLogger->warning('[@cid] Rate limit (burst) exceeded for IP: @ip', [
+      $rateLimits = $this->configFactory->get('employment_application.settings')->get('rate_limits') ?? [];
+      $burstLimit = (int) ($rateLimits['ip_burst_limit'] ?? 5);
+      $burstWindow = (int) ($rateLimits['ip_burst_window'] ?? 60);
+      $hourLimit = (int) ($rateLimits['ip_hour_limit'] ?? 20);
+      $hourWindow = (int) ($rateLimits['ip_hour_window'] ?? 3600);
+      $globalLimit = (int) ($rateLimits['global_limit'] ?? 30);
+      $globalWindow = (int) ($rateLimits['global_window'] ?? 60);
+      $unvalidatedLimit = (int) ($rateLimits['unvalidated_ip_limit'] ?? 10);
+      $unvalidatedWindow = (int) ($rateLimits['unvalidated_ip_window'] ?? 3600);
+
+      // Lightweight header classification for rate-limit log context.
+      $headerClass = $this->classifyRequestHeaders($request);
+
+      // =================================================================
+      // RATE LIMITING — pre-validation (unvalidated request budget)
+      // Only the unvalidated counter is checked + registered here.
+      // Burst/hour/global are checked but NOT registered until after
+      // security validation passes (see below).
+      // =================================================================
+      if (!$this->flood->isAllowed('employment_app_ip_unvalidated', $unvalidatedLimit, $unvalidatedWindow, $ip)) {
+        $this->appLogger->warning('[@cid] Rate limit (unvalidated) exceeded for IP: @ip [@header_class]', [
           '@cid' => $correlationId,
           '@ip' => $ip,
+          '@header_class' => $headerClass,
         ]);
-        return $this->errorResponse('Too many requests. Please wait a moment.', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '60']);
+        return $this->errorResponse('Too many requests. Please try again later.', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => (string) $unvalidatedWindow]);
       }
 
-      if (!$this->flood->isAllowed('employment_app_ip_hour', 20, 3600, $ip)) {
-        $this->appLogger->warning('[@cid] Rate limit (hourly) exceeded for IP: @ip', [
+      if (!$this->flood->isAllowed('employment_app_ip_burst', $burstLimit, $burstWindow, $ip)) {
+        $this->appLogger->warning('[@cid] Rate limit (burst) exceeded for IP: @ip [@header_class]', [
           '@cid' => $correlationId,
           '@ip' => $ip,
+          '@header_class' => $headerClass,
         ]);
-        return $this->errorResponse('Submission limit reached. Please try again later.', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '3600']);
+        return $this->errorResponse('Too many requests. Please wait a moment.', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => (string) $burstWindow]);
       }
 
-      if (!$this->flood->isAllowed('employment_app_global', 30, 60, 'global')) {
-        $this->appLogger->warning('[@cid] Global rate limit exceeded', ['@cid' => $correlationId]);
-        return $this->errorResponse('Service temporarily busy. Please try again shortly.', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => '60']);
+      if (!$this->flood->isAllowed('employment_app_ip_hour', $hourLimit, $hourWindow, $ip)) {
+        $this->appLogger->warning('[@cid] Rate limit (hourly) exceeded for IP: @ip [@header_class]', [
+          '@cid' => $correlationId,
+          '@ip' => $ip,
+          '@header_class' => $headerClass,
+        ]);
+        return $this->errorResponse('Submission limit reached. Please try again later.', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => (string) $hourWindow]);
       }
 
-      $this->flood->register('employment_app_ip_burst', 60, $ip);
-      $this->flood->register('employment_app_ip_hour', 3600, $ip);
-      $this->flood->register('employment_app_global', 60, 'global');
+      if (!$this->flood->isAllowed('employment_app_global', $globalLimit, $globalWindow, 'global')) {
+        $this->appLogger->warning('[@cid] Global rate limit exceeded [@header_class]', [
+          '@cid' => $correlationId,
+          '@header_class' => $headerClass,
+        ]);
+        return $this->errorResponse('Service temporarily busy. Please try again shortly.', Response::HTTP_TOO_MANY_REQUESTS, ['Retry-After' => (string) $globalWindow]);
+      }
+
+      // Register ONLY the unvalidated counter here — bots that fail
+      // CSRF/nonce burn through this budget without touching the
+      // validated counters that legitimate users need.
+      $this->flood->register('employment_app_ip_unvalidated', $unvalidatedWindow, $ip);
 
       // =================================================================
       // CONTENT-TYPE VALIDATION
@@ -610,6 +644,14 @@ class EmploymentApplicationController extends ControllerBase {
         '@ip' => $ip,
         '@type' => $isFormData ? 'FormData' : 'JSON',
       ]);
+
+      // =================================================================
+      // REGISTER VALIDATED FLOOD ENTRIES (post-security-validation)
+      // Only requests that pass CSRF + nonce consume the main budget.
+      // =================================================================
+      $this->flood->register('employment_app_ip_burst', $burstWindow, $ip);
+      $this->flood->register('employment_app_ip_hour', $hourWindow, $ip);
+      $this->flood->register('employment_app_global', $globalWindow, 'global');
 
       // =================================================================
       // JOB + DATA + FILE VALIDATION (per content type)
@@ -841,6 +883,45 @@ class EmploymentApplicationController extends ControllerBase {
       '@has_start_time' => ($formStartTime > 0) ? 'yes' : 'no',
       '@has_fields' => $hasExpectedFields ? 'yes' : 'no',
     ];
+  }
+
+  /**
+   * Lightweight header-only classification for rate-limit log entries.
+   *
+   * Unlike classifySubmissionRequest() which inspects form fields, this
+   * runs before the request body is parsed so it can label early rate-limit
+   * rejections (bot_like / uncertain / likely_browser).
+   */
+  private function classifyRequestHeaders(Request $request): string {
+    $ua = $request->headers->get('User-Agent', '');
+    $referer = $request->headers->get('Referer', '');
+
+    $hasSessionCookie = FALSE;
+    foreach ($request->cookies->keys() as $name) {
+      if (str_starts_with($name, 'SESS') || str_starts_with($name, 'SSESS')) {
+        $hasSessionCookie = TRUE;
+        break;
+      }
+    }
+
+    $signals = 0;
+    if (!empty($referer) && str_contains($referer, '/eapplication')) {
+      $signals++;
+    }
+    if ($hasSessionCookie) {
+      $signals++;
+    }
+    if (!preg_match('/^$|curl|python|wget|scrapy|bot|crawl|spider/i', $ua)) {
+      $signals++;
+    }
+
+    if ($signals >= 2) {
+      return 'likely_browser';
+    }
+    if ($signals >= 1) {
+      return 'uncertain';
+    }
+    return 'bot_like';
   }
 
   /**

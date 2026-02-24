@@ -56,6 +56,7 @@
     this.uploadedFiles = {};
     this.autoSaveTimeout = null;
     this.isSubmitted = false; // Flag to prevent auto-save after submission
+    this.isSubmitting = false; // Flag to prevent double-submit
     this.isPopulating = false; // Flag to prevent auto-save during form population
     this.formTokens = {
       token: '',
@@ -1411,6 +1412,11 @@
 
     // Form submission
     submitForm: function() {
+      // Prevent double-submit.
+      if (this.isSubmitting) {
+        return;
+      }
+
       console.log('Attempting form submission...');
 
       // === FAIL-CLOSED: require valid token + nonce before submitting ===
@@ -1427,6 +1433,13 @@
       }
 
       const self = this;
+
+      // Lock the submit button to prevent duplicate requests.
+      this.isSubmitting = true;
+      var $submitBtn = this.$form.find(CONFIG.SELECTORS.NAV_SUBMIT);
+      var originalBtnHtml = $submitBtn.html();
+      $submitBtn.prop('disabled', true)
+        .html('<i class="fas fa-spinner fa-spin me-2" aria-hidden="true"></i>Submitting...');
 
       // Stop auto-save during submission
       if (this.autoSaveTimeout) {
@@ -1511,7 +1524,9 @@
           // Refresh the page with a success parameter
           window.location.href = window.location.pathname + '?submitted=success';
         } else {
-          // Handle server-side validation errors
+          // Handle server-side validation errors — re-enable submit.
+          self.isSubmitting = false;
+          $submitBtn.prop('disabled', false).html(originalBtnHtml);
           self.showSaveStatus(response.message || 'Submission failed. Please try again.', 'error');
         }
       };
@@ -1519,8 +1534,17 @@
       ajaxConfig.error = function(xhr, status, error) {
         console.error('Submission error:', error);
         let errorMessage = 'Submission failed. Please try again.';
-        
-        if (xhr.responseJSON && xhr.responseJSON.message) {
+
+        // Handle 429 Too Many Requests with Retry-After.
+        if (xhr.status === 429) {
+          var retryAfter = parseInt(xhr.getResponseHeader('Retry-After'), 10);
+          if (retryAfter && retryAfter > 0) {
+            var minutes = Math.ceil(retryAfter / 60);
+            errorMessage = 'Too many submissions. Please wait ' + minutes + ' minute' + (minutes !== 1 ? 's' : '') + ' and try again.';
+          } else {
+            errorMessage = 'Too many submissions. Please wait a few minutes and try again.';
+          }
+        } else if (xhr.responseJSON && xhr.responseJSON.message) {
           errorMessage = xhr.responseJSON.message;
         } else if (xhr.responseText) {
           try {
@@ -1532,10 +1556,14 @@
             // Use default error message
           }
         }
-        
+
         self.showSaveStatus(errorMessage, 'error');
+
+        // Re-enable submit button on error.
+        self.isSubmitting = false;
+        $submitBtn.prop('disabled', false).html(originalBtnHtml);
       };
-      
+
       ajaxConfig.complete = function(xhr, status) {
         console.log('AJAX Complete - Status:', status, 'HTTP Status:', xhr.status);
       };

@@ -178,3 +178,27 @@ function employment_application_update_10002() {
 
   return t('Table employment_application_drafts already exists.');
 }
+
+/**
+ * Populate rate_limits config key for existing installs.
+ */
+function employment_application_update_10003() {
+  $config = \Drupal::configFactory()->getEditable('employment_application.settings');
+
+  if (!empty($config->get('rate_limits'))) {
+    return t('Rate limits config already exists.');
+  }
+
+  $config->set('rate_limits', [
+    'ip_burst_limit' => 5,
+    'ip_burst_window' => 60,
+    'ip_hour_limit' => 20,
+    'ip_hour_window' => 3600,
+    'global_limit' => 30,
+    'global_window' => 60,
+    'unvalidated_ip_limit' => 10,
+    'unvalidated_ip_window' => 3600,
+  ])->save();
+
+  return t('Added rate_limits configuration.');
+}
