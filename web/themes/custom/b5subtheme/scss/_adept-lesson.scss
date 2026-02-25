@@ -2,15 +2,9 @@
 // Interactive autism education curriculum (UC Davis MIND Institute)
 
 .adept-lesson {
-  // Let .container be the width constraint — embed fills full width
-
-  // Keep text content at readable width
-  &__header,
-  &__description,
-  &__actions,
-  &__downloads {
-    max-width: 900px;
-  }
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 
   &__header {
     border-bottom: 2px solid var(--bs-primary);
