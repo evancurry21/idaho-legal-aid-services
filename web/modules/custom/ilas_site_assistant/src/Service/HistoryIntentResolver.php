@@ -156,7 +156,36 @@ class HistoryIntentResolver {
       'confidence' => round($dominance, 2),
       'turns_analyzed' => $total,
       'reason' => 'direct_unknown + dominant_recent_history',
+      'topic_context' => self::extractTopicContext($server_history),
     ];
+  }
+
+  /**
+   * Extracts the most recent topic context from conversation history.
+   *
+   * Walks backward through history to find the most recent entry with an
+   * 'area' field set, returning area/topic_id/topic for follow-up enrichment.
+   *
+   * @param array $server_history
+   *   Array of history entries.
+   *
+   * @return array|null
+   *   Array with 'area', 'topic_id', 'topic' keys, or NULL if none found.
+   */
+  public static function extractTopicContext(array $server_history): ?array {
+    // Walk backward to find the most recent entry with an area.
+    for ($i = count($server_history) - 1; $i >= 0; $i--) {
+      $entry = $server_history[$i];
+      if (!empty($entry['area'])) {
+        return [
+          'area' => $entry['area'],
+          'topic_id' => $entry['topic_id'] ?? NULL,
+          'topic' => $entry['topic'] ?? NULL,
+        ];
+      }
+    }
+
+    return NULL;
   }
 
   /**

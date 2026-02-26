@@ -1,0 +1,609 @@
+# Top Intents Pack — versioned config for Aila chatbot intents.
+#
+# Each intent entry defines:
+#   canonical_key: unique identifier (matches IntentRouter taxonomy)
+#   label: human-readable short label
+#   answer_text: default response text
+#   primary_action: {label, url} main CTA
+#   chips: suggested follow-up actions as {label, intent} pairs
+#   synonyms: supplementary keyword matches for reverse lookup
+#   clarifier: optional {question, options[]} for disambiguation
+#
+# Chips are quick-reply style: clicking sends a message back to the bot.
+# The frontend resolves `intent` to a message string.
+
+version: '1.0'
+
+intents:
+
+  # ─── NAVIGATION INTENTS ──────────────────────────────────────────
+
+  apply_for_help:
+    label: Apply for Help
+    answer_text: Idaho Legal Aid Services offers three ways to apply—choose what works best for you.
+    primary_action:
+      label: Start Online Application
+      url: /apply-for-help
+    chips:
+      - { label: Legal Advice Line, intent: legal_advice_line }
+      - { label: Find an Office, intent: offices_contact }
+      - { label: Check Eligibility, intent: eligibility }
+    synonyms:
+      - apply
+      - get help
+      - free lawyer
+      - need a lawyer
+      - legal assistance
+      - solicitar ayuda
+
+  legal_advice_line:
+    label: Legal Advice Line
+    answer_text: Our Legal Advice Line can help. Here's the information.
+    primary_action:
+      label: Contact Hotline
+      url: /Legal-Advice-Line
+    chips:
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Find an Office, intent: offices_contact }
+    synonyms:
+      - hotline
+      - call
+      - phone number
+      - talk to someone
+      - linea de ayuda
+
+  offices_contact:
+    label: Find an Office
+    answer_text: Find an office near you.
+    primary_action:
+      label: Find Offices
+      url: /contact/offices
+    chips:
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Legal Advice Line, intent: legal_advice_line }
+    synonyms:
+      - office
+      - location
+      - near me
+      - visit
+      - oficina
+
+  donations:
+    label: Donate
+    answer_text: Thank you for considering a donation! Here's how you can help.
+    primary_action:
+      label: Donate
+      url: /donate
+    chips:
+      - { label: Get Involved, intent: feedback }
+      - { label: Our Services, intent: services_overview }
+    synonyms:
+      - donate
+      - give
+      - contribute
+      - donar
+
+  feedback:
+    label: Give Feedback
+    answer_text: We value your feedback.
+    primary_action:
+      label: Give Feedback
+      url: /get-involved/feedback
+    chips:
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Our Services, intent: services_overview }
+    synonyms:
+      - feedback
+      - complaint
+      - suggestion
+      - comentarios
+
+  eligibility:
+    label: Check Eligibility
+    answer_text: ILAS provides free legal help to low-income Idahoans. Eligibility is generally based on income and the type of legal issue.
+    primary_action:
+      label: Apply for Help
+      url: /apply-for-help
+    chips:
+      - { label: Our Services, intent: services_overview }
+      - { label: Legal Advice Line, intent: legal_advice_line }
+    synonyms:
+      - eligible
+      - qualify
+      - income
+      - do I qualify
+      - elegibilidad
+
+  services_overview:
+    label: Our Services
+    answer_text: Idaho Legal Aid Services provides free civil legal help in areas including housing, family law, consumer issues, public benefits, and more.
+    primary_action:
+      label: Our Services
+      url: /services
+    chips:
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Housing, intent: topic_housing }
+      - { label: Family, intent: topic_family }
+      - { label: Consumer, intent: topic_consumer }
+    synonyms:
+      - services
+      - what do you do
+      - what can you help with
+      - servicios
+
+  risk_detector:
+    label: Legal Risk Detector
+    answer_text: Our Legal Risk Detector can help identify potential legal issues you may be facing.
+    primary_action:
+      label: Take the Assessment
+      url: /resources/legal-risk-detector
+    chips:
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Our Services, intent: services_overview }
+    synonyms:
+      - risk detector
+      - assessment
+      - risk assessment
+      - check my risks
+
+  faq:
+    label: FAQs
+    answer_text: I found some FAQs that might help.
+    primary_action:
+      label: Browse FAQs
+      url: /faq
+    chips:
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Find Forms, intent: forms_finder }
+      - { label: Find Guides, intent: guides_finder }
+    synonyms:
+      - faq
+      - frequently asked
+      - common questions
+      - preguntas frecuentes
+
+  forms_finder:
+    label: Find Forms
+    answer_text: Here are some forms that might help.
+    primary_action:
+      label: Find Forms
+      url: /forms
+    chips:
+      - { label: Housing Forms, intent: topic_housing }
+      - { label: Family Forms, intent: topic_family }
+      - { label: Consumer Forms, intent: topic_consumer }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - forms
+      - form
+      - paperwork
+      - court forms
+      - formularios
+
+  guides_finder:
+    label: Find Guides
+    answer_text: Here are some guides that might help.
+    primary_action:
+      label: Find Guides
+      url: /guides
+    chips:
+      - { label: Housing Guides, intent: topic_housing }
+      - { label: Family Guides, intent: topic_family }
+      - { label: Consumer Guides, intent: topic_consumer }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - guides
+      - guide
+      - self-help
+      - step by step
+      - guias
+
+  resources:
+    label: Resources
+    answer_text: Here are some resources that might help.
+    primary_action:
+      label: Browse Resources
+      url: /what-we-do/resources
+    chips:
+      - { label: Find Forms, intent: forms_finder }
+      - { label: Find Guides, intent: guides_finder }
+      - { label: FAQs, intent: faq }
+    synonyms:
+      - resources
+      - materials
+      - recursos
+
+  # ─── SERVICE AREA INTENTS ────────────────────────────────────────
+
+  topic_housing:
+    label: Housing
+    answer_text: Here's our housing legal help page.
+    primary_action:
+      label: Housing Legal Help
+      url: /legal-help/housing
+    chips:
+      - { label: Eviction Help, intent: topic_housing_eviction }
+      - { label: Tenant Rights, intent: topic_housing }
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Call Hotline, intent: legal_advice_line }
+    clarifier:
+      question: What type of housing issue are you dealing with?
+      options:
+        - { label: Eviction or notice to vacate, intent: topic_housing_eviction }
+        - { label: Foreclosure, intent: topic_housing_foreclosure }
+        - { label: Tenant rights or repairs, intent: topic_housing }
+        - { label: Something else, intent: apply_for_help }
+    synonyms:
+      - housing
+      - landlord
+      - tenant
+      - rent
+      - apartment
+      - vivienda
+
+  topic_family:
+    label: Family
+    answer_text: Here's our family legal help page.
+    primary_action:
+      label: Family Legal Help
+      url: /legal-help/family
+    chips:
+      - { label: Divorce, intent: topic_family_divorce }
+      - { label: Custody, intent: topic_family_custody }
+      - { label: Child Support, intent: topic_family }
+      - { label: Protection Orders, intent: topic_family }
+    clarifier:
+      question: What type of family law issue are you dealing with?
+      options:
+        - { label: Custody or parenting time, intent: topic_family_custody }
+        - { label: Divorce or separation, intent: topic_family_divorce }
+        - { label: Child support, intent: topic_family_child_support }
+        - { label: Protection order, intent: topic_family_protection_order }
+    synonyms:
+      - family
+      - familia
+
+  topic_seniors:
+    label: Seniors
+    answer_text: Here's our seniors legal help page.
+    primary_action:
+      label: Seniors Legal Help
+      url: /legal-help/seniors
+    chips:
+      - { label: Guardianship, intent: topic_seniors }
+      - { label: Estate Planning, intent: topic_seniors }
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Risk Detector, intent: risk_detector }
+    synonyms:
+      - seniors
+      - elderly
+      - elder
+      - nursing home
+      - personas mayores
+
+  topic_health:
+    label: Health & Benefits
+    answer_text: Here's our health legal help page.
+    primary_action:
+      label: Health Legal Help
+      url: /legal-help/health
+    chips:
+      - { label: Medicaid, intent: topic_health }
+      - { label: Disability Benefits, intent: topic_health }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - health
+      - medicaid
+      - benefits
+      - disability
+      - salud
+
+  topic_consumer:
+    label: Consumer
+    answer_text: Here's our consumer legal help page.
+    primary_action:
+      label: Consumer Legal Help
+      url: /legal-help/consumer
+    chips:
+      - { label: Debt Collection, intent: topic_consumer_debt_collection }
+      - { label: Bankruptcy, intent: topic_consumer_bankruptcy }
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Call Hotline, intent: legal_advice_line }
+    clarifier:
+      question: What type of consumer issue are you dealing with?
+      options:
+        - { label: Debt collection or garnishment, intent: topic_consumer_debt_collection }
+        - { label: Bankruptcy, intent: topic_consumer_bankruptcy }
+        - { label: Scam or fraud, intent: topic_consumer }
+        - { label: Something else, intent: apply_for_help }
+    synonyms:
+      - consumer
+      - debt
+      - scam
+      - fraud
+      - consumidor
+
+  topic_civil_rights:
+    label: Civil Rights
+    answer_text: Here's our civil rights legal help page.
+    primary_action:
+      label: Civil Rights Legal Help
+      url: /legal-help/civil-rights
+    chips:
+      - { label: Discrimination, intent: topic_civil_rights }
+      - { label: Employment Rights, intent: topic_employment }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - civil rights
+      - discrimination
+      - derechos civiles
+
+  topic_employment:
+    label: Employment
+    answer_text: Here's information about employment rights.
+    primary_action:
+      label: Civil Rights Legal Help
+      url: /legal-help/civil-rights
+    chips:
+      - { label: Wrongful Termination, intent: topic_employment }
+      - { label: Unpaid Wages, intent: topic_employment }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - employment
+      - fired
+      - wages
+      - empleo
+
+  # ─── SUB-TOPIC INTENTS ──────────────────────────────────────────
+
+  topic_family_custody:
+    label: Custody
+    answer_text: Information about custody and parenting time in Idaho.
+    primary_action:
+      label: Family Legal Help
+      url: /legal-help/family
+    chips:
+      - { label: Divorce, intent: topic_family_divorce }
+      - { label: Child Support, intent: topic_family }
+      - { label: Protection Orders, intent: topic_family }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - custody
+      - parenting time
+      - visitation
+      - child custody
+      - custodia
+
+  topic_family_divorce:
+    label: Divorce
+    answer_text: Information about divorce in Idaho.
+    primary_action:
+      label: Family Legal Help
+      url: /legal-help/family
+    chips:
+      - { label: Custody, intent: topic_family_custody }
+      - { label: Child Support, intent: topic_family }
+      - { label: Find Divorce Forms, intent: forms_finder }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - divorce
+      - separation
+      - divorcio
+
+  topic_housing_eviction:
+    label: Eviction
+    answer_text: Information about eviction defense in Idaho.
+    primary_action:
+      label: Housing Legal Help
+      url: /legal-help/housing
+    chips:
+      - { label: Tenant Rights Guide, intent: guides_finder }
+      - { label: Eviction Forms, intent: forms_finder }
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Call Hotline, intent: legal_advice_line }
+    synonyms:
+      - eviction
+      - evicted
+      - kicked out
+      - desalojo
+
+  topic_consumer_debt_collection:
+    label: Debt Collection
+    answer_text: Information about debt collection rights in Idaho.
+    primary_action:
+      label: Consumer Legal Help
+      url: /legal-help/consumer
+    chips:
+      - { label: Bankruptcy, intent: topic_consumer_bankruptcy }
+      - { label: Garnishment, intent: topic_consumer }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - debt collection
+      - collector
+      - collection agency
+      - cobro de deudas
+
+  topic_consumer_bankruptcy:
+    label: Bankruptcy
+    answer_text: Information about bankruptcy options in Idaho.
+    primary_action:
+      label: Consumer Legal Help
+      url: /legal-help/consumer
+    chips:
+      - { label: Debt Collection, intent: topic_consumer_debt_collection }
+      - { label: Consumer Help, intent: topic_consumer }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - bankruptcy
+      - chapter 7
+      - chapter 13
+      - bancarrota
+
+  topic_family_child_support:
+    label: Child Support
+    answer_text: Information about child support in Idaho.
+    primary_action:
+      label: Family Legal Help
+      url: /legal-help/family
+    chips:
+      - { label: Custody, intent: topic_family_custody }
+      - { label: Divorce, intent: topic_family_divorce }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - child support
+      - support payments
+      - manutencion
+
+  topic_family_protection_order:
+    label: Protection Orders
+    answer_text: Information about protection orders in Idaho.
+    primary_action:
+      label: Family Legal Help
+      url: /legal-help/family
+    chips:
+      - { label: Family Help, intent: topic_family }
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Call Hotline, intent: legal_advice_line }
+    synonyms:
+      - protection order
+      - restraining order
+      - orden de proteccion
+
+  topic_housing_foreclosure:
+    label: Foreclosure
+    answer_text: Information about foreclosure defense in Idaho.
+    primary_action:
+      label: Housing Legal Help
+      url: /legal-help/housing
+    chips:
+      - { label: Housing Help, intent: topic_housing }
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Call Hotline, intent: legal_advice_line }
+    synonyms:
+      - foreclosure
+      - losing my house
+      - ejecucion hipotecaria
+
+  # ─── INVENTORY INTENTS ──────────────────────────────────────────
+
+  forms_inventory:
+    label: Browse All Forms
+    answer_text: We have forms and resources organized by legal topic. Choose a category.
+    primary_action:
+      label: Browse All Forms
+      url: /forms
+    chips:
+      - { label: Housing Forms, intent: topic_housing }
+      - { label: Family Forms, intent: topic_family }
+      - { label: Consumer Forms, intent: topic_consumer }
+      - { label: Seniors Forms, intent: topic_seniors }
+    synonyms:
+      - what forms
+      - list forms
+      - all forms
+      - show forms
+      - que formularios
+
+  guides_inventory:
+    label: Browse All Guides
+    answer_text: We have self-help guides organized by legal topic. Choose a category.
+    primary_action:
+      label: Browse All Guides
+      url: /guides
+    chips:
+      - { label: Housing Guides, intent: topic_housing }
+      - { label: Family Guides, intent: topic_family }
+      - { label: Consumer Guides, intent: topic_consumer }
+      - { label: Seniors Guides, intent: topic_seniors }
+    synonyms:
+      - what guides
+      - list guides
+      - all guides
+      - show guides
+      - que guias
+
+  services_inventory:
+    label: Our Services
+    answer_text: Idaho Legal Aid Services provides free civil legal help in these areas.
+    primary_action:
+      label: Apply for Help
+      url: /apply-for-help
+    chips:
+      - { label: Housing, intent: topic_housing }
+      - { label: Family, intent: topic_family }
+      - { label: Consumer, intent: topic_consumer }
+      - { label: Seniors, intent: topic_seniors }
+    synonyms:
+      - what services
+      - list services
+      - all services
+      - what do you help with
+      - que servicios
+
+  # ─── META INTENTS ───────────────────────────────────────────────
+
+  meta_help:
+    label: Help
+    answer_text: I can help you find legal information, forms, guides, and connect you with Idaho Legal Aid Services.
+    primary_action:
+      label: Our Services
+      url: /services
+    chips:
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Find Forms, intent: forms_finder }
+      - { label: Find Guides, intent: guides_finder }
+      - { label: FAQs, intent: faq }
+    synonyms:
+      - help
+      - help me
+      - what can you do
+      - ayuda
+
+  meta_contact:
+    label: Contact
+    answer_text: Here are ways to reach Idaho Legal Aid Services.
+    primary_action:
+      label: Find Offices
+      url: /contact/offices
+    chips:
+      - { label: Legal Advice Line, intent: legal_advice_line }
+      - { label: Apply for Help, intent: apply_for_help }
+    synonyms:
+      - contact
+      - reach you
+      - phone
+      - email
+      - contacto
+
+  meta_what_do_you_do:
+    label: About Us
+    answer_text: Idaho Legal Aid Services provides free civil legal help to low-income Idahoans in areas like housing, family law, consumer rights, and more.
+    primary_action:
+      label: Our Services
+      url: /services
+    chips:
+      - { label: Apply for Help, intent: apply_for_help }
+      - { label: Check Eligibility, intent: eligibility }
+      - { label: Find an Office, intent: offices_contact }
+    synonyms:
+      - what do you do
+      - who are you
+      - about
+      - que hacen
+
+  meta_information:
+    label: Information
+    answer_text: I can help you find legal information. What topic are you interested in?
+    primary_action:
+      label: Our Services
+      url: /services
+    chips:
+      - { label: Housing, intent: topic_housing }
+      - { label: Family, intent: topic_family }
+      - { label: Consumer, intent: topic_consumer }
+      - { label: FAQs, intent: faq }
+    synonyms:
+      - information
+      - info
+      - learn
+      - informacion

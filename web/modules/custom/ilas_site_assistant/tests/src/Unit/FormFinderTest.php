@@ -91,6 +91,9 @@ class FormFinderTest extends TestCase {
       ['download a form'],
       ['show me forms'],
       ['Find a Form'],
+      ['what forms do you have'],
+      ['show me all your forms'],
+      ['do you have any forms'],
     ];
   }
 
@@ -151,7 +154,7 @@ class FormFinderTest extends TestCase {
     $lower = strtolower(trim($query));
 
     $noise_patterns = [
-      '/^(find|get|need|download|where|show)\s*(me\s*)?(a|the|is|are|some|any)?\s*/i',
+      '/^(find|get|need|download|where|show|read|browse)\s*(me\s*)?(\b(a|the|is|are|some|any|all)\b\s*)?/i',
       '/\b(form|forms|froms|formulario|formularios|paperwork|papers|documents?|court\s*papers?)\b/i',
       '/\b(for|to|about|on|regarding)\b/i',
       '/\b(legal|court|i\s*need|looking\s*for|where\s*can\s*i)\b/i',
@@ -164,7 +167,15 @@ class FormFinderTest extends TestCase {
     }
     $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
 
-    $stop_words = ['a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'for', 'on', 'with', 'is', 'are', 'i', 'me', 'my', 'can', 'do', 'how', 'what', 'where', 'please', 'find', 'get', 'need', 'show', 'download', 'looking', 'browse', 'read'];
+    $stop_words = [
+      'a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'for', 'on', 'with',
+      'is', 'are', 'i', 'me', 'my', 'can', 'do', 'how', 'what', 'where',
+      'please', 'find', 'get', 'need', 'show', 'download', 'looking', 'browse', 'read',
+      'you', 'your', 'have', 'has', 'had', 'does', 'did', 'they', 'them',
+      'their', 'we', 'our', 'it', 'its', 'that', 'this', 'those', 'these',
+      'there', 'which', 'been', 'be', 'about', 'any', 'all', 'some', 'also',
+      'just', 'give', 'us', 'would', 'will', 'should', 'could',
+    ];
     $words = array_filter(explode(' ', $cleaned), function ($w) use ($stop_words) {
       return strlen($w) >= 2 && !in_array($w, $stop_words);
     });

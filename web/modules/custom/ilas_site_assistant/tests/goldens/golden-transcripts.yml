@@ -1,0 +1,173 @@
+# Golden Transcripts — Aila Conversation Kernel Validation
+#
+# Each transcript defines a multi-turn conversation with expected outcomes.
+# GoldenTranscriptTest replays each turn through TurnClassifier +
+# HistoryIntentResolver + TopIntentsPack and validates turn_type, intent,
+# and chip presence.
+#
+# Fields per turn:
+#   message: user input
+#   expected_turn_type: NEW | FOLLOW_UP | INVENTORY | RESET
+#   expected_intent: intent key (or ~ for no assertion)
+#   expected_chips_present: boolean — should chips/suggestions exist
+#   notes: optional human context
+
+version: '1.0'
+
+transcripts:
+
+  # 1. Happy path: custody advice → family context
+  - id: happy_path_custody
+    label: "Happy path: custody advice"
+    turns:
+      - message: "I need help with custody"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: true
+        notes: "First turn — TurnClassifier sees NEW, pack has topic_family_custody chips"
+
+      - message: "tell me more about that"
+        expected_turn_type: FOLLOW_UP
+        expected_intent: ~
+        expected_chips_present: false
+        notes: "Anaphoric follow-up detected"
+
+  # 2. Follow-up: enrichment carries context
+  - id: follow_up_enrichment
+    label: "Follow-up with history enrichment"
+    turns:
+      - message: "I'm being evicted"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: true
+        notes: "Housing/eviction topic detected"
+
+      - message: "what are my rights"
+        expected_turn_type: FOLLOW_UP
+        expected_intent: ~
+        expected_chips_present: false
+        notes: "Short follow-up with recent history"
+
+  # 3. Forms inventory → catalog mode with chips
+  - id: forms_inventory
+    label: "Forms inventory catalog"
+    turns:
+      - message: "what forms do you have"
+        expected_turn_type: INVENTORY
+        expected_intent: forms_inventory
+        expected_chips_present: true
+        notes: "Catalog request → forms_inventory with chips"
+
+  # 4. Clarifier flow → broad area → clarifier → sub-topic
+  - id: clarifier_flow
+    label: "Clarifier disambiguation flow"
+    turns:
+      - message: "family"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: true
+        notes: "Broad area — should get family clarifier options"
+
+      - message: "custody"
+        expected_turn_type: FOLLOW_UP
+        expected_intent: ~
+        expected_chips_present: true
+        notes: "Sub-topic narrowing after clarifier"
+
+  # 5. Safety escalation → DV resources
+  - id: safety_escalation
+    label: "Safety escalation for DV"
+    turns:
+      - message: "my husband is threatening me"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: false
+        notes: "DV safety keywords — should trigger safety routing (tested at controller level)"
+
+  # 6. Reset signal → topic switch
+  - id: reset_signal
+    label: "Topic reset signal"
+    turns:
+      - message: "I need help with housing"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: true
+        notes: "Initial housing topic"
+
+      - message: "new question about custody"
+        expected_turn_type: RESET
+        expected_intent: ~
+        expected_chips_present: false
+        notes: "Reset signal detected — topic switches"
+
+  # 7. Dead-end prevention: obscure query → fallback levels
+  - id: dead_end_prevention
+    label: "Dead-end prevention fallback escalation"
+    turns:
+      - message: "what about the thing with the judge"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: false
+        notes: "Vague query — Level 1 fallback"
+
+      - message: "no that's not it either"
+        expected_turn_type: FOLLOW_UP
+        expected_intent: ~
+        expected_chips_present: false
+        notes: "Continued vagueness — history shows pattern"
+
+  # 8. Spanish variant → correct routing
+  - id: spanish_routing
+    label: "Spanish language routing"
+    turns:
+      - message: "necesito ayuda con custodia"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: true
+        notes: "Spanish custody query — synonym matching should find topic_family_custody"
+
+  # 9. Guides inventory variant
+  - id: guides_inventory
+    label: "Guides inventory catalog"
+    turns:
+      - message: "show me all the guides"
+        expected_turn_type: INVENTORY
+        expected_intent: guides_inventory
+        expected_chips_present: true
+        notes: "Guides catalog request"
+
+  # 10. Services overview inventory
+  - id: services_inventory
+    label: "Services inventory"
+    turns:
+      - message: "what services do you offer"
+        expected_turn_type: INVENTORY
+        expected_intent: services_inventory
+        expected_chips_present: true
+        notes: "Services catalog request"
+
+  # 11. Consumer debt → sub-topic with chips
+  - id: consumer_debt
+    label: "Consumer debt collection"
+    turns:
+      - message: "debt collection"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: true
+        notes: "Consumer sub-topic — pack has debt collection chips"
+
+  # 12. Multi-turn: housing → forms → follow-up
+  - id: multi_turn_housing_forms
+    label: "Multi-turn housing to forms"
+    turns:
+      - message: "I have a housing problem"
+        expected_turn_type: NEW
+        expected_intent: ~
+        expected_chips_present: true
+        notes: "Housing topic entry"
+
+      - message: "what forms do you have"
+        expected_turn_type: INVENTORY
+        expected_intent: forms_inventory
+        expected_chips_present: true
+        notes: "Switches to forms inventory mid-conversation"

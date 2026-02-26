@@ -38,13 +38,23 @@ class ResponseBuilder {
   protected $canonicalUrls;
 
   /**
+   * Optional Top Intents Pack for sub-topic responses.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\TopIntentsPack|null
+   */
+  protected $topIntentsPack;
+
+  /**
    * Constructs a ResponseBuilder.
    *
    * @param array $canonical_urls
    *   Canonical URL map (from ilas_site_assistant_get_canonical_urls() or config).
+   * @param \Drupal\ilas_site_assistant\Service\TopIntentsPack|null $top_intents_pack
+   *   Optional Top Intents Pack for sub-topic fallback responses.
    */
-  public function __construct(array $canonical_urls = []) {
+  public function __construct(array $canonical_urls = [], ?TopIntentsPack $top_intents_pack = NULL) {
     $this->canonicalUrls = $canonical_urls ?: self::getDefaultCanonicalUrls();
+    $this->topIntentsPack = $top_intents_pack;
   }
 
   /**
@@ -93,6 +103,9 @@ class ResponseBuilder {
       'offices_contact' => 'offices',
       'donations' => 'donate',
       'forms_finder' => 'forms',
+      'forms_inventory' => 'forms_inventory',
+      'guides_inventory' => 'guides_inventory',
+      'services_inventory' => 'services_inventory',
       'guides_finder' => 'guides',
       'services_overview' => 'services',
     ];
@@ -215,6 +228,40 @@ class ResponseBuilder {
         ];
         $response['answer_text'] = 'We value your feedback:';
         $response['reason_code'] = 'direct_navigation_feedback';
+        break;
+
+      case 'forms_inventory':
+        $response['response_mode'] = self::MODE_NAVIGATE;
+        $response['type'] = 'forms_inventory';
+        $response['primary_action'] = [
+          'label' => 'Browse All Forms',
+          'url' => $this->canonicalUrls['forms'],
+        ];
+        $response['answer_text'] = 'We have forms and resources organized by legal topic. Choose a category:';
+        $response['reason_code'] = 'forms_inventory';
+        break;
+
+      case 'guides_inventory':
+        $response['response_mode'] = self::MODE_NAVIGATE;
+        $response['type'] = 'guides_inventory';
+        $response['primary_action'] = [
+          'label' => 'Browse All Guides',
+          'url' => $this->canonicalUrls['guides'],
+        ];
+        $response['answer_text'] = 'We have self-help guides organized by legal topic. Choose a category:';
+        $response['reason_code'] = 'guides_inventory';
+        break;
+
+      case 'services_inventory':
+        $response['response_mode'] = self::MODE_NAVIGATE;
+        $response['type'] = 'services_inventory';
+        $response['primary_action'] = [
+          'label' => 'Apply for Help',
+          'url' => $this->canonicalUrls['apply'],
+        ];
+        $response['secondary_actions'] = $this->buildServiceAreaActions();
+        $response['answer_text'] = 'Idaho Legal Aid Services provides free civil legal help in these areas:';
+        $response['reason_code'] = 'services_inventory';
         break;
 
       case 'forms':
@@ -466,6 +513,21 @@ class ResponseBuilder {
         break;
 
       default:
+        // Before generic fallback, check TopIntentsPack for sub-topic data.
+        if ($this->topIntentsPack) {
+          $pack_entry = $this->topIntentsPack->lookup($original_intent);
+          if ($pack_entry) {
+            $response['response_mode'] = self::MODE_TOPIC;
+            $response['type'] = 'topic';
+            $response['answer_text'] = $pack_entry['answer_text'] ?? '';
+            $response['reason_code'] = 'intent_pack_' . $original_intent;
+            if (!empty($pack_entry['primary_action'])) {
+              $response['primary_action'] = $pack_entry['primary_action'];
+            }
+            break;
+          }
+        }
+
         // Unknown / fallback.
         $response['response_mode'] = self::MODE_FALLBACK;
         $response['type'] = 'fallback';
@@ -579,6 +641,9 @@ class ResponseBuilder {
       'feedback' => 'feedback',
       'forms' => 'forms',
       'forms_finder' => 'forms',
+      'forms_inventory' => 'forms',
+      'guides_inventory' => 'guides',
+      'services_inventory' => 'apply',
       'guides' => 'guides',
       'guides_finder' => 'guides',
       'services' => 'services',

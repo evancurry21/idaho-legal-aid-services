@@ -66,6 +66,13 @@ class IntentRouter {
   protected $disambiguator;
 
   /**
+   * The top intents pack service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\TopIntentsPack|null
+   */
+  protected $topIntentsPack;
+
+  /**
    * Intent patterns.
    *
    * @var array
@@ -89,13 +96,14 @@ class IntentRouter {
   /**
    * Constructs an IntentRouter object.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, TopicResolver $topic_resolver, KeywordExtractor $keyword_extractor, TopicRouter $topic_router = NULL, NavigationIntent $navigation_intent = NULL, Disambiguator $disambiguator = NULL) {
+  public function __construct(ConfigFactoryInterface $config_factory, TopicResolver $topic_resolver, KeywordExtractor $keyword_extractor, TopicRouter $topic_router = NULL, NavigationIntent $navigation_intent = NULL, Disambiguator $disambiguator = NULL, TopIntentsPack $top_intents_pack = NULL) {
     $this->configFactory = $config_factory;
     $this->topicResolver = $topic_resolver;
     $this->keywordExtractor = $keyword_extractor;
     $this->topicRouter = $topic_router;
     $this->navigationIntent = $navigation_intent;
     $this->disambiguator = $disambiguator;
+    $this->topIntentsPack = $top_intents_pack;
     $this->initializePatterns();
     $this->initializeUrgentSafetyTriggers();
     $this->initializeDisambiguationRules();
@@ -260,6 +268,20 @@ class IntentRouter {
         ],
         'keywords' => ['faq', 'question', 'questions', 'frequently_asked', 'preguntas'],
         'weight' => 0.75,
+      ],
+
+      // Forms inventory intent — catalog/browse requests (no specific topic).
+      'forms_inventory' => [
+        'patterns' => [
+          '/\bwhat\s*(forms?|documents?|paperwork)\s*(do\s*you|does?\s*\w+)\s*(have|offer|provide)/i',
+          '/\b(list|show|browse)\s*(all\s*)?(your\s*)?(forms?|documents?|resources?)/i',
+          '/\b(all|available|your)\s*(forms?|documents?)\b/i',
+          '/\bforms?\s*you\s*(have|offer|provide)\b/i',
+          '/\bforms?\s*(catalog|catalogue|list|inventory|categories)\b/i',
+          '/\bdo\s*you\s*have\s*(any\s*)?(forms?|documents?|paperwork)/i',
+        ],
+        'keywords' => ['all_forms', 'list_forms', 'available_forms'],
+        'weight' => 0.90,
       ],
 
       // Forms finder intent.
@@ -991,6 +1013,23 @@ class IntentRouter {
       ];
     }
 
+    // Step 11b: TopIntentsPack synonym fallback — catches sub-topic intents
+    // like "custody", "eviction", "debt collection" that have no regex
+    // patterns but do have synonyms in the pack.
+    if ($this->topIntentsPack && mb_strlen(trim($message)) >= 4) {
+      $pack_match = $this->topIntentsPack->matchSynonyms(mb_strtolower(trim($message)));
+      if ($pack_match) {
+        $pack_entry = $this->topIntentsPack->lookup($pack_match);
+        return [
+          'type' => $pack_match,
+          'confidence' => 0.60,
+          'source' => 'top_intents_pack',
+          'pack_entry' => $pack_entry,
+          'extraction' => $extraction,
+        ];
+      }
+    }
+
     // Step 12: Default: unknown intent (triggers fallback).
     return [
       'type' => 'unknown',
@@ -1105,6 +1144,7 @@ class IntentRouter {
       'donations',
       'feedback',
       'faq',
+      'forms_inventory',
       'forms_finder',
       'guides_finder',
       'resources',

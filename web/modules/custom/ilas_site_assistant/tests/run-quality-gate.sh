@@ -61,6 +61,29 @@ echo ""
 echo "PASS: PHPUnit unit tests passed"
 echo ""
 
+# ── Phase 1b: Golden Transcript tests ─────────────────────────────
+echo "--- Phase 1b: Golden Transcript tests ---"
+
+GOLDEN_EXIT=0
+"$PHPUNIT_BIN" \
+  --no-configuration \
+  --bootstrap "$REPO_ROOT/vendor/autoload.php" \
+  --group ilas_site_assistant \
+  --filter GoldenTranscriptTest \
+  --colors=always \
+  "$MODULE_DIR/tests/src/Unit/GoldenTranscriptTest.php" \
+  || GOLDEN_EXIT=$?
+
+if [ "$GOLDEN_EXIT" -ne 0 ]; then
+  echo ""
+  echo "FAIL: Golden transcript tests failed (exit code $GOLDEN_EXIT)"
+  exit 1
+fi
+
+echo ""
+echo "PASS: Golden transcript tests passed"
+echo ""
+
 # ── Phase 2: Promptfoo abuse evals (optional) ───────────────────────
 if [[ "${1:-}" == "--with-promptfoo" ]]; then
   echo "--- Phase 2: Promptfoo abuse evals ---"

@@ -11,12 +11,15 @@ use Drupal\ilas_site_assistant\Service\PolicyFilter;
 use Drupal\ilas_site_assistant\Service\AnalyticsLogger;
 use Drupal\ilas_site_assistant\Service\LlmEnhancer;
 use Drupal\ilas_site_assistant\Service\FallbackGate;
+use Drupal\ilas_site_assistant\Service\FallbackTreeEvaluator;
 use Drupal\ilas_site_assistant\Service\ResponseGrounder;
 use Drupal\ilas_site_assistant\Service\SafetyClassifier;
 use Drupal\ilas_site_assistant\Service\InputNormalizer;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
 use Drupal\ilas_site_assistant\Service\HistoryIntentResolver;
 use Drupal\ilas_site_assistant\Service\ResponseBuilder;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\TurnClassifier;
 use Drupal\ilas_site_assistant\Service\OfficeLocationResolver;
 use Drupal\ilas_site_assistant\Service\SafetyResponseTemplates;
 use Drupal\ilas_site_assistant\Service\OutOfScopeClassifier;
@@ -176,6 +179,13 @@ class AssistantApiController extends ControllerBase {
   protected $langfuseTracer;
 
   /**
+   * The Top Intents Pack service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\TopIntentsPack|null
+   */
+  protected $topIntentsPack;
+
+  /**
    * The flood service for rate limiting.
    *
    * @var \Drupal\Core\Flood\FloodInterface
@@ -220,7 +230,8 @@ class AssistantApiController extends ControllerBase {
     ConversationLogger $conversation_logger = NULL,
     AbTestingService $ab_testing = NULL,
     SafetyViolationTracker $violation_tracker = NULL,
-    LangfuseTracer $langfuse_tracer = NULL
+    LangfuseTracer $langfuse_tracer = NULL,
+    TopIntentsPack $top_intents_pack = NULL
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -243,6 +254,7 @@ class AssistantApiController extends ControllerBase {
     $this->abTesting = $ab_testing;
     $this->violationTracker = $violation_tracker;
     $this->langfuseTracer = $langfuse_tracer;
+    $this->topIntentsPack = $top_intents_pack;
   }
 
   /**
@@ -270,7 +282,8 @@ class AssistantApiController extends ControllerBase {
       $container->has('ilas_site_assistant.conversation_logger') ? $container->get('ilas_site_assistant.conversation_logger') : NULL,
       $container->has('ilas_site_assistant.ab_testing') ? $container->get('ilas_site_assistant.ab_testing') : NULL,
       $container->has('ilas_site_assistant.safety_violation_tracker') ? $container->get('ilas_site_assistant.safety_violation_tracker') : NULL,
-      $container->has('ilas_site_assistant.langfuse_tracer') ? $container->get('ilas_site_assistant.langfuse_tracer') : NULL
+      $container->has('ilas_site_assistant.langfuse_tracer') ? $container->get('ilas_site_assistant.langfuse_tracer') : NULL,
+      $container->has('ilas_site_assistant.top_intents_pack') ? $container->get('ilas_site_assistant.top_intents_pack') : NULL
     );
   }
 
@@ -717,6 +730,17 @@ class AssistantApiController extends ControllerBase {
       'faq' => 'faq',
       'topics' => 'services_overview',
     ];
+    // Turn classification: determine NEW/FOLLOW_UP/INVENTORY/RESET before routing.
+    $turn_type = TurnClassifier::classifyTurn($user_message, $server_history, time());
+    $this->langfuseTracer?->addEvent('turn.classified', [
+      'turn_type' => $turn_type,
+      'history_length' => count($server_history),
+    ]);
+    if ($debug_mode) {
+      $debug_meta['turn_type'] = $turn_type;
+      $debug_meta['processing_stages'][] = 'turn_classified';
+    }
+
     $quick_action = $context['quickAction'] ?? NULL;
     if ($quick_action && isset($quick_action_intents[$quick_action])) {
       $intent = [
@@ -733,6 +757,24 @@ class AssistantApiController extends ControllerBase {
         $debug_meta['processing_stages'][] = 'quick_action_shortcircuit';
       }
     }
+    elseif ($turn_type === TurnClassifier::TURN_INVENTORY) {
+      // Inventory routing: resolve to forms/guides/services inventory
+      // based on message keywords, bypassing normal intent routing.
+      $inventory_type = TurnClassifier::resolveInventoryType($user_message);
+      $intent = [
+        'type' => $inventory_type,
+        'confidence' => 0.90,
+        'source' => 'turn_classifier_inventory',
+        'extraction' => [],
+      ];
+
+      if ($debug_mode) {
+        $debug_meta['intent_selected'] = $inventory_type;
+        $debug_meta['intent_source'] = 'turn_classifier_inventory';
+        $debug_meta['intent_confidence'] = 0.90;
+        $debug_meta['processing_stages'][] = 'inventory_shortcircuit';
+      }
+    }
     else {
       // Route the intent via normal classification pipeline.
       $intent = $this->intentRouter->route($user_message, $context);
@@ -741,7 +783,51 @@ class AssistantApiController extends ControllerBase {
     // History-aware fallback: if direct routing returns unknown, check
     // conversation history for a dominant recent intent.
     $direct_intent_type = $intent['type'] ?? 'unknown';
-    if ($direct_intent_type === 'unknown' && !empty($server_history)) {
+
+    // Enhanced follow-up: when TurnClassifier detects FOLLOW_UP, proactively
+    // resolve history context even before routing fails. This allows topic
+    // context to be available for partial matches, not just unknown.
+    if ($turn_type === TurnClassifier::TURN_FOLLOW_UP && !empty($server_history)) {
+      $topic_ctx = HistoryIntentResolver::extractTopicContext($server_history);
+      if ($topic_ctx && !empty($topic_ctx['area'])) {
+        // If routing returned unknown, use full history fallback.
+        if ($direct_intent_type === 'unknown') {
+          $history_config = $this->configFactory->get('ilas_site_assistant.settings');
+          $history_fallback_settings = $history_config->get('history_fallback') ?? [];
+          if ($history_fallback_settings['enabled'] ?? TRUE) {
+            $history_result = HistoryIntentResolver::resolveFromHistory(
+              $server_history, $user_message, time(), $history_fallback_settings
+            );
+            if ($history_result) {
+              $h_topic_ctx = $history_result['topic_context'] ?? NULL;
+              $intent = [
+                'type' => $history_result['intent'],
+                'confidence' => min(0.65, $history_result['confidence']),
+                'source' => 'history_fallback',
+                'extraction' => $intent['extraction'] ?? [],
+                'history_meta' => $history_result,
+              ];
+              if ($h_topic_ctx) {
+                $intent['area'] = $h_topic_ctx['area'] ?? NULL;
+                $intent['topic_id'] = $h_topic_ctx['topic_id'] ?? NULL;
+                $intent['topic'] = $h_topic_ctx['topic'] ?? NULL;
+              }
+            }
+          }
+        }
+        else {
+          // Routing found a match, but enrich it with topic context from
+          // history so downstream can use it (e.g., service_area follow-up).
+          if (empty($intent['area'])) {
+            $intent['area'] = $topic_ctx['area'];
+            $intent['topic_id'] = $topic_ctx['topic_id'] ?? NULL;
+            $intent['topic'] = $topic_ctx['topic'] ?? NULL;
+          }
+        }
+      }
+    }
+    elseif ($direct_intent_type === 'unknown' && !empty($server_history)) {
+      // Standard history fallback for non-follow-up unknown intents.
       $history_config = $this->configFactory->get('ilas_site_assistant.settings');
       $history_fallback_settings = $history_config->get('history_fallback') ?? [];
       if ($history_fallback_settings['enabled'] ?? TRUE) {
@@ -749,6 +835,7 @@ class AssistantApiController extends ControllerBase {
           $server_history, $user_message, time(), $history_fallback_settings
         );
         if ($history_result) {
+          $topic_ctx = $history_result['topic_context'] ?? NULL;
           $intent = [
             'type' => $history_result['intent'],
             'confidence' => min(0.65, $history_result['confidence']),
@@ -756,6 +843,11 @@ class AssistantApiController extends ControllerBase {
             'extraction' => $intent['extraction'] ?? [],
             'history_meta' => $history_result,
           ];
+          if ($topic_ctx) {
+            $intent['area'] = $topic_ctx['area'] ?? NULL;
+            $intent['topic_id'] = $topic_ctx['topic_id'] ?? NULL;
+            $intent['topic'] = $topic_ctx['topic'] ?? NULL;
+          }
         }
       }
     }
@@ -776,10 +868,13 @@ class AssistantApiController extends ControllerBase {
       }
     }
 
+    $topic_context = HistoryIntentResolver::extractTopicContext($server_history);
     $this->langfuseTracer?->endSpan([
       'type' => $intent['type'] ?? 'unknown',
       'confidence' => $intent['confidence'] ?? NULL,
       'source' => $intent['source'] ?? 'direct',
+      'turn_type' => $turn_type,
+      'topic_context' => $topic_context ? $topic_context['area'] : NULL,
     ]);
 
     // Early retrieval for gate evaluation (search FAQ/resources for context).
@@ -853,16 +948,18 @@ class AssistantApiController extends ControllerBase {
 
     // Process based on intent.
     $this->langfuseTracer?->startSpan('intent.process', ['intent_type' => $intent['type'] ?? 'unknown']);
-    $response = $this->processIntent($intent, $user_message, $context, $request_id);
+    $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history);
     $this->langfuseTracer?->endSpan([
       'response_type' => $response['type'] ?? 'unknown',
       'result_count' => count($response['results'] ?? []),
       'has_fallback_url' => !empty($response['fallback_url']),
+      'fallback_level' => $response['fallback_level'] ?? NULL,
+      'has_suggestions' => !empty($response['suggestions']) || !empty($response['topic_suggestions']),
     ]);
 
     // CRITICAL: Enforce canonical URL for hard-route intents.
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
-    $builder = new ResponseBuilder($canonical_urls);
+    $builder = new ResponseBuilder($canonical_urls, $this->topIntentsPack);
     $safety_flags = $debug_meta['safety_flags'] ?? [];
     $response = $builder->enforceHardRouteUrlWithSafetyFlags($response, $intent, $safety_flags);
 
@@ -969,6 +1066,10 @@ class AssistantApiController extends ControllerBase {
         'route_source' => $intent['source'] ?? 'direct',
         'safety_flags' => $debug_meta['safety_flags'] ?? $this->detectSafetyFlags($user_message),
         'timestamp' => time(),
+        'area' => $intent['area'] ?? $intent['service_area'] ?? NULL,
+        'topic_id' => $intent['topic_id'] ?? NULL,
+        'topic' => $intent['topic'] ?? NULL,
+        'response_type' => $response['type'] ?? NULL,
       ];
       // Keep only last 10 entries (5 exchanges).
       $server_history = array_slice($server_history, -10);
@@ -1055,10 +1156,16 @@ class AssistantApiController extends ControllerBase {
         'response_type' => $response['type'] ?? 'unknown',
         'is_quick_action' => $is_quick_action,
         'conversation_hash' => $conversation_id ? hash('sha256', $conversation_id) : NULL,
+        'turn_type' => $turn_type,
+        'fallback_level' => $response['fallback_level'] ?? NULL,
       ]
     );
 
     $response['request_id'] = $request_id;
+    // Include turn_type in response metadata when not a default NEW turn.
+    if ($turn_type !== TurnClassifier::TURN_NEW) {
+      $response['turn_type'] = $turn_type;
+    }
     return $this->jsonResponse($response, 200, [], $request_id);
 
     }
@@ -1482,12 +1589,12 @@ class AssistantApiController extends ControllerBase {
    * @return array
    *   Response data.
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '') {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
     $config = $this->configFactory->get('ilas_site_assistant.settings');
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
 
     // Use the shared ResponseBuilder for the canonical response skeleton.
-    $builder = new ResponseBuilder($canonical_urls);
+    $builder = new ResponseBuilder($canonical_urls, $this->topIntentsPack);
     $contract = $builder->buildFromIntent($intent, $message);
 
     // Normalize intent type for enrichment logic.
@@ -1522,6 +1629,159 @@ class AssistantApiController extends ControllerBase {
         $response['message'] = count($results) > 0
           ? $this->t('I found some FAQs that might help:')
           : $this->t('I couldn\'t find a matching FAQ. Try our FAQ page or contact us for help.');
+        break;
+
+      case 'forms_inventory':
+        $response['type'] = 'forms_inventory';
+        $response['response_mode'] = 'clarify';
+        $response['message'] = $this->t('We have forms and resources organized by legal topic. Choose a category:');
+        $response['topic_suggestions'] = [
+          [
+            'label' => $this->t('Housing & Eviction'),
+            'action' => 'forms_housing',
+            'url' => $canonical_urls['service_areas']['housing'],
+            'description' => $this->t('Eviction defense, tenant rights, housing assistance'),
+          ],
+          [
+            'label' => $this->t('Family & Custody'),
+            'action' => 'forms_family',
+            'url' => $canonical_urls['service_areas']['family'],
+            'description' => $this->t('Divorce, custody, child support, protection orders'),
+          ],
+          [
+            'label' => $this->t('Consumer & Debt'),
+            'action' => 'forms_consumer',
+            'url' => $canonical_urls['service_areas']['consumer'],
+            'description' => $this->t('Debt collection, bankruptcy, scams, identity theft'),
+          ],
+          [
+            'label' => $this->t('Seniors & Guardianship'),
+            'action' => 'forms_seniors',
+            'url' => $canonical_urls['service_areas']['seniors'],
+            'description' => $this->t('Guardianship, elder abuse, estate planning, nursing home'),
+          ],
+          [
+            'label' => $this->t('Health & Benefits'),
+            'action' => 'forms_benefits',
+            'url' => $canonical_urls['service_areas']['health'],
+            'description' => $this->t('Medicaid, SNAP, SSI/SSDI, disability benefits'),
+          ],
+          [
+            'label' => $this->t('Safety & Protection Orders'),
+            'action' => 'forms_safety',
+            'url' => $canonical_urls['service_areas']['family'],
+            'description' => $this->t('Protection orders, domestic violence resources'),
+          ],
+        ];
+        $response['primary_action'] = [
+          'label' => $this->t('Browse All Forms'),
+          'url' => $canonical_urls['forms'],
+        ];
+        $this->logger->info('[@request_id] Forms inventory request served', [
+          '@request_id' => $request_id,
+        ]);
+        break;
+
+      case 'guides_inventory':
+        $response['type'] = 'guides_inventory';
+        $response['response_mode'] = 'clarify';
+        $response['message'] = $this->t('We have self-help guides organized by legal topic. Choose a category:');
+        $response['topic_suggestions'] = [
+          [
+            'label' => $this->t('Housing & Eviction'),
+            'action' => 'guides_housing',
+            'url' => $canonical_urls['service_areas']['housing'],
+            'description' => $this->t('Eviction defense, tenant rights, housing assistance'),
+          ],
+          [
+            'label' => $this->t('Family & Custody'),
+            'action' => 'guides_family',
+            'url' => $canonical_urls['service_areas']['family'],
+            'description' => $this->t('Divorce, custody, child support, protection orders'),
+          ],
+          [
+            'label' => $this->t('Consumer & Debt'),
+            'action' => 'guides_consumer',
+            'url' => $canonical_urls['service_areas']['consumer'],
+            'description' => $this->t('Debt collection, bankruptcy, scams, identity theft'),
+          ],
+          [
+            'label' => $this->t('Seniors & Guardianship'),
+            'action' => 'guides_seniors',
+            'url' => $canonical_urls['service_areas']['seniors'],
+            'description' => $this->t('Guardianship, elder abuse, estate planning, nursing home'),
+          ],
+          [
+            'label' => $this->t('Health & Benefits'),
+            'action' => 'guides_benefits',
+            'url' => $canonical_urls['service_areas']['health'],
+            'description' => $this->t('Medicaid, SNAP, SSI/SSDI, disability benefits'),
+          ],
+          [
+            'label' => $this->t('Employment & Safety'),
+            'action' => 'guides_employment',
+            'url' => $canonical_urls['service_areas']['civil_rights'],
+            'description' => $this->t('Employment rights, workplace safety, discrimination'),
+          ],
+        ];
+        $response['primary_action'] = [
+          'label' => $this->t('Browse All Guides'),
+          'url' => $canonical_urls['guides'],
+        ];
+        $this->logger->info('[@request_id] Guides inventory request served', [
+          '@request_id' => $request_id,
+        ]);
+        break;
+
+      case 'services_inventory':
+        $response['type'] = 'services_inventory';
+        $response['response_mode'] = 'navigate';
+        $response['message'] = $this->t('Idaho Legal Aid Services provides free civil legal help in these areas:');
+        $response['topic_suggestions'] = [
+          [
+            'label' => $this->t('Housing'),
+            'action' => 'topic_housing',
+            'url' => $canonical_urls['service_areas']['housing'],
+            'description' => $this->t('Eviction, landlord/tenant, foreclosure, mobile homes'),
+          ],
+          [
+            'label' => $this->t('Family'),
+            'action' => 'topic_family',
+            'url' => $canonical_urls['service_areas']['family'],
+            'description' => $this->t('Divorce, custody, child support, protection orders, adoption'),
+          ],
+          [
+            'label' => $this->t('Consumer'),
+            'action' => 'topic_consumer',
+            'url' => $canonical_urls['service_areas']['consumer'],
+            'description' => $this->t('Debt collection, bankruptcy, scams, identity theft, garnishment'),
+          ],
+          [
+            'label' => $this->t('Seniors'),
+            'action' => 'topic_seniors',
+            'url' => $canonical_urls['service_areas']['seniors'],
+            'description' => $this->t('Guardianship, elder abuse, estate planning, probate'),
+          ],
+          [
+            'label' => $this->t('Health & Benefits'),
+            'action' => 'topic_health',
+            'url' => $canonical_urls['service_areas']['health'],
+            'description' => $this->t('Medicaid, SNAP, SSI/SSDI, disability, insurance'),
+          ],
+          [
+            'label' => $this->t('Civil Rights'),
+            'action' => 'topic_civil_rights',
+            'url' => $canonical_urls['service_areas']['civil_rights'],
+            'description' => $this->t('Discrimination, employment rights, voting rights'),
+          ],
+        ];
+        $response['primary_action'] = [
+          'label' => $this->t('Apply for Help'),
+          'url' => $canonical_urls['apply'],
+        ];
+        $this->logger->info('[@request_id] Services inventory request served', [
+          '@request_id' => $request_id,
+        ]);
         break;
 
       case 'forms':
@@ -1559,11 +1819,43 @@ class AssistantApiController extends ControllerBase {
         $response['results'] = $results;
         $response['fallback_url'] = $canonical_urls['forms'];
         $response['fallback_label'] = $this->t('Browse all forms');
-        $response['message'] = count($results) > 0
-          ? $this->t('Here are some forms that might help:')
-          : $this->t('I couldn\'t find matching forms. Browse our Forms page or contact us.');
         if (count($results) > 0) {
+          $response['message'] = $this->t('Here are some forms that might help:');
           $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
+        }
+        else {
+          // Zero results — try broader area search if area context available.
+          $intent_area = $intent['area'] ?? '';
+          if ($intent_area && $config->get('enable_resources')) {
+            $broader_results = $this->resourceFinder->findResources($intent_area, 4);
+            if (!empty($broader_results)) {
+              $response['type'] = 'resources';
+              $response['results'] = $broader_results;
+              $response['message'] = $this->t('I couldn\'t find exact form matches, but here are related @area resources:', ['@area' => str_replace('_', ' ', $intent_area)]);
+              $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
+              $this->logger->info('[@request_id] Forms search broadened: @keywords -> @area, @count results', [
+                '@request_id' => $request_id,
+                '@keywords' => $form_topic_keywords,
+                '@area' => $intent_area,
+                '@count' => count($broader_results),
+              ]);
+              break;
+            }
+          }
+          // Still no results — show topic chips instead of dead-end.
+          $response['type'] = 'form_finder_clarify';
+          $response['response_mode'] = 'clarify';
+          $response['message'] = $this->t('I couldn\'t find matching forms for that query. Try a different keyword, or pick a topic:');
+          $response['topic_suggestions'] = [
+            ['label' => $this->t('Housing'), 'action' => 'forms_housing'],
+            ['label' => $this->t('Family'), 'action' => 'forms_family'],
+            ['label' => $this->t('Consumer'), 'action' => 'forms_consumer'],
+            ['label' => $this->t('Seniors'), 'action' => 'forms_seniors'],
+          ];
+          $response['primary_action'] = [
+            'label' => $this->t('Browse All Forms'),
+            'url' => $canonical_urls['forms'],
+          ];
         }
         $this->logger->info('[@request_id] Form Finder search: query=@query, topic_keywords=@keywords, results=@count', [
           '@request_id' => $request_id,
@@ -1609,11 +1901,43 @@ class AssistantApiController extends ControllerBase {
         $response['results'] = $results;
         $response['fallback_url'] = $canonical_urls['guides'];
         $response['fallback_label'] = $this->t('Browse all guides');
-        $response['message'] = count($results) > 0
-          ? $this->t('Here are some guides that might help:')
-          : $this->t('I couldn\'t find matching guides for "@query". Browse our Guides page or contact us.', ['@query' => $guide_topic_keywords]);
         if (count($results) > 0) {
+          $response['message'] = $this->t('Here are some guides that might help:');
           $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
+        }
+        else {
+          // Zero results — try broader area search if area context available.
+          $intent_area = $intent['area'] ?? '';
+          if ($intent_area && $config->get('enable_resources')) {
+            $broader_results = $this->resourceFinder->findResources($intent_area, 4);
+            if (!empty($broader_results)) {
+              $response['type'] = 'resources';
+              $response['results'] = $broader_results;
+              $response['message'] = $this->t('I couldn\'t find exact guide matches, but here are related @area resources:', ['@area' => str_replace('_', ' ', $intent_area)]);
+              $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
+              $this->logger->info('[@request_id] Guides search broadened: @keywords -> @area, @count results', [
+                '@request_id' => $request_id,
+                '@keywords' => $guide_topic_keywords,
+                '@area' => $intent_area,
+                '@count' => count($broader_results),
+              ]);
+              break;
+            }
+          }
+          // Still no results — show topic chips instead of dead-end.
+          $response['type'] = 'guide_finder_clarify';
+          $response['response_mode'] = 'clarify';
+          $response['message'] = $this->t('I couldn\'t find matching guides for that query. Try a different keyword, or pick a topic:');
+          $response['topic_suggestions'] = [
+            ['label' => $this->t('Housing'), 'action' => 'guides_housing'],
+            ['label' => $this->t('Family'), 'action' => 'guides_family'],
+            ['label' => $this->t('Consumer'), 'action' => 'guides_consumer'],
+            ['label' => $this->t('Seniors'), 'action' => 'guides_seniors'],
+          ];
+          $response['primary_action'] = [
+            'label' => $this->t('Browse All Guides'),
+            'url' => $canonical_urls['guides'],
+          ];
         }
         $this->logger->info('[@request_id] Guide Finder search: query=@query, topic_keywords=@keywords, results=@count', [
           '@request_id' => $request_id,
@@ -1751,6 +2075,42 @@ class AssistantApiController extends ControllerBase {
       case 'service_area':
         $area = $intent['area'] ?? '';
         $area_label = ucfirst(str_replace('_', ' ', $area));
+
+        // Follow-up detection: if user already visited this service area,
+        // try to show deeper resources instead of repeating the same link.
+        if ($config->get('enable_resources') && $this->isFollowUpInSameArea($intent, $server_history)) {
+          $resource_results = $this->resourceFinder->findResources($area . ' ' . $message, 6);
+          if (!empty($resource_results)) {
+            $response['type'] = 'resources';
+            $response['message'] = $this->t('Here are @area resources that may help:', ['@area' => $area_label]);
+            $response['results'] = $resource_results;
+            $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
+            $response['fallback_url'] = $canonical_urls['service_areas'][$area] ?? $canonical_urls['services'];
+            $response['fallback_label'] = $this->t('Browse @area resources', ['@area' => $area_label]);
+            $this->logger->info('[@request_id] Follow-up detected in same area: @area, showing @count resources', [
+              '@request_id' => $request_id,
+              '@area' => $area,
+              '@count' => count($resource_results),
+            ]);
+            break;
+          }
+          // No resource results — show actionable options instead of dead-end.
+          $area_url = $canonical_urls['service_areas'][$area] ?? $canonical_urls['services'];
+          $response['message'] = $this->t('I can help you find more @area resources. Here are some options:', ['@area' => $area_label]);
+          $response['links'] = [
+            ['label' => $this->t('Browse @area Page', ['@area' => $area_label]), 'url' => $area_url, 'type' => 'services'],
+            ['label' => $this->t('Find @area Forms', ['@area' => $area_label]), 'url' => $canonical_urls['forms'], 'type' => 'forms'],
+            ['label' => $this->t('Apply for Help'), 'url' => $canonical_urls['apply'], 'type' => 'apply'],
+            ['label' => $this->t('Call Legal Advice Line'), 'url' => $canonical_urls['hotline'], 'type' => 'hotline'],
+          ];
+          $this->logger->info('[@request_id] Follow-up detected in same area: @area, no resources found, showing options', [
+            '@request_id' => $request_id,
+            '@area' => $area,
+          ]);
+          break;
+        }
+
+        // First mention of this service area — show the service area page.
         $response['message'] = $this->t('Here\'s our @area legal help page:', ['@area' => $area_label]);
         $response['cta'] = $this->t('View @area Resources', ['@area' => $area_label]);
         break;
@@ -1783,7 +2143,24 @@ class AssistantApiController extends ControllerBase {
         break;
 
       case 'clarify':
-        $response['message'] = $this->t("I'd like to help! Could you describe your legal issue in a bit more detail? For example, try typing something like \"I'm being evicted\", \"custody questions\", or \"help with debt\". You can also use the buttons below to find forms, guides, or FAQs.");
+        // Check if the original intent has a clarifier defined in the pack.
+        $original_for_clarify = $intent['original_intent'] ?? '';
+        $clarifier = $original_for_clarify && $this->topIntentsPack
+          ? $this->topIntentsPack->getClarifier($original_for_clarify)
+          : NULL;
+        if ($clarifier) {
+          $response['message'] = $clarifier['question'];
+          $response['topic_suggestions'] = array_map(function ($opt) use ($builder) {
+            return [
+              'label' => $opt['label'],
+              'action' => $opt['intent'],
+              'url' => $builder->resolveIntentUrl($opt['intent']),
+            ];
+          }, $clarifier['options'] ?? []);
+        }
+        else {
+          $response['message'] = $this->t("I'd like to help! Could you describe your legal issue in a bit more detail? For example, try typing something like \"I'm being evicted\", \"custody questions\", or \"help with debt\". You can also use the buttons below to find forms, guides, or FAQs.");
+        }
         break;
 
       case 'high_risk':
@@ -1882,9 +2259,38 @@ class AssistantApiController extends ControllerBase {
           }
         }
 
-        $response['message'] = $this->t("I wasn't able to find a match for that. Try describing your legal issue — for example, \"I'm being evicted\" or \"I need help with custody\". You can also use the buttons below to search forms, guides, or FAQs.");
+        // No FAQ or resource results — use the graduated fallback tree.
+        $fallback = FallbackTreeEvaluator::evaluateLevel(
+          $intent['type'] ?? 'unknown',
+          [],
+          $server_history,
+          $this->topIntentsPack
+        );
+        $response['message'] = $this->t($fallback['message']);
+        $response['primary_action'] = $fallback['primary_action'];
+        $response['links'] = $fallback['links'];
+        $response['fallback_level'] = $fallback['level'];
+        if (!empty($fallback['suggestions'])) {
+          $response['suggestions'] = $fallback['suggestions'];
+        }
         $response['actions'] = $this->getEscalationActions();
         break;
+    }
+
+    // Chip enrichment: if the response doesn't already have topic_suggestions,
+    // look up chips from the Top Intents Pack and add as suggestions.
+    if (empty($response['topic_suggestions']) && $this->topIntentsPack) {
+      $chip_key = $intent['type'] ?? 'unknown';
+      $chips = $this->topIntentsPack->getChips($chip_key);
+      // Fallback to original_intent when primary key yields no chips.
+      if (empty($chips) && !empty($intent['original_intent'])) {
+        $chips = $this->topIntentsPack->getChips($intent['original_intent']);
+      }
+      if (!empty($chips)) {
+        $response['suggestions'] = array_map(function ($chip) {
+          return ['label' => $chip['label'], 'action' => $chip['intent']];
+        }, $chips);
+      }
     }
 
     return $response;
@@ -2034,7 +2440,7 @@ class AssistantApiController extends ControllerBase {
       'guides' => '/\b(guide|guides|giude|giudes|guia|guias|manual|manuals|handbook|handbooks|instructions?|how[\s-]*to|step[\s-]*by[\s-]*step|self[\s-]*help)\b/i',
     ];
     $noise_patterns = [
-      '/^(find|get|need|download|where|show|read|browse)\s*(me\s*)?(a|the|is|are|some|any)?\s*/i',
+      '/^(find|get|need|download|where|show|read|browse)\s*(me\s*)?(\b(a|the|is|are|some|any|all)\b\s*)?/i',
       $type_noise[$finder_type] ?? $type_noise['forms'],
       '/\b(for|to|about|on|regarding)\b/i',
       '/\b(legal|court|i\s*need|looking\s*for|where\s*can\s*i)\b/i',
@@ -2045,7 +2451,15 @@ class AssistantApiController extends ControllerBase {
       $cleaned = preg_replace($pattern, ' ', $cleaned);
     }
     $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
-    $stop_words = ['a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'for', 'on', 'with', 'is', 'are', 'i', 'me', 'my', 'can', 'do', 'how', 'what', 'where', 'please', 'find', 'get', 'need', 'show', 'download', 'looking', 'browse', 'read'];
+    $stop_words = [
+      'a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'for', 'on', 'with',
+      'is', 'are', 'i', 'me', 'my', 'can', 'do', 'how', 'what', 'where',
+      'please', 'find', 'get', 'need', 'show', 'download', 'looking', 'browse', 'read',
+      'you', 'your', 'have', 'has', 'had', 'does', 'did', 'they', 'them',
+      'their', 'we', 'our', 'it', 'its', 'that', 'this', 'those', 'these',
+      'there', 'which', 'been', 'be', 'about', 'any', 'all', 'some', 'also',
+      'just', 'give', 'us', 'would', 'will', 'should', 'could',
+    ];
     $words = array_filter(explode(' ', $cleaned), function ($w) use ($stop_words) {
       return strlen($w) >= 2 && !in_array($w, $stop_words);
     });
@@ -2053,6 +2467,34 @@ class AssistantApiController extends ControllerBase {
       return '';
     }
     return implode(' ', $words);
+  }
+
+  /**
+   * Checks if the current intent is a follow-up in the same service area.
+   *
+   * @param array $intent
+   *   The current intent.
+   * @param array $server_history
+   *   The conversation history.
+   *
+   * @return bool
+   *   TRUE if any of the last 3 history entries share the same area.
+   */
+  protected function isFollowUpInSameArea(array $intent, array $server_history): bool {
+    $current_area = $intent['area'] ?? '';
+    if (empty($current_area) || empty($server_history)) {
+      return FALSE;
+    }
+
+    // Check the last 3 history entries for the same area.
+    $recent = array_slice($server_history, -3);
+    foreach ($recent as $entry) {
+      if (($entry['area'] ?? '') === $current_area) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
   }
 
   /**

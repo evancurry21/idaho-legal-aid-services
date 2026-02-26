@@ -31,7 +31,7 @@ services:
 
   ilas_site_assistant.intent_router:
     class: Drupal\ilas_site_assistant\Service\IntentRouter
-    arguments: ['@config.factory', '@ilas_site_assistant.topic_resolver', '@ilas_site_assistant.keyword_extractor', '@ilas_site_assistant.topic_router', '@ilas_site_assistant.navigation_intent', '@ilas_site_assistant.disambiguator']
+    arguments: ['@config.factory', '@ilas_site_assistant.topic_resolver', '@ilas_site_assistant.keyword_extractor', '@ilas_site_assistant.topic_router', '@ilas_site_assistant.navigation_intent', '@ilas_site_assistant.disambiguator', '@ilas_site_assistant.top_intents_pack']
 
   ilas_site_assistant.topic_resolver:
     class: Drupal\ilas_site_assistant\Service\TopicResolver
@@ -78,6 +78,13 @@ services:
 
   ilas_site_assistant.safety_response_templates:
     class: Drupal\ilas_site_assistant\Service\SafetyResponseTemplates
+
+  ilas_site_assistant.top_intents_pack:
+    class: Drupal\ilas_site_assistant\Service\TopIntentsPack
+    arguments: ['@cache.default']
+
+  ilas_site_assistant.turn_classifier:
+    class: Drupal\ilas_site_assistant\Service\TurnClassifier
 
   ilas_site_assistant.disambiguator:
     class: Drupal\ilas_site_assistant\Service\Disambiguator

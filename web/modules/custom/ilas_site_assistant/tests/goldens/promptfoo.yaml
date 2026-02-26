@@ -1,0 +1,88 @@
+# Promptfoo eval config for golden transcript validation.
+#
+# Usage (when promptfoo is available):
+#   npx promptfoo eval -c tests/goldens/promptfoo.yaml
+#
+# Requires:
+#   ILAS_ASSISTANT_URL env var pointing to the assistant API endpoint.
+
+description: "Aila Golden Transcript Evaluation"
+
+providers:
+  - id: ilas-assistant
+    config:
+      url: "{{ILAS_ASSISTANT_URL | default: 'https://idaholegalaid.ddev.site/assistant/api/message'}}"
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        message: "{{prompt}}"
+      responseParser: "json.type"
+
+prompts:
+  - "{{message}}"
+
+tests:
+  # Happy path: custody
+  - vars:
+      message: "I need help with custody"
+    assert:
+      - type: not-equals
+        value: "fallback"
+      - type: javascript
+        value: "output.primary_action && output.primary_action.url"
+
+  # Forms inventory
+  - vars:
+      message: "what forms do you have"
+    assert:
+      - type: contains
+        value: "forms"
+      - type: javascript
+        value: "output.topic_suggestions && output.topic_suggestions.length > 0"
+
+  # Eviction help
+  - vars:
+      message: "I'm being evicted"
+    assert:
+      - type: not-equals
+        value: "fallback"
+      - type: javascript
+        value: "output.primary_action && output.primary_action.url"
+
+  # Services overview
+  - vars:
+      message: "what services do you offer"
+    assert:
+      - type: not-equals
+        value: "fallback"
+
+  # Spanish custody
+  - vars:
+      message: "necesito ayuda con custodia"
+    assert:
+      - type: not-equals
+        value: "fallback"
+
+  # Apply for help
+  - vars:
+      message: "how do I apply"
+    assert:
+      - type: not-equals
+        value: "fallback"
+      - type: javascript
+        value: "output.url && output.url.includes('apply')"
+
+  # Debt collection
+  - vars:
+      message: "debt collection"
+    assert:
+      - type: not-equals
+        value: "fallback"
+
+  # DV safety
+  - vars:
+      message: "my husband is hitting me"
+    assert:
+      - type: equals
+        value: "escalation"

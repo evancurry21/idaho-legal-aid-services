@@ -246,4 +246,188 @@ class HistoryIntentResolverTest extends TestCase {
     $this->assertNull($result);
   }
 
+  /**
+   * extractTopicContext returns area from enriched history entry.
+   */
+  public function testExtractTopicContextReturnsArea(): void {
+    $history = [
+      [
+        'role' => 'user',
+        'intent' => 'greeting',
+        'timestamp' => time() - 120,
+      ],
+      [
+        'role' => 'user',
+        'intent' => 'service_area',
+        'area' => 'housing',
+        'topic_id' => NULL,
+        'topic' => NULL,
+        'timestamp' => time() - 60,
+      ],
+    ];
+
+    $context = HistoryIntentResolver::extractTopicContext($history);
+
+    $this->assertNotNull($context);
+    $this->assertEquals('housing', $context['area']);
+    $this->assertNull($context['topic_id']);
+  }
+
+  /**
+   * extractTopicContext returns NULL when no area in history.
+   */
+  public function testExtractTopicContextReturnsNullWithoutArea(): void {
+    $history = [
+      [
+        'role' => 'user',
+        'intent' => 'greeting',
+        'timestamp' => time() - 60,
+      ],
+    ];
+
+    $context = HistoryIntentResolver::extractTopicContext($history);
+
+    $this->assertNull($context);
+  }
+
+  /**
+   * resolveFromHistory includes topic_context in return.
+   */
+  public function testResolveFromHistoryIncludesTopicContext(): void {
+    $now = 1000000;
+    $history = [
+      [
+        'role' => 'user',
+        'text' => 'eviction help',
+        'intent' => 'topic_housing',
+        'area' => 'housing',
+        'safety_flags' => [],
+        'timestamp' => $now - 60,
+      ],
+    ];
+
+    $result = HistoryIntentResolver::resolveFromHistory(
+      $history, 'what about that?', $now
+    );
+
+    $this->assertNotNull($result);
+    $this->assertArrayHasKey('topic_context', $result);
+    $this->assertNotNull($result['topic_context']);
+    $this->assertEquals('housing', $result['topic_context']['area']);
+  }
+
+  /**
+   * resolveFromHistory topic_context is NULL when history has no area fields.
+   */
+  public function testResolveFromHistoryTopicContextNullWithoutArea(): void {
+    $now = 1000000;
+    $history = [
+      $this->entry('topic_housing', $now - 60),
+    ];
+
+    $result = HistoryIntentResolver::resolveFromHistory(
+      $history, 'what about mediation?', $now
+    );
+
+    $this->assertNotNull($result);
+    $this->assertArrayHasKey('topic_context', $result);
+    // Old-format entries without 'area' field → NULL topic_context.
+    $this->assertNull($result['topic_context']);
+  }
+
+  /**
+   * Transcript A: 3 turns of family, then "does that give me custody information?"
+   *
+   * The resolver must return topic_family (not NULL), confirming that
+   * the follow-up message can inherit family context from history.
+   */
+  public function testTranscriptACustodyFollowUp(): void {
+    $now = 1000000;
+    $history = [
+      [
+        'role' => 'user',
+        'text' => 'I need some custody advice',
+        'intent' => 'topic_family',
+        'area' => 'family',
+        'safety_flags' => [],
+        'timestamp' => $now - 180,
+      ],
+      [
+        'role' => 'user',
+        'text' => 'what about child support',
+        'intent' => 'topic_family',
+        'area' => 'family',
+        'safety_flags' => [],
+        'timestamp' => $now - 120,
+      ],
+      [
+        'role' => 'user',
+        'text' => 'and visitation rights',
+        'intent' => 'topic_family',
+        'area' => 'family',
+        'safety_flags' => [],
+        'timestamp' => $now - 60,
+      ],
+    ];
+
+    $result = HistoryIntentResolver::resolveFromHistory(
+      $history, 'does that give me custody information?', $now
+    );
+
+    $this->assertNotNull($result, 'Follow-up after 3 family turns must resolve');
+    $this->assertEquals('topic_family', $result['intent']);
+    $this->assertGreaterThanOrEqual(0.5, $result['confidence']);
+    // Topic context should include family area.
+    $this->assertNotNull($result['topic_context']);
+    $this->assertEquals('family', $result['topic_context']['area']);
+  }
+
+  /**
+   * Transcript B: 3 turns of housing, then "what forms do you have"
+   *
+   * The resolver returns housing if called (because history is 100% housing),
+   * but the controller must handle inventory routing BEFORE calling the
+   * resolver. This test confirms the resolver's behavior is consistent.
+   */
+  public function testTranscriptBInventoryAfterHousing(): void {
+    $now = 1000000;
+    $history = [
+      [
+        'role' => 'user',
+        'text' => 'I am being evicted',
+        'intent' => 'topic_housing',
+        'area' => 'housing',
+        'safety_flags' => [],
+        'timestamp' => $now - 180,
+      ],
+      [
+        'role' => 'user',
+        'text' => 'tenant rights',
+        'intent' => 'topic_housing',
+        'area' => 'housing',
+        'safety_flags' => [],
+        'timestamp' => $now - 120,
+      ],
+      [
+        'role' => 'user',
+        'text' => 'can they change the locks',
+        'intent' => 'topic_housing',
+        'area' => 'housing',
+        'safety_flags' => [],
+        'timestamp' => $now - 60,
+      ],
+    ];
+
+    // The resolver returns housing because it doesn't know about inventory.
+    // The controller must intercept inventory before calling the resolver.
+    $result = HistoryIntentResolver::resolveFromHistory(
+      $history, 'what forms do you have', $now
+    );
+
+    $this->assertNotNull($result);
+    $this->assertEquals('topic_housing', $result['intent']);
+    $this->assertNotNull($result['topic_context']);
+    $this->assertEquals('housing', $result['topic_context']['area']);
+  }
+
 }

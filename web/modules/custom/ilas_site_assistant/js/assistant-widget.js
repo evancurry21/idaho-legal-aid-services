@@ -636,6 +636,35 @@
         guides_employment: Drupal.t('Find employment guides'),
         guides_benefits: Drupal.t('Find public benefits guides'),
         guides_safety: Drupal.t('Find protection order guides'),
+        // TopIntentsPack service area intents.
+        topic_housing: Drupal.t('Tell me about housing legal help'),
+        topic_family: Drupal.t('Tell me about family legal help'),
+        topic_consumer: Drupal.t('Tell me about consumer legal help'),
+        topic_seniors: Drupal.t('Tell me about seniors legal help'),
+        topic_health: Drupal.t('Tell me about health and benefits legal help'),
+        topic_civil_rights: Drupal.t('Tell me about civil rights legal help'),
+        topic_employment: Drupal.t('Tell me about employment legal help'),
+        // TopIntentsPack sub-topic intents.
+        topic_family_custody: Drupal.t('I need custody information'),
+        topic_family_divorce: Drupal.t('I need divorce information'),
+        topic_family_child_support: Drupal.t('I need child support information'),
+        topic_family_protection_order: Drupal.t('I need protection order information'),
+        topic_housing_eviction: Drupal.t('I need eviction help'),
+        topic_housing_foreclosure: Drupal.t('I need foreclosure help'),
+        topic_consumer_debt_collection: Drupal.t('I need debt collection help'),
+        topic_consumer_bankruptcy: Drupal.t('I need bankruptcy information'),
+        // TopIntentsPack navigation intents.
+        eligibility: Drupal.t('Do I qualify for help?'),
+        risk_detector: Drupal.t('Take the legal risk assessment'),
+        offices_contact: Drupal.t('Find an office near me'),
+        legal_advice_line: Drupal.t('Call the legal advice line'),
+        apply_for_help: Drupal.t('Apply for help'),
+        forms_finder: Drupal.t('Find a form'),
+        guides_finder: Drupal.t('Find a guide'),
+        services_overview: Drupal.t('What services do you offer?'),
+        feedback: Drupal.t('Give feedback'),
+        donations: Drupal.t('How can I donate?'),
+        faq: Drupal.t('Show me FAQs'),
       };
 
       const message = actionMessages[action] || action;
@@ -750,6 +779,9 @@
           }
           break;
 
+        case 'forms_inventory':
+        case 'guides_inventory':
+        case 'services_inventory':
         case 'form_finder_clarify':
         case 'guide_finder_clarify':
           // Multi-turn finder: show topic chips for narrowing down.
@@ -776,6 +808,11 @@
             html += this.renderSuggestions(response.suggestions);
           }
           break;
+      }
+
+      // Render TopIntentsPack chips for any response type that has them.
+      if (response.suggestions && !html.includes('topic-suggestions') && !html.includes('inline-suggestions')) {
+        html += this.renderSuggestions(response.suggestions);
       }
 
       this.addMessage('assistant', html, true);

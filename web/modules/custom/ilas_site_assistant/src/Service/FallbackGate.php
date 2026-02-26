@@ -125,6 +125,9 @@ class FallbackGate {
     'out_of_scope',
     'clarify',
     'disambiguation',
+    'forms_inventory',
+    'guides_inventory',
+    'services_inventory',
     'service_area',
     'navigation',
   ];
@@ -151,6 +154,15 @@ class FallbackGate {
     'topic_health',
     'topic_consumer',
     'topic_civil_rights',
+    // Sub-topic intents benefit from retrieval confirmation.
+    'topic_family_custody',
+    'topic_family_divorce',
+    'topic_family_child_support',
+    'topic_family_protection_order',
+    'topic_housing_eviction',
+    'topic_housing_foreclosure',
+    'topic_consumer_debt_collection',
+    'topic_consumer_bankruptcy',
   ];
 
   /**
@@ -816,12 +828,25 @@ class FallbackGate {
       $conf_sum += $decision['confidence'] ?? 0;
     }
 
+    // Count dead ends: decisions where no actionable links would be present.
+    // NO_RESULTS with low confidence and no LLM fallback = potential dead end.
+    $dead_end_count = 0;
+    foreach ($decisions as $decision) {
+      $reason = $decision['reason_code'] ?? '';
+      $conf = $decision['confidence'] ?? 0;
+      // A dead end is a low-confidence fallback with no results.
+      if ($reason === self::REASON_NO_RESULTS && $conf < 0.4) {
+        $dead_end_count++;
+      }
+    }
+
     return [
       'total' => $total,
       'answer_rate' => round($counts[self::DECISION_ANSWER] / $total, 4),
       'clarify_rate' => round($counts[self::DECISION_CLARIFY] / $total, 4),
       'fallback_rate' => round($counts[self::DECISION_FALLBACK_LLM] / $total, 4),
       'hard_route_rate' => round($counts[self::DECISION_HARD_ROUTE] / $total, 4),
+      'dead_end_rate' => round($dead_end_count / $total, 4),
       'avg_confidence' => round($conf_sum / $total, 4),
       'by_reason_code' => $by_reason,
     ];
