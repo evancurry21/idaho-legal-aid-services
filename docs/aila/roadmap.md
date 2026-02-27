@@ -163,3 +163,23 @@ Explicit mapping:
 ## Scope boundaries across roadmap
 1. LLM live enablement is explicitly out of scope through Phase 2 and only reconsidered after Phase 3 readiness review. (Refs: current-state §5; evidence-index CLAIM-119; system-map Diagram B; runbook §3)
 2. Roadmap focuses on safety, quality, reliability, and governance improvements on current architecture; no full rewrite is planned. (Refs: current-state §1, §3; evidence-index CLAIM-010, CLAIM-020; system-map Diagram A; runbook §4)
+
+## Retrospective addendum (2026-02-27 production failures)
+This addendum captures regression classes observed in production transcript review and binds them to explicit roadmap delivery IDs.
+
+### Addendum delivery items
+| ID | Phase | Sprint mapping | Priority | Scope | Acceptance gate |
+|---|---|---|---|---|---|
+| IMP-SEC-02 | 0 | Sprint 1 | High | Add explicit machine-readable CSRF/session failure codes on write endpoints and map widget recovery UX to those codes. | 1) 403 responses include stable error code for missing/invalid/expired token states. 2) Widget recovery copy branches on error code, not status text only. 3) Functional matrix covers anonymous bootstrap + missing/invalid/expired token recovery. |
+| IMP-REL-03 | 1 | Sprint 2 | High | Normalize disambiguation option schema (`intent` canonical; `value` accepted as deprecated alias), and harden mixed forms/guides clarify behavior. | 1) Disambiguation responses always emit actionable `action`/`intent` for every option. 2) Query `eviction forms or guides?` yields a single clarify response with forms+guides options. 3) Contract test validates canonical + alias compatibility path. |
+| IMP-REL-04 | 1 | Sprint 2 | High | Add controller guard for empty-after-sanitize messages and loop-prevention metadata for repeated clarify cycles. | 1) Empty-after-sanitize input returns deterministic `400 invalid_message` and does not invoke router/retrieval. 2) Clarify counter/hash in conversation state prevents repeated identical clarify loops. 3) Multi-turn replay test verifies loop-break fallback path. |
+| IMP-TST-02 | 1 | Sprint 3 | High | Expand blocking regression gate to include deep multi-turn transcript replay and UI/controller contract assertions. | 1) Golden replay includes `i need some help`, `custody forms?`, `eviction forms or guides?`, and repeated `eviction forms` no-loop behavior. 2) Disambiguation option contract test fails on null-action chips. 3) Deep suite is part of blocking gate, not advisory-only abuse suite. |
+| IMP-UX-02 | 3 | Sprint 6 | Medium | Standardize CSRF/session denial UX recovery path across widget/page modes (refresh/retry with guidance). | 1) 403 UX copy references concrete recovery action. 2) Retry path works after token/session refresh without page dead-end state. 3) Mobile and keyboard flows preserve accessibility semantics during recovery. |
+
+### Addendum dependency rows
+| Workstream | Depends on | Consumed in phase | Owner role |
+|---|---|---|---|
+| CSRF/session recovery contract (`IMP-SEC-02`) | Strict CSRF enforcement baseline (`IMP-SEC-01`) + widget error handling branch points | Phase 0 -> prerequisite for Phase 1 reliability replay tests | Security Engineer + Frontend Engineer |
+| Disambiguation schema + mixed-intent contract (`IMP-REL-03`) | Intent-router/disambiguator option normalization and response contract guard tests | Phase 1 -> prerequisite for transcript replay gate (`IMP-TST-02`) | Drupal Lead + QA/Automation Engineer |
+| Empty-query + loop-breaker safeguards (`IMP-REL-04`) | Conversation-state metadata extension and controller pre-routing guards | Phase 1 -> prerequisite for transcript replay gate (`IMP-TST-02`) | Drupal Lead + QA/Automation Engineer |
+| Transcript replay gate expansion (`IMP-TST-02`) | CI owner/platform decision (`IMP-TST-01`) + deep suite harness wiring | Phase 1 -> prerequisite for Phase 2/3 release confidence | QA/Automation Engineer + TPM |

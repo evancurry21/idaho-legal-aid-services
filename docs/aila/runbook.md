@@ -282,7 +282,43 @@ Expected CI policy:
 - `main` and `release/*` branches are blocking for threshold failures.
 - Other branches are advisory (non-zero eval result reported but does not fail job).
 
-## 4) Config parity + drift checks (`IMP-CONF-01`)
+## 4) Quality gates + config parity checks (`P1-OBJ-03`, `IMP-CONF-01`)
+
+### Enforced quality gate verification (`P1-OBJ-03`)
+
+Use these commands to convert existing test assets into reproducible enforced
+gates in local and external-runner contexts.
+
+```bash
+# 1) Mandatory module quality gate from existing test assets.
+ddev exec bash /var/www/html/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+
+# 2) Branch-aware Promptfoo threshold policy simulation (no live eval required).
+#    - release/main semantics -> blocking failure (expected non-zero on threshold fail)
+ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message" \
+  CI_BRANCH=release/2026-03 \
+  scripts/ci/run-promptfoo-gate.sh --env dev --mode auto --skip-eval --simulate-pass-rate 85
+
+#    - feature branch semantics -> advisory (expected zero even on threshold fail)
+ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message" \
+  CI_BRANCH=feature/p1-obj-03 \
+  scripts/ci/run-promptfoo-gate.sh --env dev --mode auto --skip-eval --simulate-pass-rate 85
+
+# 3) External runner composition gate (PHPUnit + Promptfoo policy).
+ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message" \
+  CI_BRANCH=feature/p1-obj-03 \
+  scripts/ci/run-external-quality-gate.sh --env dev --mode auto
+```
+
+Expected quality gate result:
+- `tests/run-quality-gate.sh` blocks on unit regressions, deterministic
+  classifier regressions (Safety + OutOfScope), and golden transcript failures.
+- `scripts/ci/run-promptfoo-gate.sh` blocks threshold/eval failures on
+  `main`/`release/*` and reports advisory-only failures on other branches.
+- `scripts/ci/run-external-quality-gate.sh` composes repo-owned gate assets for
+  CI platforms where workflow ownership is external to this repository.
+
+### Config parity + drift checks (`IMP-CONF-01`)
 
 Use these commands to enforce local `vector_search` parity and generate
 cross-environment drift reports.
@@ -481,6 +517,29 @@ sed -E \
   - `docs/aila/runtime/pantheon-live.txt`
 - Promptfoo/CI location search output is captured in:
   - `docs/aila/runtime/promptfoo-ci-search.txt`[^CLAIM-122]
+
+## 7) Retrospective regression checklist (mandatory)
+
+Run this checklist for every future audit cycle that touches assistant routing, fallback, or endpoint hardening:
+
+1. **Transcript replay: vague + mixed-intent cases**
+   - Replay `i need some help`, `custody forms?`, `eviction forms or guides?`, and repeated `eviction forms`.
+   - Record response class transitions and assert no repeated clarify-loop without escalation fallback.
+2. **Disambiguation option schema contract**
+   - Verify each disambiguation option emitted by API has actionable `intent`/`action`.
+   - During migration, verify legacy `value` aliases map deterministically to `intent` and emit deprecation telemetry.
+3. **Anonymous/session CSRF matrix including recovery**
+   - Execute missing/invalid/valid token cases for anonymous and authenticated sessions on `/assistant/api/message` and `/assistant/api/track`.
+   - Include expired/missing-session bootstrap path and verify UI recovery behavior is actionable.
+4. **Post-sanitize empty-message guard**
+   - Submit payloads that sanitize to empty (e.g., whitespace/control-only strings) and assert deterministic `400 invalid_message`.
+   - Verify router/retrieval code paths are not invoked for empty-effective queries.
+5. **UI-controller action wiring check**
+   - Assert topic/disambiguation chips emitted by backend map to clickable UI actions.
+   - Fail checklist if any option renders without action payload.
+6. **Blocking deep-suite gate**
+   - Confirm blocking gate covers deep multi-turn suite in addition to abuse-only suite.
+   - Archive gate artifacts with pass/fail summary and transcript identifiers.
 
 ---
 

@@ -18,36 +18,41 @@
   {# Main content section with two-column layout #}
   <section class="content-section">
     <div class="container">
-      <div class="row justify-content-center">
-        
+      <div class="row">
+
         {# Left Column - Office Information #}
-        <div class="col-md-5 mb-4 mb-md-0">
+        <div class="col-md-6 mb-4 mb-md-0">
           <div class="info-card">
             <h2 class="info-card__title">Office Details</h2>
-            
+
             <dl class="info-list">
               {% if node.field_address.value %}
                 <dt>Address:</dt>
                 <dd>{{ node.field_address.value }}</dd>
               {% endif %}
-              
-              {% if content.field_phone_number|render %}
-                <dt>Telephone:</dt>
-                <dd>{{ content.field_phone_number }}</dd>
-              {% endif %}
-              
+
               {% if node.field_office_hours.value %}
                 <dt>Office Hours:</dt>
                 <dd>{{ node.field_office_hours.value }}</dd>
               {% endif %}
+
+              {% if content.field_phone_number|render %}
+                <dt>Telephone:</dt>
+                <dd>{{ content.field_phone_number }}</dd>
+              {% endif %}
+
+              {% if node.field_office_email.value %}
+                <dt>Email:</dt>
+                <dd><a href="mailto:{{ node.field_office_email.value }}">{{ node.field_office_email.value }}</a></dd>
+              {% endif %}
             </dl>
-            
+
             {% if content.field_office_location_map %}
               <div class="office-map mt-4">
                 {{ content.field_office_location_map }}
               </div>
             {% endif %}
-            
+
             {% if node.field_county.value %}
               <dl class="info-list mt-3">
                 <dt>Counties Served:</dt>
@@ -57,10 +62,8 @@
           </div>
         </div>
 
-        <div class="col-md-1"></div>
-        
         {# Right Column - Get Legal Help #}
-        <div class="col-md-5">
+        <div class="col-md-6">
           <div class="info-card">
             <h2 class="info-card__title">Get Legal Help</h2>
             

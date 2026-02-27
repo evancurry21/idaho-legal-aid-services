@@ -146,6 +146,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
         $this->logger->info('Langfuse export: sent @count events successfully.', [
           '@count' => count($data['batch']),
         ]);
+        $this->recordDrain(1);
       }
       elseif ($statusCode === 207) {
         // Partial success — Langfuse returns 207 for batch with some errors.
@@ -156,6 +157,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
           '@ok' => count($successes),
           '@err' => count($errors),
         ]);
+        $this->recordDrain(1);
       }
     }
     catch (GuzzleException $e) {
@@ -185,6 +187,24 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
         '@message' => $e->getMessage(),
       ]);
       throw new SuspendQueueException('Langfuse export failed unexpectedly, will retry.');
+    }
+  }
+
+  /**
+   * Records a queue drain event if the monitor service is available.
+   *
+   * @param int $count
+   *   Number of items drained.
+   */
+  private function recordDrain(int $count): void {
+    try {
+      $container = \Drupal::getContainer();
+      if ($container && $container->has('ilas_site_assistant.queue_health_monitor')) {
+        $container->get('ilas_site_assistant.queue_health_monitor')->recordDrain($count);
+      }
+    }
+    catch (\Throwable $e) {
+      // Never break export pipeline for monitoring.
     }
   }
 

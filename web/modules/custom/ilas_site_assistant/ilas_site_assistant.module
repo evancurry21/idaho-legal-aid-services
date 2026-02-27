@@ -137,22 +137,44 @@ function ilas_site_assistant_get_canonical_urls() {
  * Implements hook_cron().
  */
 function ilas_site_assistant_cron() {
-  // Clean up expired analytics data.
-  \Drupal::service('ilas_site_assistant.analytics_logger')->cleanupOldData();
+  $start = microtime(TRUE);
+  $success = TRUE;
 
-  // Clean up expired conversation logs.
-  if (\Drupal::hasService('ilas_site_assistant.conversation_logger')) {
-    \Drupal::service('ilas_site_assistant.conversation_logger')->cleanup();
+  try {
+    // Clean up expired analytics data.
+    \Drupal::service('ilas_site_assistant.analytics_logger')->cleanupOldData();
+
+    // Clean up expired conversation logs.
+    if (\Drupal::hasService('ilas_site_assistant.conversation_logger')) {
+      \Drupal::service('ilas_site_assistant.conversation_logger')->cleanup();
+    }
+
+    // Prune stale violation timestamps (older than 24 hours).
+    if (\Drupal::hasService('ilas_site_assistant.safety_violation_tracker')) {
+      \Drupal::service('ilas_site_assistant.safety_violation_tracker')->prune(time() - 86400);
+    }
+
+    // Check for safety spike alerts.
+    if (\Drupal::hasService('ilas_site_assistant.safety_alert')) {
+      \Drupal::service('ilas_site_assistant.safety_alert')->checkThresholds();
+    }
+
+    // Check SLO alert thresholds.
+    if (\Drupal::hasService('ilas_site_assistant.slo_alert')) {
+      \Drupal::service('ilas_site_assistant.slo_alert')->checkAll();
+    }
   }
-
-  // Prune stale violation timestamps (older than 24 hours).
-  if (\Drupal::hasService('ilas_site_assistant.safety_violation_tracker')) {
-    \Drupal::service('ilas_site_assistant.safety_violation_tracker')->prune(time() - 86400);
+  catch (\Throwable $e) {
+    $success = FALSE;
+    \Drupal::logger('ilas_site_assistant')->error('Cron failed: @message', [
+      '@message' => $e->getMessage(),
+    ]);
   }
-
-  // Check for safety spike alerts.
-  if (\Drupal::hasService('ilas_site_assistant.safety_alert')) {
-    \Drupal::service('ilas_site_assistant.safety_alert')->checkThresholds();
+  finally {
+    $duration_ms = (microtime(TRUE) - $start) * 1000;
+    if (\Drupal::hasService('ilas_site_assistant.cron_health_tracker')) {
+      \Drupal::service('ilas_site_assistant.cron_health_tracker')->recordRun($duration_ms, $success);
+    }
   }
 }
 

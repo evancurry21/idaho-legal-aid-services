@@ -2830,6 +2830,7 @@ class AssistantApiController extends ControllerBase {
   public function health() {
     $status = 'healthy';
     $checks = [];
+    $httpCode = 200;
 
     if ($this->performanceMonitor) {
       $summary = $this->performanceMonitor->getSummary();
@@ -2842,11 +2843,38 @@ class AssistantApiController extends ControllerBase {
     $checks['faq_index'] = $this->faqIndex ? 'ok' : 'unavailable';
     $checks['intent_router'] = $this->intentRouter ? 'ok' : 'unavailable';
 
+    // Cron health check.
+    $container = \Drupal::getContainer();
+    if ($container && $container->has('ilas_site_assistant.cron_health_tracker') && $container->has('ilas_site_assistant.slo_definitions')) {
+      $cronHealth = $container->get('ilas_site_assistant.cron_health_tracker')
+        ->getHealthStatus($container->get('ilas_site_assistant.slo_definitions'));
+      $checks['cron'] = $cronHealth;
+      if ($cronHealth['status'] !== 'healthy') {
+        $status = 'degraded';
+        $httpCode = 503;
+      }
+    }
+
+    // Queue health check.
+    if ($container && $container->has('ilas_site_assistant.queue_health_monitor') && $container->has('ilas_site_assistant.slo_definitions')) {
+      $queueHealth = $container->get('ilas_site_assistant.queue_health_monitor')
+        ->getQueueHealthStatus($container->get('ilas_site_assistant.slo_definitions'));
+      $checks['queue'] = $queueHealth;
+      if ($queueHealth['status'] !== 'healthy') {
+        $status = 'degraded';
+        $httpCode = 503;
+      }
+    }
+
+    if ($status !== 'healthy' && $status !== 'degraded') {
+      $httpCode = 503;
+    }
+
     return $this->jsonResponse([
       'status' => $status,
       'timestamp' => date('c'),
       'checks' => $checks,
-    ], $status === 'healthy' ? 200 : 503);
+    ], $httpCode);
   }
 
   /**
@@ -2864,14 +2892,23 @@ class AssistantApiController extends ControllerBase {
 
     $summary = $this->performanceMonitor->getSummary();
 
-    return $this->jsonResponse([
+    $response = [
       'timestamp' => date('c'),
       'metrics' => $summary,
       'thresholds' => [
         'p95_latency_ms' => PerformanceMonitor::THRESHOLD_P95_MS,
         'error_rate_pct' => PerformanceMonitor::THRESHOLD_ERROR_RATE * 100,
       ],
-    ]);
+    ];
+
+    // Add queue metrics if available.
+    $container = \Drupal::getContainer();
+    if ($container && $container->has('ilas_site_assistant.queue_health_monitor') && $container->has('ilas_site_assistant.slo_definitions')) {
+      $response['queue'] = $container->get('ilas_site_assistant.queue_health_monitor')
+        ->getQueueHealthStatus($container->get('ilas_site_assistant.slo_definitions'));
+    }
+
+    return $this->jsonResponse($response);
   }
 
 }

@@ -318,6 +318,38 @@ function ilas_site_assistant_update_10003() {
 }
 
 /**
+ * Backfill SLO target config block for older installs.
+ */
+function ilas_site_assistant_update_10004() {
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $slo = $config->get('slo');
+
+  if (!is_array($slo)) {
+    $slo = [];
+  }
+
+  $defaults = [
+    'availability_target_pct' => 99.5,
+    'latency_p95_target_ms' => 2000,
+    'latency_p99_target_ms' => 5000,
+    'error_rate_target_pct' => 5.0,
+    'error_budget_window_hours' => 168,
+    'cron_max_age_seconds' => 7200,
+    'cron_expected_cadence_seconds' => 3600,
+    'queue_max_depth' => 10000,
+    'queue_max_age_seconds' => 3600,
+  ];
+
+  $merged = $slo + $defaults;
+  if ($merged === $slo) {
+    return t('SLO config block already present.');
+  }
+
+  $config->set('slo', $merged)->save(TRUE);
+  return t('Backfilled missing SLO config defaults.');
+}
+
+/**
  * Implements hook_install().
  */
 function ilas_site_assistant_install() {

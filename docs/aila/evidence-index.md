@@ -570,6 +570,15 @@ Evidence precedence used in this audit:
   - `promptfoo-evals/providers/ilas-live.js:195-208`
   - `promptfoo-evals/providers/ilas-live.js:226-257`
 
+- Addendum (2026-02-27): existing Promptfoo test assets are now part of an
+  enforced quality-gate contract via repo-owned gate scripts and runbook §4
+  verification commands.
+- Addendum evidence:
+  - `docs/aila/runbook.md` (Enforced quality gate verification subsection in §4)
+  - `scripts/ci/run-promptfoo-gate.sh`
+  - `scripts/ci/run-external-quality-gate.sh`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneQualityGateContractTest.php`
+
 ---
 
 ## Cron / Queues / Data Model / Retention
@@ -701,6 +710,14 @@ Evidence precedence used in this audit:
 - Evidence:
   - `web/modules/custom/ilas_site_assistant/tests/src/DrupalUnit/SafetyClassifierTest.php:8-57`
   - `web/modules/custom/ilas_site_assistant/tests/src/DrupalUnit/OutOfScopeClassifierTest.php:8-58`
+
+- Addendum (2026-02-27): deterministic classifier assets are promoted into an
+  enforced quality gate by `tests/run-quality-gate.sh` and verified by guard
+  tests tied to Phase 1 Objective #3.
+- Addendum evidence:
+  - `web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh`
+  - `docs/aila/current-state.md` (Section 4F promptfoo + quality gate harness row)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneQualityGateContractTest.php`
 
 ### CLAIM-106
 - Claim: LLM request payload construction does not include explicit tool/function-calling fields; payload is `contents` + `generationConfig` + `safetySettings`.
@@ -848,6 +865,16 @@ Evidence precedence used in this audit:
   - `scripts/ci/run-promptfoo-gate.sh`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneObservabilityDependencyGateTest.php`
   - `docs/aila/runtime/phase1-observability-gates.txt`
+- Addendum (2026-02-27): quality-gate enforcement is formalized with
+  repo-owned scripts and branch-aware blocking policy, while CI owner/workflow
+  source-of-truth remains an external known unknown.
+- Addendum evidence:
+  - `docs/aila/current-state.md` (Phase 1 Objective #3 Quality Gate Disposition)
+  - `docs/aila/runbook.md` (Enforced quality gate verification subsection in §4)
+  - `web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh`
+  - `scripts/ci/run-external-quality-gate.sh`
+  - `scripts/ci/run-promptfoo-gate.sh`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneQualityGateContractTest.php`
 
 ---
 

@@ -220,7 +220,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Sentry status | Sentry integration is conditional; options subscriber enforces `send_default_pii=false` and payload redaction before send.[^CLAIM-083][^CLAIM-098] |
 | Langfuse status | Langfuse requires config + credentials; traces capture spans/events/generations and export via terminate subscriber + queue worker.[^CLAIM-079][^CLAIM-080][^CLAIM-081][^CLAIM-082] |
 | Runtime monitoring | `PerformanceMonitor` feeds `/assistant/api/health` and `/assistant/api/metrics` status/threshold outputs.[^CLAIM-084][^CLAIM-051] |
-| Promptfoo harness | Promptfoo scripts/providers exist for local/manual synthetic eval runs; no first-party CI workflow file was found in repository-root CI locations in this snapshot.[^CLAIM-086][^CLAIM-122] |
+| Promptfoo + quality gate harness | Existing test assets are now enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `main`/`release/*` and advisory behavior elsewhere. First-party workflow ownership remains external to this repo snapshot.[^CLAIM-086][^CLAIM-105][^CLAIM-122] |
 | Redaction posture | Sentry subscriber and analytics/conversation log codepaths apply redaction/truncation before persistence/export.[^CLAIM-053][^CLAIM-083][^CLAIM-085] |
 
 ### G) Cron/queues/background processes
@@ -314,6 +314,7 @@ Critical command groups documented there:
 - Inventory regeneration (`rg`, route/service extraction, dependency snapshots) into `docs/aila/artifacts/`.[^CLAIM-001][^CLAIM-020][^CLAIM-102]
 - Architectural boundary verification commands for Phase 0 NDO #3 (boundary text continuity, core seam-service anchors, bounded service inventory continuity, and Diagram B pipeline anchors).[^CLAIM-020][^CLAIM-125]
 - Promptfoo synthetic eval runs (`npm run eval:promptfoo`, `npm run eval:promptfoo:live`).[^CLAIM-086][^CLAIM-103]
+- Enforced quality-gate commands for existing test assets (`tests/run-quality-gate.sh`, `scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) including branch-aware blocking policy checks.[^CLAIM-086][^CLAIM-105][^CLAIM-122]
 - Safe log/trace capture with secret/PII redaction rules and synthetic examples only.[^CLAIM-053][^CLAIM-083][^CLAIM-122]
 - Owner-role assignments for Phase 0 entry criterion #2 are documented in runbook §1 and mirrored in the roadmap owner matrix for CSRF hardening and policy governance workstreams.[^CLAIM-013]
 
@@ -322,7 +323,7 @@ Critical command groups documented there:
 | Unknown | Why unknown now | Evidence needed to resolve |
 |---|---|---|
 | Long-run cron cadence and queue drain timing under load | Cron samples and `system.cron_last` snapshots were captured, but no continuous observation window or non-zero queue backlog was captured in this addendum | Time-series cron observations + queue depth/throughput metrics over a sustained interval | [^CLAIM-114][^CLAIM-117][^CLAIM-118][^CLAIM-121] |
-| Promptfoo CI ownership outside this repository | No first-party CI workflow file exists in repository-root CI locations in this snapshot; only local scripts/harness and contrib package CI files were found | External CI system definition/source-of-truth (if managed outside repo) | [^CLAIM-122] |
+| Promptfoo CI ownership outside this repository | No first-party CI workflow file exists in repository-root CI locations in this snapshot. Enforced repo scripts now define gate behavior, but merge/release authority still depends on an external CI owner/source-of-truth. | External CI system definition/source-of-truth (if managed outside repo) | [^CLAIM-122] |
 
 ### Phase 0 Exit #3 Dependency Disposition (2026-02-27)
 
@@ -335,6 +336,21 @@ P0-EXT-03 dependency-gate disposition for Phase 1 planning:
 2. CLAIM-122 dependency is unblocked via Pantheon/local gate ownership using
    runbook verification commands plus repo-scripted external CI runner
    promptfoo targeting (`scripts/ci/*`).
+
+### Phase 1 Objective #3 Quality Gate Disposition (2026-02-27)
+
+This dated addendum formalizes conversion of existing test assets into
+enforced quality gates while preserving the external CI ownership known
+unknown.
+
+1. `tests/run-quality-gate.sh` is the mandatory module-level gate and now
+   enforces unit coverage, deterministic classifier Drupal-unit coverage
+   (Safety + OutOfScope), and golden transcript replay checks.
+2. `scripts/ci/run-promptfoo-gate.sh` enforces branch-aware Promptfoo
+   threshold policy (`main`/`release/*` blocking; other branches advisory).
+3. `scripts/ci/run-external-quality-gate.sh` composes PHPUnit and Promptfoo
+   gates for external runners; first-party workflow ownership remains external
+   to this repository.
 
 ---
 

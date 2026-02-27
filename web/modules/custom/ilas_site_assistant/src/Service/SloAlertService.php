@@ -1,0 +1,209 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\ilas_site_assistant\Service;
+
+use Drupal\Core\State\StateInterface;
+use Psr\Log\LoggerInterface;
+
+/**
+ * Monitors all SLO dimensions and logs warnings on violations.
+ *
+ * Uses 15-minute cooldowns per alert type to avoid log spam.
+ * Designed to be called from cron after cron health recording.
+ *
+ * Alerts are structured Drupal logger warnings. Sentry/Raven integration
+ * picks these up automatically; external alert rules are configured in the
+ * Sentry dashboard.
+ */
+class SloAlertService {
+
+  /**
+   * Cooldown period between repeated alerts of the same type (seconds).
+   */
+  const COOLDOWN_SECONDS = 900;
+
+  /**
+   * State key prefix for alert cooldowns.
+   */
+  const STATE_PREFIX = 'ilas_site_assistant.slo_alert_last_';
+
+  /**
+   * The SLO definitions service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\SloDefinitions
+   */
+  protected SloDefinitions $sloDefinitions;
+
+  /**
+   * The performance monitor service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\PerformanceMonitor|null
+   */
+  protected ?PerformanceMonitor $performanceMonitor;
+
+  /**
+   * The cron health tracker service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\CronHealthTracker|null
+   */
+  protected ?CronHealthTracker $cronHealthTracker;
+
+  /**
+   * The queue health monitor service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\QueueHealthMonitor|null
+   */
+  protected ?QueueHealthMonitor $queueHealthMonitor;
+
+  /**
+   * The logger.
+   *
+   * @var \Psr\Log\LoggerInterface
+   */
+  protected LoggerInterface $logger;
+
+  /**
+   * The state service.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected StateInterface $state;
+
+  /**
+   * Constructs an SloAlertService.
+   */
+  public function __construct(
+    SloDefinitions $slo_definitions,
+    LoggerInterface $logger,
+    StateInterface $state,
+    ?PerformanceMonitor $performance_monitor = NULL,
+    ?CronHealthTracker $cron_health_tracker = NULL,
+    ?QueueHealthMonitor $queue_health_monitor = NULL,
+  ) {
+    $this->sloDefinitions = $slo_definitions;
+    $this->logger = $logger;
+    $this->state = $state;
+    $this->performanceMonitor = $performance_monitor;
+    $this->cronHealthTracker = $cron_health_tracker;
+    $this->queueHealthMonitor = $queue_health_monitor;
+  }
+
+  /**
+   * Checks all SLO dimensions and logs warnings on violations.
+   */
+  public function checkAll(): void {
+    $this->checkLatencySlo();
+    $this->checkErrorRateSlo();
+    $this->checkCronSlo();
+    $this->checkQueueSlo();
+  }
+
+  /**
+   * Checks P95 latency against SLO target.
+   */
+  public function checkLatencySlo(): void {
+    if ($this->performanceMonitor === NULL) {
+      return;
+    }
+
+    $summary = $this->performanceMonitor->getSummary();
+    $p95 = $summary['p95'] ?? 0;
+    $target = $this->sloDefinitions->getLatencyP95TargetMs();
+
+    if ($p95 > $target && $this->cooldownElapsed('latency')) {
+      $this->logger->warning('SLO violation: P95 latency @p95ms exceeds target @target ms', [
+        '@p95' => $p95,
+        '@target' => $target,
+      ]);
+      $this->recordAlert('latency');
+    }
+  }
+
+  /**
+   * Checks error rate against SLO target.
+   */
+  public function checkErrorRateSlo(): void {
+    if ($this->performanceMonitor === NULL) {
+      return;
+    }
+
+    $summary = $this->performanceMonitor->getSummary();
+    $errorRate = $summary['error_rate'] ?? 0;
+    $target = $this->sloDefinitions->getErrorRateTargetPct();
+
+    if ($errorRate > $target && $this->cooldownElapsed('error_rate')) {
+      $this->logger->warning('SLO violation: error rate @rate% exceeds target @target%', [
+        '@rate' => $errorRate,
+        '@target' => $target,
+      ]);
+      $this->recordAlert('error_rate');
+    }
+  }
+
+  /**
+   * Checks cron health against SLO targets.
+   */
+  public function checkCronSlo(): void {
+    if ($this->cronHealthTracker === NULL) {
+      return;
+    }
+
+    $status = $this->cronHealthTracker->getHealthStatus($this->sloDefinitions);
+
+    if ($status['status'] !== 'healthy' && $this->cooldownElapsed('cron')) {
+      $this->logger->warning('SLO violation: cron health is @status (age: @age s, failures: @failures)', [
+        '@status' => $status['status'],
+        '@age' => $status['age'] ?? 'never',
+        '@failures' => $status['consecutive_failures'],
+      ]);
+      $this->recordAlert('cron');
+    }
+  }
+
+  /**
+   * Checks queue health against SLO targets.
+   */
+  public function checkQueueSlo(): void {
+    if ($this->queueHealthMonitor === NULL) {
+      return;
+    }
+
+    $status = $this->queueHealthMonitor->getQueueHealthStatus($this->sloDefinitions);
+
+    if ($status['status'] !== 'healthy' && $this->cooldownElapsed('queue')) {
+      $this->logger->warning('SLO violation: queue is @status (depth: @depth, utilization: @pct%)', [
+        '@status' => $status['status'],
+        '@depth' => $status['depth'],
+        '@pct' => $status['utilization_pct'],
+      ]);
+      $this->recordAlert('queue');
+    }
+  }
+
+  /**
+   * Checks if the cooldown period has elapsed for a given alert type.
+   *
+   * @param string $type
+   *   The alert type key (latency, error_rate, cron, queue).
+   *
+   * @return bool
+   *   TRUE if the cooldown has elapsed and the alert can fire.
+   */
+  protected function cooldownElapsed(string $type): bool {
+    $lastAlert = (int) $this->state->get(self::STATE_PREFIX . $type, 0);
+    return (time() - $lastAlert) >= self::COOLDOWN_SECONDS;
+  }
+
+  /**
+   * Records the current time as the last alert for a given type.
+   *
+   * @param string $type
+   *   The alert type key.
+   */
+  protected function recordAlert(string $type): void {
+    $this->state->set(self::STATE_PREFIX . $type, time());
+  }
+
+}

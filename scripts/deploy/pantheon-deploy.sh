@@ -213,28 +213,27 @@ pending_update_count() {
   fi
 
   local output
-  if ! output="$(terminus drush "$site_env" -- updatedb:status --format=json 2>/dev/null)"; then
+  if ! output="$(terminus drush "$site_env" -- updatedb:status --format=table 2>&1)"; then
     echo "unknown"
     return 0
   fi
 
-  if [[ -z "$output" || "$output" == "[]" || "$output" == "{}" ]]; then
+  # Drush may emit warnings/notices alongside status output. Rely on the
+  # stable success phrase + table row pattern instead of strict JSON parsing.
+  if printf '%s\n' "$output" | grep -q "No database updates required."; then
     echo "0"
     return 0
   fi
 
   local count
-  count="$(php -r '
-    $json = stream_get_contents(STDIN);
-    $data = json_decode($json, true);
-    if (!is_array($data)) {
-      echo "unknown";
-      exit(0);
-    }
-    echo count($data);
-  ' <<<"$output" 2>/dev/null || true)"
+  count="$(
+    printf '%s\n' "$output" | awk '
+      /^[[:space:]]*[A-Za-z0-9_]+[[:space:]]+[0-9]+[[:space:]]+/ { c++ }
+      END { print c+0 }
+    '
+  )"
 
-  if [[ -z "$count" ]]; then
+  if [[ -z "$count" || ! "$count" =~ ^[0-9]+$ ]]; then
     echo "unknown"
     return 0
   fi

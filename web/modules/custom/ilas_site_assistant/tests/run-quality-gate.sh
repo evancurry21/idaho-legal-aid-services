@@ -33,8 +33,8 @@ echo "Module:    $MODULE_DIR"
 echo "Repo root: $REPO_ROOT"
 echo ""
 
-# ── Phase 1: PHPUnit (unit + drupal-unit) ────────────────────────────
-echo "--- Phase 1: PHPUnit tests ---"
+# ── Phase 1: PHPUnit unit suite ───────────────────────────────────────
+echo "--- Phase 1: PHPUnit unit suite ---"
 
 PHPUNIT_BIN="$REPO_ROOT/vendor/bin/phpunit"
 if [ ! -f "$PHPUNIT_BIN" ]; then
@@ -61,8 +61,29 @@ echo ""
 echo "PASS: PHPUnit unit tests passed"
 echo ""
 
-# ── Phase 1b: Golden Transcript tests ─────────────────────────────
-echo "--- Phase 1b: Golden Transcript tests ---"
+# ── Phase 1b: Deterministic classifier gate (Drupal-unit assets) ─────
+echo "--- Phase 1b: Deterministic classifier gate ---"
+
+CLASSIFIER_EXIT=0
+"$PHPUNIT_BIN" \
+  --configuration "$REPO_ROOT/phpunit.xml" \
+  --colors=always \
+  "$MODULE_DIR/tests/src/DrupalUnit/SafetyClassifierTest.php" \
+  "$MODULE_DIR/tests/src/DrupalUnit/OutOfScopeClassifierTest.php" \
+  || CLASSIFIER_EXIT=$?
+
+if [ "$CLASSIFIER_EXIT" -ne 0 ]; then
+  echo ""
+  echo "FAIL: Classifier Drupal-unit gate failed (exit code $CLASSIFIER_EXIT)"
+  exit 1
+fi
+
+echo ""
+echo "PASS: Classifier Drupal-unit gate passed"
+echo ""
+
+# ── Phase 1c: Golden Transcript tests ─────────────────────────────
+echo "--- Phase 1c: Golden Transcript tests ---"
 
 GOLDEN_EXIT=0
 "$PHPUNIT_BIN" \

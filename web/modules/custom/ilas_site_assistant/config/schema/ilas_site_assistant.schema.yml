@@ -349,6 +349,37 @@ ilas_site_assistant.settings:
                 sequence:
                   type: integer
                   label: 'Percentage'
+    slo:
+      type: mapping
+      label: 'SLO target definitions'
+      mapping:
+        availability_target_pct:
+          type: float
+          label: 'Availability target percentage (default: 99.5)'
+        latency_p95_target_ms:
+          type: integer
+          label: 'P95 latency target in milliseconds (default: 2000)'
+        latency_p99_target_ms:
+          type: integer
+          label: 'P99 latency target in milliseconds (default: 5000)'
+        error_rate_target_pct:
+          type: float
+          label: 'Error rate target percentage (default: 5.0)'
+        error_budget_window_hours:
+          type: integer
+          label: 'Error budget evaluation window in hours (default: 168)'
+        cron_max_age_seconds:
+          type: integer
+          label: 'Maximum cron staleness in seconds (default: 7200)'
+        cron_expected_cadence_seconds:
+          type: integer
+          label: 'Expected cron cadence in seconds (default: 3600)'
+        queue_max_depth:
+          type: integer
+          label: 'Maximum queue depth before backlog alert (default: 10000)'
+        queue_max_age_seconds:
+          type: integer
+          label: 'Maximum queue item age in seconds (default: 3600)'
     audit_governance:
       type: mapping
       label: 'Audit governance configuration'
