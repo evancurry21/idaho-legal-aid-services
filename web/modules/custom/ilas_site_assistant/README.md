@@ -382,14 +382,29 @@ Override CSS custom properties in your theme:
 3. Commit config changes
 4. Push to Pantheon
 
-### Post-deployment
+### Post-deployment (standardized)
+
+Use the repo-managed deploy wrapper so update hooks are never skipped:
 
 ```bash
-# On Pantheon (via Terminus or Dashboard)
-terminus drush <site>.<env> -- updb -y
-terminus drush <site>.<env> -- cim -y
-terminus drush <site>.<env> -- cr
+# Dev
+bash scripts/deploy/pantheon-deploy.sh --env dev
+
+# Test
+bash scripts/deploy/pantheon-deploy.sh --env test
+
+# Live (backup + confirmation required by default)
+bash scripts/deploy/pantheon-deploy.sh --env live
 ```
+
+Optional flags:
+- `--dry-run` prints the exact commands without executing remote operations.
+- `--site <machine-name>` overrides the default site machine name.
+- `--yes-live` bypasses live confirmation prompt.
+- `--skip-live-backup` skips automatic live backup (not recommended).
+
+This wrapper runs Drush deploy on Pantheon (`updatedb -> config:import -> cache:rebuild -> deploy:hook`) and then checks `updatedb:status` again.  
+These deploy commands affect **remote database/runtime state** only; they do not modify git commits or local tracked files.
 
 ### Environment-specific Settings
 
