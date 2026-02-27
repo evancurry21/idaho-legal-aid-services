@@ -196,3 +196,24 @@ langfuse:
   timeout: 5.0
   max_queue_depth: 10000
   max_item_age_seconds: 3600
+
+# Audit governance for "no legal advice" compliance reporting
+# See docs/aila/AUDIT_GOVERNANCE_SPEC.md for full specification.
+audit_governance:
+  audit_domain_classes:
+    - legal_advice
+    - document_drafting
+    - criminal
+    - immigration
+    - external
+  audit_domain_event_types:
+    - safety_violation
+    - policy_violation
+    - out_of_scope
+    - post_gen_safety_legal_advice
+    - post_gen_safety_review_flag
+  report_cadence_days: 30
+  report_required_permission: 'view ilas site assistant reports'
+  signoff_required_permission: 'approve ilas site assistant audit'
+  report_retention_days: 365
+  signoff_deadline_days: 14

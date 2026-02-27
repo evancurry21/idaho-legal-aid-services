@@ -257,6 +257,31 @@ ilas_site_assistant.settings:
             ambiguous_message_words:
               type: integer
               label: 'Ambiguous message word count threshold (default: 2)'
+    vector_search:
+      type: mapping
+      label: 'Vector search enhancement settings'
+      mapping:
+        enabled:
+          type: boolean
+          label: 'Enable vector search fallback'
+        faq_index_id:
+          type: string
+          label: 'FAQ vector index ID'
+        resource_index_id:
+          type: string
+          label: 'Resource vector index ID'
+        fallback_threshold:
+          type: integer
+          label: 'Minimum lexical results before vector search fires'
+        min_vector_score:
+          type: float
+          label: 'Minimum cosine similarity score (0-1)'
+        score_normalization_factor:
+          type: integer
+          label: 'Score normalization factor for ranking parity'
+        min_lexical_score:
+          type: integer
+          label: 'Minimum lexical score for quality check (0 = disabled)'
     safety_alerting:
       type: mapping
       label: 'Safety spike alerting settings'
@@ -324,6 +349,37 @@ ilas_site_assistant.settings:
                 sequence:
                   type: integer
                   label: 'Percentage'
+    audit_governance:
+      type: mapping
+      label: 'Audit governance configuration'
+      mapping:
+        audit_domain_classes:
+          type: sequence
+          label: 'Safety classes in the no-legal-advice audit domain'
+          sequence:
+            type: string
+            label: 'Class name'
+        audit_domain_event_types:
+          type: sequence
+          label: 'Analytics event types included in audit reports'
+          sequence:
+            type: string
+            label: 'Event type'
+        report_cadence_days:
+          type: integer
+          label: 'Report cadence in days'
+        report_required_permission:
+          type: string
+          label: 'Permission required to generate and view audit reports'
+        signoff_required_permission:
+          type: string
+          label: 'Permission required to record monthly signoff'
+        report_retention_days:
+          type: integer
+          label: 'Days to retain generated report artifacts'
+        signoff_deadline_days:
+          type: integer
+          label: 'Days after period end to complete signoff'
     langfuse:
       type: mapping
       label: 'Langfuse observability settings'

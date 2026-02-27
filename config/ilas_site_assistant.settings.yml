@@ -77,3 +77,29 @@ llm:
   enhance_greetings: false
   fallback_on_error: true
   safety_threshold: BLOCK_MEDIUM_AND_ABOVE
+vector_search:
+  enabled: false
+  faq_index_id: faq_accordion_vector
+  resource_index_id: assistant_resources_vector
+  fallback_threshold: 2
+  min_vector_score: 0.7
+  score_normalization_factor: 100
+  min_lexical_score: 0
+audit_governance:
+  audit_domain_classes:
+    - legal_advice
+    - document_drafting
+    - criminal
+    - immigration
+    - external
+  audit_domain_event_types:
+    - safety_violation
+    - policy_violation
+    - out_of_scope
+    - post_gen_safety_legal_advice
+    - post_gen_safety_review_flag
+  report_cadence_days: 30
+  report_required_permission: 'view ilas site assistant reports'
+  signoff_required_permission: 'approve ilas site assistant audit'
+  report_retention_days: 365
+  signoff_deadline_days: 14

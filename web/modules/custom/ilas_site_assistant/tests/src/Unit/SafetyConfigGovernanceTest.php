@@ -1,0 +1,236 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\Tests\ilas_site_assistant\Unit;
+
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * Contract tests locking safety-critical config defaults.
+ *
+ * These tests ensure that install defaults for safety-critical settings
+ * (LLM disabled, PII redaction, rate limits, etc.) cannot drift without
+ * deliberate review. Any change to these values must be intentional.
+ */
+#[Group('ilas_site_assistant')]
+class SafetyConfigGovernanceTest extends TestCase {
+
+  private const MODULE_PATH = 'web/modules/custom/ilas_site_assistant';
+
+  /**
+   * Returns the repository root path.
+   */
+  private static function repoRoot(): string {
+    // __DIR__ = <repo>/web/modules/custom/ilas_site_assistant/tests/src/Unit
+    return dirname(__DIR__, 7);
+  }
+
+  /**
+   * Returns parsed install config.
+   */
+  private static function installConfig(): array {
+    $path = self::repoRoot() . '/' . self::MODULE_PATH . '/config/install/ilas_site_assistant.settings.yml';
+    self::assertFileExists($path, 'Install config YAML not found');
+    return Yaml::parseFile($path);
+  }
+
+  /**
+   * Returns parsed active config.
+   */
+  private static function activeConfig(): array {
+    $path = self::repoRoot() . '/config/ilas_site_assistant.settings.yml';
+    self::assertFileExists($path, 'Active config YAML not found');
+    return Yaml::parseFile($path);
+  }
+
+  /**
+   * Returns parsed schema config.
+   */
+  private static function schemaConfig(): array {
+    $path = self::repoRoot() . '/' . self::MODULE_PATH . '/config/schema/ilas_site_assistant.schema.yml';
+    self::assertFileExists($path, 'Schema YAML not found');
+    return Yaml::parseFile($path);
+  }
+
+  /**
+   * Install disclaimer text must contain legal advice refusal language.
+   */
+  public function testDisclaimerContainsLegalAdviceRefusal(): void {
+    $install = self::installConfig();
+    $this->assertArrayHasKey('disclaimer_text', $install);
+
+    $disclaimer = strtolower($install['disclaimer_text']);
+    $this->assertStringContainsString('cannot', $disclaimer, 'Install disclaimer must contain "cannot"');
+    $this->assertStringContainsString('legal advice', $disclaimer, 'Install disclaimer must contain "legal advice"');
+  }
+
+  /**
+   * Active config disclaimer text must also contain legal advice refusal.
+   */
+  public function testActiveDisclaimerContainsLegalAdviceRefusal(): void {
+    $active = self::activeConfig();
+    $this->assertArrayHasKey('disclaimer_text', $active);
+
+    $disclaimer = strtolower($active['disclaimer_text']);
+    $this->assertStringContainsString('cannot', $disclaimer, 'Active disclaimer must contain "cannot"');
+    $this->assertStringContainsString('legal advice', $disclaimer, 'Active disclaimer must contain "legal advice"');
+  }
+
+  /**
+   * LLM must be disabled by default in install config.
+   */
+  public function testLlmDisabledByDefault(): void {
+    $install = self::installConfig();
+    $this->assertArrayHasKey('llm', $install);
+    $this->assertArrayHasKey('enabled', $install['llm']);
+    $this->assertFalse($install['llm']['enabled'], 'LLM must be disabled in install defaults');
+  }
+
+  /**
+   * Safety threshold default must be BLOCK_MEDIUM_AND_ABOVE.
+   */
+  public function testSafetyThresholdDefault(): void {
+    $install = self::installConfig();
+    $this->assertSame(
+      'BLOCK_MEDIUM_AND_ABOVE',
+      $install['llm']['safety_threshold'],
+      'Safety threshold must default to BLOCK_MEDIUM_AND_ABOVE',
+    );
+  }
+
+  /**
+   * Rate limit defaults must be 15/min and 120/hour.
+   */
+  public function testRateLimitDefaults(): void {
+    $install = self::installConfig();
+    $this->assertSame(15, $install['rate_limit_per_minute'], 'Rate limit per minute must default to 15');
+    $this->assertSame(120, $install['rate_limit_per_hour'], 'Rate limit per hour must default to 120');
+  }
+
+  /**
+   * Conversation logging must redact PII by default.
+   */
+  public function testConversationLoggingRedactionDefault(): void {
+    $install = self::installConfig();
+    $this->assertArrayHasKey('conversation_logging', $install);
+    $this->assertTrue(
+      $install['conversation_logging']['redact_pii'],
+      'PII redaction must be enabled by default in conversation_logging',
+    );
+  }
+
+  /**
+   * LLM fallback_on_error must be true by default (fail-safe).
+   */
+  public function testFallbackOnErrorDefault(): void {
+    $install = self::installConfig();
+    $this->assertTrue(
+      $install['llm']['fallback_on_error'],
+      'LLM fallback_on_error must be true by default',
+    );
+  }
+
+  /**
+   * Safety alerting must be disabled by default.
+   */
+  public function testSafetyAlertingDisabledByDefault(): void {
+    $install = self::installConfig();
+    $this->assertArrayHasKey('safety_alerting', $install);
+    $this->assertFalse(
+      $install['safety_alerting']['enabled'],
+      'Safety alerting must be disabled by default',
+    );
+  }
+
+  /**
+   * Schema must define mappings for all safety-critical config blocks.
+   */
+  public function testSchemaCoversAllSafetyCriticalBlocks(): void {
+    $schema = self::schemaConfig();
+    $mapping = $schema['ilas_site_assistant.settings']['mapping'];
+
+    $requiredBlocks = [
+      'llm',
+      'conversation_logging',
+      'safety_alerting',
+      'rate_limit_per_minute',
+      'rate_limit_per_hour',
+      'disclaimer_text',
+      'vector_search',
+      'audit_governance',
+    ];
+
+    foreach ($requiredBlocks as $block) {
+      $this->assertArrayHasKey(
+        $block,
+        $mapping,
+        "Schema missing safety-critical block: {$block}",
+      );
+    }
+  }
+
+  /**
+   * Vector search must be disabled by default in install config.
+   */
+  public function testVectorSearchDisabledByDefault(): void {
+    $install = self::installConfig();
+    $this->assertArrayHasKey('vector_search', $install);
+    $this->assertArrayHasKey('enabled', $install['vector_search']);
+    $this->assertFalse(
+      $install['vector_search']['enabled'],
+      'Vector search must be disabled in install defaults',
+    );
+  }
+
+  /**
+   * Active config safety keys must match install defaults (no drift).
+   *
+   * Checks that the safety-critical values in the active (exported) config
+   * have not drifted from the install defaults. Only checks keys present
+   * in both configs to avoid false positives for keys added after initial
+   * install.
+   */
+  public function testActiveConfigSafetyKeysMatchInstallDefaults(): void {
+    $install = self::installConfig();
+    $active = self::activeConfig();
+
+    // Scalar safety keys.
+    $this->assertSame(
+      $install['rate_limit_per_minute'],
+      $active['rate_limit_per_minute'],
+      'Active rate_limit_per_minute has drifted from install default',
+    );
+    $this->assertSame(
+      $install['rate_limit_per_hour'],
+      $active['rate_limit_per_hour'],
+      'Active rate_limit_per_hour has drifted from install default',
+    );
+
+    // LLM safety keys.
+    $this->assertSame(
+      $install['llm']['enabled'],
+      $active['llm']['enabled'],
+      'Active llm.enabled has drifted from install default',
+    );
+    $this->assertSame(
+      $install['llm']['safety_threshold'],
+      $active['llm']['safety_threshold'],
+      'Active llm.safety_threshold has drifted from install default',
+    );
+    $this->assertSame(
+      $install['llm']['fallback_on_error'],
+      $active['llm']['fallback_on_error'],
+      'Active llm.fallback_on_error has drifted from install default',
+    );
+
+    // Conversation logging PII redaction.
+    $this->assertTrue(
+      $active['conversation_logging']['redact_pii'],
+      'Active conversation_logging.redact_pii must remain true',
+    );
+  }
+
+}
