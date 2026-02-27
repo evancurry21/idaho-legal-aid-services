@@ -25,10 +25,24 @@ class AssistantSettingsForm extends ConfigFormBase {
   }
 
   /**
+   * Returns TRUE when running in Pantheon live environment.
+   */
+  protected function isLiveEnvironment(): bool {
+    $pantheon_env = getenv('PANTHEON_ENVIRONMENT');
+    if (is_string($pantheon_env) && strtolower($pantheon_env) === 'live') {
+      return TRUE;
+    }
+
+    $pantheon_env = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
+    return is_string($pantheon_env) && strtolower($pantheon_env) === 'live';
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('ilas_site_assistant.settings');
+    $is_live_environment = $this->isLiveEnvironment();
 
     $form['general'] = [
       '#type' => 'details',
@@ -339,6 +353,20 @@ class AssistantSettingsForm extends ConfigFormBase {
       ],
     ];
 
+    $form['vector_search']['vector_search_min_lexical_score'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Minimum Lexical Score'),
+      '#description' => $this->t('If set above 0 and all lexical results score below this, vector search fires even when the result count meets the fallback threshold. Set to 0 to disable.'),
+      '#default_value' => $vector_config['min_lexical_score'] ?? 0,
+      '#min' => 0,
+      '#max' => 1000,
+      '#states' => [
+        'visible' => [
+          ':input[name="vector_search_enabled"]' => ['checked' => TRUE],
+        ],
+      ],
+    ];
+
     // LLM Enhancement Settings.
     $form['llm'] = [
       '#type' => 'details',
@@ -352,8 +380,11 @@ class AssistantSettingsForm extends ConfigFormBase {
     $form['llm']['llm_enabled'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable LLM Enhancement'),
-      '#description' => $this->t('When enabled, the assistant will use Gemini AI to generate more natural responses. Requires API credentials below.'),
-      '#default_value' => $llm_config['enabled'] ?? FALSE,
+      '#description' => $is_live_environment
+        ? $this->t('Disabled in live: LLM enablement is out of scope through Phase 2 and requires a later readiness review.')
+        : $this->t('When enabled, the assistant will use Gemini AI to generate more natural responses. Requires API credentials below.'),
+      '#default_value' => $is_live_environment ? FALSE : ($llm_config['enabled'] ?? FALSE),
+      '#disabled' => $is_live_environment,
     ];
 
     $form['llm']['llm_provider'] = [
@@ -520,6 +551,20 @@ class AssistantSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
+  public function validateForm(array &$form, FormStateInterface $form_state) {
+    if ($this->isLiveEnvironment() && (bool) $form_state->getValue('llm_enabled')) {
+      $form_state->setErrorByName(
+        'llm_enabled',
+        $this->t('LLM enhancement cannot be enabled in the live environment through Phase 2.'),
+      );
+    }
+
+    parent::validateForm($form, $form_state);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = $this->config('ilas_site_assistant.settings');
 
@@ -559,11 +604,17 @@ class AssistantSettingsForm extends ConfigFormBase {
       'fallback_threshold' => (int) $form_state->getValue('vector_search_fallback_threshold'),
       'min_vector_score' => (float) $form_state->getValue('vector_search_min_score'),
       'score_normalization_factor' => (int) $form_state->getValue('vector_search_normalization_factor'),
+      'min_lexical_score' => (int) $form_state->getValue('vector_search_min_lexical_score'),
     ];
+
+    $llm_enabled = (bool) $form_state->getValue('llm_enabled');
+    if ($this->isLiveEnvironment()) {
+      $llm_enabled = FALSE;
+    }
 
     // Build LLM config array.
     $llm_config = [
-      'enabled' => (bool) $form_state->getValue('llm_enabled'),
+      'enabled' => $llm_enabled,
       'provider' => $form_state->getValue('llm_provider'),
       'model' => $form_state->getValue('llm_model'),
       'api_key' => $form_state->getValue('llm_api_key'),

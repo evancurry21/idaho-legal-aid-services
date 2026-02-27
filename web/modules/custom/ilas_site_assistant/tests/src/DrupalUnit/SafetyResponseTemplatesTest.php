@@ -33,6 +33,7 @@ class SafetyResponseTemplatesTest extends UnitTestCase {
   protected function setUp(): void {
     parent::setUp();
     $this->templates = new SafetyResponseTemplates();
+    $this->templates->setStringTranslation($this->getStringTranslationStub());
   }
 
   // =========================================================================

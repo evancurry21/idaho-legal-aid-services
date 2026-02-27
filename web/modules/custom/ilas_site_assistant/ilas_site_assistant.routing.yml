@@ -14,6 +14,7 @@ ilas_site_assistant.api.message:
   requirements:
     _permission: 'access content'
     _csrf_request_header_token: 'TRUE'
+    _ilas_strict_csrf_token: 'TRUE'
 
 ilas_site_assistant.api.suggest:
   path: '/assistant/api/suggest'
@@ -88,3 +89,4 @@ ilas_site_assistant.api.track:
   requirements:
     _permission: 'access content'
     _csrf_request_header_token: 'TRUE'
+    _ilas_strict_csrf_token: 'TRUE'

@@ -9,4 +9,5 @@ dependencies:
   - drupal:user
   - drupal:views
   - drupal:search_api
+  - drupal:search_api_db
   - drupal:paragraphs

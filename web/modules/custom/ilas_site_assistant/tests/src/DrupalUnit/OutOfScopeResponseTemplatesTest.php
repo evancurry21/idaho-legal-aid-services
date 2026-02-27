@@ -33,6 +33,7 @@ class OutOfScopeResponseTemplatesTest extends UnitTestCase {
   protected function setUp(): void {
     parent::setUp();
     $this->templates = new OutOfScopeResponseTemplates();
+    $this->templates->setStringTranslation($this->getStringTranslationStub());
   }
 
   // =========================================================================
@@ -231,7 +232,7 @@ class OutOfScopeResponseTemplatesTest extends UnitTestCase {
 
     $this->assertEquals('escalation', $response['type']);
     // Must mention SBDC as resource.
-    $this->assertStringContainsString('SBDC', $response['message']);
+    $this->assertStringContainsString('small business development center', strtolower($response['message']));
     // User might have personal legal issues.
     $this->assertTrue($response['can_still_help']);
   }
@@ -453,7 +454,7 @@ class OutOfScopeResponseTemplatesTest extends UnitTestCase {
   /**
    * Data provider for golden dataset OOS cases.
    */
-  public function goldenDatasetOosProvider(): array {
+  public static function goldenDatasetOosProvider(): array {
     return [
       'criminal_defense_lawyer' => ['oos_criminal_representation', OutOfScopeClassifier::CATEGORY_CRIMINAL_DEFENSE],
       'dui' => ['oos_criminal_dui', OutOfScopeClassifier::CATEGORY_CRIMINAL_DEFENSE],

@@ -1,0 +1,204 @@
+# Promptfoo CI Location Search
+timestamp_utc=2026-02-26T19:27:07Z
+
+$ find .github -maxdepth 3 -type f
+find: ‘.github’: No such file or directory
+
+$ find . -maxdepth 4 -type f \( -name '.gitlab-ci.yml' -o -name 'config.yml' -path './.circleci/*' -o -name 'azure-pipelines.yml' -o -name 'Jenkinsfile' \)
+./node_modules/read-excel-file/.gitlab-ci.yml
+./node_modules/asn1/Jenkinsfile
+
+$ rg -n --no-heading 'promptfoo|promptfooconfig|eval:promptfoo|view:promptfoo' package.json promptfoo-evals .github .gitlab-ci.yml .circleci azure-pipelines.yml Jenkinsfile
+rg: .github: No such file or directory (os error 2)
+rg: .gitlab-ci.yml: No such file or directory (os error 2)
+rg: .circleci: No such file or directory (os error 2)
+rg: azure-pipelines.yml: No such file or directory (os error 2)
+rg: Jenkinsfile: No such file or directory (os error 2)
+package.json:6:    "eval:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+package.json:7:    "eval:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action eval",
+package.json:8:    "eval:promptfoo:live": "ILAS_ASSISTANT_URL=https://idaholegalaid.org/assistant/api/message bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+package.json:9:    "view:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh view",
+package.json:10:    "view:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action view"
+package.json:13:    "promptfoo": "^0.120.24"
+promptfoo-evals/providers/ilas-live.js:156:    // Try common locations promptfoo may pass metadata/vars in.
+promptfoo-evals/scripts/run-promptfoo.sh:4:#   bash scripts/run-promptfoo.sh eval                          # run default evaluation
+promptfoo-evals/scripts/run-promptfoo.sh:5:#   bash scripts/run-promptfoo.sh eval promptfooconfig.deep.yaml  # run with alternate config
+promptfoo-evals/scripts/run-promptfoo.sh:6:#   bash scripts/run-promptfoo.sh view                          # open results viewer
+promptfoo-evals/scripts/run-promptfoo.sh:7:#   bash scripts/run-promptfoo.sh                               # defaults to eval
+promptfoo-evals/scripts/run-promptfoo.sh:20:CONFIG="$EVALS_DIR/promptfooconfig.yaml"
+promptfoo-evals/scripts/run-promptfoo.sh:29:export PROMPTFOO_CONFIG_DIR="$EVALS_DIR/.promptfoo"
+promptfoo-evals/scripts/run-promptfoo.sh:45:    npx promptfoo@latest eval --config "$CONFIG"
+promptfoo-evals/scripts/run-promptfoo.sh:64:    npx promptfoo@latest view --port "$PORT" --yes
+promptfoo-evals/scripts/generate-deep-convos.js:7: * promptfoo test entries at tests/conversations-deep.yaml.
+promptfoo-evals/README.md:4:Uses [Promptfoo](https://promptfoo.dev) for multi-turn conversation evaluation
+promptfoo-evals/README.md:11:Run `npm run eval:promptfoo:live` to evaluate against the production assistant.
+promptfoo-evals/README.md:16:promptfoo-evals/
+promptfoo-evals/README.md:17:├── promptfooconfig.yaml          # Main config — providers, tests, options
+promptfoo-evals/README.md:29:│   ├── run-promptfoo.sh          # Bash wrapper (Linux/macOS)
+promptfoo-evals/README.md:30:│   └── run-promptfoo.ps1         # PowerShell wrapper (Windows)
+promptfoo-evals/README.md:40:- No global install needed — scripts use `npx promptfoo@latest`
+promptfoo-evals/README.md:47:npm run eval:promptfoo:live
+promptfoo-evals/README.md:65:bash promptfoo-evals/scripts/run-promptfoo.sh eval
+promptfoo-evals/README.md:70:To run offline without hitting the live endpoint, edit `promptfooconfig.yaml`
+promptfoo-evals/README.md:75:npm run eval:promptfoo
+promptfoo-evals/README.md:78:npm run eval:promptfoo:win
+promptfoo-evals/README.md:84:npm run view:promptfoo
+promptfoo-evals/README.md:94:PROMPTFOO_PORT=16000 npm run view:promptfoo
+promptfoo-evals/README.md:109:You can also add these to a `.env` file in `promptfoo-evals/` or export them
+promptfoo-evals/README.md:129:Uncomment the `redteam` block in `promptfooconfig.yaml` and set
+promptfoo-evals/README.md:141:cd promptfoo-evals && npm install && cd ..
+promptfoo-evals/README.md:147:npm run generate:multiturn --prefix promptfoo-evals
+promptfoo-evals/README.md:148:# or: node promptfoo-evals/scripts/generate-multiturn.js
+promptfoo-evals/README.md:163:Create YAML files in `tests/` and reference them in `promptfooconfig.yaml`:
+promptfoo-evals/README.md:179:- **"Cannot find module promptfoo"** — ensure Node.js >= 18 is installed.
+promptfoo-evals/README.md:180:  Scripts use `npx promptfoo@latest` so no global install is needed.
+promptfoo-evals/README.md:185:  If running `npx promptfoo` directly, set the env vars listed above.
+promptfoo-evals/README.md:190:  `npm run view:promptfoo` is running. Deep-link URLs (e.g. `/eval-...`)
+promptfoo-evals/README.md:205:  PROMPTFOO_PORT=16000 npm run view:promptfoo
+promptfoo-evals/README.md:207:- **No evals visible?** — run `npm run eval:promptfoo` first. The viewer reads
+promptfoo-evals/README.md:208:  from the project-local DB at `promptfoo-evals/.promptfoo/`.
+promptfoo-evals/scripts/run-promptfoo.ps1:3:#   .\scripts\run-promptfoo.ps1 -Action eval    # run evaluation
+promptfoo-evals/scripts/run-promptfoo.ps1:4:#   .\scripts\run-promptfoo.ps1 -Action view    # open results viewer
+promptfoo-evals/scripts/run-promptfoo.ps1:5:#   .\scripts\run-promptfoo.ps1                 # defaults to eval
+promptfoo-evals/scripts/run-promptfoo.ps1:24:$Config = Join-Path $EvalsDir "promptfooconfig.yaml"
+promptfoo-evals/scripts/run-promptfoo.ps1:27:$env:PROMPTFOO_CONFIG_DIR = Join-Path $EvalsDir ".promptfoo"
+promptfoo-evals/scripts/run-promptfoo.ps1:44:        npx promptfoo@latest eval --config $Config
+promptfoo-evals/scripts/run-promptfoo.ps1:65:        npx promptfoo@latest view --port $Port --yes
+
+# Refined CI search (excluding node_modules/vendor)
+$ find . -path './node_modules' -prune -o -path './vendor' -prune -o -path './.git' -prune -o -type f \( -path './.github/workflows/*' -o -name '.gitlab-ci.yml' -o -path './.circleci/*' -o -name 'azure-pipelines.yml' -o -name 'Jenkinsfile' \) -print
+./web/themes/contrib/drupal_cms_olivero/.gitlab-ci.yml
+./web/themes/contrib/bootstrap5/.gitlab-ci.yml
+./web/themes/contrib/gin/.gitlab-ci.yml
+./web/modules/contrib/google_analytics/.gitlab-ci.yml
+./web/modules/contrib/scheduler_content_moderation_integration/.gitlab-ci.yml
+./web/modules/contrib/views_infinite_scroll/.gitlab-ci.yml
+./web/modules/contrib/dashboard/.gitlab-ci.yml
+./web/modules/contrib/address/.gitlab-ci.yml
+./web/modules/contrib/token/.gitlab-ci.yml
+./web/modules/contrib/sam/.gitlab-ci.yml
+./web/modules/contrib/ai_provider_google_vertex/.gitlab-ci.yml
+./web/modules/contrib/search_api_exclude/.gitlab-ci.yml
+./web/modules/contrib/autosave_form/.gitlab-ci.yml
+./web/modules/contrib/simple_sitemap/.gitlab-ci.yml
+./web/modules/contrib/media_library_form_element/.gitlab-ci.yml
+./web/modules/contrib/jquery_ui_resizable/.gitlab-ci.yml
+./web/modules/contrib/gin_toolbar/.gitlab-ci.yml
+./web/modules/contrib/editoria11y/.gitlab-ci.yml
+./web/modules/contrib/friendlycaptcha/.gitlab-ci.yml
+./web/modules/contrib/mailsystem/.gitlab-ci.yml
+./web/modules/contrib/leaflet/.gitlab-ci.yml
+./web/modules/contrib/better_exposed_filters/.gitlab-ci.yml
+./web/modules/contrib/editor_advanced_link/.gitlab-ci.yml
+./web/modules/contrib/captcha/.gitlab-ci.yml
+./web/modules/contrib/menu_link_attributes/.gitlab-ci.yml
+./web/modules/contrib/schema_metatag/.gitlab-ci.yml
+./web/modules/contrib/raven/.gitlab-ci.yml
+./web/modules/contrib/seckit/.gitlab-ci.yml
+./web/modules/contrib/svg_image/.gitlab-ci.yml
+./web/modules/contrib/add_content_by_bundle/.gitlab-ci.yml
+./web/modules/contrib/hreflang/.gitlab-ci.yml
+./web/modules/contrib/linkit/.gitlab-ci.yml
+./web/modules/contrib/search_api_autocomplete/.gitlab-ci.yml
+./web/modules/contrib/simple_search_form/.gitlab-ci.yml
+./web/modules/contrib/smart_date/.gitlab-ci.yml
+./web/modules/contrib/tagify/.gitlab-ci.yml
+./web/modules/contrib/focal_point/.gitlab-ci.yml
+./web/modules/contrib/honeypot/.gitlab-ci.yml
+./web/modules/contrib/eca/.gitlab-ci.yml
+./web/modules/contrib/redirect/.gitlab-ci.yml
+./web/modules/contrib/project_browser/.gitlab-ci.yml
+./web/modules/contrib/login_emailusername/.gitlab-ci.yml
+./web/modules/contrib/tmgmt/.gitlab-ci.yml
+./web/modules/contrib/scheduler/.gitlab-ci.yml
+./web/modules/contrib/coffee/.gitlab-ci.yml
+./web/modules/contrib/ckeditor_link_styles/.gitlab-ci.yml
+./web/modules/contrib/ai_agents/.gitlab-ci.yml
+./web/modules/contrib/ai_provider_openai/.gitlab-ci.yml
+./web/modules/contrib/metatag_ai/.gitlab-ci.yml
+./web/modules/contrib/metatag/.gitlab-ci.yml
+./web/modules/contrib/geocoder/.gitlab-ci.yml
+./web/modules/contrib/ai_provider_anthropic/.gitlab-ci.yml
+./web/modules/contrib/key/.gitlab-ci.yml
+./web/modules/contrib/klaro/.gitlab-ci.yml
+./web/modules/contrib/addtocal_augment/.gitlab-ci.yml
+./web/modules/contrib/search_api/.gitlab-ci.yml
+./web/modules/contrib/google_cse/.gitlab-ci.yml
+./web/modules/contrib/pathauto/.gitlab-ci.yml
+./web/modules/contrib/ai/.gitlab-ci.yml
+./web/modules/contrib/jquery_ui/.gitlab-ci.yml
+./web/modules/contrib/seo_checklist/.gitlab-ci.yml
+./web/modules/contrib/ai_vdb_provider_pinecone/.gitlab-ci.yml
+./web/modules/contrib/token_or/.gitlab-ci.yml
+./web/modules/contrib/crop/.gitlab-ci.yml
+./web/modules/contrib/trash/.gitlab-ci.yml
+./web/modules/contrib/webform/.gitlab-ci.yml
+./web/modules/contrib/geofield/.gitlab-ci.yml
+./web/modules/contrib/layout_paragraphs/.gitlab-ci.yml
+./web/modules/contrib/ctools/.gitlab-ci.yml
+./web/modules/contrib/modeler_api/.gitlab-ci.yml
+./web/modules/contrib/bpmn_io/.gitlab-ci.yml
+./web/modules/contrib/field_group/.gitlab-ci.yml
+./web/modules/contrib/imce/.gitlab-ci.yml
+./web/modules/contrib/easy_breadcrumb/.gitlab-ci.yml
+./web/modules/contrib/tmgmt_google/.gitlab-ci.yml
+./web/modules/contrib/gemini_provider/.gitlab-ci.yml
+./web/modules/contrib/sitemap/.gitlab-ci.yml
+./web/modules/contrib/paragraphs/.gitlab-ci.yml
+./web/modules/contrib/automatic_updates/.gitlab-ci.yml
+./web/modules/contrib/entity_reference_revisions/.gitlab-ci.yml
+./web/modules/contrib/twig_tweak/.gitlab-ci.yml
+
+$ rg -n --no-heading 'promptfoo|promptfooconfig|eval:promptfoo|view:promptfoo' package.json promptfoo-evals
+package.json:6:    "eval:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+package.json:7:    "eval:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action eval",
+package.json:8:    "eval:promptfoo:live": "ILAS_ASSISTANT_URL=https://idaholegalaid.org/assistant/api/message bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+package.json:9:    "view:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh view",
+package.json:10:    "view:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action view"
+package.json:13:    "promptfoo": "^0.120.24"
+promptfoo-evals/providers/ilas-live.js:156:    // Try common locations promptfoo may pass metadata/vars in.
+promptfoo-evals/scripts/run-promptfoo.ps1:3:#   .\scripts\run-promptfoo.ps1 -Action eval    # run evaluation
+promptfoo-evals/scripts/run-promptfoo.ps1:4:#   .\scripts\run-promptfoo.ps1 -Action view    # open results viewer
+promptfoo-evals/scripts/run-promptfoo.ps1:5:#   .\scripts\run-promptfoo.ps1                 # defaults to eval
+promptfoo-evals/scripts/run-promptfoo.ps1:24:$Config = Join-Path $EvalsDir "promptfooconfig.yaml"
+promptfoo-evals/scripts/run-promptfoo.ps1:27:$env:PROMPTFOO_CONFIG_DIR = Join-Path $EvalsDir ".promptfoo"
+promptfoo-evals/scripts/run-promptfoo.ps1:44:        npx promptfoo@latest eval --config $Config
+promptfoo-evals/scripts/run-promptfoo.ps1:65:        npx promptfoo@latest view --port $Port --yes
+promptfoo-evals/scripts/generate-deep-convos.js:7: * promptfoo test entries at tests/conversations-deep.yaml.
+promptfoo-evals/README.md:4:Uses [Promptfoo](https://promptfoo.dev) for multi-turn conversation evaluation
+promptfoo-evals/README.md:11:Run `npm run eval:promptfoo:live` to evaluate against the production assistant.
+promptfoo-evals/README.md:16:promptfoo-evals/
+promptfoo-evals/README.md:17:├── promptfooconfig.yaml          # Main config — providers, tests, options
+promptfoo-evals/README.md:29:│   ├── run-promptfoo.sh          # Bash wrapper (Linux/macOS)
+promptfoo-evals/README.md:30:│   └── run-promptfoo.ps1         # PowerShell wrapper (Windows)
+promptfoo-evals/README.md:40:- No global install needed — scripts use `npx promptfoo@latest`
+promptfoo-evals/README.md:47:npm run eval:promptfoo:live
+promptfoo-evals/README.md:65:bash promptfoo-evals/scripts/run-promptfoo.sh eval
+promptfoo-evals/README.md:70:To run offline without hitting the live endpoint, edit `promptfooconfig.yaml`
+promptfoo-evals/README.md:75:npm run eval:promptfoo
+promptfoo-evals/README.md:78:npm run eval:promptfoo:win
+promptfoo-evals/README.md:84:npm run view:promptfoo
+promptfoo-evals/README.md:94:PROMPTFOO_PORT=16000 npm run view:promptfoo
+promptfoo-evals/README.md:109:You can also add these to a `.env` file in `promptfoo-evals/` or export them
+promptfoo-evals/README.md:129:Uncomment the `redteam` block in `promptfooconfig.yaml` and set
+promptfoo-evals/README.md:141:cd promptfoo-evals && npm install && cd ..
+promptfoo-evals/README.md:147:npm run generate:multiturn --prefix promptfoo-evals
+promptfoo-evals/README.md:148:# or: node promptfoo-evals/scripts/generate-multiturn.js
+promptfoo-evals/README.md:163:Create YAML files in `tests/` and reference them in `promptfooconfig.yaml`:
+promptfoo-evals/README.md:179:- **"Cannot find module promptfoo"** — ensure Node.js >= 18 is installed.
+promptfoo-evals/README.md:180:  Scripts use `npx promptfoo@latest` so no global install is needed.
+promptfoo-evals/README.md:185:  If running `npx promptfoo` directly, set the env vars listed above.
+promptfoo-evals/README.md:190:  `npm run view:promptfoo` is running. Deep-link URLs (e.g. `/eval-...`)
+promptfoo-evals/README.md:205:  PROMPTFOO_PORT=16000 npm run view:promptfoo
+promptfoo-evals/README.md:207:- **No evals visible?** — run `npm run eval:promptfoo` first. The viewer reads
+promptfoo-evals/README.md:208:  from the project-local DB at `promptfoo-evals/.promptfoo/`.
+promptfoo-evals/scripts/run-promptfoo.sh:4:#   bash scripts/run-promptfoo.sh eval                          # run default evaluation
+promptfoo-evals/scripts/run-promptfoo.sh:5:#   bash scripts/run-promptfoo.sh eval promptfooconfig.deep.yaml  # run with alternate config
+promptfoo-evals/scripts/run-promptfoo.sh:6:#   bash scripts/run-promptfoo.sh view                          # open results viewer
+promptfoo-evals/scripts/run-promptfoo.sh:7:#   bash scripts/run-promptfoo.sh                               # defaults to eval
+promptfoo-evals/scripts/run-promptfoo.sh:20:CONFIG="$EVALS_DIR/promptfooconfig.yaml"
+promptfoo-evals/scripts/run-promptfoo.sh:29:export PROMPTFOO_CONFIG_DIR="$EVALS_DIR/.promptfoo"
+promptfoo-evals/scripts/run-promptfoo.sh:45:    npx promptfoo@latest eval --config "$CONFIG"
+promptfoo-evals/scripts/run-promptfoo.sh:64:    npx promptfoo@latest view --port "$PORT" --yes
+
+$ find . -maxdepth 2 -type f \( -path './.github/workflows/*' -o -name '.gitlab-ci.yml' -o -path './.circleci/*' -o -name 'azure-pipelines.yml' -o -name 'Jenkinsfile' \)

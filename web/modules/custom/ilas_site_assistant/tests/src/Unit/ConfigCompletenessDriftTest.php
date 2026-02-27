@@ -1,0 +1,206 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\Tests\ilas_site_assistant\Unit;
+
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
+
+/**
+ * Enforces config completeness parity: install defaults vs active vs schema.
+ *
+ * IMP-CONF-01 / CLAIM-124: Prevents config drift by asserting that the active
+ * config export contains all top-level keys from install defaults, the schema
+ * covers all install defaults, active config has no orphan keys, LLM sub-keys
+ * are complete, and disabled-by-default blocks remain disabled in install.
+ *
+ * @group ilas_site_assistant
+ */
+#[Group('ilas_site_assistant')]
+class ConfigCompletenessDriftTest extends TestCase {
+
+  private const MODULE_PATH = 'web/modules/custom/ilas_site_assistant';
+
+  /**
+   * Returns the repository root by walking up from __DIR__.
+   */
+  private static function repoRoot(): string {
+    // __DIR__ = <repo>/web/modules/custom/ilas_site_assistant/tests/src/Unit
+    return dirname(__DIR__, 7);
+  }
+
+  /**
+   * Returns parsed install config.
+   */
+  private static function installConfig(): array {
+    $path = self::repoRoot() . '/' . self::MODULE_PATH . '/config/install/ilas_site_assistant.settings.yml';
+    self::assertFileExists($path, 'Install config YAML not found');
+    return Yaml::parseFile($path);
+  }
+
+  /**
+   * Returns parsed active config.
+   */
+  private static function activeConfig(): array {
+    $path = self::repoRoot() . '/config/ilas_site_assistant.settings.yml';
+    self::assertFileExists($path, 'Active config YAML not found');
+    return Yaml::parseFile($path);
+  }
+
+  /**
+   * Returns parsed schema config.
+   */
+  private static function schemaConfig(): array {
+    $path = self::repoRoot() . '/' . self::MODULE_PATH . '/config/schema/ilas_site_assistant.schema.yml';
+    self::assertFileExists($path, 'Schema YAML not found');
+    return Yaml::parseFile($path);
+  }
+
+  /**
+   * Every top-level key in install defaults must exist in active config.
+   *
+   * Catches the exact drift problem this task resolves: blocks present in
+   * install defaults but missing from the exported active config.
+   */
+  public function testActiveConfigContainsAllInstallTopLevelKeys(): void {
+    $install = self::installConfig();
+    $active = self::activeConfig();
+
+    $installKeys = array_keys($install);
+    $activeKeys = array_keys($active);
+
+    // _core is an active-config-only Drupal internal key; exclude from check.
+    $activeKeysFiltered = array_diff($activeKeys, ['_core']);
+    $installKeysFiltered = array_diff($installKeys, ['_core']);
+
+    $missingFromActive = array_diff($installKeysFiltered, $activeKeysFiltered);
+    $this->assertEmpty(
+      $missingFromActive,
+      'Active config is missing top-level keys present in install defaults: ' . implode(', ', $missingFromActive),
+    );
+  }
+
+  /**
+   * Every top-level key in install defaults must have a schema mapping entry.
+   */
+  public function testSchemaCoversAllInstallTopLevelKeys(): void {
+    $install = self::installConfig();
+    $schema = self::schemaConfig();
+
+    $installKeys = array_keys($install);
+    $schemaMapping = $schema['ilas_site_assistant.settings']['mapping'] ?? [];
+    $schemaKeys = array_keys($schemaMapping);
+
+    $missingFromSchema = array_diff($installKeys, $schemaKeys);
+    $this->assertEmpty(
+      $missingFromSchema,
+      'Install default top-level keys missing from schema: ' . implode(', ', $missingFromSchema),
+    );
+  }
+
+  /**
+   * Active config must not contain keys absent from install defaults.
+   *
+   * Catches stale/orphaned config keys that no longer have install defaults.
+   * The only exception is `_core` which Drupal adds automatically.
+   */
+  public function testActiveConfigHasNoOrphanTopLevelKeys(): void {
+    $install = self::installConfig();
+    $active = self::activeConfig();
+
+    $installKeys = array_keys($install);
+    $activeKeys = array_keys($active);
+
+    // _core is Drupal-internal metadata, not an application config key.
+    $orphans = array_diff($activeKeys, $installKeys, ['_core']);
+    $this->assertEmpty(
+      $orphans,
+      'Active config contains top-level keys absent from install defaults (orphans): ' . implode(', ', $orphans),
+    );
+  }
+
+  /**
+   * All LLM sub-keys from install defaults exist in active config and schema.
+   */
+  public function testLlmSubKeysComplete(): void {
+    $install = self::installConfig();
+    $active = self::activeConfig();
+    $schema = self::schemaConfig();
+
+    $this->assertArrayHasKey('llm', $install, 'Install defaults must define llm block');
+    $this->assertArrayHasKey('llm', $active, 'Active config must define llm block');
+
+    $installLlmKeys = $this->flattenKeys($install['llm'], 'llm');
+    $activeLlmKeys = $this->flattenKeys($active['llm'], 'llm');
+
+    // Every install LLM key must exist in active config.
+    $missingFromActive = array_diff($installLlmKeys, $activeLlmKeys);
+    $this->assertEmpty(
+      $missingFromActive,
+      'Active config llm block is missing sub-keys: ' . implode(', ', $missingFromActive),
+    );
+
+    // Schema must cover all LLM sub-keys (check top-level llm mapping keys).
+    $schemaLlmMapping = $schema['ilas_site_assistant.settings']['mapping']['llm']['mapping'] ?? [];
+    $installLlmTopKeys = array_keys($install['llm']);
+    $schemaLlmKeys = array_keys($schemaLlmMapping);
+
+    $missingFromSchema = array_diff($installLlmTopKeys, $schemaLlmKeys);
+    $this->assertEmpty(
+      $missingFromSchema,
+      'Schema llm mapping is missing sub-keys: ' . implode(', ', $missingFromSchema),
+    );
+  }
+
+  /**
+   * Blocks with `enabled` sub-keys must all be disabled in install defaults.
+   *
+   * Ensures no feature is accidentally shipped enabled before operator review.
+   */
+  public function testDisabledByDefaultBlocks(): void {
+    $install = self::installConfig();
+
+    $blocksWithEnabledFlag = [
+      'llm',
+      'vector_search',
+      'safety_alerting',
+      'ab_testing',
+      'langfuse',
+    ];
+
+    foreach ($blocksWithEnabledFlag as $block) {
+      $this->assertArrayHasKey($block, $install, "Install defaults must define block: {$block}");
+      $this->assertArrayHasKey('enabled', $install[$block], "Block {$block} must have an 'enabled' key");
+      $this->assertFalse(
+        $install[$block]['enabled'],
+        "Block {$block} must be disabled (enabled: false) in install defaults",
+      );
+    }
+  }
+
+  /**
+   * Recursively flattens array keys into dot-notation paths.
+   *
+   * @param array $data
+   *   The array to flatten.
+   * @param string $prefix
+   *   The key prefix for dot notation.
+   *
+   * @return string[]
+   *   Flat list of dot-notation key paths.
+   */
+  private function flattenKeys(array $data, string $prefix = ''): array {
+    $keys = [];
+    foreach ($data as $key => $value) {
+      $fullKey = $prefix ? "{$prefix}.{$key}" : $key;
+      $keys[] = $fullKey;
+      if (is_array($value) && !array_is_list($value)) {
+        $keys = array_merge($keys, $this->flattenKeys($value, $fullKey));
+      }
+    }
+    return $keys;
+  }
+
+}

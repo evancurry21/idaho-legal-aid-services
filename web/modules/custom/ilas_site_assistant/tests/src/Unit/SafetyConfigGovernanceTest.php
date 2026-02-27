@@ -233,4 +233,41 @@ class SafetyConfigGovernanceTest extends TestCase {
     );
   }
 
+  /**
+   * Live settings override must hard-disable LLM enablement.
+   */
+  public function testLiveSettingsOverrideForcesLlmDisabled(): void {
+    $path = self::repoRoot() . '/web/sites/default/settings.php';
+    $this->assertFileExists($path, 'settings.php not found');
+
+    $contents = file_get_contents($path);
+    $this->assertIsString($contents);
+    $this->assertStringContainsString(
+      "if (isset(\$_ENV['PANTHEON_ENVIRONMENT']) && \$_ENV['PANTHEON_ENVIRONMENT'] === 'live') {",
+      $contents,
+      'settings.php must include live environment branch',
+    );
+    $this->assertStringContainsString(
+      "\$config['ilas_site_assistant.settings']['llm.enabled'] = FALSE;",
+      $contents,
+      'Live environment must hard-disable llm.enabled via runtime override',
+    );
+  }
+
+  /**
+   * Settings form must enforce the live LLM guard at UI, validation, and save.
+   */
+  public function testAssistantSettingsFormEnforcesLiveLlmGuard(): void {
+    $path = self::repoRoot() . '/' . self::MODULE_PATH . '/src/Form/AssistantSettingsForm.php';
+    $this->assertFileExists($path, 'AssistantSettingsForm.php not found');
+
+    $contents = file_get_contents($path);
+    $this->assertIsString($contents);
+    $this->assertStringContainsString('protected function isLiveEnvironment(): bool', $contents);
+    $this->assertStringContainsString("'#disabled' => \$is_live_environment", $contents);
+    $this->assertStringContainsString("setErrorByName(\n        'llm_enabled',", $contents);
+    $this->assertStringContainsString("if (\$this->isLiveEnvironment()) {\n      \$llm_enabled = FALSE;", $contents);
+    $this->assertStringContainsString("'enabled' => \$llm_enabled", $contents);
+  }
+
 }

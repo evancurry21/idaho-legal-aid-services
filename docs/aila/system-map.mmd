@@ -1,0 +1,93 @@
+%% ILAS Site Assistant (Aila) system maps
+%% Source references: docs/aila/evidence-index.md (CLAIM-010..CLAIM-104)
+
+flowchart LR
+  subgraph Client[Browser / Frontend]
+    U[User]
+    W[Widget JS\nassistant-widget.js]
+    P[/assistant Page\nassistant-page.html.twig]
+    DL[dataLayer GA events]
+  end
+
+  subgraph Drupal[Drupal 11 / ilas_site_assistant]
+    R[Routing + Controllers\nAssistantPageController\nAssistantApiController]
+    PL[Pipeline\nFlood -> Validation -> Safety -> OOS -> Policy -> Intent]
+    RET[Retrieval\nFaqIndex + ResourceFinder\nSearch API + optional vector]
+    GEN[Generation\nLlmEnhancer\nGemini/Vertex optional]
+    OBS[Observability\nAnalytics logger\nLangfuse tracer/queue\nSentry options subscriber]
+    STO[(Storage\nCustom DB tables\ncache.ilas_site_assistant\nstate + queues + config)]
+  end
+
+  subgraph Ext[External Integrations]
+    SA[Search API servers/indexes]
+    PC[Pinecone]
+    GM[Gemini API]
+    VX[Vertex AI]
+    LF[Langfuse]
+    SN[Sentry / Raven]
+    PF[Promptfoo harness]
+    GA[GA4/Google Tag]
+  end
+
+  U --> W
+  U --> P
+  W -->|POST /assistant/api/message + CSRF| R
+  W -->|POST /assistant/api/track + CSRF| R
+  W -->|GET /assistant/api/suggest, /faq| R
+  W --> DL
+  DL --> GA
+
+  R --> PL
+  PL --> RET
+  RET --> SA
+  RET -->|vector enabled| PC
+  PL --> GEN
+  GEN -->|provider=gemini_api| GM
+  GEN -->|provider=vertex_ai| VX
+
+  R --> OBS
+  OBS --> LF
+  OBS --> SN
+  R --> STO
+  PL --> STO
+  RET --> STO
+  GEN --> STO
+
+  PF -->|synthetic eval calls| R
+
+
+flowchart TD
+  A[HTTP request\n/assistant/api/message] --> B{Flood checks\nper IP minute/hour}
+  B -->|limit exceeded| B1[429 JSON\nRetry-After]
+  B -->|ok| C{Validate request\ncontent-type + size + JSON + message}
+  C -->|invalid| C1[4xx JSON error]
+  C -->|valid| D[Set/validate correlation ID\nSet response header]
+  D --> E[Load conversation cache\nilas_conv:uuid]
+  E --> F{Repeated-message abuse?}
+  F -->|yes| F1[Escalation response + log]
+  F -->|no| G[SafetyClassifier]
+  G -->|match| G1[Safety refusal/escalation\nviolation tracking + logging]
+  G -->|pass| H[OutOfScopeClassifier]
+  H -->|match| H1[OOS response + logging]
+  H -->|pass| I[PolicyFilter fallback checks]
+  I -->|blocked| I1[Policy response]
+  I -->|pass| J[Turn classify + Intent route\nquick actions/history fallback]
+  J --> K[Early retrieval\nFAQ/resources]
+  K --> L[Fallback gate decision\nclarify vs llm path]
+  L --> M[Hard-route URL enforcement\noptional response grounding]
+  M --> N{LLM enabled + allowed?}
+  N -->|no| O[Rule-based response]
+  N -->|yes| P[LlmEnhancer call\ncache/circuit/rate/retry/timeout]
+  P --> Q[Post-generation safety enforcement]
+  O --> R[Persist history + follow-up slot cache\n30m TTL, 10-entry window]
+  Q --> R
+  R --> S{Conversation logging enabled?}
+  S -->|yes| T[Redacted DB write]
+  S -->|no| U[Skip]
+  T --> V[Analytics + Langfuse trace buffer\nresponse JSON]
+  U --> V
+
+  V --> W[Kernel terminate subscriber\nqueue Langfuse export item]
+  W --> X[Queue worker on cron\nflush to Langfuse]
+
+  P -->|error path| Y[Exception handling\nSentry tag + Langfuse error + 500 internal_error]

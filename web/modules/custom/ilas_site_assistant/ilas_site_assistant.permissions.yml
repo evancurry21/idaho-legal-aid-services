@@ -11,3 +11,8 @@ view ilas site assistant conversations:
   title: 'View Site Assistant Conversation Logs'
   description: 'Access PII-redacted conversation logs for QA/debugging. Contains sensitive user queries.'
   restrict access: true
+
+approve ilas site assistant audit:
+  title: 'Approve ILAS Site Assistant Audit Reports'
+  description: 'Record monthly signoff on no-legal-advice compliance audit reports.'
+  restrict access: true

@@ -1,0 +1,511 @@
+# Local Runtime Verification
+timestamp_utc=2026-02-26T19:21:42Z
+
+$ ddev start
+Starting ilas-pantheon...
+Building project images...Project images built in 2s.
+Waiting for containers to become ready: [web db]
+Starting ddev-router if necessary...
+Successfully started ilas-pantheon
+Your project can be reached at https://ilas-pantheon.ddev.site
+See 'ddev describe' for alternate URLs.
+User-managed <repo>/.ddev/.gitignore will not be managed/overwritten by ddev
+User-managed <repo>/.ddev/.gitignore will not be managed/overwritten by ddev
+.
+User-managed <repo>/.ddev/.gitignore will not be managed/overwritten by ddev
+
+$ ddev describe
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│ Project: ilas-pantheon <repo> https://ilas-pantheon.ddev.site        │
+│ Docker platform: wsl2-docker-ce                                                          │
+│ Router: traefik                                                                          │
+├──────────────┬──────┬───────────────────────────────────────────────┬────────────────────┤
+│ SERVICE      │ STAT │ URL/PORT                                      │ INFO               │
+├──────────────┼──────┼───────────────────────────────────────────────┼────────────────────┤
+│ web          │ OK   │ https://ilas-pantheon.ddev.site               │ drupal11 PHP 8.3   │
+│              │      │ InDocker -> Host:                             │ Server: nginx-fpm  │
+│              │      │  - web:80 -> 127.0.0.1:32798                  │ Docroot: 'web'     │
+│              │      │  - web:443 -> 127.0.0.1:32799                 │ Perf mode: none    │
+│              │      │  - web:8025 -> 127.0.0.1:32806                │ Node.js: 22        │
+├──────────────┼──────┼───────────────────────────────────────────────┼────────────────────┤
+│ db           │ OK   │ InDocker -> Host:                             │ mariadb:10.11      │
+│              │      │  - db:3306 -> 127.0.0.1:32801                 │ User/Pass: 'db/db' │
+│              │      │                                               │ or 'root/root'     │
+├──────────────┼──────┼───────────────────────────────────────────────┼────────────────────┤
+│ Mailpit      │      │ Mailpit: https://ilas-pantheon.ddev.site:8026 │                    │
+│              │      │ Launch: ddev mailpit                          │                    │
+├──────────────┼──────┼───────────────────────────────────────────────┼────────────────────┤
+│ Project URLs │      │ https://ilas-pantheon.ddev.site,              │                    │
+│              │      │ https://127.0.0.1:32799,                      │                    │
+│              │      │ http://ilas-pantheon.ddev.site,               │                    │
+│              │      │ http://127.0.0.1:32798                        │                    │
+└──────────────┴──────┴───────────────────────────────────────────────┴────────────────────┘
+
+
+$ ddev drush status
+Drupal version   : 11.3.2                                     
+Site URI         : http://localhost                           
+DB driver        : mysql                                      
+DB hostname      : db                                         
+DB port          : 3306                                       
+DB username      : db                                         
+DB name          : db                                         
+Database         : Connected                                  
+Drupal bootstrap : Successful                                 
+Default theme    : b5subtheme                                 
+Admin theme      : gin                                        
+PHP binary       : /usr/bin/php8.3                            
+PHP config       : /etc/php/8.3/cli/php.ini                   
+PHP OS           : Linux                                      
+PHP version      : 8.3.23                                     
+Drush script     : /var/www/html/vendor/bin/drush.php         
+Drush version    : 13.7.0.0                                   
+Drush temp       : /tmp                                       
+Drush configs    : /var/www/html/vendor/drush/drush/drush.yml 
+                   /var/www/html/web/drush/drush.yml          
+Install profile  :                                            
+Drupal root      : /var/www/html/web                          
+Site path        : sites/default                              
+Files, Public    : sites/default/files                        
+Files, Private   : sites/default/files/private                
+Files, Temp      : /tmp                                       
+Drupal config    : ../config                                  
+
+$ ddev drush cr
+ [success] Cache rebuild complete.
+
+$ ddev drush pm:list --status=enabled --type=module
+ ------------------- ---------------------------------- --------- ------------- 
+  Package             Name                               Status    Version      
+ ------------------- ---------------------------------- --------- ------------- 
+  Core                Announcements                      Enabled   11.3.2       
+                      (announcements_feed)                                      
+  Core                Automated Cron (automated_cron)    Enabled   11.3.2       
+  Core                BigPipe (big_pipe)                 Enabled   11.3.2       
+  Core                Block (block)                      Enabled   11.3.2       
+  Core                Block Content (block_content)      Enabled   11.3.2       
+  Core                Breakpoint (breakpoint)            Enabled   11.3.2       
+  Core                CKEditor 5 (ckeditor5)             Enabled   11.3.2       
+  Core                Configuration Manager (config)     Enabled   11.3.2       
+  Multilingual        Configuration Translation          Enabled   11.3.2       
+                      (config_translation)                                      
+  Core                Content Moderation                 Enabled   11.3.2       
+                      (content_moderation)                                      
+  Multilingual        Content Translation                Enabled   11.3.2       
+                      (content_translation)                                     
+  Core                Contextual Links (contextual)      Enabled   11.3.2       
+  Field types         Datetime (datetime)                Enabled   11.3.2       
+  Field types         Datetime Range (datetime_range)    Enabled   11.3.2       
+  Core                Database Logging (dblog)           Enabled   11.3.2       
+  Core                Internal Dynamic Page Cache        Enabled   11.3.2       
+                      (dynamic_page_cache)                                      
+  Core                Text Editor (editor)               Enabled   11.3.2       
+  Core                Field (field)                      Enabled   11.3.2       
+  Core                Field UI (field_ui)                Enabled   11.3.2       
+  Field types         File (file)                        Enabled   11.3.2       
+  Core                Filter (filter)                    Enabled   11.3.2       
+  Field types         Image (image)                      Enabled   11.3.2       
+  Core                Inline Form Errors                 Enabled   11.3.2       
+                      (inline_form_errors)                                      
+  Multilingual        Language (language)                Enabled   11.3.2       
+  Core                Layout Builder (layout_builder)    Enabled   11.3.2       
+  Core                Layout Discovery                   Enabled   11.3.2       
+                      (layout_discovery)                                        
+  Field types         Link (link)                        Enabled   11.3.2       
+  Multilingual        Interface Translation (locale)     Enabled   11.3.2       
+  Core                Media (media)                      Enabled   11.3.2       
+  Core                Media Library (media_library)      Enabled   11.3.2       
+  Core                Custom Menu Links                  Enabled   11.3.2       
+                      (menu_link_content)                                       
+  Core                Menu UI (menu_ui)                  Enabled   11.3.2       
+  Core                MySQL (mysql)                      Enabled   11.3.2       
+  Core                Node (node)                        Enabled   11.3.2       
+  Field types         Options (options)                  Enabled   11.3.2       
+  Core                Package Manager                    Enabled   11.3.2       
+                      (package_manager)                                         
+  Core                Internal Page Cache (page_cache)   Enabled   11.3.2       
+  Core                Path (path)                        Enabled   11.3.2       
+  Core                Path alias (path_alias)            Enabled   11.3.2       
+  Core                Responsive Image                   Enabled   11.3.2       
+                      (responsive_image)                                        
+  Core                Search (search)                    Enabled   11.3.2       
+  Core                System (system)                    Enabled   11.3.2       
+  Core                Taxonomy (taxonomy)                Enabled   11.3.2       
+  Field types         Text (text)                        Enabled   11.3.2       
+  Core                Toolbar (toolbar)                  Enabled   11.3.2       
+  Core                Update Status (update)             Enabled   11.3.2       
+  Core                User (user)                        Enabled   11.3.2       
+  Core                Views (views)                      Enabled   11.3.2       
+  Core                Views UI (views_ui)                Enabled   11.3.2       
+  Core                Workflows (workflows)              Enabled   11.3.2       
+  Views               Add Content by Bundle              Enabled   1.2.2        
+                      (add_content_by_bundle)                                   
+  Field types         Address (address)                  Enabled   2.0.4        
+  Date Augmenter      Add to Calendar Date Augmenter     Enabled   1.2.4        
+                      (addtocal_augment)                                        
+  AI                  AI Core (ai)                       Enabled   1.3.0-beta1  
+  AI (Experimental)   AI Search (ai_search)              Enabled   1.3.0-beta1  
+  AI Providers        Google Vertex                      Enabled   1.1.1        
+                      (ai_provider_google_vertex)                               
+  AI                  AI SEO analyzer (ai_seo)           Enabled   1.0.7        
+  AI Vector           Pinecone Serverless VDB Provider   Enabled   1.1.0-beta3  
+  Database            (ai_vdb_provider_pinecone)                                
+  Providers                                                                     
+  (Experimental)                                                                
+  Spam control        Antibot (antibot)                  Enabled   2.0.4        
+  Content             Autosave Form (autosave_form)      Enabled   8.x-1.10     
+  Views               Better Exposed Filters             Enabled   7.1.1        
+                      (better_exposed_filters)                                  
+  Layout Builder      Bootstrap Layout Builder           Enabled   2.2.1        
+                      (bootstrap_layout_builder)                                
+  Layout Builder      Bootstrap Styles                   Enabled   1.2.2        
+                      (bootstrap_styles)                                        
+  ECA                 BPMN.iO for ECA (bpmn_io)          Enabled   2.0.11       
+  Spam control        CAPTCHA (captcha)                  Enabled   2.0.9        
+  Other               Checklist API (checklistapi)       Enabled   2.1.7        
+  CKEditor 5 Plugin   CKEditor 5 Plugin Pack             Enabled   1.5.0        
+  Pack                (ckeditor5_plugin_pack)                                   
+  CKEditor 5 Plugin   CKEditor 5 Link Attributes         Enabled   1.5.0        
+  Pack                (ckeditor5_plugin_pack_link_attr                          
+                      ibutes)                                                   
+  CKEditor 5          CKEditor 5 Link Styles             Enabled   1.1.0        
+                      (ckeditor_link_styles)                                    
+  Other               Coffee (coffee)                    Enabled   2.0.1        
+  Media               Crop API (crop)                    Enabled   8.x-2.5      
+  Core                Dashboard (dashboard)              Enabled   2.2.0        
+  Date Augmenter      Date Augmenter API                 Enabled   1.1.2        
+                      (date_augmenter)                                          
+  Navigation          Easy Breadcrumb                    Enabled   2.0.9        
+                      (easy_breadcrumb)                                         
+  Mail                Easy Email (easy_email)            Enabled   3.0.7        
+  Mail                Easy Email Overrides               Enabled   3.0.7        
+                      (easy_email_override)                                     
+  ECA                 ECA Core (eca)                     Enabled   2.1.18       
+  ECA                 ECA Base (eca_base)                Enabled   2.1.18       
+  ECA                 ECA Config (eca_config)            Enabled   2.1.18       
+  ECA                 ECA Content (eca_content)          Enabled   2.1.18       
+  ECA                 ECA Form (eca_form)                Enabled   2.1.18       
+  ECA                 ECA Miscellaneous (eca_misc)       Enabled   2.1.18       
+  ECA                 ECA BPMN (eca_modeller_bpmn)       Enabled   2.1.18       
+  ECA                 ECA Project Browser                Enabled   2.1.18       
+                      (eca_project_browser)                                     
+  ECA                 ECA Render (eca_render)            Enabled   2.1.18       
+  ECA                 ECA UI (eca_ui)                    Enabled   2.1.18       
+  ECA                 ECA User (eca_user)                Enabled   2.1.18       
+  Other               Editor Advanced Link               Enabled   2.3.3        
+                      (editor_advanced_link)                                    
+  User interface      Editoria11y (editoria11y)          Enabled   2.2.20       
+  Field types         Entity Reference Revisions         Enabled   8.x-1.14     
+                      (entity_reference_revisions)                              
+  Fields              Field Group (field_group)          Enabled   8.x-3.6      
+  Media               Focal Point (focal_point)          Enabled   2.1.2        
+  Spam control        Friendly Captcha                   Enabled   1.1.4        
+                      (friendlycaptcha)                                         
+  AI Providers        Gemini Provider                    Enabled   1.0.1-beta1  
+                      (gemini_provider)                                         
+  Geocoding           Geocoder (geocoder)                Enabled   8.x-4.30     
+  Geocoding           Geocoder Address                   Enabled   8.x-4.30     
+                      (geocoder_address)                                        
+  Geocoding           Geocoder Field (geocoder_field)    Enabled   8.x-4.30     
+  Geocoding           Geocoder Geofield                  Enabled   8.x-4.30     
+                      (geocoder_geofield)                                       
+  Geofield            Geofield (geofield)                Enabled   8.x-1.67     
+  Other               Gin Toolbar (gin_toolbar)          Enabled   3.0.3        
+  Other               Google Programmable Search         Enabled   5.0.3        
+                      (google_cse)                                              
+  Other               Google Translator                  Enabled   2.3.0        
+                      (google_translator)                                       
+  Spam control        Honeypot (honeypot)                Enabled   2.2.2        
+  Multilingual        Hreflang (hreflang)                Enabled   8.x-1.16     
+  Media               Imce File Manager (imce)           Enabled   3.1.4        
+  jQuery UI           jQuery UI (jquery_ui)              Enabled   8.x-1.8      
+  jQuery UI           jQuery UI Resizable                Enabled   2.1.0        
+                      (jquery_ui_resizable)                                     
+  Security            Key (key)                          Enabled   8.x-1.22     
+  User interface      Klaro Cookie & Consent Manager     Enabled   3.0.8        
+                      (klaro)                                                   
+  Paragraphs          Layout Paragraphs                  Enabled   2.1.1        
+                      (layout_paragraphs)                                       
+  Geofield            Leaflet (leaflet)                  Enabled   10.4.1       
+  Geofield            Leaflet Views (leaflet_views)      Enabled   10.4.1       
+  User interface      Linkit (linkit)                    Enabled   7.0.12       
+  Other               Login with Email or Username       Enabled   3.0.1        
+                      (login_emailusername)                                     
+  Mail                Mail System (mailsystem)           Enabled   8.x-4.5      
+  Other               Media Library Form Element         Enabled   2.1.4        
+                      (media_library_form_element)                              
+  Other               Menu Link Attributes               Enabled   8.x-1.6      
+                      (menu_link_attributes)                                    
+  SEO                 Metatag (metatag)                  Enabled   2.2.0        
+  SEO                 Metatag: Open Graph                Enabled   2.2.0        
+                      (metatag_open_graph)                                      
+  SEO                 Metatag: Twitter Cards             Enabled   2.2.0        
+                      (metatag_twitter_cards)                                   
+  SEO                 Metatag: Views (metatag_views)     Enabled   2.2.0        
+  SEO                 Metatag AI Generator               Enabled   2.0.5        
+                      (metatag_ai)                                              
+  Paragraphs          Paragraphs (paragraphs)            Enabled   8.x-1.20     
+  Other               Pathauto (pathauto)                Enabled   8.x-1.14     
+  Other               Project Browser                    Enabled   2.1.3        
+                      (project_browser)                                         
+  Other               Raven: Sentry Integration          Enabled   7.3.6        
+                      (raven)                                                   
+  Other               Redirect 404 (redirect_404)        Enabled   8.x-1.12     
+  Other               Redirect (redirect)                Enabled   8.x-1.12     
+  Other               RobotsTxt (robotstxt)              Enabled   8.x-1.6      
+  Fields              Simple Add More (sam)              Enabled   1.3.2        
+  Other               Scheduler (scheduler)              Enabled   2.2.2        
+  Other               Scheduler Content Moderation       Enabled   3.0.4        
+                      Integration                                               
+                      (scheduler_content_moderation_in                          
+                      tegration)                                                
+  SEO                 Schema.org Article                 Enabled   3.0.3        
+                      (schema_article)                                          
+  SEO                 Schema.org Event (schema_event)    Enabled   3.0.3        
+  SEO                 Schema.org HowTo (schema_how_to)   Enabled   3.0.3        
+  SEO                 Schema.org JobPosting              Enabled   3.0.3        
+                      (schema_job_posting)                                      
+  SEO                 Schema.org Metatag                 Enabled   3.0.3        
+                      (schema_metatag)                                          
+  SEO                 Schema.org Organization            Enabled   3.0.3        
+                      (schema_organization)                                     
+  SEO                 Schema.org Place (schema_place)    Enabled   3.0.3        
+  SEO                 Schema.org QAPage and FAQPage      Enabled   3.0.3        
+                      (schema_qa_page)                                          
+  SEO                 Schema.org Service                 Enabled   3.0.3        
+                      (schema_service)                                          
+  SEO                 Schema.org WebPage                 Enabled   3.0.3        
+                      (schema_web_page)                                         
+  SEO                 Schema.org WebSite                 Enabled   3.0.3        
+                      (schema_web_site)                                         
+  Search              Database Search (search_api_db)    Enabled   8.x-1.40     
+  Search              Search API (search_api)            Enabled   8.x-1.40     
+  Search              Search API Autocomplete            Enabled   8.x-1.11     
+                      (search_api_autocomplete)                                 
+  Search              Search API Exclude                 Enabled   2.0.3        
+                      (search_api_exclude)                                      
+  Search              Search API Pages                   Enabled   8.x-1.1      
+                      (search_api_page)                                         
+  Security            Security Kit (seckit)              Enabled   2.0.3        
+  Views               Selective Better Exposed Filters   Enabled   3.0.3        
+                      (selective_better_exposed_filter                          
+                      s)                                                        
+  SEO                 SEO Checklist (seo_checklist)      Enabled   5.2.4        
+  Search              Simple Search Form                 Enabled   8.x-1.9      
+                      (simple_search_form)                                      
+  SEO                 Simple XML Sitemap                 Enabled   4.2.3        
+                      (simple_sitemap)                                          
+  Other               Sitemap (sitemap)                  Enabled   8.x-2.5      
+  Field types         Smart Date (smart_date)            Enabled   4.2.4        
+  Media               SVG image (svg_image)              Enabled   3.2.2        
+  Mail                Drupal Symfony Mailer Lite         Enabled   2.0.4        
+                      (symfony_mailer_lite)                                     
+  User interface      Tagify User List                   Enabled   1.2.47       
+                      (tagify_user_list)                                        
+  User interface      Tagify (tagify)                    Enabled   1.2.47       
+  Translation         Content Entity Source              Enabled   8.x-1.18     
+  Management          (tmgmt_content)                                           
+  Translation         Locales Source (tmgmt_locale)      Enabled   8.x-1.18     
+  Management                                                                    
+  Translation         Config Entity Source               Enabled   8.x-1.18     
+  Management          (tmgmt_config)                                            
+  Translation         Translation Management Core        Enabled   8.x-1.18     
+  Management          (tmgmt)                                                   
+  Translation         Export / Import File               Enabled   8.x-1.18     
+  Management          (tmgmt_file)                                              
+  Translation         Translation Language abilities     Enabled   8.x-1.18     
+  Management          (tmgmt_language_combination)                              
+  Translation         Drupal user (tmgmt_local)          Enabled   8.x-1.18     
+  Management                                                                    
+  Translation         Google Translator (tmgmt_google)   Enabled   8.x-1.2      
+  Management                                                                    
+  Other               Token (token)                      Enabled   8.x-1.17     
+  Other               Token Or (token_or)                Enabled   2.3.2        
+  Other               Trash (trash)                      Enabled   3.0.23       
+  Spam control        Cloudflare Turnstile (turnstile)   Enabled   1.1.25       
+  Other               Twig Tweak (twig_tweak)            Enabled   3.4.1        
+  Views               Views Infinite Scroll              Enabled   2.0.3        
+                      (views_infinite_scroll)                                   
+  Webform             Webform UI (webform_ui)            Enabled   6.3.0-beta7  
+  Webform             Webform (webform)                  Enabled   6.3.0-beta7  
+  SEO                 Real-time SEO for Drupal           Enabled   8.x-2.2      
+                      (yoast_seo)                                               
+  Custom              Employment Application Handler     Enabled                
+                      (employment_application)                                  
+  ILAS                ILAS ADEPT (ilas_adept)            Enabled                
+  ILAS Custom         ILAS Announcement Overlay          Enabled                
+                      (ilas_announcement_overlay)                               
+  Idaho Legal Aid     ILAS Donation Inquiry              Enabled                
+                      (ilas_donation_inquiry)                                   
+  ILAS Custom         ILAS Hotspot (ilas_hotspot)        Enabled                
+  ILAS                ILAS Redirect Automation           Enabled                
+                      (ilas_redirect_automation)                                
+  ILAS                ILAS Resources (ilas_resources)    Enabled                
+  ILAS                ILAS SEO (ilas_seo)                Enabled                
+  Custom              ILAS Site Assistant                Enabled                
+                      (ilas_site_assistant)                                     
+ ------------------- ---------------------------------- --------- ------------- 
+
+$ ddev drush router:debug | rg -i "ilas|aila|assistant|chat|site_assistant"
+
+                                                            
+  There are no commands defined in the "router" namespace.  
+                                                            
+
+Failed to run drush router:debug: exit status 1
+[exit_code=1]
+
+$ ddev drush config:status
+ --------------------------------------- ----------- 
+  Name                                    State      
+ --------------------------------------- ----------- 
+  core.entity_view_display.node.adept_l   Different  
+  esson.teaser                                       
+  employment_application.settings         Different  
+  field.field.node.adept_lesson.field_a   Different  
+  dept_attachments                                   
+  search_api.index.faq_accordion_vector   Different  
+  seckit.settings                         Different  
+  views.view.adept_lessons                Different  
+ --------------------------------------- ----------- 
+
+$ ddev drush state:get system.cron_last
+1771629529
+
+$ ddev drush queue:list
+ ------------------------------------ ------- --------------------------------- 
+  Queue                                Items   Class                            
+ ------------------------------------ ------- --------------------------------- 
+  entity_reference_revisions_orphan_   0       Drupal\Core\Queue\DatabaseQueue  
+  purger                                                                        
+  geocoder_field                       0       Drupal\Core\Queue\DatabaseQueue  
+  ilas_langfuse_export                 0       Drupal\Core\Queue\DatabaseQueue  
+  locale_translation                   0       Drupal\Core\Queue\DatabaseQueue  
+  media_entity_thumbnail               0       Drupal\Core\Queue\DatabaseQueue  
+  package_manager_cleanup              0       Drupal\Core\Queue\DatabaseQueue  
+  trash_entity_purge                   0       Drupal\Core\Queue\DatabaseQueue  
+ ------------------------------------ ------- --------------------------------- 
+
+$ ddev drush watchdog:show --type=cron --count=30
+ ------ -------------- ------ ---------- -------------------------------------- 
+  ID     Date           Type   Severity   Message                               
+ ------ -------------- ------ ---------- -------------------------------------- 
+  2743   20/Feb 16:19   cron   Info       Cron run completed.                   
+  2742   20/Feb 16:19   cron   Info       Execution of                          
+                                          employment_application_cron() took    
+                                          1.34ms.                               
+  2741   20/Feb 16:19   cron   Info       Starting execution of                 
+                                          employment_application_cron(),        
+                                          execution of webform_cron() took      
+                                          0.95ms.                               
+  2740   20/Feb 16:19   cron   Info       Starting execution of                 
+                                          webform_cron(), execution of          
+                                          update_cron() took 6013.34ms.         
+  2739   20/Feb 16:19   cron   Info       Starting execution of update_cron(),  
+                                          execution of trash_cron() took        
+                                          0.01ms.                               
+  2738   20/Feb 16:19   cron   Info       Starting execution of trash_cron(),   
+                                          execution of tmgmt_cron() took        
+                                          0.41ms.                               
+  2737   20/Feb 16:19   cron   Info       Starting execution of tmgmt_cron(),   
+                                          execution of system_cron() took       
+                                          12.15ms.                              
+  2736   20/Feb 16:19   cron   Info       Starting execution of system_cron(),  
+                                          execution of simple_sitemap_cron()    
+                                          took 889.18ms.                        
+  2735   20/Feb 16:19   cron   Info       Starting execution of                 
+                                          simple_sitemap_cron(), execution of   
+                                          search_api_cron() took 35168.27ms.    
+  2733   20/Feb 16:19   cron   Warning    Attempting to re-run cron while it    
+                                          is already running.                   
+  2732   20/Feb 16:19   cron   Warning    Attempting to re-run cron while it    
+                                          is already running.                   
+  2731   20/Feb 16:18   cron   Warning    Attempting to re-run cron while it    
+                                          is already running.                   
+  2730   20/Feb 16:18   cron   Warning    Attempting to re-run cron while it    
+                                          is already running.                   
+  2729   20/Feb 16:18   cron   Warning    Attempting to re-run cron while it    
+                                          is already running.                   
+  2728   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          search_api_cron(), execution of       
+                                          search_cron() took 3.66ms.            
+  2727   20/Feb 16:18   cron   Info       Starting execution of search_cron(),  
+                                          execution of scheduler_cron() took    
+                                          5.44ms.                               
+  2726   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          scheduler_cron(), execution of        
+                                          redirect_404_cron() took 5.21ms.      
+  2725   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          redirect_404_cron(), execution of     
+                                          raven_cron() took 0.03ms.             
+  2724   20/Feb 16:18   cron   Info       Starting execution of raven_cron(),   
+                                          execution of node_cron() took 4.6ms.  
+  2723   20/Feb 16:18   cron   Info       Starting execution of node_cron(),    
+                                          execution of locale_cron() took       
+                                          0.02ms.                               
+  2722   20/Feb 16:18   cron   Info       Starting execution of locale_cron(),  
+                                          execution of layout_builder_cron()    
+                                          took 0.51ms.                          
+  2721   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          layout_builder_cron(), execution of   
+                                          ilas_site_assistant_cron() took       
+                                          4.8ms.                                
+  2720   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          ilas_site_assistant_cron(),           
+                                          execution of honeypot_cron() took     
+                                          1.08ms.                               
+  2719   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          honeypot_cron(), execution of         
+                                          file_cron() took 0.79ms.              
+  2718   20/Feb 16:18   cron   Info       Starting execution of file_cron(),    
+                                          execution of field_cron() took        
+                                          1.64ms.                               
+  2717   20/Feb 16:18   cron   Info       Starting execution of field_cron(),   
+                                          execution of eca_base_cron() took     
+                                          1.22ms.                               
+  2716   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          eca_base_cron(), execution of         
+                                          easy_email_cron() took 5.49ms.        
+  2715   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          easy_email_cron(), execution of       
+                                          dblog_cron() took 2.15ms.             
+  2714   20/Feb 16:18   cron   Info       Starting execution of dblog_cron(),   
+                                          execution of captcha_cron() took      
+                                          0.39ms.                               
+  2713   20/Feb 16:18   cron   Info       Starting execution of                 
+                                          captcha_cron(), execution of          
+                                          announcements_feed_cron() took        
+                                          0.37ms.                               
+ ------ -------------- ------ ---------- -------------------------------------- 
+
+$ ddev drush core:status
+Drupal version   : 11.3.2                                     
+Site URI         : http://localhost                           
+DB driver        : mysql                                      
+DB hostname      : db                                         
+DB port          : 3306                                       
+DB username      : db                                         
+DB name          : db                                         
+Database         : Connected                                  
+Drupal bootstrap : Successful                                 
+Default theme    : b5subtheme                                 
+Admin theme      : gin                                        
+PHP binary       : /usr/bin/php8.3                            
+PHP config       : /etc/php/8.3/cli/php.ini                   
+PHP OS           : Linux                                      
+PHP version      : 8.3.23                                     
+Drush script     : /var/www/html/vendor/bin/drush.php         
+Drush version    : 13.7.0.0                                   
+Drush temp       : /tmp                                       
+Drush configs    : /var/www/html/vendor/drush/drush/drush.yml 
+                   /var/www/html/web/drush/drush.yml          
+Install profile  :                                            
+Drupal root      : /var/www/html/web                          
+Site path        : sites/default                              
+Files, Public    : sites/default/files                        
+Files, Private   : sites/default/files/private                
+Files, Temp      : /tmp                                       
+Drupal config    : ../config                                  
+
+$ ddev drush php:script scripts/drush/route-names.php -- --filter=ilas
+$ ddev drush php:script scripts/drush/route-names.php -- --filter=assistant

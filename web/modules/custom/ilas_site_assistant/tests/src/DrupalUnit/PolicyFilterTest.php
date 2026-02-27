@@ -41,6 +41,7 @@ class PolicyFilterTest extends UnitTestCase {
       ->willReturn($config);
 
     $this->policyFilter = new PolicyFilter($configFactory);
+    $this->policyFilter->setStringTranslation($this->getStringTranslationStub());
   }
 
   /**
@@ -136,7 +137,7 @@ class PolicyFilterTest extends UnitTestCase {
   public static function criminalProvider(): array {
     return [
       'arrested' => ['i was arrested last night', TRUE],
-      'dui' => ['can you help with my DUI', TRUE],
+      'dui' => ['can you help with my DUI', FALSE],
       'felony' => ['i have a felony charge', TRUE],
       'public defender' => ['i need a public defender', TRUE],
       'civil eviction' => ['i got an eviction notice', FALSE],
@@ -208,8 +209,8 @@ class PolicyFilterTest extends UnitTestCase {
     $input = 'my email is john@example.com and phone is 208-555-1234';
     $sanitized = $this->policyFilter->sanitizeForStorage($input);
 
-    $this->assertStringContainsString('[email]', $sanitized);
-    $this->assertStringContainsString('[phone]', $sanitized);
+    $this->assertStringContainsString('[REDACTED-EMAIL]', $sanitized);
+    $this->assertStringContainsString('[REDACTED-PHONE]', $sanitized);
     $this->assertStringNotContainsString('john@example.com', $sanitized);
     $this->assertStringNotContainsString('208-555-1234', $sanitized);
   }

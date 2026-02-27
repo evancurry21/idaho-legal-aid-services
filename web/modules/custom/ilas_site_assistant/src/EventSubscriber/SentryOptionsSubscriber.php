@@ -78,6 +78,12 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
         }
       }
 
+      // Drop noise from ad-hoc drush php:eval / php:script sessions in local,
+      // unless SENTRY_CAPTURE_DRUSH_EVAL=1 is set to force capture.
+      if (static::isDrushEvalNoise()) {
+        return NULL;
+      }
+
       // Scrub event message.
       $message = $sentryEvent->getMessage();
       if ($message !== NULL && $message !== '') {
@@ -116,11 +122,51 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
   }
 
   /**
+   * Checks if the current CLI context is a drush php:eval/php:script session.
+   *
+   * Used to suppress Sentry noise from ad-hoc debugging commands in local dev.
+   * Override with SENTRY_CAPTURE_DRUSH_EVAL=1 to force capture.
+   *
+   * @return bool
+   *   TRUE if the event should be dropped as eval noise.
+   */
+  public static function isDrushEvalNoise(): bool {
+    if (PHP_SAPI !== 'cli') {
+      return FALSE;
+    }
+
+    // Allow explicit opt-in to capture eval errors.
+    if (getenv('SENTRY_CAPTURE_DRUSH_EVAL') === '1') {
+      return FALSE;
+    }
+
+    // Only filter in local environment (no PANTHEON_ENVIRONMENT set).
+    if (getenv('PANTHEON_ENVIRONMENT')) {
+      return FALSE;
+    }
+
+    $argv = $_SERVER['argv'] ?? [];
+    foreach ($argv as $arg) {
+      if (str_starts_with($arg, '-') || str_contains($arg, 'drush')) {
+        continue;
+      }
+      // Match eval-family commands.
+      return in_array($arg, [
+        'php:eval', 'ev', 'eval',
+        'php:script', 'scr',
+        'php:cli', 'php', 'core:cli',
+      ], TRUE);
+    }
+
+    return FALSE;
+  }
+
+  /**
    * Determines the runtime context based on PHP SAPI and argv.
    *
    * @return string
-   *   One of: drush-cron, drush-updb, drush-deploy, drush-cr, drush-cli, web,
-   *   cli-other.
+   *   One of: drush-cron, drush-updb, drush-deploy, drush-cr, drush-eval,
+   *   drush-cli, web, cli-other.
    */
   private static function resolveRuntimeContext(): string {
     if (PHP_SAPI !== 'cli') {
@@ -139,6 +185,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
         'updb', 'updatedb', 'update:db' => 'drush-updb',
         'deploy' => 'drush-deploy',
         'cr', 'cache:rebuild', 'cache-rebuild' => 'drush-cr',
+        'php:eval', 'ev', 'eval', 'php:script', 'scr', 'php:cli', 'php', 'core:cli' => 'drush-eval',
         default => 'drush-cli',
       };
     }

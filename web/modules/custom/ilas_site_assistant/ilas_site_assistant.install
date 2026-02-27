@@ -285,6 +285,39 @@ function ilas_site_assistant_update_10002() {
 }
 
 /**
+ * Backfill Langfuse config map for older installs missing the nested object.
+ */
+function ilas_site_assistant_update_10003() {
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $langfuse = $config->get('langfuse');
+
+  if (!is_array($langfuse)) {
+    $langfuse = [];
+  }
+
+  $defaults = [
+    'enabled' => FALSE,
+    'host' => 'https://us.cloud.langfuse.com',
+    'public_key' => '',
+    'secret_key' => '',
+    'sample_rate' => 1.0,
+    'environment' => 'production',
+    'timeout' => 5.0,
+    'max_queue_depth' => 10000,
+    'max_item_age_seconds' => 3600,
+  ];
+
+  // Preserve existing values and fill only missing keys.
+  $merged = $langfuse + $defaults;
+  if ($merged === $langfuse) {
+    return t('Langfuse config map already present.');
+  }
+
+  $config->set('langfuse', $merged)->save(TRUE);
+  return t('Backfilled missing langfuse config defaults.');
+}
+
+/**
  * Implements hook_install().
  */
 function ilas_site_assistant_install() {

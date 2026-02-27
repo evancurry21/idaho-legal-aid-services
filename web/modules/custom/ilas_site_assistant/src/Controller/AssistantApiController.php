@@ -1482,49 +1482,63 @@ class AssistantApiController extends ControllerBase {
    *   JSON response with suggestions.
    */
   public function suggest(Request $request) {
-    $query = $request->query->get('q', '');
-    $type = $request->query->get('type', 'all');
-
-    $suggestions = [];
-
-    if (strlen($query) >= 2) {
-      $query = $this->sanitizeInput($query);
-
-      if ($type === 'all' || $type === 'topics') {
-        $topics = $this->intentRouter->suggestTopics($query);
-        foreach ($topics as $topic) {
-          $suggestions[] = [
-            'type' => 'topic',
-            'label' => $topic['name'],
-            'id' => $topic['id'],
-          ];
-        }
-      }
-
-      if ($type === 'all' || $type === 'faq') {
-        $faqs = $this->faqIndex->search($query, 3);
-        foreach ($faqs as $faq) {
-          $suggestions[] = [
-            'type' => 'faq',
-            'label' => $faq['question'],
-            'id' => $faq['id'],
-          ];
-        }
-      }
-    }
-
-    $response_data = [
-      'suggestions' => array_slice($suggestions, 0, 6),
-    ];
-
-    $response = new CacheableJsonResponse($response_data, 200, self::SECURITY_HEADERS);
+    $request_id = $this->resolveCorrelationId($request);
+    $query = (string) $request->query->get('q', '');
+    $type = (string) $request->query->get('type', 'all');
     $cache_meta = new CacheableMetadata();
     $cache_meta->setCacheContexts(['url.query_args:q', 'url.query_args:type']);
     $cache_meta->setCacheTags(['node_list']);
-    $cache_meta->setCacheMaxAge(300);
-    $response->addCacheableDependency($cache_meta);
 
-    return $response;
+    try {
+      $suggestions = [];
+
+      if (strlen($query) >= 2) {
+        $query = $this->sanitizeInput($query);
+
+        if ($type === 'all' || $type === 'topics') {
+          $topics = $this->intentRouter->suggestTopics($query);
+          foreach ($topics as $topic) {
+            $suggestions[] = [
+              'type' => 'topic',
+              'label' => $topic['name'],
+              'id' => $topic['id'],
+            ];
+          }
+        }
+
+        if ($type === 'all' || $type === 'faq') {
+          $faqs = $this->faqIndex->search($query, 3);
+          foreach ($faqs as $faq) {
+            $suggestions[] = [
+              'type' => 'faq',
+              'label' => $faq['question'],
+              'id' => $faq['id'],
+            ];
+          }
+        }
+      }
+
+      $response = new CacheableJsonResponse([
+        'suggestions' => array_slice($suggestions, 0, 6),
+      ], 200, self::SECURITY_HEADERS);
+      $cache_meta->setCacheMaxAge(300);
+      $response->addCacheableDependency($cache_meta);
+      return $response;
+    }
+    catch (\Throwable $e) {
+      // Deterministic fallback: read endpoint should degrade to an empty set.
+      $this->logger->error('[@request_id] suggest endpoint fallback due to @class: @message', [
+        '@request_id' => $request_id,
+        '@class' => get_class($e),
+        '@message' => $e->getMessage(),
+      ]);
+      $response = new CacheableJsonResponse([
+        'suggestions' => [],
+      ], 200, self::SECURITY_HEADERS);
+      $cache_meta->setCacheMaxAge(60);
+      $response->addCacheableDependency($cache_meta);
+      return $response;
+    }
   }
 
   /**
@@ -1537,41 +1551,77 @@ class AssistantApiController extends ControllerBase {
    *   JSON response with FAQ data.
    */
   public function faq(Request $request) {
-    $query = $request->query->get('q', '');
+    $request_id = $this->resolveCorrelationId($request);
+    $query = (string) $request->query->get('q', '');
     $id = $request->query->get('id');
 
     $cache_meta = new CacheableMetadata();
     $cache_meta->setCacheContexts(['url.query_args:q', 'url.query_args:id']);
     $cache_meta->setCacheTags(['node_list', 'config:ilas_site_assistant.settings']);
-    $cache_meta->setCacheMaxAge(300);
 
-    if ($id) {
-      $faq = $this->faqIndex->getById($id);
-      if ($faq) {
-        $response = new CacheableJsonResponse(['faq' => $faq], 200, self::SECURITY_HEADERS);
+    try {
+      if ($id) {
+        $faq = $this->faqIndex->getById($id);
+        if ($faq) {
+          $response = new CacheableJsonResponse(['faq' => $faq], 200, self::SECURITY_HEADERS);
+          $cache_meta->setCacheMaxAge(300);
+          $response->addCacheableDependency($cache_meta);
+          return $response;
+        }
+        $response = new CacheableJsonResponse(['error' => 'FAQ not found'], 404, self::SECURITY_HEADERS);
+        $cache_meta->setCacheMaxAge(300);
         $response->addCacheableDependency($cache_meta);
         return $response;
       }
-      $response = new CacheableJsonResponse(['error' => 'FAQ not found'], 404, self::SECURITY_HEADERS);
+
+      if (strlen($query) >= 2) {
+        $query = $this->sanitizeInput($query);
+        $results = $this->faqIndex->search($query, 5);
+        $response = new CacheableJsonResponse([
+          'results' => $results,
+          'count' => count($results),
+        ], 200, self::SECURITY_HEADERS);
+        $cache_meta->setCacheMaxAge(300);
+        $response->addCacheableDependency($cache_meta);
+        return $response;
+      }
+
+      $categories = $this->faqIndex->getCategories();
+      $response = new CacheableJsonResponse(['categories' => $categories], 200, self::SECURITY_HEADERS);
+      $cache_meta->setCacheMaxAge(300);
       $response->addCacheableDependency($cache_meta);
       return $response;
     }
+    catch (\Throwable $e) {
+      // Deterministic fallback for FAQ read path failures.
+      $this->logger->error('[@request_id] faq endpoint fallback due to @class: @message', [
+        '@request_id' => $request_id,
+        '@class' => get_class($e),
+        '@message' => $e->getMessage(),
+      ]);
 
-    if (strlen($query) >= 2) {
-      $query = $this->sanitizeInput($query);
-      $results = $this->faqIndex->search($query, 5);
-      $response = new CacheableJsonResponse([
-        'results' => $results,
-        'count' => count($results),
-      ], 200, self::SECURITY_HEADERS);
+      if ($id) {
+        $response = new CacheableJsonResponse(['error' => 'FAQ not found'], 404, self::SECURITY_HEADERS);
+        $cache_meta->setCacheMaxAge(60);
+        $response->addCacheableDependency($cache_meta);
+        return $response;
+      }
+
+      if (strlen($query) >= 2) {
+        $response = new CacheableJsonResponse([
+          'results' => [],
+          'count' => 0,
+        ], 200, self::SECURITY_HEADERS);
+        $cache_meta->setCacheMaxAge(60);
+        $response->addCacheableDependency($cache_meta);
+        return $response;
+      }
+
+      $response = new CacheableJsonResponse(['categories' => []], 200, self::SECURITY_HEADERS);
+      $cache_meta->setCacheMaxAge(60);
       $response->addCacheableDependency($cache_meta);
       return $response;
     }
-
-    $categories = $this->faqIndex->getCategories();
-    $response = new CacheableJsonResponse(['categories' => $categories], 200, self::SECURITY_HEADERS);
-    $response->addCacheableDependency($cache_meta);
-    return $response;
   }
 
   /**

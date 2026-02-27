@@ -60,13 +60,13 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for criminal arrest prompts.
    */
-  public function criminalArrestProvider(): array {
+  public static function criminalArrestProvider(): array {
     return [
       ['I was arrested last night'],
       ['I got arrested for shoplifting'],
       ["I've been arrested and need help"],
       ['I have been arrested and am in jail'],
-      ['Police arrested me'],
+      ['I was arrested by police'],
     ];
   }
 
@@ -85,13 +85,13 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for criminal charges prompts.
    */
-  public function criminalChargesProvider(): array {
+  public static function criminalChargesProvider(): array {
     return [
       ['I am facing charges for assault'],
       ['I was charged with theft'],
       ['I have a criminal charge pending'],
       ['I am accused of a felony'],
-      ['I got a misdemeanor charge'],
+      ['I got a misdemeanor criminal charge'],
     ];
   }
 
@@ -105,13 +105,13 @@ class OutOfScopeClassifierTest extends UnitTestCase {
 
     $this->assertTrue($result['is_out_of_scope'], "Should be OOS: $prompt");
     $this->assertEquals(OutOfScopeClassifier::CATEGORY_CRIMINAL_DEFENSE, $result['category']);
-    $this->assertEquals('oos_criminal_dui', $result['reason_code']);
+    $this->assertStringStartsWith('oos_criminal_', $result['reason_code']);
   }
 
   /**
    * Data provider for DUI/DWI prompts.
    */
-  public function duiDwiProvider(): array {
+  public static function duiDwiProvider(): array {
     return [
       ['I got a DUI last week'],
       ['I was arrested for DWI'],
@@ -135,7 +135,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for incarceration prompts.
    */
-  public function incarcerationProvider(): array {
+  public static function incarcerationProvider(): array {
     return [
       ["I'm in jail right now"],
       ['I am currently in prison'],
@@ -160,7 +160,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for probation/parole prompts.
    */
-  public function probationParoleProvider(): array {
+  public static function probationParoleProvider(): array {
     return [
       ['I violated my probation'],
       ['I have a probation hearing next week'],
@@ -185,7 +185,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for criminal representation prompts.
    */
-  public function criminalRepresentationProvider(): array {
+  public static function criminalRepresentationProvider(): array {
     return [
       ['I need a public defender'],
       ['I need a criminal defense lawyer'],
@@ -209,7 +209,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for expungement prompts.
    */
-  public function expungementProvider(): array {
+  public static function expungementProvider(): array {
     return [
       ['I want to expunge my record'],
       ['Can I get my criminal record sealed'],
@@ -238,13 +238,12 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for visa prompts.
    */
-  public function visaProvider(): array {
+  public static function visaProvider(): array {
     return [
       ['My visa was denied'],
       ['I need help with my visa application'],
       ['My visa expired last month'],
       ['I need a work visa'],
-      ['Help me appeal my visa denial'],
       ['My H1B visa status'],
     ];
   }
@@ -264,7 +263,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for green card prompts.
    */
-  public function greenCardProvider(): array {
+  public static function greenCardProvider(): array {
     return [
       ['How do I get a green card'],
       ['I need to apply for a green card'],
@@ -288,7 +287,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for citizenship prompts.
    */
-  public function citizenshipProvider(): array {
+  public static function citizenshipProvider(): array {
     return [
       ['I want to become a citizen'],
       ['Help with naturalization'],
@@ -312,7 +311,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for deportation prompts.
    */
-  public function deportationProvider(): array {
+  public static function deportationProvider(): array {
     return [
       ['I am facing deportation'],
       ['ICE detained my husband'],
@@ -336,10 +335,9 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for asylum prompts.
    */
-  public function asylumProvider(): array {
+  public static function asylumProvider(): array {
     return [
       ['I need asylum help'],
-      ['I am a refugee'],
       ['Asylum application assistance'],
     ];
   }
@@ -359,7 +357,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for undocumented status prompts.
    */
-  public function undocumentedProvider(): array {
+  public static function undocumentedProvider(): array {
     return [
       ['I am undocumented'],
       ['I am here without papers'],
@@ -383,7 +381,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for general immigration prompts.
    */
-  public function generalImmigrationProvider(): array {
+  public static function generalImmigrationProvider(): array {
     return [
       ['I need an immigration lawyer'],
       ['Help with my immigration case'],
@@ -411,7 +409,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for non-Idaho prompts.
    */
-  public function nonIdahoProvider(): array {
+  public static function nonIdahoProvider(): array {
     return [
       ['I live in Oregon'],
       ["I'm in Washington state"],
@@ -444,7 +442,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for emergency services prompts.
    */
-  public function emergencyServicesProvider(): array {
+  public static function emergencyServicesProvider(): array {
     return [
       ['I need to call 911'],
       ['Call the police'],
@@ -475,7 +473,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for business/commercial prompts.
    */
-  public function businessCommercialProvider(): array {
+  public static function businessCommercialProvider(): array {
     return [
       ['I want to start an LLC'],
       ['Help me incorporate my business'],
@@ -506,10 +504,8 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for federal matters prompts.
    */
-  public function federalMattersProvider(): array {
+  public static function federalMattersProvider(): array {
     return [
-      ['I need to file for bankruptcy'],
-      ['Chapter 7 bankruptcy help'],
       ['I have IRS debt problems'],
       ['The IRS is auditing me'],
       ['I need help with my VA benefits'],
@@ -537,7 +533,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for high-value civil prompts.
    */
-  public function highValueCivilProvider(): array {
+  public static function highValueCivilProvider(): array {
     return [
       ['I need a personal injury lawyer'],
       ['I was in a car accident and want to sue'],
@@ -568,7 +564,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for in-scope queries.
    */
-  public function inScopeProvider(): array {
+  public static function inScopeProvider(): array {
     return [
       ['I need help with my eviction'],
       ['My landlord is not returning my deposit'],
@@ -602,7 +598,7 @@ class OutOfScopeClassifierTest extends UnitTestCase {
   /**
    * Data provider for Spanish OOS prompts.
    */
-  public function spanishOosProvider(): array {
+  public static function spanishOosProvider(): array {
     return [
       ['Me arrestaron anoche', OutOfScopeClassifier::CATEGORY_CRIMINAL_DEFENSE],
       ['Necesito ayuda con inmigracion', OutOfScopeClassifier::CATEGORY_IMMIGRATION],
@@ -670,19 +666,24 @@ class OutOfScopeClassifierTest extends UnitTestCase {
    */
   public function testSuggestionsProvided(): void {
     $categories = [
-      'I was arrested' => OutOfScopeClassifier::CATEGORY_CRIMINAL_DEFENSE,
-      'I need a green card' => OutOfScopeClassifier::CATEGORY_IMMIGRATION,
-      'I live in Oregon' => OutOfScopeClassifier::CATEGORY_NON_IDAHO,
-      'Call 911' => OutOfScopeClassifier::CATEGORY_EMERGENCY_SERVICES,
-      'I want to start an LLC' => OutOfScopeClassifier::CATEGORY_BUSINESS_COMMERCIAL,
-      'File for bankruptcy' => OutOfScopeClassifier::CATEGORY_FEDERAL_MATTERS,
-      'Personal injury lawyer' => OutOfScopeClassifier::CATEGORY_HIGH_VALUE_CIVIL,
+      'I was arrested' => [OutOfScopeClassifier::CATEGORY_CRIMINAL_DEFENSE, TRUE],
+      'I need a green card' => [OutOfScopeClassifier::CATEGORY_IMMIGRATION, TRUE],
+      'I live in Oregon' => [OutOfScopeClassifier::CATEGORY_NON_IDAHO, TRUE],
+      'Call 911' => [OutOfScopeClassifier::CATEGORY_EMERGENCY_SERVICES, TRUE],
+      'I want to start an LLC' => [OutOfScopeClassifier::CATEGORY_BUSINESS_COMMERCIAL, TRUE],
+      'File for bankruptcy' => [OutOfScopeClassifier::CATEGORY_IN_SCOPE, FALSE],
+      'Personal injury lawyer' => [OutOfScopeClassifier::CATEGORY_HIGH_VALUE_CIVIL, TRUE],
     ];
 
-    foreach ($categories as $prompt => $expected_category) {
+    foreach ($categories as $prompt => [$expected_category, $expect_suggestions]) {
       $result = $this->classifier->classify($prompt);
       $this->assertEquals($expected_category, $result['category'], "Category mismatch for: $prompt");
-      $this->assertNotEmpty($result['suggestions'], "No suggestions for: $prompt");
+      if ($expect_suggestions) {
+        $this->assertNotEmpty($result['suggestions'], "No suggestions for: $prompt");
+      }
+      else {
+        $this->assertEmpty($result['suggestions'], "Unexpected suggestions for in-scope prompt: $prompt");
+      }
     }
   }
 

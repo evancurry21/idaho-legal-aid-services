@@ -1,0 +1,82 @@
+# Phase 1 Observability Dependency Gates (runtime-override + external CI model)
+timestamp_utc=2026-02-27T20:34:44Z
+
+$ rg -n --no-heading "eval:promptfoo|eval:promptfoo:live|view:promptfoo" package.json
+6:    "eval:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+7:    "eval:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action eval",
+8:    "eval:promptfoo:live": "ILAS_ASSISTANT_URL=https://idaholegalaid.org/assistant/api/message bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+9:    "view:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh view",
+10:    "view:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action view"
+
+$ ls -1 scripts/ci
+derive-assistant-url.sh
+run-external-quality-gate.sh
+run-promptfoo-gate.sh
+
+$ for ENV in dev test live; do terminus remote:drush idaho-legal-aid-services.${ENV} -- pml --status=enabled --type=module --no-core --format=list | rg "^raven$"; done
+## ENV=dev
+raven
+langfuse_enabled=true
+langfuse_public_key=present
+langfuse_secret_key=present
+langfuse_sample_rate=1
+raven_client_key=present
+'ilas_site_assistant.settings:llm.enabled': false
+
+
+## ENV=test
+raven
+langfuse_enabled=true
+langfuse_public_key=present
+langfuse_secret_key=present
+langfuse_sample_rate=1
+raven_client_key=present
+'ilas_site_assistant.settings:llm.enabled': false
+
+
+## ENV=live
+raven
+langfuse_enabled=true
+langfuse_public_key=present
+langfuse_secret_key=present
+langfuse_sample_rate=0.1
+raven_client_key=present
+'ilas_site_assistant.settings:llm.enabled': false
+
+
+
+$ for ENV in dev test live; do scripts/ci/derive-assistant-url.sh --env ${ENV}; done
+dev assistant_url=https://dev-idaho-legal-aid-services.pantheonsite.io/assistant/api/message
+test assistant_url=https://test-idaho-legal-aid-services.pantheonsite.io/assistant/api/message
+live assistant_url=https://live-idaho-legal-aid-services.pantheonsite.io/assistant/api/message
+
+$ Sentry synthetic probe (dev/test/live): captureMessage
+### ENV=dev
+probe_sent
+### ENV=test
+probe_sent
+### ENV=live
+probe_sent
+
+$ CI_BRANCH=feature/observability scripts/ci/run-promptfoo-gate.sh --env dev --mode auto --skip-eval --simulate-pass-rate 85
+Promptfoo gate summary: mode=advisory threshold=90 pass_rate=85% eval_exit=0
+Summary file: /home/evancurry/idaho-legal-aid-services/promptfoo-evals/output/gate-summary.txt
+exit_code=0
+
+$ CI_BRANCH=release/2026-03 scripts/ci/run-promptfoo-gate.sh --env dev --mode auto --skip-eval --simulate-pass-rate 85
+Promptfoo gate summary: mode=blocking threshold=90 pass_rate=85% eval_exit=0
+Summary file: /home/evancurry/idaho-legal-aid-services/promptfoo-evals/output/gate-summary.txt
+exit_code=2
+
+$ ddev exec "vendor/bin/phpunit --configuration /var/www/html/phpunit.xml /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneObservabilityDependencyGateTest.php"
+PHPUnit 11.5.55 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.3.23
+Configuration: /var/www/html/phpunit.xml
+
+......                                                              6 / 6 (100%)
+
+Time: 00:00.013, Memory: 10.00 MB
+
+OK, but there were issues!
+Tests: 6, Assertions: 49, PHPUnit Deprecations: 1.

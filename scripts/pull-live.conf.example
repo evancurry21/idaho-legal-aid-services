@@ -1,0 +1,30 @@
+# pull-live.conf — Local overrides for pull-live.sh
+#
+# Copy this file to scripts/pull-live.conf and edit as needed.
+# scripts/pull-live.conf is gitignored and will not be committed.
+#
+# All values below show their defaults.
+
+# Pantheon site machine name
+# SITE="idaho-legal-aid-services"
+
+# Default environment to pull from (live, test, or dev)
+# ENV="live"
+
+# Path to terminus binary
+# TERMINUS="/usr/local/bin/terminus"
+
+# Minimum free disk space required (MB)
+# MIN_DISK_MB=1024
+
+# Always skip confirmation prompt
+# FORCE=false
+
+# Always run drush sql:sanitize after import
+# SANITIZE=false
+
+# Always back up local files before overwriting
+# KEEP_LOCAL_FILES_BACKUP=false
+
+# Always create a fresh Pantheon backup before downloading
+# FRESH_BACKUP=false

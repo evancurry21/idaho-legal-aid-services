@@ -100,6 +100,9 @@ if (isset($_ENV['PANTHEON_ENVIRONMENT']) && $_ENV['PANTHEON_ENVIRONMENT'] === 'l
   // Production rate limits for the chatbot API (per IP).
   $config['ilas_site_assistant.settings']['rate_limit_per_minute'] = 15;
   $config['ilas_site_assistant.settings']['rate_limit_per_hour'] = 120;
+
+  // Governance guardrail: live LLM must remain disabled through Phase 2.
+  $config['ilas_site_assistant.settings']['llm.enabled'] = FALSE;
 }
 
 /**

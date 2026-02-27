@@ -46,9 +46,9 @@ fi
 PHPUNIT_EXIT=0
 "$PHPUNIT_BIN" \
   --configuration "$REPO_ROOT/phpunit.xml" \
-  --testsuite unit \
   --group ilas_site_assistant \
   --colors=always \
+  "$MODULE_DIR/tests/src/Unit" \
   || PHPUNIT_EXIT=$?
 
 if [ "$PHPUNIT_EXIT" -ne 0 ]; then

@@ -1,4 +1,10 @@
 services:
+  ilas_site_assistant.access_check.strict_csrf:
+    class: Drupal\ilas_site_assistant\Access\StrictCsrfRequestHeaderAccessCheck
+    arguments: ['@csrf_token', '@logger.channel.ilas_site_assistant']
+    tags:
+      - { name: access_check, needs_incoming_request: TRUE }
+
   cache.ilas_site_assistant:
     class: Drupal\Core\Cache\CacheBackendInterface
     tags:

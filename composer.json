@@ -64,6 +64,7 @@
         "drupal/raven": "^7.3",
         "drupal/recipe_installer_kit": "^1-alpha3@alpha",
         "drupal/schema_metatag": "^3.0",
+        "drupal/search_api_db": "^1.0",
         "drupal/search_api_page": "^1.1",
         "drupal/seckit": "^2.0",
         "drupal/tmgmt": "^1.17",
@@ -156,7 +157,9 @@
     "require-dev": {
         "behat/mink": "^1.13",
         "behat/mink-browserkit-driver": "^2.3",
-        "phpunit/phpunit": "^12.5"
+        "mikey179/vfsstream": "^1.6",
+        "phpspec/prophecy-phpunit": "^2.4",
+        "phpunit/phpunit": "^11.5"
     },
     "scripts": {
         "test:pure": "vendor/bin/phpunit -c phpunit.pure.xml",

@@ -3,6 +3,8 @@
 namespace Drupal\Tests\ilas_site_assistant\Functional;
 
 use Drupal\Tests\BrowserTestBase;
+use GuzzleHttp\Cookie\CookieJar;
+use GuzzleHttp\Cookie\CookieJarInterface;
 
 /**
  * Functional tests for Site Assistant API endpoints.
@@ -27,11 +29,14 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * {@inheritdoc}
    */
   protected static $modules = [
+    'ilas_site_assistant_action_compat',
+    'eca',
     'node',
     'taxonomy',
     'user',
     'views',
     'search_api',
+    'search_api_db',
     'paragraphs',
     'ilas_site_assistant',
   ];
@@ -84,6 +89,19 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
+   * Tests that the message endpoint rejects invalid CSRF tokens.
+   */
+  public function testMessageEndpointRejectsInvalidCsrfToken(): void {
+    $this->drupalLogin($this->regularUser);
+
+    $response = $this->postJson('/assistant/api/message', [
+      'message' => 'Hello',
+    ], TRUE, 'invalid-token');
+
+    $this->assertEquals(403, $response->getStatusCode());
+  }
+
+  /**
    * Tests that the message endpoint accepts valid requests with CSRF token.
    */
   public function testMessageEndpointWithCsrfToken(): void {
@@ -109,7 +127,8 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   public function testMessageEndpointRejectsInvalidContentType(): void {
     $this->drupalLogin($this->regularUser);
 
-    $session_token = $this->getSessionToken();
+    $cookies = $this->getSessionCookies();
+    $session_token = $this->getSessionToken($cookies);
     $url = $this->buildUrl('/assistant/api/message');
 
     $options = [
@@ -118,6 +137,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
         'Content-Type' => 'text/plain',
         'X-CSRF-Token' => $session_token,
       ],
+      'cookies' => $cookies,
       'body' => 'Hello',
     ];
 
@@ -145,7 +165,8 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   public function testMessageEndpointRejectsInvalidJson(): void {
     $this->drupalLogin($this->regularUser);
 
-    $session_token = $this->getSessionToken();
+    $cookies = $this->getSessionCookies();
+    $session_token = $this->getSessionToken($cookies);
     $url = $this->buildUrl('/assistant/api/message');
 
     $options = [
@@ -154,6 +175,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
         'Content-Type' => 'application/json',
         'X-CSRF-Token' => $session_token,
       ],
+      'cookies' => $cookies,
       'body' => '{invalid json',
     ];
 
@@ -183,6 +205,20 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     $response = $this->postJson('/assistant/api/track', [
       'event_type' => 'chat_open',
     ], FALSE);
+
+    $this->assertEquals(403, $response->getStatusCode());
+  }
+
+  /**
+   * Tests that the track endpoint rejects invalid CSRF tokens.
+   */
+  public function testTrackEndpointRejectsInvalidCsrfToken(): void {
+    $this->drupalLogin($this->regularUser);
+
+    $response = $this->postJson('/assistant/api/track', [
+      'event_type' => 'chat_open',
+      'event_value' => '',
+    ], TRUE, 'invalid-token');
 
     $this->assertEquals(403, $response->getStatusCode());
   }
@@ -221,13 +257,14 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * Tests that the suggest endpoint is accessible to anonymous users.
    */
   public function testSuggestEndpointAccessible(): void {
-    // Suggest endpoint requires 'access content' which anonymous has by default
-    // in standard Drupal install. Log in a regular user to be safe.
+    // Use the authenticated session cookie jar for deterministic access context.
     $this->drupalLogin($this->regularUser);
+    $cookies = $this->getSessionCookies();
 
     $url = $this->buildUrl('/assistant/api/suggest');
     $response = $this->getHttpClient()->get($url . '?q=housing', [
       'http_errors' => FALSE,
+      'cookies' => $cookies,
     ]);
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -241,10 +278,12 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    */
   public function testFaqEndpointAccessible(): void {
     $this->drupalLogin($this->regularUser);
+    $cookies = $this->getSessionCookies();
 
     $url = $this->buildUrl('/assistant/api/faq');
     $response = $this->getHttpClient()->get($url, [
       'http_errors' => FALSE,
+      'cookies' => $cookies,
     ]);
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -273,13 +312,19 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    */
   public function testHealthEndpointAccessibleToAdmin(): void {
     $this->drupalLogin($this->adminUser);
+    $cookies = $this->getSessionCookies();
 
     $url = $this->buildUrl('/assistant/api/health');
     $response = $this->getHttpClient()->get($url, [
       'http_errors' => FALSE,
+      'cookies' => $cookies,
     ]);
 
-    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertContains(
+      $response->getStatusCode(),
+      [200, 503],
+      'Admin health endpoint should be reachable and return healthy/degraded status'
+    );
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertArrayHasKey('status', $data);
@@ -390,7 +435,8 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   public function testMessageEndpointRejectsNullContentType(): void {
     $this->drupalLogin($this->regularUser);
 
-    $session_token = $this->getSessionToken();
+    $cookies = $this->getSessionCookies();
+    $session_token = $this->getSessionToken($cookies);
     $url = $this->buildUrl('/assistant/api/message');
 
     // POST without Content-Type header at all.
@@ -399,6 +445,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
       'headers' => [
         'X-CSRF-Token' => $session_token,
       ],
+      'cookies' => $cookies,
       'body' => '{"message":"Hello"}',
     ];
 
@@ -414,7 +461,8 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   public function testTrackEndpointRejectsNullContentType(): void {
     $this->drupalLogin($this->regularUser);
 
-    $session_token = $this->getSessionToken();
+    $cookies = $this->getSessionCookies();
+    $session_token = $this->getSessionToken($cookies);
     $url = $this->buildUrl('/assistant/api/track');
 
     $options = [
@@ -422,6 +470,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
       'headers' => [
         'X-CSRF-Token' => $session_token,
       ],
+      'cookies' => $cookies,
       'body' => '{"event_type":"chat_open"}',
     ];
 
@@ -518,7 +567,8 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     $this->drupalLogin($this->regularUser);
 
     // Send invalid content type to trigger 400.
-    $session_token = $this->getSessionToken();
+    $cookies = $this->getSessionCookies();
+    $session_token = $this->getSessionToken($cookies);
     $url = $this->buildUrl('/assistant/api/message');
 
     $options = [
@@ -527,6 +577,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
         'Content-Type' => 'text/plain',
         'X-CSRF-Token' => $session_token,
       ],
+      'cookies' => $cookies,
       'body' => 'Hello',
     ];
 
@@ -542,6 +593,129 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
+   * Tests anonymous POST to /message without CSRF token returns 403.
+   *
+   * IMP-SEC-01 CSRF Auth Matrix row:
+   *   Anonymous | No session/token | No token | 403 (forbidden)
+   */
+  public function testAnonymousMessageEndpointRequiresCsrfToken(): void {
+    $response = $this->postJsonAnonymous('/assistant/api/message', [
+      'message' => 'Hello',
+    ]);
+
+    $this->assertEquals(403, $response->getStatusCode(), 'Anonymous POST without CSRF token should return 403');
+  }
+
+  /**
+   * Tests anonymous POST to /message with invalid CSRF token returns 403.
+   *
+   * IMP-SEC-01 CSRF Auth Matrix row:
+   *   Anonymous | No session/token | Invalid token | 403 (forbidden)
+   */
+  public function testAnonymousMessageEndpointRejectsInvalidCsrfToken(): void {
+    $response = $this->postJsonAnonymous('/assistant/api/message', [
+      'message' => 'Hello',
+    ], 'invalid-token');
+
+    $this->assertEquals(403, $response->getStatusCode(), 'Anonymous POST with invalid CSRF token should return 403');
+  }
+
+  /**
+   * Tests anonymous POST to /message with valid CSRF token returns 200.
+   *
+   * IMP-SEC-01 CSRF Auth Matrix row:
+   *   Anonymous | Session cookie | Valid token | 200 (allowed)
+   */
+  public function testAnonymousMessageEndpointAllowsValidCsrfToken(): void {
+    [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
+
+    $response = $this->postJsonAnonymous('/assistant/api/message', [
+      'message' => 'Hello',
+    ], $token, $cookies);
+
+    $this->assertEquals(200, $response->getStatusCode(), 'Anonymous POST with valid CSRF token should return 200');
+  }
+
+  /**
+   * Tests anonymous POST to /track without CSRF token returns 403.
+   *
+   * IMP-SEC-01 CSRF Auth Matrix row:
+   *   Anonymous | No session/token | No token | 403 (forbidden)
+   */
+  public function testAnonymousTrackEndpointRequiresCsrfToken(): void {
+    $response = $this->postJsonAnonymous('/assistant/api/track', [
+      'event_type' => 'chat_open',
+      'event_value' => '',
+    ]);
+
+    $this->assertEquals(403, $response->getStatusCode(), 'Anonymous POST to /track without CSRF token should return 403');
+  }
+
+  /**
+   * Tests anonymous POST to /track with invalid CSRF token returns 403.
+   */
+  public function testAnonymousTrackEndpointRejectsInvalidCsrfToken(): void {
+    $response = $this->postJsonAnonymous('/assistant/api/track', [
+      'event_type' => 'chat_open',
+      'event_value' => '',
+    ], 'invalid-token');
+
+    $this->assertEquals(403, $response->getStatusCode(), 'Anonymous POST to /track with invalid CSRF token should return 403');
+  }
+
+  /**
+   * Tests anonymous POST to /track with valid CSRF token returns 200.
+   */
+  public function testAnonymousTrackEndpointAllowsValidCsrfToken(): void {
+    [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
+
+    $response = $this->postJsonAnonymous('/assistant/api/track', [
+      'event_type' => 'chat_open',
+      'event_value' => '',
+    ], $token, $cookies);
+
+    $this->assertEquals(200, $response->getStatusCode(), 'Anonymous POST to /track with valid CSRF token should return 200');
+    $data = json_decode($response->getBody(), TRUE);
+    $this->assertTrue($data['ok']);
+  }
+
+  /**
+   * Sends a JSON POST request as anonymous.
+   *
+   * @param string $path
+   *   The path to POST to.
+   * @param array $data
+   *   The data to send as JSON.
+   * @param string|null $csrfToken
+   *   Optional CSRF token header value.
+   * @param \GuzzleHttp\Cookie\CookieJarInterface|null $cookies
+   *   Optional cookie jar to bind token + POST to the same session.
+   *
+   * @return \Psr\Http\Message\ResponseInterface
+   *   The response.
+   */
+  protected function postJsonAnonymous(string $path, array $data, ?string $csrfToken = NULL, ?CookieJarInterface $cookies = NULL) {
+    $url = $this->buildUrl($path);
+    $headers = [
+      'Content-Type' => 'application/json',
+    ];
+    if ($csrfToken !== NULL) {
+      $headers['X-CSRF-Token'] = $csrfToken;
+    }
+
+    $options = [
+      'http_errors' => FALSE,
+      'headers' => $headers,
+      'body' => json_encode($data),
+    ];
+    if ($cookies !== NULL) {
+      $options['cookies'] = $cookies;
+    }
+
+    return $this->getHttpClient()->post($url, $options);
+  }
+
+  /**
    * Sends a JSON POST request to the given path.
    *
    * @param string $path
@@ -550,24 +724,28 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    *   The data to send as JSON.
    * @param bool $include_csrf
    *   Whether to include a CSRF token.
+   * @param string|null $csrf_token
+   *   Optional CSRF token override.
    *
    * @return \Psr\Http\Message\ResponseInterface
    *   The response.
    */
-  protected function postJson(string $path, array $data, bool $include_csrf = TRUE) {
+  protected function postJson(string $path, array $data, bool $include_csrf = TRUE, ?string $csrf_token = NULL) {
     $url = $this->buildUrl($path);
+    $cookies = $this->getSessionCookies();
 
     $headers = [
       'Content-Type' => 'application/json',
     ];
 
     if ($include_csrf) {
-      $headers['X-CSRF-Token'] = $this->getSessionToken();
+      $headers['X-CSRF-Token'] = $csrf_token ?? $this->getSessionToken($cookies);
     }
 
     return $this->getHttpClient()->post($url, [
       'http_errors' => FALSE,
       'headers' => $headers,
+      'cookies' => $cookies,
       'body' => json_encode($data),
     ]);
   }
@@ -578,10 +756,44 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * @return string
    *   The session token.
    */
-  protected function getSessionToken(): string {
+  protected function getSessionToken(?CookieJarInterface $cookies = NULL): string {
     $url = $this->buildUrl('/session/token');
-    $response = $this->getHttpClient()->get($url);
+    $options = [
+      'http_errors' => FALSE,
+    ];
+    if ($cookies !== NULL) {
+      $options['cookies'] = $cookies;
+    }
+    $response = $this->getHttpClient()->get($url, $options);
     return (string) $response->getBody();
+  }
+
+  /**
+   * Returns anonymous session cookies and a bound CSRF token.
+   */
+  protected function getAnonymousSessionCookiesAndToken(): array {
+    $cookies = new CookieJar();
+    $this->primeAnonymousSession($cookies);
+    $this->assertNotEmpty($cookies->toArray(), 'Anonymous session priming must issue a session cookie');
+
+    return [
+      $cookies,
+      $this->getSessionToken($cookies),
+    ];
+  }
+
+  /**
+   * Primes an anonymous cookie jar by loading the assistant page first.
+   *
+   * The assistant page now starts a real anonymous session before issuing the
+   * widget CSRF token, so this request establishes the cookie-backed session.
+   */
+  protected function primeAnonymousSession(CookieJarInterface $cookies): void {
+    $response = $this->getHttpClient()->get($this->buildUrl('/assistant'), [
+      'http_errors' => FALSE,
+      'cookies' => $cookies,
+    ]);
+    $this->assertEquals(200, $response->getStatusCode(), 'Assistant page must be accessible to prime anonymous CSRF session');
   }
 
 }

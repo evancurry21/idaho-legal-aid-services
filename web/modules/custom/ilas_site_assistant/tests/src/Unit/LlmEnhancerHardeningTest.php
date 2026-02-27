@@ -249,6 +249,32 @@ class LlmEnhancerHardeningTest extends TestCase {
   }
 
   /**
+   * Tests retry on HTTP 500 (server error).
+   */
+  public function testRetryOn500(): void {
+    $this->control->apiExceptionSequence = [
+      new RequestException(
+        'Internal server error',
+        new Request('POST', 'https://example.com'),
+        new Response(500)
+      ),
+    ];
+    $this->control->apiResponse = 'recovered after 500';
+
+    $enhancer = $this->buildEnhancer(useRealMakeApiRequest: TRUE);
+
+    $ref = new \ReflectionMethod($enhancer, 'makeApiRequest');
+    $ref->setAccessible(TRUE);
+
+    $result = $ref->invoke($enhancer, 'https://example.com/api', [
+      'contents' => [['parts' => [['text' => 'test']]]],
+    ]);
+
+    $this->assertEquals('recovered after 500', $result);
+    $this->assertEquals(2, $this->control->apiCallCount);
+  }
+
+  /**
    * Tests that HTTP 400 does not retry and throws immediately.
    */
   public function testNoRetryOn400(): void {
@@ -273,6 +299,33 @@ class LlmEnhancerHardeningTest extends TestCase {
     ]);
 
     // Should only have been called once (no retry on 400).
+    $this->assertEquals(1, $this->control->apiCallCount);
+  }
+
+  /**
+   * Tests transport timeout/no-status failures do not retry.
+   */
+  public function testNoRetryOnTransportTimeout(): void {
+    $this->control->apiExceptionSequence = [
+      new RequestException(
+        'cURL error 28: Operation timed out',
+        new Request('POST', 'https://example.com')
+      ),
+    ];
+
+    $enhancer = $this->buildEnhancer(useRealMakeApiRequest: TRUE);
+
+    $ref = new \ReflectionMethod($enhancer, 'makeApiRequest');
+    $ref->setAccessible(TRUE);
+
+    $this->expectException(\Exception::class);
+    $this->expectExceptionMessage('API request failed');
+
+    $ref->invoke($enhancer, 'https://example.com/api', [
+      'contents' => [['parts' => [['text' => 'test']]]],
+    ]);
+
+    // No HTTP status means no retry path is eligible.
     $this->assertEquals(1, $this->control->apiCallCount);
   }
 
@@ -420,6 +473,22 @@ class LlmEnhancerHardeningTest extends TestCase {
     $result = $enhancer->classifyIntent('some query', 'unknown');
 
     $this->assertEquals('unknown', $result, 'Should return original intent when LLM disabled');
+    $this->assertEquals(0, $this->control->apiCallCount);
+  }
+
+  /**
+   * Tests unavailable dependency (missing API key) keeps classifyIntent deterministic.
+   */
+  public function testClassifyIntentFallbackWhenApiKeyMissing(): void {
+    $enhancer = $this->buildEnhancer(configOverrides: [
+      'llm.enabled' => TRUE,
+      'llm.provider' => 'gemini_api',
+      'llm.api_key' => '',
+    ]);
+
+    $result = $enhancer->classifyIntent('some query', 'unknown');
+
+    $this->assertEquals('unknown', $result);
     $this->assertEquals(0, $this->control->apiCallCount);
   }
 
@@ -627,6 +696,30 @@ class LlmEnhancerHardeningTest extends TestCase {
       $this->control->capturedPrompt,
       'Fencing security directive must be present in the prompt'
     );
+  }
+
+  /**
+   * Tests fallback_on_error=true preserves deterministic non-LLM response class.
+   */
+  public function testFallbackOnErrorTruePreservesResponseClassDeterministically(): void {
+    $this->control->apiException = new \Exception('transport timeout');
+
+    $enhancer = $this->buildEnhancer(configOverrides: [
+      'llm.fallback_on_error' => TRUE,
+    ]);
+
+    $response = [
+      'type' => 'faq',
+      'results' => [['question' => 'Q?', 'answer' => 'A.']],
+    ];
+
+    $first = $enhancer->enhanceResponse($response, 'test question');
+    $second = $enhancer->enhanceResponse($response, 'test question');
+
+    $this->assertEquals('faq', $first['type']);
+    $this->assertEquals('faq', $second['type']);
+    $this->assertArrayNotHasKey('llm_summary', $first);
+    $this->assertArrayNotHasKey('llm_summary', $second);
   }
 
   /**

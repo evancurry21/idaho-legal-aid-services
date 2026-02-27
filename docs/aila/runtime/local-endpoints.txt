@@ -1,0 +1,133 @@
+# Local Endpoint Verification (synthetic, post-CSRF-hardening)
+timestamp_utc=2026-02-27T20:15:50Z
+base_url=https://ilas-pantheon.ddev.site
+csrf_token_obtained=yes
+note=All POST checks use sessionless anonymous curl (matching original audit methodology). Post-fix, StrictCsrfRequestHeaderAccessCheck enforces session-bound CSRF validation; sessionless requests cannot pass. In browser context, widget JS uses session+token pair from page render.
+
+## GET suggest
+$ curl -k -sS -D '<headers>' -o '<body>' -X GET 'https://ilas-pantheon.ddev.site/assistant/api/suggest?q=housing&type=all'
+status=HTTP/2 200
+headers:
+  cache-control: no-store, private
+  content-type: application/json
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-drupal-cache: HIT
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=suggestions
+body_preview={"suggestions":[{"type":"topic","label":"Housing","id":"75"},{"type":"topic","label":"Housing Discrimination","id":"82"},{"type":"topic","label":"Federal Fair Housing Act","id":"83"},{"type":"topic","label":"Subsidized H...
+
+## GET faq
+$ curl -k -sS -D '<headers>' -o '<body>' -X GET 'https://ilas-pantheon.ddev.site/assistant/api/faq?q=eviction'
+status=HTTP/2 200
+headers:
+  cache-control: no-store, private
+  content-type: application/json
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-drupal-cache: HIT
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=count, results
+body_preview={"results":[{"id":"faq_343","paragraph_id":"343","type":"accordion_item","title":"Evictions and Reasonable Accommodations","body":"Introduction\u0026nbsp;The Federal Fair Housing Act (\u201cAct\u201d) (42 U.S.C. \u00a7\u...
+
+## POST message without CSRF
+$ curl -k -sS -D '<headers>' -o '<body>' -X POST -H 'Content-Type: application/json' --data '{"message": "SYNTHETIC EXAMPLE: where can I find forms?", "conversation_id": "11111111-1111-4111-8111-111111111111", "context": {"history": []}}' https://ilas-pantheon.ddev.site/assistant/api/message
+status=HTTP/2 403
+headers:
+  cache-control: must-revalidate, no-cache, private
+  content-type: text/html; charset=UTF-8
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=<non-json or parse-failed>
+body_preview=<!DOCTYPE html> ... (Drupal 403 access denied page)
+
+## POST message with CSRF
+$ curl -k -sS -D '<headers>' -o '<body>' -X POST -H 'Content-Type: application/json' -H 'X-CSRF-Token: [REDACTED]' --data '{"message": "SYNTHETIC EXAMPLE: where can I find housing forms?", "conversation_id": "22222222-2222-4222-8222-222222222222", "context": {"history": []}}' https://ilas-pantheon.ddev.site/assistant/api/message
+status=HTTP/2 403
+headers:
+  cache-control: must-revalidate, no-cache, private
+  content-type: text/html; charset=UTF-8
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=<non-json or parse-failed>
+body_preview=<!DOCTYPE html> ... (Drupal 403 access denied page; sessionless token cannot validate)
+
+## POST message with invalid CSRF
+$ curl -k -sS -D '<headers>' -o '<body>' -X POST -H 'Content-Type: application/json' -H 'X-CSRF-Token: INVALID_TOKEN_12345' --data '{"message": "SYNTHETIC EXAMPLE: where can I find forms?", "conversation_id": "33333333-3333-4333-8333-333333333333", "context": {"history": []}}' https://ilas-pantheon.ddev.site/assistant/api/message
+status=HTTP/2 403
+headers:
+  cache-control: must-revalidate, no-cache, private
+  content-type: text/html; charset=UTF-8
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=<non-json or parse-failed>
+body_preview=<!DOCTYPE html> ... (Drupal 403 access denied page)
+
+## POST track without CSRF
+$ curl -k -sS -D '<headers>' -o '<body>' -X POST -H 'Content-Type: application/json' --data '{"event_type": "chat_open", "event_value": "SYNTHETIC EXAMPLE"}' https://ilas-pantheon.ddev.site/assistant/api/track
+status=HTTP/2 403
+headers:
+  cache-control: must-revalidate, no-cache, private
+  content-type: text/html; charset=UTF-8
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=<non-json or parse-failed>
+body_preview=<!DOCTYPE html> ... (Drupal 403 access denied page)
+
+## POST track with CSRF
+$ curl -k -sS -D '<headers>' -o '<body>' -X POST -H 'Content-Type: application/json' -H 'X-CSRF-Token: [REDACTED]' --data '{"event_type": "chat_open", "event_value": "SYNTHETIC EXAMPLE"}' https://ilas-pantheon.ddev.site/assistant/api/track
+status=HTTP/2 403
+headers:
+  cache-control: must-revalidate, no-cache, private
+  content-type: text/html; charset=UTF-8
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=<non-json or parse-failed>
+body_preview=<!DOCTYPE html> ... (Drupal 403 access denied page; sessionless token cannot validate)
+
+## POST track with invalid CSRF
+$ curl -k -sS -D '<headers>' -o '<body>' -X POST -H 'Content-Type: application/json' -H 'X-CSRF-Token: INVALID_TOKEN_12345' --data '{"event_type": "chat_open", "event_value": "SYNTHETIC EXAMPLE"}' https://ilas-pantheon.ddev.site/assistant/api/track
+status=HTTP/2 403
+headers:
+  cache-control: must-revalidate, no-cache, private
+  content-type: text/html; charset=UTF-8
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=<non-json or parse-failed>
+body_preview=<!DOCTYPE html> ... (Drupal 403 access denied page)
+
+## GET health (permission-gated)
+$ curl -k -sS -D '<headers>' -o '<body>' -X GET https://ilas-pantheon.ddev.site/assistant/api/health
+status=HTTP/2 403
+headers:
+  cache-control: max-age=86400, public
+  content-type: text/html; charset=UTF-8
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-drupal-cache: HIT
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=<non-json or parse-failed>
+body_preview=<!DOCTYPE html> <html lang="en" dir="ltr" prefix="og: https://ogp.me/ns#"> <head> <meta charset="utf-8" /> <noscript><style>form.antibot * :not(.antibot-message) { display: none !important; }</style> </noscript><meta nam...
+
+## GET metrics (permission-gated)
+$ curl -k -sS -D '<headers>' -o '<body>' -X GET https://ilas-pantheon.ddev.site/assistant/api/metrics
+status=HTTP/2 403
+headers:
+  cache-control: max-age=86400, public
+  content-type: text/html; charset=UTF-8
+  strict-transport-security: max-age=31536000; includeSubDomains; preload
+  x-drupal-cache: HIT
+  x-frame-options: SAMEORIGIN
+json_top_level_keys=<non-json or parse-failed>
+body_preview=<!DOCTYPE html> <html lang="en" dir="ltr" prefix="og: https://ogp.me/ns#"> <head> <meta charset="utf-8" /> <noscript><style>form.antibot * :not(.antibot-message) { display: none !important; }</style> </noscript><meta nam...
+
+## CSRF matrix summary (post-StrictCsrfRequestHeaderAccessCheck)
+# Methodology: sessionless anonymous curl from host, matching original audit approach.
+# Pre-fix (CLAIM-113): POST without CSRF → 200; POST with CSRF → 200
+# Post-fix: ALL POST cells → 403 (strict CSRF requires session-bound token validation)
+#
+# | Endpoint | No token | Valid token (sessionless) | Invalid token |
+# |----------|----------|--------------------------|---------------|
+# | message  | 403      | 403                      | 403           |
+# | track    | 403      | 403                      | 403           |
+#
+# Browser-context verification: widget JS obtains session+token pair from page render
+# and passes CSRF validation. Confirmed via CsrfAuthMatrixTest (10/10 pass) and
+# AssistantApiFunctionalTest 12-cell matrix.

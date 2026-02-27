@@ -110,7 +110,7 @@ class SafetyViolationTrackerTest extends TestCase {
    * @covers ::record
    */
   public function testRingBufferTrim(): void {
-    [$tracker, &$storage] = $this->createTracker();
+    [$tracker] = $this->createTracker();
 
     $now = time();
     // Fill past the limit.
@@ -119,12 +119,11 @@ class SafetyViolationTrackerTest extends TestCase {
     }
 
     // Should be trimmed to MAX_ENTRIES.
-    $timestamps = $storage[SafetyViolationTracker::STATE_KEY] ?? [];
-    $this->assertLessThanOrEqual(SafetyViolationTracker::MAX_ENTRIES, count($timestamps));
-    $this->assertEquals(SafetyViolationTracker::MAX_ENTRIES, count($timestamps));
+    $this->assertEquals(SafetyViolationTracker::MAX_ENTRIES, $tracker->countSince(0));
 
-    // The oldest entries should have been dropped (most recent kept).
-    $this->assertGreaterThan($now - 510, min($timestamps));
+    // Oldest 10 entries should be dropped; timestamps now start at $now - 500.
+    $this->assertEquals(SafetyViolationTracker::MAX_ENTRIES, $tracker->countSince($now - 500));
+    $this->assertEquals(SafetyViolationTracker::MAX_ENTRIES - 1, $tracker->countSince($now - 499));
   }
 
   /**

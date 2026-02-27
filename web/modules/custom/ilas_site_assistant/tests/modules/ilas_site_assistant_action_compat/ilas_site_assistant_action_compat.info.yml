@@ -1,0 +1,5 @@
+name: 'ILAS Site Assistant Action Compat (Tests)'
+type: module
+description: 'Test-only compatibility shim for legacy node action plugin IDs used during BrowserTestBase installs.'
+package: Testing
+core_version_requirement: ^10 || ^11

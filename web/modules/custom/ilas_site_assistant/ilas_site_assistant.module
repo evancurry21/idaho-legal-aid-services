@@ -74,6 +74,16 @@ function ilas_site_assistant_page_attachments(array &$attachments) {
   // Attach the widget library.
   $attachments['#attached']['library'][] = 'ilas_site_assistant/widget';
 
+  // CSRF tokens are session-bound. Persist an anonymous session before issuing
+  // the token in drupalSettings so subsequent assistant POST requests can
+  // validate deterministically.
+  if (\Drupal::currentUser()->isAnonymous()) {
+    $session = \Drupal::requestStack()->getCurrentRequest()?->getSession();
+    if ($session !== NULL && !$session->has('ilas_site_assistant.csrf_session_prime')) {
+      $session->set('ilas_site_assistant.csrf_session_prime', TRUE);
+    }
+  }
+
   // Pass configuration to JavaScript.
   $attachments['#attached']['drupalSettings']['ilasSiteAssistant'] = [
     'apiBase' => '/assistant/api',

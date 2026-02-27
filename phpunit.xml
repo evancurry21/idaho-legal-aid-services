@@ -12,7 +12,7 @@
     <!-- Do not limit memory during tests. -->
     <ini name="memory_limit" value="-1"/>
     <env name="SIMPLETEST_BASE_URL" value="http://localhost"/>
-    <env name="SIMPLETEST_DB" value="mysql://db:db@db/ilas"/>
+    <env name="SIMPLETEST_DB" value="mysql://db:db@db/db"/>
     <env name="BROWSERTEST_OUTPUT_DIRECTORY" value=""/>
     <env name="BROWSERTEST_OUTPUT_BASE_URL" value=""/>
   </php>

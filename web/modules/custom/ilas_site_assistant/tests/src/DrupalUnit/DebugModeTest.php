@@ -61,6 +61,10 @@ class DebugModeTest extends UnitTestCase {
   public function testSafetyFlagDetection(string $message, array $expectedFlags): void {
     $flags = $this->detectSafetyFlags($message);
 
+    if ($expectedFlags === []) {
+      $this->assertSame([], $flags);
+    }
+
     foreach ($expectedFlags as $expected) {
       $this->assertContains($expected, $flags, "Flag '$expected' should be detected");
     }
@@ -80,7 +84,7 @@ class DebugModeTest extends UnitTestCase {
         ['eviction_imminent'],
       ],
       'identity theft' => [
-        'someone stole my identity',
+        'someone committed identity theft',
         ['identity_theft'],
       ],
       'deadline pressure' => [

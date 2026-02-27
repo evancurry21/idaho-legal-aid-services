@@ -273,4 +273,82 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->assertSame($sentryEvent, $result, 'Callback should return the same event instance');
   }
 
+  /**
+   * Tests isDrushEvalNoise returns FALSE for non-CLI SAPI.
+   *
+   * @covers ::isDrushEvalNoise
+   */
+  public function testIsDrushEvalNoiseReturnsFalseForWeb(): void {
+    // PHP_SAPI in PHPUnit is 'cli', so we can only test the method's
+    // behavior indirectly. When running tests, SAPI is 'cli' and argv
+    // typically points to phpunit, not drush — so it should return FALSE.
+    $result = SentryOptionsSubscriber::isDrushEvalNoise();
+    $this->assertFalse($result, 'isDrushEvalNoise should be FALSE when not running a drush eval command');
+  }
+
+  /**
+   * Tests isDrushEvalNoise respects SENTRY_CAPTURE_DRUSH_EVAL env var.
+   *
+   * @covers ::isDrushEvalNoise
+   */
+  public function testIsDrushEvalNoiseRespectsEnvOverride(): void {
+    $original = getenv('SENTRY_CAPTURE_DRUSH_EVAL');
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+
+    try {
+      putenv('SENTRY_CAPTURE_DRUSH_EVAL=1');
+      putenv('PANTHEON_ENVIRONMENT');
+
+      $result = SentryOptionsSubscriber::isDrushEvalNoise();
+      $this->assertFalse($result, 'isDrushEvalNoise should be FALSE when SENTRY_CAPTURE_DRUSH_EVAL=1');
+    }
+    finally {
+      // Restore.
+      if ($original !== FALSE) {
+        putenv("SENTRY_CAPTURE_DRUSH_EVAL=$original");
+      }
+      else {
+        putenv('SENTRY_CAPTURE_DRUSH_EVAL');
+      }
+      if ($originalPantheon !== FALSE) {
+        putenv("PANTHEON_ENVIRONMENT=$originalPantheon");
+      }
+      else {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+    }
+  }
+
+  /**
+   * Tests isDrushEvalNoise returns FALSE when PANTHEON_ENVIRONMENT is set.
+   *
+   * @covers ::isDrushEvalNoise
+   */
+  public function testIsDrushEvalNoiseReturnsFalseOnPantheon(): void {
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+    $originalCapture = getenv('SENTRY_CAPTURE_DRUSH_EVAL');
+
+    try {
+      putenv('PANTHEON_ENVIRONMENT=live');
+      putenv('SENTRY_CAPTURE_DRUSH_EVAL');
+
+      $result = SentryOptionsSubscriber::isDrushEvalNoise();
+      $this->assertFalse($result, 'isDrushEvalNoise should be FALSE on Pantheon environments');
+    }
+    finally {
+      if ($originalPantheon !== FALSE) {
+        putenv("PANTHEON_ENVIRONMENT=$originalPantheon");
+      }
+      else {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+      if ($originalCapture !== FALSE) {
+        putenv("SENTRY_CAPTURE_DRUSH_EVAL=$originalCapture");
+      }
+      else {
+        putenv('SENTRY_CAPTURE_DRUSH_EVAL');
+      }
+    }
+  }
+
 }

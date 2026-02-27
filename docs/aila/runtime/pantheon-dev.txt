@@ -1,0 +1,268 @@
+# Pantheon Runtime Verification: idaho-legal-aid-services.dev
+timestamp_utc=2026-02-26T19:23:47Z
+
+$ terminus whoami
+[REDACTED_EMAIL]
+
+$ terminus env:wake idaho-legal-aid-services.dev
+ [notice] OK >> dev-idaho-legal-aid-services.pantheonsite.io responded
+
+$ terminus remote:drush idaho-legal-aid-services.dev -- status
+Drupal version   : 11.3.2                             
+Site URI         : http://localhost                   
+DB driver        : mysql                              
+DB hostname      : [REDACTED]
+DB port          : 6033                               
+DB username      : [REDACTED]
+DB name          : pantheon                           
+Database         : Connected                          
+Drupal bootstrap : Successful                         
+Default theme    : b5subtheme                         
+Admin theme      : gin                                
+PHP binary       : /usr/bin/php8.3                    
+PHP config       : /etc/php/8.3/cli/php.ini           
+PHP OS           : Linux                              
+PHP version      : 8.3.30                             
+Drush script     : /code/vendor/bin/drush.php         
+Drush version    : 13.7.0.0                           
+Drush temp       : /tmp                               
+Drush configs    : /.drush/drush.yml                  
+                   /code/vendor/drush/drush/drush.yml 
+                   /code/web/drush/drush.yml          
+Install profile  :                                    
+Drupal root      : /code/web                          
+Site path        : sites/default                      
+Files, Public    : sites/default/files                
+Files, Private   : sites/default/files/private        
+Files, Temp      : /tmp                               
+Drupal config    : ../config                          
+ [warning] This environment is in read-only Git mode. If you want to make changes to the codebase of this site (e.g. updating modules or plugins), you will need to toggle into read/write SFTP mode first.
+ [notice] Command: idaho-legal-aid-services.dev -- drush status [Exit: 0] (Attempt 1/1)
+
+$ terminus remote:drush idaho-legal-aid-services.dev -- config:status
+ [notice] No differences between DB and sync directory.
+ [warning] This environment is in read-only Git mode. If you want to make changes to the codebase of this site (e.g. updating modules or plugins), you will need to toggle into read/write SFTP mode first.
+ [notice] Command: idaho-legal-aid-services.dev -- drush config:status [Exit: 0] (Attempt 1/1)
+
+$ terminus remote:drush idaho-legal-aid-services.dev -- state:get system.cron_last
+1772073745
+ [warning] This environment is in read-only Git mode. If you want to make changes to the codebase of this site (e.g. updating modules or plugins), you will need to toggle into read/write SFTP mode first.
+ [notice] Command: idaho-legal-aid-services.dev -- drush state:get system.cron_last [Exit: 0] (Attempt 1/1)
+
+$ terminus remote:drush idaho-legal-aid-services.dev -- queue:list
+ ------------------------------------ ------- --------------------------------- 
+  Queue                                Items   Class                            
+ ------------------------------------ ------- --------------------------------- 
+  entity_reference_revisions_orphan_   0       Drupal\Core\Queue\DatabaseQueue  
+  purger                                                                        
+  geocoder_field                       0       Drupal\Core\Queue\DatabaseQueue  
+  ilas_langfuse_export                 0       Drupal\Core\Queue\DatabaseQueue  
+  locale_translation                   0       Drupal\Core\Queue\DatabaseQueue  
+  media_entity_thumbnail               0       Drupal\Core\Queue\DatabaseQueue  
+  package_manager_cleanup              0       Drupal\Core\Queue\DatabaseQueue  
+  trash_entity_purge                   0       Drupal\Core\Queue\DatabaseQueue  
+ ------------------------------------ ------- --------------------------------- 
+ [warning] This environment is in read-only Git mode. If you want to make changes to the codebase of this site (e.g. updating modules or plugins), you will need to toggle into read/write SFTP mode first.
+ [notice] Command: idaho-legal-aid-services.dev -- drush queue:list [Exit: 0] (Attempt 1/1)
+
+$ terminus remote:drush idaho-legal-aid-services.dev -- config:get ilas_site_assistant.settings -y
+_core:
+  default_config_hash: 4_eQdtnPp7JizBul8ADHBdQ1xXv7UedEdHv-GG3ayLA
+disclaimer_text: 'I can help you find information on the Idaho Legal Aid Services website. I cannot provide legal advice.'
+enable_global_widget: true
+enable_faq: true
+enable_resources: true
+enable_logging: true
+log_retention_days: 90
+excluded_paths:
+  - /admin
+  - /user/login
+  - /user/password
+canonical_urls:
+  apply: /apply-for-help
+  hotline: /Legal-Advice-Line
+  offices: /contact/offices
+  donate: /donate
+  feedback: /get-involved/feedback
+  resources: /what-we-do/resources
+  forms: /forms
+  guides: /guides
+  senior_risk_detector: /resources/legal-risk-detector
+  faq: /faq
+  services: /services
+  service_areas:
+    housing: /legal-help/housing
+    family: /legal-help/family
+    seniors: /legal-help/seniors
+    health: /legal-help/health
+    consumer: /legal-help/consumer
+    civil_rights: /legal-help/civil-rights
+faq_node_path: /faq
+welcome_message: 'Hello! I can help you find information on our website. What are you looking for today?'
+escalation_message: 'For personalized legal assistance, please contact our Legal Advice Line or apply for help.'
+policy_keywords:
+  legal_advice:
+    - 'should i'
+    - 'what are my chances'
+    - 'is it legal'
+    - 'can i sue'
+    - statute
+    - 'law says'
+    - 'my rights'
+    - 'will i win'
+    - 'case outcome'
+    - 'legal advice'
+    - 'advise me'
+    - 'what should i do'
+  pii_indicators:
+    - '@'
+    - 'my name is'
+    - 'my address'
+    - 'social security'
+    - ssn
+    - 'phone number'
+    - 'date of birth'
+    - 'case number'
+rate_limit_per_minute: 15
+rate_limit_per_hour: 120
+conversation_logging:
+  enabled: true
+  retention_hours: 72
+  redact_pii: true
+  show_user_notice: true
+llm:
+  enabled: false
+  provider: gemini_api
+  model: gemini-1.5-flash
+  api_key: [REDACTED]
+  project_id: ''
+  location: us-central1
+  service_account_json: [REDACTED]
+  max_tokens: 150
+  temperature: 0.3
+  enhance_faq: true
+  enhance_resources: true
+  enhance_greetings: false
+  fallback_on_error: true
+  safety_threshold: BLOCK_MEDIUM_AND_ABOVE
+
+ [warning] This environment is in read-only Git mode. If you want to make changes to the codebase of this site (e.g. updating modules or plugins), you will need to toggle into read/write SFTP mode first.
+ [notice] Command: idaho-legal-aid-services.dev -- drush config:get ilas_site_assistant.settings [Exit: 0] (Attempt 1/1)
+
+$ terminus remote:drush idaho-legal-aid-services.dev -- config:get raven.settings -y
+ [error]  Config raven.settings does not exist 
+ [warning] This environment is in read-only Git mode. If you want to make changes to the codebase of this site (e.g. updating modules or plugins), you will need to toggle into read/write SFTP mode first.
+ [notice] Command: idaho-legal-aid-services.dev -- drush config:get raven.settings [Exit: 1] (Attempt 1/1)
+ [error]  Command: idaho-legal-aid-services.dev -- drush config:get raven.settings [Exit: 1] (All attempts failed) 
+ [error]   [error]  Config raven.settings does not exist 
+ 
+[exit_code=1]
+
+$ terminus remote:drush idaho-legal-aid-services.dev -- config:get langfuse.settings -y
+ [error]  Config langfuse.settings does not exist 
+ [warning] This environment is in read-only Git mode. If you want to make changes to the codebase of this site (e.g. updating modules or plugins), you will need to toggle into read/write SFTP mode first.
+ [notice] Command: idaho-legal-aid-services.dev -- drush config:get langfuse.settings [Exit: 1] (Attempt 1/1)
+ [error]  Command: idaho-legal-aid-services.dev -- drush config:get langfuse.settings [Exit: 1] (All attempts failed) 
+ [error]   [error]  Config langfuse.settings does not exist 
+ 
+[exit_code=1]
+
+$ terminus remote:drush idaho-legal-aid-services.dev -- watchdog:show --type=cron --count=30
+ ------- -------------- ------ ---------- ------------------------------------- 
+  ID      Date           Type   Severity   Message                              
+ ------- -------------- ------ ---------- ------------------------------------- 
+  57262   25/Feb 19:42   cron   Info       Cron run completed.                  
+  57261   25/Feb 19:42   cron   Info       Execution of                         
+                                           employment_application_cron() took   
+                                           10.56ms.                             
+  57260   25/Feb 19:42   cron   Info       Starting execution of                
+                                           employment_application_cron(),       
+                                           execution of webform_cron() took     
+                                           6.09ms.                              
+  57259   25/Feb 19:42   cron   Info       Starting execution of                
+                                           webform_cron(), execution of         
+                                           update_cron() took 4140.02ms.        
+  57258   25/Feb 19:42   cron   Info       Starting execution of                
+                                           update_cron(), execution of          
+                                           trash_cron() took 0.01ms.            
+  57257   25/Feb 19:42   cron   Info       Starting execution of trash_cron(),  
+                                           execution of tmgmt_cron() took       
+                                           2.52ms.                              
+  57256   25/Feb 19:42   cron   Info       Starting execution of tmgmt_cron(),  
+                                           execution of system_cron() took      
+                                           93.77ms.                             
+  57255   25/Feb 19:42   cron   Info       Starting execution of                
+                                           system_cron(), execution of          
+                                           simple_sitemap_cron() took           
+                                           5557.7ms.                            
+  57251   25/Feb 19:42   cron   Info       Starting execution of                
+                                           simple_sitemap_cron(), execution of  
+                                           search_api_cron() took 59.67ms.      
+  57250   25/Feb 19:42   cron   Info       Starting execution of                
+                                           search_api_cron(), execution of      
+                                           search_cron() took 18.5ms.           
+  57249   25/Feb 19:42   cron   Info       Starting execution of                
+                                           search_cron(), execution of          
+                                           scheduler_cron() took 23.44ms.       
+  57248   25/Feb 19:42   cron   Info       Starting execution of                
+                                           scheduler_cron(), execution of       
+                                           redirect_404_cron() took 23.47ms.    
+  57247   25/Feb 19:42   cron   Info       Starting execution of                
+                                           redirect_404_cron(), execution of    
+                                           raven_cron() took 0.42ms.            
+  57246   25/Feb 19:42   cron   Info       Starting execution of raven_cron(),  
+                                           execution of node_cron() took        
+                                           110ms.                               
+  57245   25/Feb 19:42   cron   Info       Starting execution of node_cron(),   
+                                           execution of locale_cron() took      
+                                           0.53ms.                              
+  57244   25/Feb 19:42   cron   Info       Starting execution of                
+                                           locale_cron(), execution of          
+                                           layout_builder_cron() took 8.57ms.   
+  57243   25/Feb 19:42   cron   Info       Starting execution of                
+                                           layout_builder_cron(), execution of  
+                                           ilas_site_assistant_cron() took      
+                                           31.4ms.                              
+  57242   25/Feb 19:42   cron   Info       Starting execution of                
+                                           ilas_site_assistant_cron(),          
+                                           execution of honeypot_cron() took    
+                                           4.92ms.                              
+  57241   25/Feb 19:42   cron   Info       Starting execution of                
+                                           honeypot_cron(), execution of        
+                                           file_cron() took 8.97ms.             
+  57240   25/Feb 19:42   cron   Info       Starting execution of file_cron(),   
+                                           execution of field_cron() took       
+                                           3.78ms.                              
+  57239   25/Feb 19:42   cron   Info       Starting execution of field_cron(),  
+                                           execution of eca_base_cron() took    
+                                           4.45ms.                              
+  57238   25/Feb 19:42   cron   Info       Starting execution of                
+                                           eca_base_cron(), execution of        
+                                           easy_email_cron() took 35.43ms.      
+  57237   25/Feb 19:42   cron   Info       Starting execution of                
+                                           easy_email_cron(), execution of      
+                                           dblog_cron() took 10.61ms.           
+  57236   25/Feb 19:42   cron   Info       Starting execution of dblog_cron(),  
+                                           execution of captcha_cron() took     
+                                           1.97ms.                              
+  57235   25/Feb 19:42   cron   Info       Starting execution of                
+                                           captcha_cron(), execution of         
+                                           announcements_feed_cron() took       
+                                           0.77ms.                              
+  57234   25/Feb 19:42   cron   Info       Starting execution of                
+                                           announcements_feed_cron().           
+  57233   25/Feb 17:42   cron   Info       Cron run completed.                  
+  57232   25/Feb 17:42   cron   Info       Execution of                         
+                                           employment_application_cron() took   
+                                           4.65ms.                              
+  57231   25/Feb 17:42   cron   Info       Starting execution of                
+                                           employment_application_cron(),       
+                                           execution of webform_cron() took     
+                                           2.56ms.                              
+  57230   25/Feb 17:42   cron   Info       Starting execution of                
+                                           webform_cron(), execution of         
+                                           update_cron() took 9518.46ms.        
+ ------- -------------- ------ ---------- ------------------------------------- 
+ [warning] This environment is in read-only Git mode. If you want to make changes to the codebase of this site (e.g. updating modules or plugins), you will need to toggle into read/write SFTP mode first.
+ [notice] Command: idaho-legal-aid-services.dev -- drush watchdog:show [Exit: 0] (Attempt 1/1)
+

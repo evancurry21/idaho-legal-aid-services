@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+
+/**
+ * Implements hook_action_info_alter().
+ *
+ * Adds legacy node action plugin IDs only when they are missing from the
+ * current action plugin discovery map in test environments.
+ */
+function ilas_site_assistant_action_compat_action_info_alter(array &$definitions): void {
+  $legacy_definitions = [
+    'node_make_sticky_action' => [
+      'class' => 'Drupal\\ilas_site_assistant_action_compat\\Plugin\\Action\\LegacyStickyNodeAction',
+      'label' => new TranslatableMarkup('Make selected content sticky'),
+      'type' => 'node',
+    ],
+    'node_make_unsticky_action' => [
+      'class' => 'Drupal\\ilas_site_assistant_action_compat\\Plugin\\Action\\LegacyUnstickyNodeAction',
+      'label' => new TranslatableMarkup('Make selected content unsticky'),
+      'type' => 'node',
+    ],
+    'node_promote_action' => [
+      'class' => 'Drupal\\ilas_site_assistant_action_compat\\Plugin\\Action\\LegacyPromoteNodeAction',
+      'label' => new TranslatableMarkup('Promote selected content to front page'),
+      'type' => 'node',
+    ],
+    'node_unpromote_action' => [
+      'class' => 'Drupal\\ilas_site_assistant_action_compat\\Plugin\\Action\\LegacyUnpromoteNodeAction',
+      'label' => new TranslatableMarkup('Remove selected content from front page'),
+      'type' => 'node',
+    ],
+  ];
+
+  foreach ($legacy_definitions as $plugin_id => $definition) {
+    if (isset($definitions[$plugin_id])) {
+      continue;
+    }
+    $definitions[$plugin_id] = [
+      'id' => $plugin_id,
+      'provider' => 'ilas_site_assistant_action_compat',
+    ] + $definition;
+  }
+}
