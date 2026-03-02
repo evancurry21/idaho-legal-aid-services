@@ -1,0 +1,735 @@
+# 1 — Eligibility
+- description: "Eligibility — part-time income"
+  vars:
+    question: Do I qualify for free legal help if I work part-time?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["income", "eligibility", "qualify", "125%", "poverty"]
+    - type: contains-any
+      value: ["apply", "intake", "idaholegalaid.org"]
+    - type: javascript
+      value: "output.includes('http')"
+      metric: includes-url
+
+# 2 — Housing
+- description: "Housing — utility shutoff"
+  vars:
+    question: My landlord shut off my water. Is that legal?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["landlord", "tenant", "utility", "habitability", "illegal"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 3 — Family law
+- description: "Family law — divorce with no income"
+  vars:
+    question: Can I get help with a divorce if I have no income?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["divorce", "family", "custody", "filing", "court"]
+    - type: contains-any
+      value: ["help", "services", "eligible", "apply"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 4 — Debt
+- description: "Debt — wage garnishment"
+  vars:
+    question: They're garnishing my wages for medical debt. What can I do?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["garnishment", "garnish", "wages", "debt", "exempt", "exemption"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 5 — Family law
+- description: "Family law — restraining order"
+  vars:
+    question: I need a restraining order but can't afford a lawyer
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["restraining order", "protective order", "protection", "safety"]
+    - type: contains-any
+      value: ["court", "help", "services", "file"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 6 — Benefits
+- description: "Benefits — Social Security disability"
+  vars:
+    question: Does ILAS help with Social Security disability denials?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["Social Security", "disability", "SSI", "SSDI", "denial", "appeal"]
+    - type: contains-any
+      value: ["help", "services", "assistance"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 7 — Family law
+- description: "Family law — child support enforcement"
+  vars:
+    question: My ex won't pay child support. Can you help me?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["child support", "support", "enforcement", "custody"]
+    - type: contains-any
+      value: ["help", "court", "services", "apply"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 8 — Elder law
+- description: "Elder law — nursing home eviction"
+  vars:
+    question: I'm 68 and my nursing home is threatening to evict me
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["nursing home", "elder", "senior", "resident", "rights"]
+    - type: contains-any
+      value: ["help", "services", "protection", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 9 — Housing
+- description: "Housing — lease break for mold"
+  vars:
+    question: Can I break my lease if there's black mold?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["mold", "lease", "habitability", "landlord", "tenant", "health"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 10 — Eligibility
+- description: "Eligibility — income limit"
+  vars:
+    question: What's the income limit to get your services?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["income", "eligibility", "qualify", "125%", "poverty", "limit"]
+    - type: contains-any
+      value: ["apply", "intake", "idaholegalaid.org"]
+    - type: javascript
+      value: "output.includes('http')"
+      metric: includes-url
+
+# 11 — Consumer
+- description: "Consumer — car dealer scam"
+  vars:
+    question: I got scammed by a car dealer. Do you handle that?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["consumer", "scam", "fraud", "dealer", "auto", "lemon"]
+    - type: contains-any
+      value: ["help", "services", "rights", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 12 — Benefits
+- description: "Benefits — SNAP cutoff"
+  vars:
+    question: My SNAP benefits were cut off without notice
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["SNAP", "food stamps", "benefits", "denied", "appeal"]
+    - type: contains-any
+      value: ["help", "services", "rights", "notice"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 13 — Access
+- description: "Access — rural offices"
+  vars:
+    question: Do you have offices in rural Idaho or just cities?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["office", "location", "rural", "county", "statewide"]
+    - type: javascript
+      value: "output.includes('http')"
+      metric: includes-url
+
+# 14 — Family law
+- description: "Family law — grandparent custody"
+  vars:
+    question: Can you help me get custody of my grandkids?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["custody", "grandparent", "guardianship", "family", "court"]
+    - type: contains-any
+      value: ["help", "services", "legal", "apply"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 15 — Immigration/Housing
+- description: "Immigration — undocumented housing help"
+  vars:
+    question: I'm undocumented. Will you still help me with housing issues?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["housing", "help", "services", "assistance", "eligible"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 16 — Debt
+- description: "Debt — collector calling work"
+  vars:
+    question: The debt collector keeps calling my work. Is that allowed?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["debt collector", "collector", "FDCPA", "harassment", "workplace"]
+    - type: contains-any
+      value: ["rights", "law", "allowed", "legal", "prohibited"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 17 — Access
+- description: "Access — appointment timeline"
+  vars:
+    question: How long does it take to get an appointment?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["appointment", "intake", "call", "apply", "schedule"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 18 — Debt
+- description: "Debt — bankruptcy filing"
+  vars:
+    question: Can I get help filing bankruptcy?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["bankruptcy", "debt", "filing", "chapter"]
+    - type: contains-any
+      value: ["help", "services", "legal", "apply"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 19 — Housing
+- description: "Housing — landlord unauthorized entry"
+  vars:
+    question: My landlord is entering my apartment without permission
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["landlord", "entry", "notice", "privacy", "tenant", "permission"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 20 — Other
+- description: "Other — criminal record expungement"
+  vars:
+    question: Do you help with expunging criminal records?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["expunge", "expungement", "record", "criminal", "conviction"]
+    - type: contains-any
+      value: ["help", "services", "legal", "civil"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 21 — Housing (repeat variant)
+- description: "Housing — utility shutoff (variant)"
+  vars:
+    question: My landlord shut off my water, is that legal?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["landlord", "tenant", "utility", "habitability", "illegal"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 22 — Debt (repeat variant)
+- description: "Debt — wage garnishment (variant)"
+  vars:
+    question: They're garnishing my wages for medical debt, what can I do?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["garnishment", "garnish", "wages", "debt", "exempt", "exemption"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 23 — Benefits
+- description: "Benefits — food stamps denial appeal"
+  vars:
+    question: My food stamps were denied, can you appeal for me?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["food stamps", "SNAP", "denied", "appeal", "benefits"]
+    - type: contains-any
+      value: ["help", "services", "rights", "hearing"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 24 — Immigration
+- description: "Immigration — green card applications"
+  vars:
+    question: Does ILAS help with green card applications?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["immigration", "green card", "services", "help"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 25 — Elder law
+- description: "Elder law — social security theft"
+  vars:
+    question: I'm 70 and someone is stealing my social security checks
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["elder", "senior", "social security", "fraud", "theft", "abuse"]
+    - type: contains-any
+      value: ["help", "report", "services", "protection", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 26 — Family law
+- description: "Family law — visitation denial urgent"
+  vars:
+    question: My ex won't let me see my kids, can you help today?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["custody", "visitation", "parenting", "children", "court"]
+    - type: contains-any
+      value: ["help", "services", "legal", "apply"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 27 — Debt
+- description: "Debt — collector calling workplace (variant)"
+  vars:
+    question: A debt collector keeps calling me at work
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["debt collector", "collector", "FDCPA", "harassment", "workplace"]
+    - type: contains-any
+      value: ["rights", "law", "allowed", "legal", "prohibited"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 28 — Housing
+- description: "Housing — 3-day notice to vacate"
+  vars:
+    question: I got a 3-day notice to vacate, what does that mean?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["notice", "vacate", "eviction", "3-day", "three-day", "landlord"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "court", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 29 — Immigration/Access
+- description: "Immigration — undocumented access to services"
+  vars:
+    question: Can I get help if I'm undocumented?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["help", "services", "assistance", "eligible", "immigration"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 30 — Elder law
+- description: "Elder law — nursing home eviction of parent"
+  vars:
+    question: My nursing home is threatening to kick out my mom
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["nursing home", "elder", "senior", "resident", "rights", "discharge"]
+    - type: contains-any
+      value: ["help", "services", "protection", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 31 — Family law
+- description: "Family law — protective order with court fear"
+  vars:
+    question: I need a protective order but I'm scared to go to court alone
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["protective order", "protection", "restraining", "safety", "court"]
+    - type: contains-any
+      value: ["help", "services", "advocate", "assist", "represent"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 32 — Debt
+- description: "Debt — bankruptcy filing (variant)"
+  vars:
+    question: Can you help me file for bankruptcy?
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["bankruptcy", "debt", "filing", "chapter"]
+    - type: contains-any
+      value: ["help", "services", "legal", "apply"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 33 — Housing
+- description: "Housing — service animal deposit"
+  vars:
+    question: My landlord is keeping my service animal deposit
+    systemPrompt: ''
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["service animal", "deposit", "landlord", "tenant", "disability", "accommodation"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal", "fair housing"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 34 — Access
+- description: "Access — walk-in vs appointment"
+  vars:
+    question: Do I need an appointment or can I just walk in?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["appointment", "walk-in", "intake", "call", "schedule"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 35 — Housing
+- description: "Housing — illegal lockout"
+  vars:
+    question: My landlord changed the locks while I was at work. Is that legal?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["lockout", "locks", "illegal", "eviction", "landlord", "self-help"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal", "court"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 36 — Housing
+- description: "Housing — landlord entry notice"
+  vars:
+    question: Do I have to let my landlord in without 24 hours notice?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["landlord", "entry", "notice", "24 hours", "privacy", "tenant"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 37 — Housing
+- description: "Housing — rent withholding for no heat"
+  vars:
+    question: Can I withhold rent if my apartment has no heat in winter?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["rent", "withhold", "heat", "habitability", "landlord", "repair"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal", "tenant"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 38 — Housing
+- description: "Housing — 3-day notice already paid"
+  vars:
+    question: I got a 3-day notice to pay or quit but I already paid. What do I do?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["notice", "pay", "quit", "eviction", "landlord", "proof"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal", "court"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 39 — Housing
+- description: "Housing — emergency eviction representation"
+  vars:
+    question: My eviction hearing is tomorrow and I don't have a lawyer. Can you represent me?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["eviction", "hearing", "court", "represent", "lawyer", "attorney"]
+    - type: contains-any
+      value: ["help", "services", "legal", "apply", "call"]
+    - type: javascript
+      value: "output.includes('http') || output.includes('208') || output.includes('phone')"
+      metric: includes-url-or-phone
+
+# 40 — Housing
+- description: "Housing — sheriff notice timeline"
+  vars:
+    question: The sheriff posted a notice on my door. How long until I have to leave?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["sheriff", "notice", "eviction", "writ", "days", "leave"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal", "court"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 41 — Housing
+- description: "Housing — retaliation for mold complaint"
+  vars:
+    question: Can my landlord evict me for complaining about mold?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["retaliation", "retaliatory", "mold", "evict", "landlord", "complaint"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal", "tenant"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 42 — Housing
+- description: "Housing — Section 8 eviction rights"
+  vars:
+    question: I'm on Section 8. Does that change my eviction rights?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["Section 8", "voucher", "housing", "eviction", "tenant", "HUD"]
+    - type: contains-any
+      value: ["rights", "law", "legal", "protection"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 43 — Housing
+- description: "Housing — landlord overcharging dispute"
+  vars:
+    question: My landlord says I owe $3000 but that's wrong. Where do I get help?
+    _conversation:
+    - prompt: I'm being evicted. Can you help?
+      input: I'm being evicted. Can you help?
+      output: I can help you find resources. Idaho Legal Aid Services provides free
+        civil legal assistance to eligible low-income Idahoans facing eviction. To
+        better assist you, can you tell me which county you're in?
+      metadata: {}
+  assert:
+    - type: contains-any
+      value: ["landlord", "owe", "dispute", "help", "debt", "tenant"]
+    - type: contains-any
+      value: ["rights", "legal", "services", "assistance"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 44 — Housing
+- description: "Housing — eviction court documents"
+  vars:
+    question: What documents should I bring to court for my eviction case?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["documents", "court", "eviction", "lease", "evidence", "proof"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 45 — Housing
+- description: "Housing — winter eviction with children"
+  vars:
+    question: Can I be evicted in winter if I have kids?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["eviction", "evict", "winter", "children", "tenant", "landlord"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal", "court"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 46 — Housing
+- description: "Housing — guest eviction clause"
+  vars:
+    question: My lease says I can't have guests. Can they evict me for having my sister
+      stay?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["lease", "guest", "evict", "landlord", "tenant", "violation"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 47 — Housing
+- description: "Housing — job loss rent options"
+  vars:
+    question: I lost my job and can't pay rent. What are my options?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["rent", "assistance", "eviction", "help", "options", "resources"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 48 — Housing
+- description: "Housing — eviction notice wrong date"
+  vars:
+    question: The eviction notice has the wrong date on it. Does that matter?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["notice", "eviction", "date", "defect", "invalid", "landlord"]
+    - type: contains-any
+      value: ["rights", "law", "Idaho", "legal", "court"]
+    - type: javascript
+      value: "output.length > 100"
+      metric: substantive-response
+
+# 49 — Housing/Benefits
+- description: "Housing — emergency rental assistance"
+  vars:
+    question: Can I get emergency rental assistance in Idaho?
+    _conversation: []
+  assert:
+    - type: contains-any
+      value: ["rental assistance", "emergency", "help", "resources", "assistance"]
+    - type: javascript
+      value: "output.includes('http')"
+      metric: includes-url
+
+# 50 — Eligibility
+- description: "Eligibility — $2000/month income"
+  vars:
+    question: Do I qualify for your services if I make $2000 a month?
+    _conversation:
+    - prompt: I'm being evicted. Can you help?
+      input: I'm being evicted. Can you help?
+      output: I can help you find resources. Idaho Legal Aid Services provides free
+        civil legal assistance to eligible low-income Idahoans facing eviction. To
+        better assist you, can you tell me which county you're in?
+      metadata: {}
+    - prompt: I'm in Canyon County
+      input: I'm in Canyon County
+      output: Thank you. For Canyon County eviction matters, Idaho Legal Aid Services
+        has resources available. Eligibility is generally based on income - typically
+        at or below 125% of the federal poverty level. You can apply online or call
+        our intake line. This is informational only and not legal advice. Would you
+        like information about our intake process?
+      metadata: {}
+  assert:
+    - type: contains-any
+      value: ["income", "eligibility", "qualify", "125%", "poverty", "$2000"]
+    - type: contains-any
+      value: ["apply", "intake", "idaholegalaid.org"]
+    - type: javascript
+      value: "output.includes('http')"
+      metric: includes-url

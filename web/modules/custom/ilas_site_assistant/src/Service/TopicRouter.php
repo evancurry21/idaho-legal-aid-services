@@ -37,7 +37,7 @@ class TopicRouter {
    *
    * Beyond this, the message is complex enough for IntentRouter patterns.
    */
-  const MAX_WORD_COUNT = 3;
+  const MAX_WORD_COUNT = 4;
 
   /**
    * Minimum token length for fuzzy matching.
@@ -345,7 +345,12 @@ class TopicRouter {
       'do', 'does', 'did', 'have', 'has', 'am', 'be', 'been', 'what',
       'how', 'where', 'when', 'why', 'this', 'that', 'it', 'about',
       'need', 'help', 'want', 'looking', 'get', 'find',
+      // Urgency/politeness modifiers — stripped so "custody now" → "custody".
+      'now', 'right', 'asap', 'please', 'urgent', 'urgently', 'quick',
+      'quickly', 'immediately', 'today', 'soon', 'fast',
+      // Spanish stop words + urgency modifiers.
       'por', 'el', 'la', 'los', 'las', 'un', 'una', 'con', 'de', 'en',
+      'ahora', 'urgente', 'rapido', 'rapidamente', 'hoy', 'pronto', 'favor',
     ];
 
     return array_values(array_filter($words, function ($word) use ($stop_words) {

@@ -1799,6 +1799,10 @@ class AssistantApiController extends ControllerBase {
           'label' => $this->t('Browse All Forms'),
           'url' => $canonical_urls['forms'],
         ];
+        // Plain-text fallback if chip rendering fails on the frontend.
+        $response['text_fallback'] = $this->t("Choose a category: Housing & Eviction, Family & Custody, Consumer & Debt, Seniors & Guardianship, Health & Benefits, or Safety & Protection Orders. You can also browse all forms at @url.", [
+          '@url' => $canonical_urls['forms'],
+        ]);
         $this->logger->info('[@request_id] Forms inventory request served', [
           '@request_id' => $request_id,
         ]);
@@ -1850,6 +1854,10 @@ class AssistantApiController extends ControllerBase {
           'label' => $this->t('Browse All Guides'),
           'url' => $canonical_urls['guides'],
         ];
+        // Plain-text fallback if chip rendering fails on the frontend.
+        $response['text_fallback'] = $this->t("Choose a category: Housing & Eviction, Family & Custody, Consumer & Debt, Seniors & Guardianship, Health & Benefits, or Employment & Safety. You can also browse all guides at @url.", [
+          '@url' => $canonical_urls['guides'],
+        ]);
         $this->logger->info('[@request_id] Guides inventory request served', [
           '@request_id' => $request_id,
         ]);
@@ -2242,7 +2250,9 @@ class AssistantApiController extends ControllerBase {
         $question = $intent['question'] ?? $this->t('What are you looking for?');
         $option_links = [];
         foreach ($options as $option) {
-          $opt_intent = $option['intent'] ?? '';
+          // Tolerate both key schemas: IntentRouter uses 'intent',
+          // Disambiguator uses 'value'.
+          $opt_intent = $option['intent'] ?? $option['value'] ?? '';
           $opt_url = $builder->resolveIntentUrl($opt_intent);
           $option_links[] = [
             'label' => $option['label'] ?? $opt_intent,
@@ -2262,6 +2272,52 @@ class AssistantApiController extends ControllerBase {
         $response['message'] = $question;
         $response['options'] = $option_links;
         $response['topic_suggestions'] = $option_links;
+        break;
+
+      case 'ui_troubleshooting':
+        // User is reporting that UI elements (chips, buttons, categories)
+        // are not displaying. Provide text-based fallback links.
+        $prev_type = '';
+        if (!empty($server_history)) {
+          $last = end($server_history);
+          $prev_type = $last['intent_type'] ?? $last['type'] ?? '';
+        }
+
+        if ($prev_type === 'forms_inventory') {
+          $response['message'] = $this->t("I'm sorry the categories aren't displaying correctly. Here are direct links to our form categories:");
+          $response['links'] = [
+            ['label' => $this->t('Housing & Eviction Forms'), 'url' => $canonical_urls['service_areas']['housing'], 'type' => 'forms'],
+            ['label' => $this->t('Family & Custody Forms'), 'url' => $canonical_urls['service_areas']['family'], 'type' => 'forms'],
+            ['label' => $this->t('Consumer & Debt Forms'), 'url' => $canonical_urls['service_areas']['consumer'], 'type' => 'forms'],
+            ['label' => $this->t('Seniors & Guardianship Forms'), 'url' => $canonical_urls['service_areas']['seniors'], 'type' => 'forms'],
+            ['label' => $this->t('Health & Benefits Forms'), 'url' => $canonical_urls['service_areas']['health'], 'type' => 'forms'],
+            ['label' => $this->t('Browse All Forms'), 'url' => $canonical_urls['forms'], 'type' => 'forms'],
+          ];
+        }
+        elseif ($prev_type === 'guides_inventory') {
+          $response['message'] = $this->t("I'm sorry the categories aren't displaying correctly. Here are direct links to our guide categories:");
+          $response['links'] = [
+            ['label' => $this->t('Housing & Eviction Guides'), 'url' => $canonical_urls['service_areas']['housing'], 'type' => 'guides'],
+            ['label' => $this->t('Family & Custody Guides'), 'url' => $canonical_urls['service_areas']['family'], 'type' => 'guides'],
+            ['label' => $this->t('Consumer & Debt Guides'), 'url' => $canonical_urls['service_areas']['consumer'], 'type' => 'guides'],
+            ['label' => $this->t('Browse All Guides'), 'url' => $canonical_urls['guides'], 'type' => 'guides'],
+          ];
+        }
+        else {
+          $response['message'] = $this->t("I'm sorry you're having trouble. Here are some ways I can help:");
+          $response['links'] = [
+            ['label' => $this->t('Browse Forms'), 'url' => $canonical_urls['forms'], 'type' => 'forms'],
+            ['label' => $this->t('Browse Guides'), 'url' => $canonical_urls['guides'], 'type' => 'guides'],
+            ['label' => $this->t('Apply for Help'), 'url' => $canonical_urls['apply'], 'type' => 'apply'],
+            ['label' => $this->t('Call Legal Advice Line'), 'url' => $canonical_urls['hotline'], 'type' => 'hotline'],
+          ];
+        }
+        $response['type'] = 'ui_troubleshooting';
+        $response['followup'] = $this->t('Tip: Try refreshing the page if elements are not displaying correctly.');
+        $this->logger->warning('[@request_id] ui_troubleshooting triggered, previous flow: @prev', [
+          '@request_id' => $request_id,
+          '@prev' => $prev_type ?: 'none',
+        ]);
         break;
 
       case 'clarify':
@@ -2903,23 +2959,44 @@ class AssistantApiController extends ControllerBase {
     $status = 'healthy';
     $checks = [];
     $httpCode = 200;
+    $container = \Drupal::getContainer();
+    $sloDefinitions = ($container && $container->has('ilas_site_assistant.slo_definitions'))
+      ? $container->get('ilas_site_assistant.slo_definitions')
+      : NULL;
 
     if ($this->performanceMonitor) {
       $summary = $this->performanceMonitor->getSummary();
       $status = $summary['status'];
       $checks['latency_p95_ms'] = $summary['p95'];
       $checks['error_rate_pct'] = $summary['error_rate'];
+      $checks['availability_pct'] = $summary['availability_pct'] ?? max(0, 100 - (float) $summary['error_rate']);
       $checks['throughput_per_min'] = $summary['throughput_per_min'];
+
+      if (str_starts_with($status, 'degraded')) {
+        $status = 'degraded';
+        $httpCode = 503;
+      }
+
+      if ($sloDefinitions) {
+        $checks['slo_targets'] = [
+          'availability_target_pct' => $sloDefinitions->getAvailabilityTargetPct(),
+          'latency_p95_target_ms' => $sloDefinitions->getLatencyP95TargetMs(),
+          'error_rate_target_pct' => $sloDefinitions->getErrorRateTargetPct(),
+        ];
+        if ($checks['availability_pct'] < $checks['slo_targets']['availability_target_pct']) {
+          $status = 'degraded';
+          $httpCode = 503;
+        }
+      }
     }
 
     $checks['faq_index'] = $this->faqIndex ? 'ok' : 'unavailable';
     $checks['intent_router'] = $this->intentRouter ? 'ok' : 'unavailable';
 
     // Cron health check.
-    $container = \Drupal::getContainer();
-    if ($container && $container->has('ilas_site_assistant.cron_health_tracker') && $container->has('ilas_site_assistant.slo_definitions')) {
+    if ($container && $container->has('ilas_site_assistant.cron_health_tracker') && $sloDefinitions) {
       $cronHealth = $container->get('ilas_site_assistant.cron_health_tracker')
-        ->getHealthStatus($container->get('ilas_site_assistant.slo_definitions'));
+        ->getHealthStatus($sloDefinitions);
       $checks['cron'] = $cronHealth;
       if ($cronHealth['status'] !== 'healthy') {
         $status = 'degraded';
@@ -2928,9 +3005,9 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Queue health check.
-    if ($container && $container->has('ilas_site_assistant.queue_health_monitor') && $container->has('ilas_site_assistant.slo_definitions')) {
+    if ($container && $container->has('ilas_site_assistant.queue_health_monitor') && $sloDefinitions) {
       $queueHealth = $container->get('ilas_site_assistant.queue_health_monitor')
-        ->getQueueHealthStatus($container->get('ilas_site_assistant.slo_definitions'));
+        ->getQueueHealthStatus($sloDefinitions);
       $checks['queue'] = $queueHealth;
       if ($queueHealth['status'] !== 'healthy') {
         $status = 'degraded';
@@ -2964,20 +3041,36 @@ class AssistantApiController extends ControllerBase {
 
     $summary = $this->performanceMonitor->getSummary();
 
+    $container = \Drupal::getContainer();
+    $sloDefinitions = ($container && $container->has('ilas_site_assistant.slo_definitions'))
+      ? $container->get('ilas_site_assistant.slo_definitions')
+      : NULL;
+
     $response = [
       'timestamp' => date('c'),
       'metrics' => $summary,
       'thresholds' => [
-        'p95_latency_ms' => PerformanceMonitor::THRESHOLD_P95_MS,
-        'error_rate_pct' => PerformanceMonitor::THRESHOLD_ERROR_RATE * 100,
+        'availability_pct' => $sloDefinitions ? $sloDefinitions->getAvailabilityTargetPct() : 99.5,
+        'p95_latency_ms' => $sloDefinitions ? $sloDefinitions->getLatencyP95TargetMs() : PerformanceMonitor::THRESHOLD_P95_MS,
+        'p99_latency_ms' => $sloDefinitions ? $sloDefinitions->getLatencyP99TargetMs() : 5000,
+        'error_rate_pct' => $sloDefinitions ? $sloDefinitions->getErrorRateTargetPct() : PerformanceMonitor::THRESHOLD_ERROR_RATE * 100,
+        'error_budget_window_hours' => $sloDefinitions ? $sloDefinitions->getErrorBudgetWindowHours() : 168,
+        'cron_max_age_seconds' => $sloDefinitions ? $sloDefinitions->getCronMaxAgeSeconds() : 7200,
+        'cron_expected_cadence_seconds' => $sloDefinitions ? $sloDefinitions->getCronExpectedCadenceSeconds() : 3600,
+        'queue_max_depth' => $sloDefinitions ? $sloDefinitions->getQueueMaxDepth() : 10000,
+        'queue_max_age_seconds' => $sloDefinitions ? $sloDefinitions->getQueueMaxAgeSeconds() : 3600,
       ],
     ];
 
+    if ($container && $container->has('ilas_site_assistant.cron_health_tracker') && $sloDefinitions) {
+      $response['cron'] = $container->get('ilas_site_assistant.cron_health_tracker')
+        ->getHealthStatus($sloDefinitions);
+    }
+
     // Add queue metrics if available.
-    $container = \Drupal::getContainer();
-    if ($container && $container->has('ilas_site_assistant.queue_health_monitor') && $container->has('ilas_site_assistant.slo_definitions')) {
+    if ($container && $container->has('ilas_site_assistant.queue_health_monitor') && $sloDefinitions) {
       $response['queue'] = $container->get('ilas_site_assistant.queue_health_monitor')
-        ->getQueueHealthStatus($container->get('ilas_site_assistant.slo_definitions'));
+        ->getQueueHealthStatus($sloDefinitions);
     }
 
     return $this->jsonResponse($response);

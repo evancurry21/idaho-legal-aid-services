@@ -1,0 +1,214 @@
+- vars:
+    question: Do I qualify for free legal help if I work part-time?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My landlord shut off my water. Is that legal?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Can I get help with a divorce if I have no income?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: They're garnishing my wages for medical debt. What can I do?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: I need a restraining order but can't afford a lawyer
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Does ILAS help with Social Security disability denials?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My ex won't pay child support. Can you help me?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: I'm 68 and my nursing home is threatening to evict me
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Can I break my lease if there's black mold?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: What's the income limit to get your services?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: I got scammed by a car dealer. Do you handle that?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My SNAP benefits were cut off without notice
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Do you have offices in rural Idaho or just cities?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Can you help me get custody of my grandkids?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: I'm undocumented. Will you still help me with housing issues?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: The debt collector keeps calling my work. Is that allowed?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: How long does it take to get an appointment?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Can I get help filing bankruptcy?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My landlord is entering my apartment without permission
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Do you help with expunging criminal records?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My landlord shut off my water, is that legal?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: They're garnishing my wages for medical debt, what can I do?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My food stamps were denied, can you appeal for me?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Does ILAS help with green card applications?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: I'm 70 and someone is stealing my social security checks
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My ex won't let me see my kids, can you help today?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: A debt collector keeps calling me at work
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: I got a 3-day notice to vacate, what does that mean?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Can I get help if I'm undocumented?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My nursing home is threatening to kick out my mom
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: I need a protective order but I'm scared to go to court alone
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Can you help me file for bankruptcy?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My landlord is keeping my service animal deposit
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: Do I need an appointment or can I just walk in?
+    systemPrompt: null
+    _conversation: []
+- vars:
+    question: My landlord changed the locks while I was at work. Is that legal?
+    _conversation: []
+- vars:
+    question: Do I have to let my landlord in without 24 hours notice?
+    _conversation: []
+- vars:
+    question: Can I withhold rent if my apartment has no heat in winter?
+    _conversation: []
+- vars:
+    question: I got a 3-day notice to pay or quit but I already paid. What do I do?
+    _conversation: []
+- vars:
+    question: >-
+      My eviction hearing is tomorrow and I don't have a lawyer. Can you
+      represent me?
+    _conversation: []
+- vars:
+    question: The sheriff posted a notice on my door. How long until I have to leave?
+    _conversation: []
+- vars:
+    question: Can my landlord evict me for complaining about mold?
+    _conversation: []
+- vars:
+    question: I'm on Section 8. Does that change my eviction rights?
+    _conversation: []
+- vars:
+    question: My landlord says I owe $3000 but that's wrong. Where do I get help?
+    _conversation:
+      - prompt: I'm being evicted. Can you help?
+        input: I'm being evicted. Can you help?
+        output: >-
+          I can help you find resources. Idaho Legal Aid Services provides
+          free civil legal assistance to eligible low-income Idahoans facing
+          eviction. To better assist you, can you tell me which county you're
+          in?
+        metadata: {}
+- vars:
+    question: What documents should I bring to court for my eviction case?
+    _conversation: []
+- vars:
+    question: Can I be evicted in winter if I have kids?
+    _conversation: []
+- vars:
+    question: >-
+      My lease says I can't have guests. Can they evict me for having my
+      sister stay?
+    _conversation: []
+- vars:
+    question: I lost my job and can't pay rent. What are my options?
+    _conversation: []
+- vars:
+    question: The eviction notice has the wrong date on it. Does that matter?
+    _conversation: []
+- vars:
+    question: Can I get emergency rental assistance in Idaho?
+    _conversation: []
+- vars:
+    question: Do I qualify for your services if I make $2000 a month?
+    _conversation:
+      - prompt: I'm being evicted. Can you help?
+        input: I'm being evicted. Can you help?
+        output: >-
+          I can help you find resources. Idaho Legal Aid Services provides
+          free civil legal assistance to eligible low-income Idahoans facing
+          eviction. To better assist you, can you tell me which county you're
+          in?
+        metadata: {}
+      - prompt: I'm in Canyon County
+        input: I'm in Canyon County
+        output: >-
+          Thank you. For Canyon County eviction matters, Idaho Legal Aid
+          Services has resources available. Eligibility is generally based on
+          income - typically at or below 125% of the federal poverty level.
+          You can apply online or call our intake line. This is informational
+          only and not legal advice. Would you like information about our
+          intake process?
+        metadata: {}

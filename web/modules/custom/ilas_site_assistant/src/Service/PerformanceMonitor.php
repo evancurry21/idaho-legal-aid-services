@@ -44,11 +44,23 @@ class PerformanceMonitor {
   protected $logger;
 
   /**
+   * Optional SLO definitions for dynamic thresholds.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\SloDefinitions|null
+   */
+  protected ?SloDefinitions $sloDefinitions;
+
+  /**
    * Constructs a PerformanceMonitor.
    */
-  public function __construct(StateInterface $state, LoggerChannelInterface $logger) {
+  public function __construct(
+    StateInterface $state,
+    LoggerChannelInterface $logger,
+    ?SloDefinitions $slo_definitions = NULL
+  ) {
     $this->state = $state;
     $this->logger = $logger;
+    $this->sloDefinitions = $slo_definitions;
   }
 
   /**
@@ -112,7 +124,7 @@ class PerformanceMonitor {
    * Calculates summary statistics.
    *
    * @return array
-   *   Summary with p50, p95, p99, error_rate, throughput.
+   *   Summary with p50, p95, p99, error_rate, availability, throughput.
    */
   public function getSummary(): array {
     $metrics = $this->getMetrics();
@@ -125,6 +137,7 @@ class PerformanceMonitor {
         'p99' => 0,
         'avg' => 0,
         'error_rate' => 0,
+        'availability_pct' => 0,
         'throughput_per_min' => 0,
         'sample_size' => 0,
         'status' => 'no_data',
@@ -151,11 +164,14 @@ class PerformanceMonitor {
 
     // Determine status.
     $error_rate = $count > 0 ? $errors / $count : 0;
+    $availability = (1 - $error_rate) * 100;
+    $latencyThreshold = $this->getLatencyThresholdMs();
+    $errorRateThreshold = $this->getErrorRateThresholdRatio();
     $status = 'healthy';
-    if ($p95 > self::THRESHOLD_P95_MS) {
+    if ($p95 > $latencyThreshold) {
       $status = 'degraded_latency';
     }
-    if ($error_rate > self::THRESHOLD_ERROR_RATE) {
+    if ($error_rate > $errorRateThreshold) {
       $status = 'degraded_errors';
     }
 
@@ -165,12 +181,13 @@ class PerformanceMonitor {
       'p99' => round($p99, 1),
       'avg' => round($avg, 1),
       'error_rate' => round($error_rate * 100, 2),
+      'availability_pct' => round($availability, 2),
       'throughput_per_min' => $throughput,
       'sample_size' => $count,
       'status' => $status,
       'thresholds' => [
-        'p95_threshold_ms' => self::THRESHOLD_P95_MS,
-        'error_rate_threshold' => self::THRESHOLD_ERROR_RATE * 100,
+        'p95_threshold_ms' => $latencyThreshold,
+        'error_rate_threshold' => $errorRateThreshold * 100,
       ],
     ];
   }
@@ -200,21 +217,23 @@ class PerformanceMonitor {
     $errors = count(array_filter($requests, fn($r) => !$r['success']));
     $p95 = $durations[(int) floor($count * 0.95)] ?? 0;
     $error_rate = $count > 0 ? $errors / $count : 0;
+    $latencyThreshold = $this->getLatencyThresholdMs();
+    $errorRateThreshold = $this->getErrorRateThresholdRatio();
 
     $alerted = FALSE;
 
-    if ($p95 > self::THRESHOLD_P95_MS) {
+    if ($p95 > $latencyThreshold) {
       $this->logger->warning('Chatbot API latency degraded: P95 = @p95ms (threshold: @threshold ms)', [
         '@p95' => round($p95, 1),
-        '@threshold' => self::THRESHOLD_P95_MS,
+        '@threshold' => $latencyThreshold,
       ]);
       $alerted = TRUE;
     }
 
-    if ($error_rate > self::THRESHOLD_ERROR_RATE) {
+    if ($error_rate > $errorRateThreshold) {
       $this->logger->warning('Chatbot API error rate elevated: @rate% (threshold: @threshold%)', [
         '@rate' => round($error_rate * 100, 2),
-        '@threshold' => self::THRESHOLD_ERROR_RATE * 100,
+        '@threshold' => $errorRateThreshold * 100,
       ]);
       $alerted = TRUE;
     }
@@ -229,6 +248,24 @@ class PerformanceMonitor {
    */
   public function reset(): void {
     $this->state->delete(self::STATE_KEY);
+  }
+
+  /**
+   * Returns the active p95 latency threshold in milliseconds.
+   */
+  private function getLatencyThresholdMs(): int {
+    return $this->sloDefinitions
+      ? $this->sloDefinitions->getLatencyP95TargetMs()
+      : self::THRESHOLD_P95_MS;
+  }
+
+  /**
+   * Returns the active error rate threshold as a ratio (0-1).
+   */
+  private function getErrorRateThresholdRatio(): float {
+    return $this->sloDefinitions
+      ? $this->sloDefinitions->getErrorRateTargetPct() / 100
+      : self::THRESHOLD_ERROR_RATE;
   }
 
 }

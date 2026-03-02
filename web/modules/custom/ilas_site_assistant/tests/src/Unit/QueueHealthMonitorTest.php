@@ -45,6 +45,11 @@ class QueueHealthMonitorTest extends TestCase {
         $this->stateStore[$key] = $value;
       });
 
+    $state->method('delete')
+      ->willReturnCallback(function (string $key) {
+        unset($this->stateStore[$key]);
+      });
+
     return $state;
   }
 
@@ -156,6 +161,69 @@ class QueueHealthMonitorTest extends TestCase {
 
     $monitor->recordDrain(5);
     $this->assertSame(6, $monitor->getTotalDrained());
+  }
+
+  /**
+   * Tests stale status when oldest queue item age exceeds SLO max age.
+   *
+   * @covers ::getQueueHealthStatus
+   */
+  public function testStaleWhenOldestAgeExceedsThreshold(): void {
+    $factory = $this->buildQueueFactory(100);
+    $state = $this->buildState();
+    $monitor = new QueueHealthMonitor($factory, $state);
+    $monitor->recordEnqueue(time() - 4000, 0);
+    $slo = $this->buildSlo([
+      'queue_max_depth' => 10000,
+      'queue_max_age_seconds' => 3600,
+    ]);
+
+    $status = $monitor->getQueueHealthStatus($slo);
+
+    $this->assertSame('stale', $status['status']);
+    $this->assertNotNull($status['oldest_item_age_seconds']);
+    $this->assertGreaterThan(3600, $status['oldest_item_age_seconds']);
+    $this->assertSame(3600, $status['max_age_seconds']);
+  }
+
+  /**
+   * Tests combined backlogged + stale status.
+   *
+   * @covers ::getQueueHealthStatus
+   */
+  public function testBackloggedStaleStatus(): void {
+    $factory = $this->buildQueueFactory(9000);
+    $state = $this->buildState();
+    $monitor = new QueueHealthMonitor($factory, $state);
+    $monitor->recordEnqueue(time() - 5000, 0);
+    $slo = $this->buildSlo([
+      'queue_max_depth' => 10000,
+      'queue_max_age_seconds' => 3600,
+    ]);
+
+    $status = $monitor->getQueueHealthStatus($slo);
+
+    $this->assertSame('backlogged_stale', $status['status']);
+  }
+
+  /**
+   * Tests enqueue tracking initializes oldest timestamp only when queue empty.
+   *
+   * @covers ::recordEnqueue
+   * @covers ::getOldestEnqueuedAt
+   */
+  public function testRecordEnqueueTracksOldestTimestamp(): void {
+    $factory = $this->buildQueueFactory(1);
+    $state = $this->buildState();
+    $monitor = new QueueHealthMonitor($factory, $state);
+
+    $first = time() - 120;
+    $second = time() - 30;
+
+    $monitor->recordEnqueue($first, 0);
+    $monitor->recordEnqueue($second, 2);
+
+    $this->assertSame($first, $monitor->getOldestEnqueuedAt());
   }
 
 }

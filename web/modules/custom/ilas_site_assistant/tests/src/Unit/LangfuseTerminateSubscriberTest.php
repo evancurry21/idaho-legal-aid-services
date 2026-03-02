@@ -2,12 +2,15 @@
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueInterface;
 use Drupal\ilas_site_assistant\EventSubscriber\LangfuseTerminateSubscriber;
 use Drupal\ilas_site_assistant\Service\LangfuseTracer;
+use Drupal\ilas_site_assistant\Service\QueueHealthMonitor;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -252,6 +255,43 @@ class LangfuseTerminateSubscriberTest extends TestCase {
 
     // Must not throw.
     $mocks['subscriber']->onTerminate();
+  }
+
+  /**
+   * Tests enqueue metadata recording for queue age monitoring.
+   *
+   * @covers ::onTerminate
+   */
+  public function testEnqueueMetadataRecordedWhenMonitorAvailable(): void {
+    $payload = [
+      'batch' => [['type' => 'trace-create', 'body' => []]],
+      'metadata' => ['batch_size' => 1],
+    ];
+
+    $mocks = $this->buildSubscriber(
+      tracerActive: TRUE,
+      payload: $payload,
+      queueDepth: 4,
+    );
+
+    $monitor = $this->createMock(QueueHealthMonitor::class);
+    $monitor->expects($this->once())
+      ->method('recordEnqueue')
+      ->with(
+        $this->greaterThan(0),
+        4,
+      );
+
+    $container = new ContainerBuilder();
+    $container->set('ilas_site_assistant.queue_health_monitor', $monitor);
+    Drupal::setContainer($container);
+
+    try {
+      $mocks['subscriber']->onTerminate();
+    }
+    finally {
+      Drupal::setContainer(new ContainerBuilder());
+    }
   }
 
 }

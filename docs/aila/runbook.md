@@ -223,6 +223,47 @@ Store sanitized outputs in:
 Expected policy result: the `live` `config:get ilas_site_assistant.settings -y`
 output must show effective `llm.enabled: false`.
 
+### IMP-SLO-01 SLO set + alert policy (availability/latency/errors/cron/queue)
+
+Canonical SLO targets (from `ilas_site_assistant.settings.slo`):
+
+- Availability: `availability_pct >= 99.5`
+- Latency: `p95 <= 2000ms`, `p99 <= 5000ms`
+- Error rate: `error_rate_pct <= 5.0` (`error_budget_window_hours=168`)
+- Cron freshness: `cron_max_age_seconds=7200` (`cron_expected_cadence_seconds=3600`)
+- Queue health: `queue_max_depth=10000`, `queue_max_age_seconds=3600`
+
+Alert policy contract:
+
+- `/assistant/api/health` must expose `checks` for `availability_pct`,
+  `latency_p95_ms`, `error_rate_pct`, `cron`, and `queue`.
+- `/assistant/api/metrics` must expose `thresholds` matching `slo.*` config.
+- `SloAlertService` emits structured watchdog warnings (`SLO violation: ...`)
+  for availability, latency, error-rate, cron, and queue breaches.
+- Alert cooldown is 900 seconds per SLO dimension to reduce noise.
+
+Verification commands (local):
+
+```bash
+BASE_URL="https://<local-host>"
+curl -k -sS "${BASE_URL}/assistant/api/health"
+curl -k -sS "${BASE_URL}/assistant/api/metrics"
+
+# Trigger cron-driven SLO checks and inspect emitted violations (if any).
+ddev drush cron
+ddev drush watchdog:show --count=200 | rg 'SLO violation|Chatbot API (latency|error rate)'
+```
+
+Verification commands (Pantheon):
+
+```bash
+for ENV in dev test live; do
+  BASE_URL="$(terminus env:view "idaho-legal-aid-services.${ENV}" --print)"
+  curl -k -sS "${BASE_URL%/}/assistant/api/health"
+  curl -k -sS "${BASE_URL%/}/assistant/api/metrics"
+done
+```
+
 ### Promptfoo harness location check (repo-local)
 
 ```bash
@@ -260,10 +301,33 @@ Expected readiness result:
   `langfuse_enabled`, and Langfuse key presence in effective config.
 - `raven.settings` / `langfuse.settings` config objects may remain absent in
   active config storage because this stack uses runtime overrides.
-- Promptfoo URL target is operator-supplied per environment (Pantheon/local),
-  not a GitHub secret dependency.
+- Promptfoo URL target is operator-supplied per environment.
+  In GitHub Actions, set repository/environment secret `ILAS_ASSISTANT_URL`.
+  In external CI, URL may be derived with Terminus
+  (`scripts/ci/derive-assistant-url.sh`).
 - Telemetry activation remains a Phase 1 implementation activity after
   credential and destination approvals.
+
+### GitHub Actions secrets vs Pantheon runtime secrets
+
+- Pantheon runtime secrets are available to the running Pantheon app, not CI
+  runners.
+- GitHub Actions needs separate CI secrets configuration.
+- Required for real CI evals: `ILAS_ASSISTANT_URL` (use `dev`/`test`/multidev
+  endpoint, not `live`).
+- Optional only when deriving URL in CI: Terminus machine token for
+  `terminus auth:login`.
+- If the target environment is auth-protected, add request auth headers in
+  `promptfoo-evals/providers/ilas-live.js`.
+
+### GitHub mirror onboarding (WSL2)
+
+```bash
+git remote -v
+git remote rename origin pantheon
+git remote add origin git@github.com:<github-user>/<repo>.git
+git remote -v
+```
 
 ### External CI promptfoo gate (Pantheon-derived URL)
 

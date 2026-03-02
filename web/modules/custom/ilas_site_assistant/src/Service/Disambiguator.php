@@ -54,6 +54,18 @@ class Disambiguator {
   protected $topicOnlyTriggers;
 
   /**
+   * Urgency/politeness modifier words to strip before topic lookup.
+   *
+   * @var string[]
+   */
+  protected static $topicModifiers = [
+    'now', 'right', 'asap', 'please', 'urgent', 'quickly',
+    'immediately', 'today', 'soon', 'fast',
+    // Spanish.
+    'ahora', 'urgente', 'rapido', 'hoy', 'pronto', 'por', 'favor',
+  ];
+
+  /**
    * Constructs a Disambiguator.
    */
   public function __construct() {
@@ -437,31 +449,69 @@ class Disambiguator {
     $normalized = $this->normalizeForLookup($message);
     $word_count = str_word_count($normalized);
 
-    // Only check messages with 1-2 words.
-    if ($word_count > 2) {
+    // Only check messages with 1-3 words (increased from 2 to handle
+    // "custody right now", "divorce please", etc.).
+    if ($word_count > 3) {
       return NULL;
     }
 
+    // Exact match first.
     if (isset($this->topicOnlyTriggers[$normalized])) {
-      $topic = $this->topicOnlyTriggers[$normalized];
-      $area_label = ucfirst($topic['label']);
+      return $this->buildTopicOnlyResult($normalized);
+    }
 
-      return [
-        'type' => 'disambiguation',
-        'reason' => 'topic_without_action',
-        'topic' => $topic['area'],
-        'confidence' => 0.4,
-        'question' => "I can help with {$area_label}. What would you like to do?",
-        'options' => [
-          ['label' => "Find {$area_label} forms", 'value' => 'forms_finder', 'topic' => $topic['area']],
-          ['label' => "Read {$area_label} guide", 'value' => 'guides_finder', 'topic' => $topic['area']],
-          ['label' => 'Apply for legal help', 'value' => 'apply_for_help'],
-          ['label' => 'Call Legal Advice Line', 'value' => 'legal_advice_line'],
-        ],
-      ];
+    // Strip urgency/politeness modifiers and retry.
+    $stripped = $this->stripTopicModifiers($normalized);
+    if ($stripped !== $normalized && $stripped !== '' && isset($this->topicOnlyTriggers[$stripped])) {
+      return $this->buildTopicOnlyResult($stripped);
     }
 
     return NULL;
+  }
+
+  /**
+   * Builds a topic-only disambiguation result.
+   *
+   * @param string $key
+   *   The topicOnlyTriggers key that matched.
+   *
+   * @return array
+   *   Disambiguation result.
+   */
+  protected function buildTopicOnlyResult(string $key): array {
+    $topic = $this->topicOnlyTriggers[$key];
+    $area_label = ucfirst($topic['label']);
+
+    return [
+      'type' => 'disambiguation',
+      'reason' => 'topic_without_action',
+      'topic' => $topic['area'],
+      'confidence' => 0.4,
+      'question' => "I can help with {$area_label}. What would you like to do?",
+      'options' => [
+        ['label' => "Find {$area_label} forms", 'value' => 'forms_finder', 'topic' => $topic['area']],
+        ['label' => "Read {$area_label} guide", 'value' => 'guides_finder', 'topic' => $topic['area']],
+        ['label' => 'Apply for legal help', 'value' => 'apply_for_help'],
+        ['label' => 'Call Legal Advice Line', 'value' => 'legal_advice_line'],
+      ],
+    ];
+  }
+
+  /**
+   * Strips urgency/politeness modifiers from a normalized message.
+   *
+   * @param string $normalized
+   *   The normalized message.
+   *
+   * @return string
+   *   Message with modifier words removed.
+   */
+  protected function stripTopicModifiers(string $normalized): string {
+    $words = preg_split('/\s+/', $normalized, -1, PREG_SPLIT_NO_EMPTY);
+    $filtered = array_filter($words, function ($word) {
+      return !in_array($word, self::$topicModifiers);
+    });
+    return implode(' ', $filtered);
   }
 
   /**

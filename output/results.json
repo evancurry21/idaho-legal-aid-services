@@ -1,0 +1,511 @@
+{
+  "evalId": "eval-syr-2026-02-13T19:48:15",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-02-13T19:48:15.297Z",
+    "prompts": [
+      {
+        "raw": "# ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templating. Promptfoo renders this, then parses as YAML chat.\n#\n# _conversation entries have: prompt, input, output, metadata\n# (NOT role/content — those are provider-internal chat messages).\n#\n# Variables:\n#   _conversation  — array of prior-turn objects (auto-populated by Promptfoo)\n#   question       — the current user question (from test vars)\n#   systemPrompt   — optional override for the system message\n\n- role: system\n  content: >\n    {{ systemPrompt | default(\"You are the Idaho Legal Aid Services website assistant. You help visitors find free legal resources, office locations, eligibility information, and answers about civil legal issues in Idaho. Always include a disclaimer that your responses are informational and not legal advice. If you are unsure, ask a clarifying question.\") }}\n\n{% for turn in _conversation %}\n- role: assistant\n  content: {{ turn.output | dump }}\n{% endfor %}\n\n- role: user\n  content: \"{{ question }}\"\n",
+        "label": "promptfoo-evals/prompts/ilas-thread.yaml: # ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templati",
+        "id": "9fe2608678be12ada45e2d8c384c748632847f2e8d6ebba8956f08ebd65d111c",
+        "provider": "file://providers/ilas-live.js",
+        "metrics": {
+          "score": 0,
+          "testPassCount": 0,
+          "testFailCount": 0,
+          "testErrorCount": 5,
+          "assertPassCount": 0,
+          "assertFailCount": 0,
+          "totalLatencyMs": 1518,
+          "tokenUsage": {
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "total": 0,
+            "numRequests": 5,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0
+            },
+            "assertions": {
+              "total": 0,
+              "prompt": 0,
+              "completion": 0,
+              "cached": 0,
+              "numRequests": 0,
+              "completionDetails": {
+                "reasoning": 0,
+                "acceptedPrediction": 0,
+                "rejectedPrediction": 0
+              }
+            }
+          },
+          "namedScores": {},
+          "namedScoresCount": {},
+          "cost": 0
+        }
+      }
+    ],
+    "results": [
+      {
+        "cost": 0,
+        "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON",
+        "gradingResult": null,
+        "id": "ed708533-c408-47f9-bc1a-7dbddb2b82f0",
+        "latencyMs": 568,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templating. Promptfoo renders this, then parses as YAML chat.\n#\n# _conversation entries have: prompt, input, output, metadata\n# (NOT role/content — those are provider-internal chat messages).\n#\n# Variables:\n#   _conversation  — array of prior-turn objects (auto-populated by Promptfoo)\n#   question       — the current user question (from test vars)\n#   systemPrompt   — optional override for the system message\n\n- role: system\n  content: >\n    You are the Idaho Legal Aid Services website assistant. You help visitors find free legal resources, office locations, eligibility information, and answers about civil legal issues in Idaho. Always include a disclaimer that your responses are informational and not legal advice. If you are unsure, ask a clarifying question.\n\n\n\n- role: user\n  content: \"What free legal services do you offer?\"\n",
+          "label": "promptfoo-evals/prompts/ilas-thread.yaml: # ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templati",
+          "config": {}
+        },
+        "promptId": "9fe2608678be12ada45e2d8c384c748632847f2e8d6ebba8956f08ebd65d111c",
+        "promptIdx": 0,
+        "provider": {
+          "id": "file://providers/ilas-live.js",
+          "label": ""
+        },
+        "response": {
+          "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON"
+        },
+        "score": 0,
+        "success": false,
+        "testCase": {
+          "description": "Single-turn — ask about services",
+          "vars": {
+            "question": "What free legal services do you offer?",
+            "goal": "User wants an overview of ILAS services"
+          },
+          "assert": [
+            {
+              "type": "contains-any",
+              "value": [
+                "legal",
+                "services",
+                "help"
+              ]
+            }
+          ],
+          "metadata": {
+            "conversationId": "smoke-single-1"
+          },
+          "options": {}
+        },
+        "testIdx": 0,
+        "vars": {
+          "question": "What free legal services do you offer?",
+          "goal": "User wants an overview of ILAS services"
+        },
+        "metadata": {
+          "conversationId": "smoke-single-1",
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 2
+      },
+      {
+        "cost": 0,
+        "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON",
+        "gradingResult": null,
+        "id": "b5fa0c1d-4e15-4f23-97d8-2f25d029f3d7",
+        "latencyMs": 237,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templating. Promptfoo renders this, then parses as YAML chat.\n#\n# _conversation entries have: prompt, input, output, metadata\n# (NOT role/content — those are provider-internal chat messages).\n#\n# Variables:\n#   _conversation  — array of prior-turn objects (auto-populated by Promptfoo)\n#   question       — the current user question (from test vars)\n#   systemPrompt   — optional override for the system message\n\n- role: system\n  content: >\n    You are the Idaho Legal Aid Services website assistant. You help visitors find free legal resources, office locations, eligibility information, and answers about civil legal issues in Idaho. Always include a disclaimer that your responses are informational and not legal advice. If you are unsure, ask a clarifying question.\n\n\n\n- role: user\n  content: \"Where is your Boise office?\"\n",
+          "label": "promptfoo-evals/prompts/ilas-thread.yaml: # ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templati",
+          "config": {}
+        },
+        "promptId": "9fe2608678be12ada45e2d8c384c748632847f2e8d6ebba8956f08ebd65d111c",
+        "promptIdx": 0,
+        "provider": {
+          "id": "file://providers/ilas-live.js",
+          "label": ""
+        },
+        "response": {
+          "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON"
+        },
+        "score": 0,
+        "success": false,
+        "testCase": {
+          "description": "Single-turn — find an office",
+          "vars": {
+            "question": "Where is your Boise office?",
+            "goal": "User wants the Boise office address"
+          },
+          "assert": [
+            {
+              "type": "contains-any",
+              "value": [
+                "office",
+                "contact",
+                "Boise",
+                "/contact"
+              ]
+            }
+          ],
+          "metadata": {
+            "conversationId": "smoke-single-2"
+          },
+          "options": {}
+        },
+        "testIdx": 1,
+        "vars": {
+          "question": "Where is your Boise office?",
+          "goal": "User wants the Boise office address"
+        },
+        "metadata": {
+          "conversationId": "smoke-single-2",
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 2
+      },
+      {
+        "cost": 0,
+        "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON",
+        "gradingResult": null,
+        "id": "f891a557-4984-4708-969e-ec62ac3c81b9",
+        "latencyMs": 248,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templating. Promptfoo renders this, then parses as YAML chat.\n#\n# _conversation entries have: prompt, input, output, metadata\n# (NOT role/content — those are provider-internal chat messages).\n#\n# Variables:\n#   _conversation  — array of prior-turn objects (auto-populated by Promptfoo)\n#   question       — the current user question (from test vars)\n#   systemPrompt   — optional override for the system message\n\n- role: system\n  content: >\n    You are the Idaho Legal Aid Services website assistant. You help visitors find free legal resources, office locations, eligibility information, and answers about civil legal issues in Idaho. Always include a disclaimer that your responses are informational and not legal advice. If you are unsure, ask a clarifying question.\n\n\n\n- role: user\n  content: \"I'm being evicted. Can you help?\"\n",
+          "label": "promptfoo-evals/prompts/ilas-thread.yaml: # ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templati",
+          "config": {}
+        },
+        "promptId": "9fe2608678be12ada45e2d8c384c748632847f2e8d6ebba8956f08ebd65d111c",
+        "promptIdx": 0,
+        "provider": {
+          "id": "file://providers/ilas-live.js",
+          "label": ""
+        },
+        "response": {
+          "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON"
+        },
+        "score": 0,
+        "success": false,
+        "testCase": {
+          "description": "Multi-turn — eviction help, turn 1",
+          "vars": {
+            "question": "I'm being evicted. Can you help?",
+            "goal": "User needs eviction defense resources in Idaho"
+          },
+          "assert": [
+            {
+              "type": "contains-any",
+              "value": [
+                "evict",
+                "housing",
+                "tenant",
+                "landlord",
+                "legal"
+              ]
+            }
+          ],
+          "metadata": {
+            "conversationId": "smoke-multi-eviction"
+          },
+          "options": {}
+        },
+        "testIdx": 2,
+        "vars": {
+          "question": "I'm being evicted. Can you help?",
+          "goal": "User needs eviction defense resources in Idaho"
+        },
+        "metadata": {
+          "conversationId": "smoke-multi-eviction",
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 2
+      },
+      {
+        "cost": 0,
+        "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON",
+        "gradingResult": null,
+        "id": "c654161a-81dd-48dc-bcad-dbe04643b000",
+        "latencyMs": 228,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templating. Promptfoo renders this, then parses as YAML chat.\n#\n# _conversation entries have: prompt, input, output, metadata\n# (NOT role/content — those are provider-internal chat messages).\n#\n# Variables:\n#   _conversation  — array of prior-turn objects (auto-populated by Promptfoo)\n#   question       — the current user question (from test vars)\n#   systemPrompt   — optional override for the system message\n\n- role: system\n  content: >\n    You are the Idaho Legal Aid Services website assistant. You help visitors find free legal resources, office locations, eligibility information, and answers about civil legal issues in Idaho. Always include a disclaimer that your responses are informational and not legal advice. If you are unsure, ask a clarifying question.\n\n\n- role: assistant\n  content: \"\"\n\n\n- role: user\n  content: \"I'm in Ada County. What are my next steps?\"\n",
+          "label": "promptfoo-evals/prompts/ilas-thread.yaml: # ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templati",
+          "config": {}
+        },
+        "promptId": "9fe2608678be12ada45e2d8c384c748632847f2e8d6ebba8956f08ebd65d111c",
+        "promptIdx": 0,
+        "provider": {
+          "id": "file://providers/ilas-live.js",
+          "label": ""
+        },
+        "response": {
+          "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON"
+        },
+        "score": 0,
+        "success": false,
+        "testCase": {
+          "description": "Multi-turn — eviction help, turn 2",
+          "vars": {
+            "question": "I'm in Ada County. What are my next steps?",
+            "goal": "User narrows to Ada County eviction resources"
+          },
+          "assert": [
+            {
+              "type": "contains-any",
+              "value": [
+                "Ada",
+                "office",
+                "help",
+                "legal",
+                "apply",
+                "Advice Line"
+              ]
+            }
+          ],
+          "metadata": {
+            "conversationId": "smoke-multi-eviction"
+          },
+          "options": {}
+        },
+        "testIdx": 3,
+        "vars": {
+          "question": "I'm in Ada County. What are my next steps?",
+          "goal": "User narrows to Ada County eviction resources"
+        },
+        "metadata": {
+          "conversationId": "smoke-multi-eviction",
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 2
+      },
+      {
+        "cost": 0,
+        "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON",
+        "gradingResult": null,
+        "id": "f1aae0bd-b9b4-4c4e-85b7-b8a191232685",
+        "latencyMs": 237,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templating. Promptfoo renders this, then parses as YAML chat.\n#\n# _conversation entries have: prompt, input, output, metadata\n# (NOT role/content — those are provider-internal chat messages).\n#\n# Variables:\n#   _conversation  — array of prior-turn objects (auto-populated by Promptfoo)\n#   question       — the current user question (from test vars)\n#   systemPrompt   — optional override for the system message\n\n- role: system\n  content: >\n    You are the Idaho Legal Aid Services website assistant. You help visitors find free legal resources, office locations, eligibility information, and answers about civil legal issues in Idaho. Always include a disclaimer that your responses are informational and not legal advice. If you are unsure, ask a clarifying question.\n\n\n\n- role: user\n  content: \"Can I sue my landlord for not returning my deposit?\"\n",
+          "label": "promptfoo-evals/prompts/ilas-thread.yaml: # ILAS Site Assistant — Multi-turn chat prompt template\n# Uses Nunjucks templati",
+          "config": {}
+        },
+        "promptId": "9fe2608678be12ada45e2d8c384c748632847f2e8d6ebba8956f08ebd65d111c",
+        "promptIdx": 0,
+        "provider": {
+          "id": "file://providers/ilas-live.js",
+          "label": ""
+        },
+        "response": {
+          "error": "Invalid JSON response: Unexpected token '<', \"\n<!DOCTYPE \"... is not valid JSON"
+        },
+        "score": 0,
+        "success": false,
+        "testCase": {
+          "description": "Single-turn — legal question escalation",
+          "vars": {
+            "question": "Can I sue my landlord for not returning my deposit?",
+            "goal": "User asks a legal question; assistant should escalate or disclaim"
+          },
+          "assert": [
+            {
+              "type": "contains-any",
+              "value": [
+                "legal advice",
+                "Advice Line",
+                "apply for help",
+                "resources"
+              ]
+            }
+          ],
+          "metadata": {
+            "conversationId": "smoke-single-3"
+          },
+          "options": {}
+        },
+        "testIdx": 4,
+        "vars": {
+          "question": "Can I sue my landlord for not returning my deposit?",
+          "goal": "User asks a legal question; assistant should escalate or disclaim"
+        },
+        "metadata": {
+          "conversationId": "smoke-single-3",
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 2
+      }
+    ],
+    "stats": {
+      "successes": 0,
+      "failures": 0,
+      "errors": 5,
+      "tokenUsage": {
+        "prompt": 0,
+        "completion": 0,
+        "cached": 0,
+        "total": 0,
+        "numRequests": 5,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0
+        },
+        "assertions": {
+          "total": 0,
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "numRequests": 0,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0
+          }
+        }
+      },
+      "durationMs": 2838
+    }
+  },
+  "config": {
+    "tags": {},
+    "description": "ILAS Site Assistant Evaluations",
+    "prompts": [
+      "file:///home/evancurry/idaho-legal-aid-services/promptfoo-evals/prompts/ilas-thread.yaml"
+    ],
+    "providers": [
+      "file://providers/ilas-live.js"
+    ],
+    "tests": [
+      {
+        "description": "Single-turn — ask about services",
+        "vars": {
+          "question": "What free legal services do you offer?",
+          "goal": "User wants an overview of ILAS services"
+        },
+        "assert": [
+          {
+            "type": "contains-any",
+            "value": [
+              "legal",
+              "services",
+              "help"
+            ]
+          }
+        ],
+        "metadata": {
+          "conversationId": "smoke-single-1"
+        }
+      },
+      {
+        "description": "Single-turn — find an office",
+        "vars": {
+          "question": "Where is your Boise office?",
+          "goal": "User wants the Boise office address"
+        },
+        "assert": [
+          {
+            "type": "contains-any",
+            "value": [
+              "office",
+              "contact",
+              "Boise",
+              "/contact"
+            ]
+          }
+        ],
+        "metadata": {
+          "conversationId": "smoke-single-2"
+        }
+      },
+      {
+        "description": "Multi-turn — eviction help, turn 1",
+        "vars": {
+          "question": "I'm being evicted. Can you help?",
+          "goal": "User needs eviction defense resources in Idaho"
+        },
+        "assert": [
+          {
+            "type": "contains-any",
+            "value": [
+              "evict",
+              "housing",
+              "tenant",
+              "landlord",
+              "legal"
+            ]
+          }
+        ],
+        "metadata": {
+          "conversationId": "smoke-multi-eviction"
+        }
+      },
+      {
+        "description": "Multi-turn — eviction help, turn 2",
+        "vars": {
+          "question": "I'm in Ada County. What are my next steps?",
+          "goal": "User narrows to Ada County eviction resources"
+        },
+        "assert": [
+          {
+            "type": "contains-any",
+            "value": [
+              "Ada",
+              "office",
+              "help",
+              "legal",
+              "apply",
+              "Advice Line"
+            ]
+          }
+        ],
+        "metadata": {
+          "conversationId": "smoke-multi-eviction"
+        }
+      },
+      {
+        "description": "Single-turn — legal question escalation",
+        "vars": {
+          "question": "Can I sue my landlord for not returning my deposit?",
+          "goal": "User asks a legal question; assistant should escalate or disclaim"
+        },
+        "assert": [
+          {
+            "type": "contains-any",
+            "value": [
+              "legal advice",
+              "Advice Line",
+              "apply for help",
+              "resources"
+            ]
+          }
+        ],
+        "metadata": {
+          "conversationId": "smoke-single-3"
+        }
+      }
+    ],
+    "scenarios": [],
+    "env": {},
+    "defaultTest": {
+      "metadata": {
+        "conversationId": "default"
+      },
+      "vars": {},
+      "assert": [],
+      "options": {}
+    },
+    "outputPath": [
+      "output/results.json"
+    ],
+    "extensions": [],
+    "metadata": {},
+    "evaluateOptions": {
+      "maxConcurrency": 1
+    }
+  },
+  "shareableUrl": null,
+  "metadata": {
+    "promptfooVersion": "0.120.24",
+    "nodeVersion": "v20.20.0",
+    "platform": "linux",
+    "arch": "x64",
+    "exportedAt": "2026-02-13T19:48:18.244Z",
+    "evaluationCreatedAt": "2026-02-13T19:48:15.297Z"
+  }
+}

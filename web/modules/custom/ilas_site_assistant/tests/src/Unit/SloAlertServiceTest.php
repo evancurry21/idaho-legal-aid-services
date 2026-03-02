@@ -84,6 +84,7 @@ class SloAlertServiceTest extends TestCase {
         'p99' => $p95 * 1.5,
         'avg' => 80,
         'error_rate' => $errorRate,
+        'availability_pct' => max(0, 100 - $errorRate),
         'throughput_per_min' => 10,
         'sample_size' => 100,
         'status' => 'healthy',
@@ -146,6 +147,44 @@ class SloAlertServiceTest extends TestCase {
 
     $alert = new SloAlertService($slo, $logger, $state, $perfMonitor);
     $alert->checkLatencySlo();
+  }
+
+  /**
+   * Tests that checkAvailabilitySlo fires when availability is below target.
+   *
+   * @covers ::checkAvailabilitySlo
+   */
+  public function testAvailabilitySloViolationFiresWarning(): void {
+    $slo = $this->buildSlo();
+    $state = $this->buildState();
+    // Error rate 1% => 99% availability, below default 99.5 target.
+    $perfMonitor = $this->buildPerformanceMonitor(500, 1.0);
+
+    $logger = $this->createMock(LoggerInterface::class);
+    $logger->expects($this->once())
+      ->method('warning')
+      ->with($this->stringContains('availability'), $this->anything());
+
+    $alert = new SloAlertService($slo, $logger, $state, $perfMonitor);
+    $alert->checkAvailabilitySlo();
+  }
+
+  /**
+   * Tests that checkAvailabilitySlo does not fire when target is met.
+   *
+   * @covers ::checkAvailabilitySlo
+   */
+  public function testAvailabilitySloHealthyNoWarning(): void {
+    $slo = $this->buildSlo();
+    $state = $this->buildState();
+    // Error rate 0.1% => 99.9% availability (healthy).
+    $perfMonitor = $this->buildPerformanceMonitor(500, 0.1);
+
+    $logger = $this->createMock(LoggerInterface::class);
+    $logger->expects($this->never())->method('warning');
+
+    $alert = new SloAlertService($slo, $logger, $state, $perfMonitor);
+    $alert->checkAvailabilitySlo();
   }
 
   /**
@@ -270,7 +309,7 @@ class SloAlertServiceTest extends TestCase {
     $slo = $this->buildSlo();
     $state = $this->buildState();
     // All healthy — no warnings should fire.
-    $perfMonitor = $this->buildPerformanceMonitor(500, 1.0);
+    $perfMonitor = $this->buildPerformanceMonitor(500, 0.1);
     $cronTracker = $this->buildCronTracker('healthy');
     $queueMonitor = $this->buildQueueMonitor('healthy');
 

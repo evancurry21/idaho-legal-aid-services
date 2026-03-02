@@ -824,13 +824,37 @@
         case 'form_finder_clarify':
         case 'guide_finder_clarify':
           // Multi-turn finder: show topic chips for narrowing down.
+          // Wrapped in try/catch with text_fallback degradation path.
           if (response.topic_suggestions) {
-            html += this.renderTopicSuggestions(response.topic_suggestions);
+            try {
+              var chipsHtml = this.renderTopicSuggestions(response.topic_suggestions);
+              if (chipsHtml && chipsHtml.trim() !== '') {
+                html += chipsHtml;
+              } else {
+                throw new Error('Empty chip render');
+              }
+            } catch (e) {
+              console.warn('ILAS Assistant: chip render failed, using text fallback', e);
+              if (response.text_fallback) {
+                html += '<p class="chip-fallback-text">' + this.escapeHtml(response.text_fallback) + '</p>';
+              }
+              this.trackEvent('ui_fallback_used', response.type || '');
+            }
           }
           // Show "Browse All ..." fallback link.
           if (response.primary_action && response.primary_action.url) {
             html += '<p class="form-finder-fallback"><a href="' + this.escapeAttr(this.sanitizeUrl(response.primary_action.url)) + '" class="result-link" data-assistant-track="resource_click">' + this.escapeHtml(response.primary_action.label) + '</a></p>';
           }
+          break;
+
+        case 'ui_troubleshooting':
+          if (response.links && response.links.length > 0) {
+            html += this.renderLinks(response.links);
+          }
+          if (response.followup) {
+            html += '<p class="ui-troubleshoot-tip"><em>' + this.escapeHtml(response.followup) + '</em></p>';
+          }
+          this.trackEvent('ui_troubleshooting', 'displayed');
           break;
 
         case 'fallback':

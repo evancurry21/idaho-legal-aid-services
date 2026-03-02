@@ -81,6 +81,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
     // Validate payload structure.
     if (!is_array($data) || empty($data['batch']) || !is_array($data['batch'])) {
       $this->logger->warning('Langfuse export: invalid queue item, discarding.');
+      $this->recordDrain(1);
       return;
     }
 
@@ -92,6 +93,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
       $this->logger->notice('Langfuse export: discarding pre-upgrade item without enqueued_at (@count events).', [
         '@count' => count($data['batch']),
       ]);
+      $this->recordDrain(1);
       return;
     }
     $age = time() - (int) $data['enqueued_at'];
@@ -101,6 +103,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
         '@max' => $maxAge,
         '@count' => count($data['batch']),
       ]);
+      $this->recordDrain(1);
       return;
     }
 
@@ -109,6 +112,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
       $this->logger->notice('Langfuse export: tracing disabled, discarding @count events.', [
         '@count' => count($data['batch']),
       ]);
+      $this->recordDrain(1);
       return;
     }
 
@@ -119,6 +123,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
 
     if ($publicKey === '' || $secretKey === '') {
       $this->logger->warning('Langfuse export: credentials not configured, discarding batch.');
+      $this->recordDrain(1);
       return;
     }
 
@@ -172,6 +177,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
           '@code' => $statusCode,
           '@message' => $e->getMessage(),
         ]);
+        $this->recordDrain(1);
         return;
       }
 

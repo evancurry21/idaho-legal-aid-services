@@ -305,9 +305,9 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php:1539-1575`
 
 ### CLAIM-051
-- Claim: `/assistant/api/health` and `/assistant/api/metrics` expose monitor status and thresholds.
+- Claim: `/assistant/api/health` and `/assistant/api/metrics` expose alert-ready SLO status/threshold contracts for availability, latency, errors, cron freshness, and queue health.
 - Evidence:
-  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php:2780-2825`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php:2902-2994`
 
 ---
 
@@ -550,11 +550,12 @@ Evidence precedence used in this audit:
 - Addendum (2026-02-27): IMP-OBS-01 adds `TelemetrySchema::REQUIRED_FIELDS` tag promotion in `before_send` callback (extra→tags), Sentry `configureScope` now uses `TelemetrySchema` constant names for `request_id`/`intent`/`safety_class`/`fallback_path`/`env`. Acceptance tests in `web/modules/custom/ilas_site_assistant/tests/src/Unit/ImpObs01AcceptanceTest.php` and contract tests in `web/modules/custom/ilas_site_assistant/tests/src/Unit/TelemetrySchemaContractTest.php` verify PII redaction across all fields and tag enrichment.
 
 ### CLAIM-084
-- Claim: Performance monitor stores rolling request metrics in state and marks degraded status by p95/error-rate thresholds.
+- Claim: Performance monitor stores rolling request metrics in state and marks degraded status by p95/error-rate thresholds; SLO services consume these metrics for availability/latency/error/cron/queue alert policy enforcement.
 - Evidence:
-  - `web/modules/custom/ilas_site_assistant/src/Service/PerformanceMonitor.php:19-31`
-  - `web/modules/custom/ilas_site_assistant/src/Service/PerformanceMonitor.php:117-176`
-  - `web/modules/custom/ilas_site_assistant/src/Service/PerformanceMonitor.php:185-225`
+  - `web/modules/custom/ilas_site_assistant/src/Service/PerformanceMonitor.php:19-291`
+  - `web/modules/custom/ilas_site_assistant/src/Service/SloDefinitions.php:12-112`
+  - `web/modules/custom/ilas_site_assistant/src/Service/SloAlertService.php:20-260`
+  - `web/modules/custom/ilas_site_assistant/src/Service/QueueHealthMonitor.php:12-181`
 
 ### CLAIM-085
 - Claim: Analytics logger redacts event values and stores no-answer queries as redacted/truncated hash records.

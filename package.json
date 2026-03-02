@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "name": "idaho-legal-aid-services",
+  "description": "Tooling scripts for the Idaho Legal Aid Services Drupal site",
+  "scripts": {
+    "eval:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+    "eval:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action eval",
+    "eval:promptfoo:live": "ILAS_ASSISTANT_URL=https://idaholegalaid.org/assistant/api/message bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+    "view:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh view",
+    "view:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action view"
+  },
+  "devDependencies": {
+    "promptfoo": "^0.120.24"
+  }
+}

@@ -1,0 +1,100 @@
+# ILAS Site Assistant — Smoke test suite (live provider)
+#
+# These tests validate real assistant responses via the custom JS provider.
+# The provider handles CSRF tokens and conversation IDs automatically.
+#
+# The provider builds rich output from: message + url + results + actions + caveat.
+# Assertions can match against any of these fields.
+#
+# Conversation goals (for future simulated-user runs) are stored in the
+# `goal` var for documentation; they are not consumed by assertions yet.
+
+# ---------------------------------------------------------------------------
+# Single-turn: basic service inquiry
+# ---------------------------------------------------------------------------
+- description: "Single-turn — ask about services"
+  vars:
+    question: "What free legal services do you offer?"
+    goal: "User wants an overview of ILAS services"
+  assert:
+    - type: contains-any
+      value:
+        - "legal"
+        - "services"
+        - "help"
+  metadata:
+    conversationId: "smoke-single-1"
+
+# ---------------------------------------------------------------------------
+# Single-turn: office location
+# The assistant navigates to /contact/offices and may return FAQ results.
+# ---------------------------------------------------------------------------
+- description: "Single-turn — find an office"
+  vars:
+    question: "Where is your Boise office?"
+    goal: "User wants the Boise office address"
+  assert:
+    - type: contains-any
+      value:
+        - "office"
+        - "contact"
+        - "Boise"
+        - "/contact"
+  metadata:
+    conversationId: "smoke-single-2"
+
+# ---------------------------------------------------------------------------
+# Multi-turn: eviction help (turn 1 of 2)
+# ---------------------------------------------------------------------------
+- description: "Multi-turn — eviction help, turn 1"
+  vars:
+    question: "I'm being evicted. Can you help?"
+    goal: "User needs eviction defense resources in Idaho"
+  assert:
+    - type: contains-any
+      value:
+        - "evict"
+        - "housing"
+        - "tenant"
+        - "landlord"
+        - "legal"
+  metadata:
+    conversationId: "smoke-multi-eviction"
+
+# ---------------------------------------------------------------------------
+# Multi-turn: eviction help (turn 2 of 2)
+# The assistant may return FAQs, office info, or ask for more detail.
+# ---------------------------------------------------------------------------
+- description: "Multi-turn — eviction help, turn 2"
+  vars:
+    question: "I'm in Ada County. What are my next steps?"
+    goal: "User narrows to Ada County eviction resources"
+  assert:
+    - type: contains-any
+      value:
+        - "Ada"
+        - "office"
+        - "help"
+        - "legal"
+        - "apply"
+        - "Advice Line"
+  metadata:
+    conversationId: "smoke-multi-eviction"
+
+# ---------------------------------------------------------------------------
+# Single-turn: legal question triggers escalation
+# The assistant escalates with a disclaimer and suggests the Advice Line.
+# ---------------------------------------------------------------------------
+- description: "Single-turn — legal question escalation"
+  vars:
+    question: "Can I sue my landlord for not returning my deposit?"
+    goal: "User asks a legal question; assistant should escalate or disclaim"
+  assert:
+    - type: contains-any
+      value:
+        - "legal advice"
+        - "Advice Line"
+        - "apply for help"
+        - "resources"
+  metadata:
+    conversationId: "smoke-single-3"

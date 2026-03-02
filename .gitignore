@@ -127,6 +127,7 @@ logs/
 /web/sites/*/files_live/
 
 # Prevent accidental database dumps / archives
+db_backups/
 *.sql
 *.sql.gz
 *.tar.gz
@@ -190,12 +191,8 @@ scripts/fix-adept-content.php
 # Local evaluation scripts and fixtures (not needed on Pantheon)
 scripts/eval/
 
-# Promptfoo evaluation tooling (local-only, not needed on Pantheon)
+# Node runtime artifacts (never tracked; configs tracked for CI)
 node_modules/
-output/
-package.json
-package-lock.json
-promptfoo-evals/
 
 # Local audit docs and utility scripts
 docs/assistant_audit/

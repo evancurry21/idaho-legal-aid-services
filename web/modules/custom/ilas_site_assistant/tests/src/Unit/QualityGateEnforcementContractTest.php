@@ -72,4 +72,45 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('EFFECTIVE_MODE="advisory"', $script);
   }
 
+  /**
+   * GitHub Actions workflow must wire both quality gate jobs.
+   */
+  public function testGitHubActionsWorkflowWiresQualityGateJobs(): void {
+    $workflow = self::readFile('.github/workflows/quality-gate.yml');
+
+    // Job 1: PHPUnit quality gate references.
+    $this->assertStringContainsString('phpunit.pure.xml', $workflow);
+    $this->assertStringContainsString('phpunit.xml', $workflow);
+    $this->assertStringContainsString('--testsuite drupal-unit', $workflow);
+    $this->assertStringContainsString('run-quality-gate.sh', $workflow);
+    $this->assertStringContainsString('upload-artifact', $workflow);
+
+    // Job 2: Promptfoo gate references.
+    $this->assertStringContainsString('run-promptfoo-gate.sh', $workflow);
+    $this->assertStringContainsString('--skip-eval', $workflow);
+    $this->assertStringContainsString('--simulate-pass-rate', $workflow);
+
+    // Branch-aware policy annotation.
+    $this->assertStringContainsString('BLOCKING', $workflow);
+    $this->assertStringContainsString('ADVISORY', $workflow);
+  }
+
+  /**
+   * PROMPTFOO_SCRIPT existence check must come AFTER the SKIP_EVAL guard.
+   */
+  public function testPromptfooGateSkipEvalBeforeScriptCheck(): void {
+    $script = self::readFile('scripts/ci/run-promptfoo-gate.sh');
+
+    $skipEvalPos = strpos($script, 'if [[ "$SKIP_EVAL" != "true" ]]');
+    $scriptCheckPos = strpos($script, 'if [[ ! -x "$PROMPTFOO_SCRIPT" ]]');
+
+    $this->assertNotFalse($skipEvalPos, 'SKIP_EVAL guard must exist in script');
+    $this->assertNotFalse($scriptCheckPos, 'PROMPTFOO_SCRIPT check must exist in script');
+    $this->assertGreaterThan(
+      $skipEvalPos,
+      $scriptCheckPos,
+      'PROMPTFOO_SCRIPT existence check must come AFTER the SKIP_EVAL guard'
+    );
+  }
+
 }

@@ -111,12 +111,29 @@ class LangfuseTerminateSubscriber implements EventSubscriberInterface {
       $payload['enqueued_at'] = time();
 
       $queue->createItem($payload);
+      $this->recordEnqueue((int) $payload['enqueued_at'], $currentDepth);
     }
     catch (\Throwable $e) {
       // Never let queue failures propagate — trace data is best-effort.
       $this->logger->warning('Langfuse queue enqueue failed: @message', [
         '@message' => $e->getMessage(),
       ]);
+    }
+  }
+
+  /**
+   * Records enqueue metadata for queue-age SLO checks when available.
+   */
+  private function recordEnqueue(int $enqueuedAt, int $depthBeforeEnqueue): void {
+    try {
+      $container = \Drupal::getContainer();
+      if ($container && $container->has('ilas_site_assistant.queue_health_monitor')) {
+        $container->get('ilas_site_assistant.queue_health_monitor')
+          ->recordEnqueue($enqueuedAt, $depthBeforeEnqueue);
+      }
+    }
+    catch (\Throwable $e) {
+      // Never block response termination for monitoring side-effects.
     }
   }
 

@@ -171,3 +171,37 @@ transcripts:
         expected_intent: forms_inventory
         expected_chips_present: true
         notes: "Switches to forms inventory mid-conversation"
+
+  # Bug 88a727e5: "custody now" → disambiguation + UI complaint recovery.
+  - id: custody_now_ui_recovery
+    label: "Urgency-modified topic + UI complaint recovery"
+    turns:
+      - message: "custody now"
+        expected_turn_type: NEW
+        expected_intent: disambiguation
+        expected_chips_present: true
+        notes: "Urgency modifier stripped, matches custody topic trigger"
+
+      - message: "custody"
+        expected_turn_type: NEW
+        expected_intent: disambiguation
+        expected_chips_present: true
+        notes: "Exact topic match — same result as modified version"
+
+      - message: "what forms do you have for custody"
+        expected_turn_type: INVENTORY
+        expected_intent: forms_inventory
+        expected_chips_present: true
+        notes: "Forms inventory with 6 category chips"
+
+      - message: "the categories aren't showing up"
+        expected_turn_type: NEW
+        expected_intent: ui_troubleshooting
+        expected_chips_present: false
+        notes: "UI complaint detected, not misrouted to housing"
+
+      - message: "divorce please"
+        expected_turn_type: NEW
+        expected_intent: disambiguation
+        expected_chips_present: true
+        notes: "New topic with modifier, correctly disambiguated"

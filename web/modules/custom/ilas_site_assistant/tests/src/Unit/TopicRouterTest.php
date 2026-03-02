@@ -229,10 +229,35 @@ class TopicRouterTest extends TestCase {
   }
 
   /**
+   * Tests that urgency-modified queries still resolve to correct topics.
+   */
+  #[DataProvider('urgencyModifiedProvider')]
+  public function testUrgencyModifiedQueries(string $input, string $expected_topic): void {
+    $result = $this->router->route($input);
+    $this->assertNotNull($result, "Expected match for urgency-modified '$input'");
+    $this->assertEquals($expected_topic, $result['topic'], "Topic mismatch for '$input'");
+  }
+
+  public static function urgencyModifiedProvider(): array {
+    return [
+      ['custody now', 'family'],
+      ['divorce please', 'family'],
+      ['eviction asap', 'housing'],
+      ['eviction urgent', 'housing'],
+      ['bankruptcy fast', 'consumer'],
+      ['debt today', 'consumer'],
+      ['custody right now', 'family'],
+      // Spanish urgency modifiers.
+      ['custodia ahora', 'family'],
+      ['desalojo urgente', 'housing'],
+    ];
+  }
+
+  /**
    * Tests that messages over MAX_WORD_COUNT return NULL.
    */
   public function testLongMessagesRejected(): void {
-    $result = $this->router->route('I need help with my divorce case please');
+    $result = $this->router->route('I need help with my divorce case please help me');
     $this->assertNull($result, 'Long messages should not be handled by TopicRouter');
   }
 

@@ -94,10 +94,34 @@ class SloAlertService {
    * Checks all SLO dimensions and logs warnings on violations.
    */
   public function checkAll(): void {
+    $this->checkAvailabilitySlo();
     $this->checkLatencySlo();
     $this->checkErrorRateSlo();
     $this->checkCronSlo();
     $this->checkQueueSlo();
+  }
+
+  /**
+   * Checks availability against SLO target.
+   */
+  public function checkAvailabilitySlo(): void {
+    if ($this->performanceMonitor === NULL) {
+      return;
+    }
+
+    $summary = $this->performanceMonitor->getSummary();
+    $errorRate = (float) ($summary['error_rate'] ?? 0);
+    $availability = max(0.0, round(100.0 - $errorRate, 2));
+    $target = $this->sloDefinitions->getAvailabilityTargetPct();
+
+    if ($availability < $target && $this->cooldownElapsed('availability')) {
+      $this->logger->warning('SLO violation: availability @availability% below target @target%', [
+        '@availability' => $availability,
+        '@target' => $target,
+        '@slo_dimension' => 'availability',
+      ]);
+      $this->recordAlert('availability');
+    }
   }
 
   /**
@@ -176,10 +200,12 @@ class SloAlertService {
     $status = $this->queueHealthMonitor->getQueueHealthStatus($this->sloDefinitions);
 
     if ($status['status'] !== 'healthy' && $this->cooldownElapsed('queue')) {
-      $this->logger->warning('SLO violation: queue is @status (depth: @depth, utilization: @pct%)', [
+      $this->logger->warning('SLO violation: queue is @status (depth: @depth, utilization: @pct%, oldest_age: @age s, max_age: @max_age s)', [
         '@status' => $status['status'],
         '@depth' => $status['depth'],
         '@pct' => $status['utilization_pct'],
+        '@age' => $status['oldest_item_age_seconds'] ?? 'unknown',
+        '@max_age' => $status['max_age_seconds'] ?? 'unknown',
         '@slo_dimension' => 'queue',
       ]);
       $this->recordAlert('queue');
@@ -190,7 +216,7 @@ class SloAlertService {
    * Checks if the cooldown period has elapsed for a given alert type.
    *
    * @param string $type
-   *   The alert type key (latency, error_rate, cron, queue).
+   *   The alert type key (availability, latency, error_rate, cron, queue).
    *
    * @return bool
    *   TRUE if the cooldown has elapsed and the alert can fire.

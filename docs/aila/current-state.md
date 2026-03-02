@@ -219,7 +219,8 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Logging channels | Module-specific logger channel plus analytics logging service for event/no-answer records.[^CLAIM-020][^CLAIM-085] |
 | Sentry status | Sentry integration is conditional; options subscriber enforces `send_default_pii=false` and payload redaction before send.[^CLAIM-083][^CLAIM-098] |
 | Langfuse status | Langfuse requires config + credentials; traces capture spans/events/generations and export via terminate subscriber + queue worker.[^CLAIM-079][^CLAIM-080][^CLAIM-081][^CLAIM-082] |
-| Runtime monitoring | `PerformanceMonitor` feeds `/assistant/api/health` and `/assistant/api/metrics` status/threshold outputs.[^CLAIM-084][^CLAIM-051] |
+| Runtime monitoring | `PerformanceMonitor` records rolling latency/error metrics and exposes p95/p99/error/availability values with SLO-backed thresholds via `/assistant/api/health` and `/assistant/api/metrics`.[^CLAIM-084][^CLAIM-051] |
+| SLO policy + alerts | `SloDefinitions` + `SloAlertService` define/enforce availability, latency, error-rate, cron freshness, and queue depth/age SLOs with cooldowned structured warning alerts from cron.[^CLAIM-084][^CLAIM-121] |
 | Promptfoo + quality gate harness | Existing test assets are now enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `main`/`release/*` and advisory behavior elsewhere. First-party workflow ownership remains external to this repo snapshot.[^CLAIM-086][^CLAIM-105][^CLAIM-122] |
 | Redaction posture | Sentry subscriber and analytics/conversation log codepaths apply redaction/truncation before persistence/export.[^CLAIM-053][^CLAIM-083][^CLAIM-085] |
 
@@ -227,9 +228,9 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 
 | Spec item | Current state |
 |---|---|
-| Cron entrypoint | `hook_cron()` runs analytics cleanup, conversation cleanup, violation prune, and safety alert checks.[^CLAIM-016] |
+| Cron entrypoint | `hook_cron()` runs analytics cleanup, conversation cleanup, violation prune, safety alert checks, and SLO alert checks.[^CLAIM-016][^CLAIM-084] |
 | Queue workers | `ilas_langfuse_export` queue worker is cron-enabled (`cron.time=30`) for Langfuse export batches.[^CLAIM-082] |
-| Langfuse queue behavior | Items are aged/validated, discarded when stale/disabled/misconfigured, and transient API failures suspend queue for retry.[^CLAIM-082] |
+| Langfuse queue behavior | Items are aged/validated, discarded when stale/disabled/misconfigured, and transient API failures suspend queue for retry; queue health tracking exposes backlog depth/utilization and oldest-item age for SLO checks.[^CLAIM-082][^CLAIM-084] |
 | Retention/cleanup | Analytics retention uses `log_retention_days`; conversation log retention uses `retention_hours` with batched deletes.[^CLAIM-087][^CLAIM-088] |
 | Safety background logic | State-backed violation tracker + threshold/cooldown email alert service run via cron.[^CLAIM-089][^CLAIM-090] |
 | Runtime-observed cadence sample | Local + Pantheon `system.cron_last` values were captured; watchdog samples include `ilas_site_assistant_cron()` executions (observed intervals in sample window: ~57 minutes on live, ~2 hours on dev/test).[^CLAIM-114][^CLAIM-117][^CLAIM-121] |

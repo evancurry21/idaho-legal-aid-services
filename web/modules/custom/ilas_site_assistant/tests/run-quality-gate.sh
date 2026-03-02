@@ -7,8 +7,10 @@
 # and abuse resilience for the ilas_site_assistant module.
 #
 # Usage:
-#   bash tests/run-quality-gate.sh                  # PHPUnit only
-#   bash tests/run-quality-gate.sh --with-promptfoo # PHPUnit + promptfoo abuse evals
+#   bash tests/run-quality-gate.sh                               # Full gate
+#   bash tests/run-quality-gate.sh --skip-phpunit               # Skip VC-UNIT + VC-DRUPAL-UNIT, keep golden
+#   bash tests/run-quality-gate.sh --with-promptfoo             # Full gate + promptfoo abuse evals
+#   bash tests/run-quality-gate.sh --skip-phpunit --with-promptfoo
 #
 # Env vars for promptfoo (only needed with --with-promptfoo):
 #   ILAS_ASSISTANT_URL     — full URL to /assistant/api/message
@@ -22,6 +24,30 @@
 #   2 — Promptfoo pass rate below threshold
 #
 set -euo pipefail
+
+WITH_PROMPTFOO="false"
+SKIP_PHPUNIT="false"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-promptfoo)
+      WITH_PROMPTFOO="true"
+      shift
+      ;;
+    --skip-phpunit)
+      SKIP_PHPUNIT="true"
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--skip-phpunit] [--with-promptfoo]" >&2
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      echo "Usage: $0 [--skip-phpunit] [--with-promptfoo]" >&2
+      exit 2
+      ;;
+  esac
+done
 
 # ── Resolve paths ────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -52,9 +78,6 @@ echo "Module:    $MODULE_DIR"
 echo "Repo root: $REPO_ROOT"
 echo ""
 
-# ── Phase 1: PHPUnit unit suite ───────────────────────────────────────
-echo "--- Phase 1: PHPUnit unit suite ---"
-
 PHPUNIT_BIN="$REPO_ROOT/vendor/bin/phpunit"
 if [ ! -f "$PHPUNIT_BIN" ]; then
   echo "ERROR: PHPUnit not found at $PHPUNIT_BIN" >&2
@@ -63,49 +86,59 @@ if [ ! -f "$PHPUNIT_BIN" ]; then
   exit 1
 fi
 
-UNIT_EXIT=0
-"$PHPUNIT_BIN" \
-  --configuration "$REPO_ROOT/phpunit.xml" \
-  --group ilas_site_assistant \
-  --colors=always \
-  "$MODULE_DIR/tests/src/Unit" \
-  || UNIT_EXIT=$?
+if [[ "$SKIP_PHPUNIT" != "true" ]]; then
+  # ── Phase 1: PHPUnit unit suite ─────────────────────────────────────
+  echo "--- Phase 1: PHPUnit unit suite ---"
 
-append_phase_result "vc_unit" "$UNIT_EXIT"
+  UNIT_EXIT=0
+  "$PHPUNIT_BIN" \
+    --configuration "$REPO_ROOT/phpunit.xml" \
+    --group ilas_site_assistant \
+    --colors=always \
+    "$MODULE_DIR/tests/src/Unit" \
+    || UNIT_EXIT=$?
 
-if [ "$UNIT_EXIT" -ne 0 ]; then
+  append_phase_result "vc_unit" "$UNIT_EXIT"
+
+  if [ "$UNIT_EXIT" -ne 0 ]; then
+    echo ""
+    echo "FAIL: PHPUnit unit tests failed (exit code $UNIT_EXIT)"
+    echo "Summary file: $SUMMARY_FILE"
+    exit 1
+  fi
+
   echo ""
-  echo "FAIL: PHPUnit unit tests failed (exit code $UNIT_EXIT)"
-  echo "Summary file: $SUMMARY_FILE"
-  exit 1
-fi
-
-echo ""
-echo "PASS: PHPUnit unit tests passed"
-echo ""
-
-# ── Phase 1b: PHPUnit drupal-unit suite ───────────────────────────────
-echo "--- Phase 1b: PHPUnit drupal-unit suite ---"
-
-DRUPAL_UNIT_EXIT=0
-"$PHPUNIT_BIN" \
-  --configuration "$REPO_ROOT/phpunit.xml" \
-  --testsuite drupal-unit \
-  --colors=always \
-  || DRUPAL_UNIT_EXIT=$?
-
-append_phase_result "vc_drupal_unit" "$DRUPAL_UNIT_EXIT"
-
-if [ "$DRUPAL_UNIT_EXIT" -ne 0 ]; then
+  echo "PASS: PHPUnit unit tests passed"
   echo ""
-  echo "FAIL: Drupal-unit suite gate failed (exit code $DRUPAL_UNIT_EXIT)"
-  echo "Summary file: $SUMMARY_FILE"
-  exit 1
-fi
 
-echo ""
-echo "PASS: Drupal-unit suite gate passed"
-echo ""
+  # ── Phase 1b: PHPUnit drupal-unit suite ─────────────────────────────
+  echo "--- Phase 1b: PHPUnit drupal-unit suite ---"
+
+  DRUPAL_UNIT_EXIT=0
+  "$PHPUNIT_BIN" \
+    --configuration "$REPO_ROOT/phpunit.xml" \
+    --testsuite drupal-unit \
+    --colors=always \
+    || DRUPAL_UNIT_EXIT=$?
+
+  append_phase_result "vc_drupal_unit" "$DRUPAL_UNIT_EXIT"
+
+  if [ "$DRUPAL_UNIT_EXIT" -ne 0 ]; then
+    echo ""
+    echo "FAIL: Drupal-unit suite gate failed (exit code $DRUPAL_UNIT_EXIT)"
+    echo "Summary file: $SUMMARY_FILE"
+    exit 1
+  fi
+
+  echo ""
+  echo "PASS: Drupal-unit suite gate passed"
+  echo ""
+else
+  echo "--- Phase 1: VC-UNIT + VC-DRUPAL-UNIT skipped (--skip-phpunit) ---"
+  append_phase_result "vc_unit" "0"
+  append_phase_result "vc_drupal_unit" "0"
+  echo ""
+fi
 
 # ── Phase 1c: Golden Transcript tests ─────────────────────────────
 echo "--- Phase 1c: Golden Transcript tests ---"
@@ -135,7 +168,7 @@ echo "Summary file: $SUMMARY_FILE"
 echo ""
 
 # ── Phase 2: Promptfoo abuse evals (optional) ───────────────────────
-if [[ "${1:-}" == "--with-promptfoo" ]]; then
+if [[ "$WITH_PROMPTFOO" == "true" ]]; then
   echo "--- Phase 2: Promptfoo abuse evals ---"
 
   EVALS_DIR="$REPO_ROOT/promptfoo-evals"

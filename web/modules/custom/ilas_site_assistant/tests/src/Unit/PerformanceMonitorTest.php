@@ -3,6 +3,7 @@
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
 use Drupal\ilas_site_assistant\Service\PerformanceMonitor;
+use Drupal\ilas_site_assistant\Service\SloDefinitions;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -216,9 +217,53 @@ class PerformanceMonitorTest extends TestCase {
 
     $this->assertEquals(100, $summary['sample_size']);
     $this->assertEquals('healthy', $summary['status']);
+    $this->assertSame(100.0, $summary['availability_pct']);
     $this->assertGreaterThan(0, $summary['p50']);
     $this->assertGreaterThan($summary['p50'], $summary['p95']);
     $this->assertGreaterThanOrEqual($summary['p95'], $summary['p99']);
+  }
+
+  /**
+   * Tests that custom SLO thresholds are used in summary threshold output.
+   *
+   * @covers ::getSummary
+   */
+  public function testGetSummaryUsesCustomSloThresholds(): void {
+    $state = $this->createMock('Drupal\Core\State\StateInterface');
+    $logger = $this->createMock('Drupal\Core\Logger\LoggerChannelInterface');
+    $slo = $this->createMock(SloDefinitions::class);
+    $slo->method('getLatencyP95TargetMs')->willReturn(1500);
+    $slo->method('getErrorRateTargetPct')->willReturn(2.0);
+
+    $requests = [];
+    for ($i = 0; $i < 99; $i++) {
+      $requests[] = [
+        'time' => time(),
+        'duration' => 1200.0,
+        'success' => TRUE,
+        'scenario' => 'retrieval',
+      ];
+    }
+    $requests[] = [
+      'time' => time(),
+      'duration' => 2000.0,
+      'success' => TRUE,
+      'scenario' => 'retrieval',
+    ];
+
+    $state->method('get')
+      ->willReturn([
+        'requests' => $requests,
+        'total_requests' => 100,
+        'total_errors' => 0,
+        'last_alert' => 0,
+      ]);
+
+    $monitor = new PerformanceMonitor($state, $logger, $slo);
+    $summary = $monitor->getSummary();
+
+    $this->assertSame(1500, $summary['thresholds']['p95_threshold_ms']);
+    $this->assertSame(2.0, $summary['thresholds']['error_rate_threshold']);
   }
 
   /**

@@ -108,7 +108,7 @@ services:
 
   ilas_site_assistant.performance_monitor:
     class: Drupal\ilas_site_assistant\Service\PerformanceMonitor
-    arguments: ['@state', '@logger.channel.ilas_site_assistant']
+    arguments: ['@state', '@logger.channel.ilas_site_assistant', '@ilas_site_assistant.slo_definitions']
 
   ilas_site_assistant.pii_redactor:
     class: Drupal\ilas_site_assistant\Service\PiiRedactor

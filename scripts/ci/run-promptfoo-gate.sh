@@ -83,11 +83,6 @@ if ! command -v node >/dev/null 2>&1; then
   exit 127
 fi
 
-if [[ ! -x "$PROMPTFOO_SCRIPT" ]]; then
-  echo "Promptfoo runner not found: $PROMPTFOO_SCRIPT" >&2
-  exit 1
-fi
-
 CI_BRANCH_NAME="${CI_BRANCH:-${GIT_BRANCH:-$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)}}"
 if [[ "$MODE" == "auto" ]]; then
   if [[ "$CI_BRANCH_NAME" == "main" || "$CI_BRANCH_NAME" =~ ^release/ ]]; then
@@ -100,7 +95,12 @@ else
 fi
 
 if [[ -z "${ILAS_ASSISTANT_URL:-}" ]]; then
-  ILAS_ASSISTANT_URL="$("$DERIVE_SCRIPT" --site "$SITE_NAME" --env "$ENV_NAME")"
+  if [[ "$SKIP_EVAL" == "true" ]]; then
+    # Simulation mode does not require live endpoint discovery.
+    ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message"
+  else
+    ILAS_ASSISTANT_URL="$("$DERIVE_SCRIPT" --site "$SITE_NAME" --env "$ENV_NAME")"
+  fi
 fi
 export ILAS_ASSISTANT_URL
 
@@ -116,6 +116,10 @@ mkdir -p "$(dirname "$SUMMARY_FILE")"
 
 EVAL_EXIT=0
 if [[ "$SKIP_EVAL" != "true" ]]; then
+  if [[ ! -x "$PROMPTFOO_SCRIPT" ]]; then
+    echo "Promptfoo runner not found: $PROMPTFOO_SCRIPT" >&2
+    exit 1
+  fi
   (
     cd "$REPO_ROOT"
     bash "$PROMPTFOO_SCRIPT" eval "$CONFIG_FILE"

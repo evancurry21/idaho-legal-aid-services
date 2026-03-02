@@ -895,6 +895,15 @@ class IntentRouter {
       }
     }
 
+    // Step 5a1: Check for UI troubleshooting complaints ("buttons aren't
+    // showing", "I can't see the options", etc.) before topic routing so
+    // these don't get misrouted to a service area.
+    $ui_result = $this->checkUiTroubleshooting($message);
+    if ($ui_result) {
+      $ui_result['extraction'] = $extraction;
+      return $ui_result;
+    }
+
     // Step 5a2: Check for legal-advice-seeking patterns (out of scope).
     $legal_advice_result = $this->checkLegalAdviceSeeking($message, $extraction);
     if ($legal_advice_result) {
@@ -904,19 +913,22 @@ class IntentRouter {
     // Step 5b: TopicRouter - handle short/single-token topic queries.
     // This catches bare topic words like "divorce", "eviction", "custody"
     // that should ask what action the user wants (forms, guides, apply).
-    if ($this->topicRouter && str_word_count($message) <= 3) {
+    if ($this->topicRouter && str_word_count($message) <= 4) {
       $topic_route = $this->topicRouter->route($message);
       if ($topic_route) {
         $service_area = $topic_route['service_area'];
         // Single topic words are inherently ambiguous — the user hasn't
         // specified an action. Return disambiguation instead of routing.
+        // Flatten question/options to top level so processIntent reads them.
+        $disamb = $this->getTopicDisambiguation($service_area);
         return [
           'type' => 'disambiguation',
           'area' => $service_area,
           'intent_source' => 'topic_router',
           'confidence' => 0.5,
           'needs_disambiguation' => TRUE,
-          'disambiguation' => $this->getTopicDisambiguation($service_area),
+          'question' => $disamb['question'],
+          'options' => $disamb['options'],
           'topic_route' => $topic_route,
           'extraction' => $extraction,
         ];
@@ -978,14 +990,17 @@ class IntentRouter {
     foreach ($topic_intents as $intent) {
       if ($this->matchesIntent($original, $intent) || $this->matchesIntent($normalized, $intent)) {
         // Topic detected - may need disambiguation.
+        // Flatten question/options to top level so processIntent reads them.
         $service_area = $this->patterns[$intent]['service_area'];
+        $disamb = $this->getTopicDisambiguation($service_area);
         return [
           'type' => 'service_area',
           'area' => $service_area,
           'intent_source' => $intent,
           'confidence' => 0.7,
           'needs_disambiguation' => TRUE,
-          'disambiguation' => $this->getTopicDisambiguation($service_area),
+          'question' => $disamb['question'],
+          'options' => $disamb['options'],
           'extraction' => $extraction,
         ];
       }
@@ -1394,6 +1409,47 @@ class IntentRouter {
         'vague_query' => TRUE,
         'extraction' => $extraction,
       ];
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Checks if the message is reporting a UI problem.
+   *
+   * Detects phrases like "the categories aren't showing up",
+   * "buttons are missing", "I can't see any options", etc.
+   * These should not be routed to a service area.
+   *
+   * @param string $message
+   *   The user message.
+   *
+   * @return array|null
+   *   UI troubleshooting intent or NULL.
+   */
+  protected function checkUiTroubleshooting(string $message): ?array {
+    $patterns = [
+      // English: negation + display verb.
+      '/\b(not|aren\'t|isn\'t|don\'t|can\'t|doesn\'t|cant|dont|arent|isnt|doesnt)\s+(show|showing|appear|load|loading|display|displaying|work|working)\b/i',
+      // English: UI element + missing/gone.
+      '/\b(button|option|categor|chip|link|section|menu)\w*\s*(missing|gone|disappeared|not there|broken)\b/i',
+      // English: nothing + display verb.
+      '/\bnothing\s+(happen|show|appear|load|display|work)\w*\b/i',
+      // English: can't/don't see + UI element.
+      '/\b(can\'t|don\'t|cannot|cant|dont)\s+see\s+(the|any|my)?\s*(button|option|categor|chip|link|result|choice|menu)\w*/i',
+      // Spanish.
+      '/\b(no\s*(se\s*)?muestra|no\s*aparece|no\s*funciona|no\s*carga)\b/i',
+      '/\bno\s*(se\s*)?(ven|veo)\s*(los|las|ningun|ninguna)?\s*(boton|opcion|categor|enlace)/i',
+    ];
+
+    foreach ($patterns as $pattern) {
+      if (preg_match($pattern, $message)) {
+        return [
+          'type' => 'ui_troubleshooting',
+          'confidence' => 0.90,
+          'reason' => 'ui_complaint_detected',
+        ];
+      }
     }
 
     return NULL;
