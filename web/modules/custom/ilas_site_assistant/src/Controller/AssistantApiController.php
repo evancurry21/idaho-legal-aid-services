@@ -30,6 +30,7 @@ use Drupal\ilas_site_assistant\Service\SafetyViolationTracker;
 use Drupal\ilas_site_assistant\Service\ConversationLogger;
 use Drupal\ilas_site_assistant\Service\AbTestingService;
 use Drupal\ilas_site_assistant\Service\LangfuseTracer;
+use Drupal\ilas_site_assistant\Service\SourceGovernanceService;
 use Drupal\Component\Uuid\Php as UuidGenerator;
 use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
@@ -190,6 +191,13 @@ class AssistantApiController extends ControllerBase {
   protected $langfuseTracer;
 
   /**
+   * The source freshness/provenance governance service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\SourceGovernanceService|null
+   */
+  protected $sourceGovernance;
+
+  /**
    * The Top Intents Pack service.
    *
    * @var \Drupal\ilas_site_assistant\Service\TopIntentsPack|null
@@ -242,7 +250,8 @@ class AssistantApiController extends ControllerBase {
     AbTestingService $ab_testing = NULL,
     SafetyViolationTracker $violation_tracker = NULL,
     LangfuseTracer $langfuse_tracer = NULL,
-    TopIntentsPack $top_intents_pack = NULL
+    TopIntentsPack $top_intents_pack = NULL,
+    SourceGovernanceService $source_governance = NULL
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -266,6 +275,7 @@ class AssistantApiController extends ControllerBase {
     $this->violationTracker = $violation_tracker;
     $this->langfuseTracer = $langfuse_tracer;
     $this->topIntentsPack = $top_intents_pack;
+    $this->sourceGovernance = $source_governance;
   }
 
   /**
@@ -294,7 +304,8 @@ class AssistantApiController extends ControllerBase {
       $container->has('ilas_site_assistant.ab_testing') ? $container->get('ilas_site_assistant.ab_testing') : NULL,
       $container->has('ilas_site_assistant.safety_violation_tracker') ? $container->get('ilas_site_assistant.safety_violation_tracker') : NULL,
       $container->has('ilas_site_assistant.langfuse_tracer') ? $container->get('ilas_site_assistant.langfuse_tracer') : NULL,
-      $container->has('ilas_site_assistant.top_intents_pack') ? $container->get('ilas_site_assistant.top_intents_pack') : NULL
+      $container->has('ilas_site_assistant.top_intents_pack') ? $container->get('ilas_site_assistant.top_intents_pack') : NULL,
+      $container->has('ilas_site_assistant.source_governance') ? $container->get('ilas_site_assistant.source_governance') : NULL
     );
   }
 
@@ -463,13 +474,15 @@ class AssistantApiController extends ControllerBase {
       if (count($server_history) >= 3) {
         $recent_messages = array_column(array_slice($server_history, -3), 'text');
         if (count(array_unique($recent_messages)) === 1 && $recent_messages[0] === PiiRedactor::redactForStorage($user_message, 200)) {
-          return $this->jsonResponse([
+          $response_data = [
             'type' => 'escalation',
             'escalation_type' => 'repeated',
             'message' => (string) $this->t('It looks like you may be having trouble. Please call our Legal Advice Line for direct assistance.'),
             'actions' => $this->getEscalationActions(),
             'request_id' => $request_id,
-          ], 200, [], $request_id);
+          ];
+          $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
+          return $this->jsonResponse($response_data, 200, [], $request_id);
         }
       }
     }
@@ -591,6 +604,7 @@ class AssistantApiController extends ControllerBase {
           )
         );
 
+        $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
         return $this->jsonResponse($response_data, 200, [], $request_id);
       }
 
@@ -679,6 +693,7 @@ class AssistantApiController extends ControllerBase {
           )
         );
 
+        $response_data = $this->assembleContractFields($response_data, NULL, 'oos');
         return $this->jsonResponse($response_data, 200, [], $request_id);
       }
 
@@ -749,6 +764,7 @@ class AssistantApiController extends ControllerBase {
         )
       );
 
+      $response_data = $this->assembleContractFields($response_data, NULL, 'policy');
       return $this->jsonResponse($response_data, 200, [], $request_id);
     }
 
@@ -1026,7 +1042,7 @@ class AssistantApiController extends ControllerBase {
       $this->langfuseTracer?->startSpan('response.ground');
       $response = $this->responseGrounder->groundResponse($response, $response['results']);
       $this->langfuseTracer?->endSpan([
-        'citations_added' => !empty($response['citations']),
+        'citations_added' => !empty($response['sources']),
       ]);
       if ($debug_mode) {
         $debug_meta['processing_stages'][] = 'response_grounded';
@@ -1041,6 +1057,17 @@ class AssistantApiController extends ControllerBase {
       // Capture retrieval results (IDs/URLs only, no content).
       if (!empty($response['results'])) {
         $debug_meta['retrieval_results'] = $this->extractRetrievalMeta($response['results']);
+      }
+    }
+
+    if ($this->sourceGovernance && !empty($response['results']) && is_array($response['results'])) {
+      try {
+        $this->sourceGovernance->recordObservationBatch($response['results']);
+      }
+      catch (\Throwable $e) {
+        $this->logger->warning('Source governance observation failed: @message', [
+          '@message' => $e->getMessage(),
+        ]);
       }
     }
 
@@ -1241,6 +1268,7 @@ class AssistantApiController extends ControllerBase {
     if ($turn_type !== TurnClassifier::TURN_NEW) {
       $response['turn_type'] = $turn_type;
     }
+    $response = $this->assembleContractFields($response, $gate_decision, 'normal');
     return $this->jsonResponse($response, 200, [], $request_id);
 
     }
@@ -1573,6 +1601,23 @@ class AssistantApiController extends ControllerBase {
 
       if (isset($result['score'])) {
         $item['score'] = $result['score'];
+      }
+      if (isset($result['source'])) {
+        $item['source'] = $result['source'];
+      }
+      if (isset($result['source_class'])) {
+        $item['source_class'] = $result['source_class'];
+      }
+      if (!empty($result['freshness']) && is_array($result['freshness'])) {
+        if (isset($result['freshness']['status'])) {
+          $item['freshness_status'] = $result['freshness']['status'];
+        }
+        if (array_key_exists('age_days', $result['freshness'])) {
+          $item['freshness_age_days'] = $result['freshness']['age_days'];
+        }
+      }
+      if (isset($result['governance_flags']) && is_array($result['governance_flags'])) {
+        $item['governance_flags'] = array_values($result['governance_flags']);
       }
 
       $meta[] = $item;
@@ -3204,6 +3249,15 @@ class AssistantApiController extends ControllerBase {
       }
     }
 
+    if ($this->sourceGovernance) {
+      $source_governance = $this->sourceGovernance->getSnapshot();
+      $checks['source_governance'] = $source_governance;
+      if (($source_governance['status'] ?? 'unknown') === 'degraded') {
+        $status = 'degraded';
+        $httpCode = 503;
+      }
+    }
+
     if ($status !== 'healthy' && $status !== 'degraded') {
       $httpCode = 503;
     }
@@ -3262,6 +3316,27 @@ class AssistantApiController extends ControllerBase {
         ->getQueueHealthStatus($sloDefinitions);
     }
 
+    if ($this->sourceGovernance) {
+      $source_governance = $this->sourceGovernance->getSnapshot();
+      $response['metrics']['source_governance'] = [
+        'status' => $source_governance['status'] ?? 'unknown',
+        'total' => $source_governance['total'] ?? 0,
+        'stale' => $source_governance['stale'] ?? 0,
+        'unknown' => $source_governance['unknown'] ?? 0,
+        'missing_source_url' => $source_governance['missing_source_url'] ?? 0,
+        'stale_ratio_pct' => $source_governance['stale_ratio_pct'] ?? 0.0,
+        'unknown_ratio_pct' => $source_governance['unknown_ratio_pct'] ?? 0.0,
+        'missing_source_url_ratio_pct' => $source_governance['missing_source_url_ratio_pct'] ?? 0.0,
+        'min_observations' => $source_governance['min_observations'] ?? 0,
+        'min_observations_met' => $source_governance['min_observations_met'] ?? FALSE,
+        'last_alert_at' => $source_governance['last_alert_at'] ?? NULL,
+        'next_alert_eligible_at' => $source_governance['next_alert_eligible_at'] ?? NULL,
+        'cooldown_seconds_remaining' => $source_governance['cooldown_seconds_remaining'] ?? 0,
+        'by_source_class' => $source_governance['by_source_class'] ?? [],
+      ];
+      $response['thresholds']['source_governance'] = $source_governance['thresholds'] ?? [];
+    }
+
     return $this->jsonResponse($response);
   }
 
@@ -3278,6 +3353,51 @@ class AssistantApiController extends ControllerBase {
    * @return bool
    *   TRUE if the origin is same-host or indeterminate (no header).
    */
+  /**
+   * Assembles formal response contract fields for 200-response paths.
+   *
+   * Adds confidence, citations[], and decision_reason to the response data.
+   * These fields surface existing internal signals as formal contract fields.
+   *
+   * @param array $response
+   *   The response data array being built.
+   * @param array|null $gate_decision
+   *   The FallbackGate decision array, or NULL for deterministic early exits.
+   * @param string $path_type
+   *   The pipeline path type: 'safety', 'oos', 'policy', or 'normal'.
+   *
+   * @return array
+   *   The response data with contract fields added.
+   */
+  private function assembleContractFields(array $response, ?array $gate_decision, string $path_type): array {
+    // confidence: float 0-1, always present on 200 responses.
+    $response['confidence'] = $gate_decision !== NULL
+      ? $gate_decision['confidence']
+      : 1.0;  // Deterministic hard-route paths (safety/OOS/policy).
+
+    // citations: formalized array from ResponseGrounder sources.
+    $response['citations'] = !empty($response['sources'])
+      ? $response['sources']
+      : [];
+
+    // decision_reason: human-readable string from reason codes.
+    $reason_code = $response['reason_code'] ?? ($gate_decision['reason_code'] ?? NULL);
+    if ($reason_code !== NULL) {
+      $descriptions = FallbackGate::getReasonCodeDescriptions();
+      $response['decision_reason'] = $descriptions[$reason_code] ?? $reason_code;
+    }
+    else {
+      $path_reasons = [
+        'safety' => 'Safety classification triggered immediate routing',
+        'oos' => 'Request classified as outside service scope',
+        'policy' => 'Policy filter triggered immediate routing',
+      ];
+      $response['decision_reason'] = $path_reasons[$path_type] ?? 'Deterministic routing';
+    }
+
+    return $response;
+  }
+
   private function isValidOrigin(Request $request): bool {
     $origin = $request->headers->get('Origin');
     $referer = $request->headers->get('Referer');

@@ -115,6 +115,12 @@ Explicit mapping:
 4. Scope boundaries remain unchanged: no live LLM rollout and no full redesign of retrieval architecture. (Refs: current-state §5, §4D; evidence-index CLAIM-119, CLAIM-060, CLAIM-065; runbook §3, §4)
 5. Residual risk remains unchanged: B-04 (sustained cron/queue load behavior) stays open and outside Sprint 3 closure. (Refs: current-state §8; evidence-index CLAIM-118, CLAIM-121; runbook §3)
 
+### Phase 1 NDO #2 disposition (2026-03-03)
+1. Phase 1 "What we will NOT do #2" is now explicitly enforceable as a scope boundary: no full redesign of retrieval architecture. (Refs: current-state §4D; evidence-index CLAIM-060, CLAIM-065, CLAIM-131; runbook §4)
+2. Enforcement is wired through a dedicated runbook verification bundle and a docs/service continuity guard test (`PhaseOneNoRetrievalArchitectureRedesignGuardTest.php`) covering roadmap/current-state/evidence/system-map/service anchors. (Refs: evidence-index CLAIM-131; runbook §4)
+3. This closure introduces boundary enforcement artifacts only and does not alter retrieval runtime behavior, retrieval pipeline architecture, or Phase 1 constraints. (Refs: current-state §4D, §5; evidence-index CLAIM-060, CLAIM-065, CLAIM-119, CLAIM-131; runbook §4)
+4. Scope boundaries remain unchanged: no live LLM rollout and no full redesign of retrieval architecture. (Refs: current-state §5, §4D; evidence-index CLAIM-119, CLAIM-060, CLAIM-065, CLAIM-131; runbook §3, §4)
+
 ### Suggested sprint breakdown
 1. Sprint 2: Sentry/Langfuse bootstrap, log schema normalization, initial SLO drafts.
 2. Sprint 3: Alert policy finalization, CI gate rollout, reliability failure matrix completion.
@@ -143,6 +149,26 @@ Explicit mapping:
 1. Retrieval contract and confidence logic pass regression thresholds. (Refs: current-state §4D, §4F; evidence-index CLAIM-062, CLAIM-086; system-map Diagram B; runbook §4)
 2. Citation coverage and low-confidence refusal metrics are within approved targets. (Refs: current-state §4D; evidence-index CLAIM-065; system-map Diagram B; runbook §4)
 3. Live LLM remains disabled pending Phase 3 readiness review. (Refs: current-state §5; evidence-index CLAIM-119; system-map Diagram B; runbook §3)
+
+### Phase 2 Objective #2 disposition (2026-03-03)
+1. Objective #2 is closed as implemented: evaluation coverage and release confidence for RAG/response correctness are formalized through repo-owned gate contracts, verification commands, and closure guard tests grounded in CLAIM-086/CLAIM-105 evidence paths. (Refs: current-state §4F; evidence-index CLAIM-086, CLAIM-105, CLAIM-132; system-map Diagram A; runbook §4)
+2. Release confidence enforcement uses branch-aware Promptfoo gate behavior (`master`/`main`/`release/*` blocking; other branches advisory), with deep multi-turn (`promptfooconfig.deep.yaml`) plus abuse/safety (`promptfooconfig.abuse.yaml`) coverage retained in gate policy. (Refs: evidence-index CLAIM-086, CLAIM-132; runbook §4)
+3. Deterministic response-correctness confidence remains contract-enforced through `VC-UNIT` and `VC-DRUPAL-UNIT` suites, including SafetyClassifier and OutOfScopeClassifier Drupal-unit coverage tied to existing gate scripts. (Refs: current-state §4F; evidence-index CLAIM-105, CLAIM-132; runbook §4)
+4. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-132; runbook §3)
+
+### Phase 2 Objective #3 disposition (2026-03-03)
+1. Objective #3 is closed as implemented: source freshness and provenance governance is now enforced through additive config policy, retrieval-result annotations, observation snapshots, health/metrics exposure, and objective-level closure guards without runtime filtering side effects. (Refs: current-state §4D, §8; evidence-index CLAIM-067, CLAIM-122, CLAIM-133; system-map Diagram A; runbook §4)
+2. Governance enforcement mode is soft-governance enforcement mode only: stale/missing/unknown conditions raise annotations, observability counters, and cooldowned alerts, while retrieval ranking/filtering behavior remains unchanged. (Refs: current-state §4D; evidence-index CLAIM-067, CLAIM-133; runbook §4)
+3. Source governance scope is locked to four source classes (`faq_lexical`, `faq_vector`, `resource_lexical`, `resource_vector`) with policy-versioned provenance metadata and freshness thresholds documented and test-locked in repo artifacts. (Refs: current-state §4D; evidence-index CLAIM-067, CLAIM-133; runbook §4)
+4. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and No broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-133; runbook §3)
+5. Follow-on governance tuning applies balanced ratio+sample degrade thresholds (`min_observations=20`, `unknown_ratio_degrade_pct=25.0`, `missing_source_url_ratio_degrade_pct=10.0`) and snapshot cooldown transparency fields (`last_alert_at`, `next_alert_eligible_at`, `cooldown_seconds_remaining`) while preserving soft-alert-only semantics. (Refs: current-state §4D, §8; evidence-index CLAIM-133; runbook §4)
+
+### Phase 2 Deliverable #1 disposition (2026-03-03)
+1. Key deliverable #1 is closed as implemented: `/assistant/api/message` 200-response contract now includes `confidence` (float 0-1), `citations[]` (formalized from ResponseGrounder sources), and `decision_reason` (human-readable string from FallbackGate reason codes or path-specific defaults). (Refs: current-state §4B, §4D; evidence-index CLAIM-134; runbook §4)
+2. Request-id normalization is verified complete (IMP-REL-02): `resolveCorrelationId()` validates UUID4, rejects invalid, and generates fallback — no additional changes needed. (Refs: current-state §4B; evidence-index CLAIM-035, CLAIM-134; runbook §4)
+3. Contract fields are injected at all five 200-response paths (safety, OOS, policy, repeated-message, normal pipeline) via `assembleContractFields()`. Error responses (4xx/5xx) are excluded and retain their minimal shape. (Refs: evidence-index CLAIM-134; runbook §4)
+4. Langfuse grounding span bug fixed: citation field check now uses `sources` (produced by ResponseGrounder) rather than `citations` (populated later by contract assembly). (Refs: evidence-index CLAIM-134)
+5. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and No broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-134; runbook §3)
 
 ### Suggested sprint breakdown
 1. Sprint 4: response contract + retrieval-confidence implementation and tests.

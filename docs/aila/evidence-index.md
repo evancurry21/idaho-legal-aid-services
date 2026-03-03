@@ -463,6 +463,18 @@ Evidence precedence used in this audit:
 - Evidence:
   - `config/search_api.index.faq_accordion_vector.yml:10-82`
   - `config/search_api.index.assistant_resources_vector.yml:10-67`
+- Addendum (2026-03-03): Phase 2 Objective #3 (`P2-OBJ-03`) formalizes source
+  freshness/provenance governance on retrieval outputs that originate from these
+  index classes. Governance metadata and health/metrics observability are
+  additive and do not introduce stale-result suppression or ranking penalties.
+- Addendum evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/SourceGovernanceService.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/FaqIndex.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/ResourceFinder.php`
+  - `docs/aila/current-state.md` (Section 4D governance row + P2-OBJ-03 addendum)
+  - `docs/aila/runbook.md` (P2-OBJ-03 verification subsection in §4)
+  - `docs/aila/roadmap.md` (Phase 2 Objective #3 disposition dated 2026-03-03)
+  - `docs/aila/evidence-index.md` (CLAIM-133)
 
 ### CLAIM-068
 - Claim: Pinecone API key entity uses config provider with empty value and runtime injection expectation.
@@ -605,6 +617,17 @@ Evidence precedence used in this audit:
   - `scripts/ci/run-external-quality-gate.sh`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneQualityGateContractTest.php`
 
+- Addendum (2026-03-03): Phase 2 Objective #2 (`P2-OBJ-02`) formalizes eval
+  coverage and release-confidence closure for RAG/response correctness using
+  branch-aware gate policy (deep multi-turn in blocking mode; abuse/safety in
+  advisory mode), runbook verification commands, and dedicated closure guard
+  tests.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Objective #2 disposition dated 2026-03-03)
+  - `docs/aila/current-state.md` (P2-OBJ-02 evaluation coverage + release confidence addendum)
+  - `docs/aila/runbook.md` (P2-OBJ-02 verification subsection in §4)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveTwoGateTest.php`
+
 ---
 
 ## Cron / Queues / Data Model / Retention
@@ -743,6 +766,16 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh`
   - `docs/aila/current-state.md` (Section 4F promptfoo + quality gate harness row)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneQualityGateContractTest.php`
+
+- Addendum (2026-03-03): Phase 2 Objective #2 (`P2-OBJ-02`) binds deterministic
+  classifier coverage into release-confidence closure criteria by coupling
+  Drupal-unit classifier suites with branch-aware Promptfoo gate controls and
+  objective-level guard tests.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Objective #2 disposition dated 2026-03-03)
+  - `docs/aila/current-state.md` (P2-OBJ-02 evaluation coverage + release confidence addendum)
+  - `docs/aila/runbook.md` (P2-OBJ-02 verification subsection in §4)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveTwoGateTest.php`
 
 ### CLAIM-106
 - Claim: LLM request payload construction does not include explicit tool/function-calling fields; payload is `contents` + `generationConfig` + `safetySettings`.
@@ -914,6 +947,16 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (Phase 1 Exit #2 Mandatory Gate Disposition)
   - `docs/aila/runbook.md` (Mandatory gate verification subsection in §4)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php` (trigger-coverage + mandatory-declaration tests)
+- Addendum (2026-03-03): Phase 2 Objective #3 (`P2-OBJ-03`) extends CLAIM-122
+  governance context by adding source freshness/provenance observability to the
+  same existing health/metrics contracts and CI-verified validation commands
+  (`VC-UNIT`, `VC-DRUPAL-UNIT`) without changing live LLM scope boundaries.
+- Addendum evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php` (`health()` and `metrics()` nested governance fields)
+  - `docs/aila/runbook.md` (P2-OBJ-03 verification subsection in §4)
+  - `docs/aila/roadmap.md` (Phase 2 Objective #3 disposition dated 2026-03-03)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveThreeGateTest.php`
+  - `docs/aila/evidence-index.md` (CLAIM-133)
 
 ---
 
@@ -1045,3 +1088,103 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/phase1-exit3-reliability-failure-matrix.txt` (reliability matrix completion runtime proof)
   - `docs/aila/backlog.md` (CI quality gate + reliability matrix stories marked done with closure linkage)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneSprintThreeGateTest.php` (Sprint 3 doc/evidence/runtime continuity lock)
+
+---
+
+## Phase 1 NDO #2 Retrieval Architecture Boundary (`P1-NDO-02`)
+
+### CLAIM-131
+- Claim: Phase 1 NDO #2 boundary ("No full redesign of retrieval architecture") is enforceable and violations are detectable via dedicated runbook verification commands plus a dedicated docs/service continuity guard test, while preserving existing retrieval runtime architecture (Search API lexical retrieval + optional vector supplement + legacy fallback).
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 1 "What we will NOT do" #2 + dated P1-NDO-02 disposition)
+  - `docs/aila/current-state.md` (Section 4D retrieval architecture shape + Phase 1 NDO #2 Boundary Enforcement Addendum)
+  - `docs/aila/runbook.md` (Phase 1 retrieval architecture boundary verification subsection in section 4)
+  - `docs/aila/system-map.mmd` (Diagram B retrieval anchors)
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml` (retrieval service anchors: `faq_index`, `resource_finder`, `ranking_enhancer`)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneNoRetrievalArchitectureRedesignGuardTest.php` (P1-NDO-02 guard test)
+
+---
+
+## Phase 2 Objective #2 Eval Coverage + Release Confidence (`P2-OBJ-02`)
+
+### CLAIM-132
+- Claim: Phase 2 Objective #2 (`P2-OBJ-02`) is closed in-repo: evaluation
+  coverage and release confidence for RAG/response correctness are formalized
+  through branch-aware Promptfoo gate policy, required PHPUnit validation
+  commands (`VC-UNIT`, `VC-DRUPAL-UNIT`), and objective-level guard tests,
+  without enabling live LLM or introducing broad platform migration changes.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Objective #2 disposition dated 2026-03-03)
+  - `docs/aila/current-state.md` (Section 4F harness row + P2-OBJ-02 addendum)
+  - `docs/aila/runbook.md` (P2-OBJ-02 verification subsection in section 4)
+  - `docs/aila/system-map.mmd` (Diagram A Promptfoo/CI integration path anchors)
+  - `scripts/ci/run-promptfoo-gate.sh` (blocking/advisory branch-aware mode + deep/abuse config policy)
+  - `promptfoo-evals/promptfooconfig.deep.yaml` (deep multi-turn eval config)
+  - `promptfoo-evals/promptfooconfig.abuse.yaml` (abuse/safety eval config)
+  - `promptfoo-evals/tests/conversations-deep.yaml` (deep multi-turn RAG/response-correctness assertions)
+  - `promptfoo-evals/tests/abuse-safety.yaml` (abuse/safety and refusal/caveat assertion coverage)
+  - `web/modules/custom/ilas_site_assistant/tests/src/DrupalUnit/SafetyClassifierTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/DrupalUnit/OutOfScopeClassifierTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveTwoGateTest.php` (P2-OBJ-02 continuity/enforcement lock)
+
+---
+
+## Phase 2 Objective #3 Source Freshness + Provenance Governance (`P2-OBJ-03`)
+
+### CLAIM-133
+- Claim: Phase 2 Objective #3 (`P2-OBJ-03`) is closed in-repo: source
+  freshness/provenance governance is enforced through additive config policy,
+  schema coverage, runtime retrieval annotations, state-backed observation
+  snapshots, and health/metrics observability with cooldowned soft alerts only.
+  Enforcement remains non-blocking (no stale-result suppression/reranking),
+  preserves Phase 2 scope boundaries, and retains existing Pantheon baseline
+  architecture.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml` (`source_governance` defaults)
+  - `config/ilas_site_assistant.settings.yml` (`source_governance` active config)
+  - `web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml` (`source_governance` typed mapping)
+  - `web/modules/custom/ilas_site_assistant/src/Service/SourceGovernanceService.php` (annotation + snapshot + cooldowned alert behavior)
+  - `web/modules/custom/ilas_site_assistant/src/Service/FaqIndex.php` (FAQ lexical/vector source-class annotations + updated_at propagation)
+  - `web/modules/custom/ilas_site_assistant/src/Service/ResourceFinder.php` (resource lexical/vector + legacy/topic/service-path governance annotations)
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php` (observation recording + health/metrics governance exposure + retrieval debug metadata fields)
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml` (source-governance service registration + retrieval service injections)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/SourceGovernanceServiceTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveThreeGateTest.php`
+  - `docs/aila/roadmap.md` (Phase 2 Objective #3 disposition dated 2026-03-03)
+  - `docs/aila/current-state.md` (Section 4D governance row + P2-OBJ-03 addendum)
+  - `docs/aila/system-map.mmd` (Diagram A source-governance node/path anchors)
+  - `docs/aila/runbook.md` (P2-OBJ-03 verification subsection in section 4)
+- Follow-on addendum (2026-03-03): balanced ratio+sample degrade thresholds
+  are now enforced for unknown/missing governance status (`min_observations=20`,
+  `unknown_ratio_degrade_pct=25.0`, `missing_source_url_ratio_degrade_pct=10.0`)
+  while stale-ratio degradation stays unchanged. Snapshot payload now includes
+  cooldown transparency fields (`last_alert_at`, `next_alert_eligible_at`,
+  `cooldown_seconds_remaining`) to support deterministic operations checks.
+- Follow-on addendum evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/SourceGovernanceService.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/SourceGovernanceServiceTest.php`
+  - `docs/aila/runbook.md` (P2-OBJ-03 state inspection/reset workflow)
+  - `docs/aila/current-state.md` (P2-OBJ-03 follow-on tuning bullet)
+  - `docs/aila/roadmap.md` (Phase 2 Objective #3 follow-on tuning bullet)
+
+---
+
+## Phase 2 Deliverable #1 Response Contract Expansion (`P2-DEL-01`)
+
+### CLAIM-134
+- Claim: Phase 2 Deliverable #1 (`P2-DEL-01`) is closed in-repo: 200-response
+  contract includes `confidence` (float 0-1), `citations[]` (formalized from
+  ResponseGrounder sources), and `decision_reason` (human-readable string from
+  FallbackGate reason codes or path-specific defaults). Request-id normalization
+  (IMP-REL-02) is verified complete. Langfuse grounding span citation field bug
+  is fixed. Error responses (4xx/5xx) are excluded from the expanded contract.
+  Phase 2 scope constraints are preserved: no live LLM enablement, no retrieval
+  architecture redesign, no platform migration.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php` (`assembleContractFields()` method + 5 call sites)
+  - `web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php` (`getReasonCodeDescriptions()` with 13 REASON_* constants)
+  - `web/modules/custom/ilas_site_assistant/src/Service/ResponseGrounder.php` (`sources[]` production in `groundResponse()`)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableOneGateTest.php`
+  - `docs/aila/roadmap.md` (Phase 2 Deliverable #1 disposition dated 2026-03-03)
+  - `docs/aila/current-state.md` (Section 4B contract expansion row + Section 4D retrieval confidence row + P2-DEL-01 disposition)
+  - `docs/aila/runbook.md` (P2-DEL-01 verification subsection in section 4)

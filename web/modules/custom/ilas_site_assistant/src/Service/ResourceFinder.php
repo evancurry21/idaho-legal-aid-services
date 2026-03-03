@@ -92,6 +92,13 @@ class ResourceFinder {
   protected $index;
 
   /**
+   * The source freshness/provenance governance service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\SourceGovernanceService|null
+   */
+  protected $sourceGovernance;
+
+  /**
    * Cache ID for resource data.
    */
   const CACHE_ID = 'ilas_site_assistant.resources';
@@ -115,7 +122,8 @@ class ResourceFinder {
     CacheBackendInterface $cache,
     LanguageManagerInterface $language_manager,
     RankingEnhancer $ranking_enhancer = NULL,
-    ConfigFactoryInterface $config_factory = NULL
+    ConfigFactoryInterface $config_factory = NULL,
+    SourceGovernanceService $source_governance = NULL
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->topicResolver = $topic_resolver;
@@ -123,6 +131,7 @@ class ResourceFinder {
     $this->languageManager = $language_manager;
     $this->rankingEnhancer = $ranking_enhancer;
     $this->configFactory = $config_factory;
+    $this->sourceGovernance = $source_governance;
   }
 
   /**
@@ -223,6 +232,8 @@ class ResourceFinder {
         'title' => $node->getTitle(),
         'title_lower' => strtolower($node->getTitle()),
         'url' => $node->toUrl()->toString(),
+        'source_url' => $node->toUrl()->toString(),
+        'updated_at' => method_exists($node, 'getChangedTime') ? (int) $node->getChangedTime() : NULL,
         'topics' => [],
         'topic_names' => [],
         'service_areas' => [],
@@ -568,11 +579,13 @@ class ResourceFinder {
       'id' => $node->id(),
       'title' => $node->getTitle(),
       'url' => $node->toUrl()->toString(),
+      'source_url' => $node->toUrl()->toString(),
       'type' => 'resource',
       'has_file' => FALSE,
       'has_link' => FALSE,
       'description' => '',
       'topics' => [],
+      'updated_at' => method_exists($node, 'getChangedTime') ? (int) $node->getChangedTime() : NULL,
     ];
 
     // Get topics.
@@ -599,6 +612,9 @@ class ResourceFinder {
     }
 
     $item['source'] = 'lexical';
+    if ($this->sourceGovernance) {
+      $item = $this->sourceGovernance->annotateResult($item, 'resource_lexical');
+    }
 
     return $item;
   }
@@ -859,6 +875,9 @@ class ResourceFinder {
           $item['score'] = $raw_score * $normalization;
           $item['vector_score'] = $raw_score;
           $item['source'] = 'vector';
+          if ($this->sourceGovernance) {
+            $item = $this->sourceGovernance->annotateResult($item, 'resource_vector');
+          }
           $items[] = $item;
 
           if (count($items) >= $limit) {
@@ -935,14 +954,20 @@ class ResourceFinder {
           'id' => $resource['id'],
           'title' => $resource['title'],
           'url' => $resource['url'],
+          'source_url' => $resource['source_url'] ?? $resource['url'],
           'type' => $resource['type'],
           'description' => $resource['description'],
           'has_file' => $resource['has_file'],
           'has_link' => $resource['has_link'],
           'topics' => $resource['topic_names'],
+          'updated_at' => $resource['updated_at'] ?? NULL,
         ];
       }
-      return $this->rankingEnhancer->scoreResourceResults($items, $query, $type, $limit);
+      $results = $this->rankingEnhancer->scoreResourceResults($items, $query, $type, $limit);
+      if ($this->sourceGovernance) {
+        $results = $this->sourceGovernance->annotateBatch($results, 'resource_lexical');
+      }
+      return $results;
     }
 
     // Fallback to basic ranking.
@@ -989,6 +1014,7 @@ class ResourceFinder {
           'id' => $resource['id'],
           'title' => $resource['title'],
           'url' => $resource['url'],
+          'source_url' => $resource['source_url'] ?? $resource['url'],
           'type' => $resource['type'],
           'description' => $resource['description'],
           'has_file' => $resource['has_file'],
@@ -996,6 +1022,7 @@ class ResourceFinder {
           'topics' => $resource['topic_names'],
           'score' => $score,
           'source' => 'lexical',
+          'updated_at' => $resource['updated_at'] ?? NULL,
         ];
       }
     }
@@ -1005,7 +1032,11 @@ class ResourceFinder {
       return $b['score'] - $a['score'];
     });
 
-    return array_slice($results, 0, $limit);
+    $results = array_slice($results, 0, $limit);
+    if ($this->sourceGovernance) {
+      $results = $this->sourceGovernance->annotateBatch($results, 'resource_lexical');
+    }
+    return $results;
   }
 
   /**
@@ -1029,16 +1060,22 @@ class ResourceFinder {
           'id' => $resource['id'],
           'title' => $resource['title'],
           'url' => $resource['url'],
+          'source_url' => $resource['source_url'] ?? $resource['url'],
           'type' => $resource['type'],
           'description' => $resource['description'],
           'has_file' => $resource['has_file'],
           'has_link' => $resource['has_link'],
           'source' => 'lexical',
+          'updated_at' => $resource['updated_at'] ?? NULL,
         ];
       }
     }
 
-    return array_slice($results, 0, $limit);
+    $results = array_slice($results, 0, $limit);
+    if ($this->sourceGovernance) {
+      $results = $this->sourceGovernance->annotateBatch($results, 'resource_lexical');
+    }
+    return $results;
   }
 
   /**
@@ -1063,16 +1100,22 @@ class ResourceFinder {
             'id' => $resource['id'],
             'title' => $resource['title'],
             'url' => $resource['url'],
+            'source_url' => $resource['source_url'] ?? $resource['url'],
             'type' => $resource['type'],
             'description' => $resource['description'],
             'source' => 'lexical',
+            'updated_at' => $resource['updated_at'] ?? NULL,
           ];
           break;
         }
       }
     }
 
-    return array_slice($results, 0, $limit);
+    $results = array_slice($results, 0, $limit);
+    if ($this->sourceGovernance) {
+      $results = $this->sourceGovernance->annotateBatch($results, 'resource_lexical');
+    }
+    return $results;
   }
 
   /**

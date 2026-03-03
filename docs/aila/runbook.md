@@ -620,6 +620,177 @@ Expected mandatory gate result:
 - Contract tests lock trigger coverage, concurrency control, and
   documentation mandatory-gate declaration as enforced invariants.
 
+### Phase 2 evaluation coverage + release confidence verification (`P2-OBJ-02`)
+
+Use these commands to verify Objective #2:
+"Mature evaluation coverage and release confidence for RAG/response correctness."
+
+```bash
+# 1) Required validation suites (prompt-level).
+# VC-UNIT
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# VC-DRUPAL-UNIT
+vendor/bin/phpunit \
+  --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml \
+  --testsuite drupal-unit
+
+# 2) Branch-aware Promptfoo gate invariants (non-live simulation).
+ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message" \
+  CI_BRANCH=master scripts/ci/run-promptfoo-gate.sh \
+  --env dev --mode auto --skip-eval --simulate-pass-rate 85
+
+ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message" \
+  CI_BRANCH=feature/p2-obj-02 scripts/ci/run-promptfoo-gate.sh \
+  --env dev --mode auto --skip-eval --simulate-pass-rate 85
+
+# 3) Deep + abuse suite policy and assertion-family continuity checks.
+rg -n "promptfooconfig.abuse.yaml|promptfooconfig.deep.yaml|EFFECTIVE_MODE=\"blocking\"|EFFECTIVE_MODE=\"advisory\"" \
+  scripts/ci/run-promptfoo-gate.sh
+
+rg -n "theme-coherence|includes-caveat|includes-caveat-or-escalation|no-injection-compliance|relevant-bilingual-response" \
+  promptfoo-evals/tests/conversations-deep.yaml \
+  promptfoo-evals/tests/abuse-safety.yaml
+```
+
+Expected Objective #2 result:
+- `VC-UNIT` and `VC-DRUPAL-UNIT` pass with deterministic classifier coverage
+  intact (SafetyClassifier + OutOfScopeClassifier paths).
+- Promptfoo gate remains branch-aware: blocking on
+  `master`/`main`/`release/*`, advisory on other branches.
+- Blocking policy retains deep multi-turn coverage and advisory policy retains
+  abuse/safety coverage, preserving RAG/response-correctness assertion families.
+- Scope boundaries remain enforced: no live LLM enablement through Phase 2 and
+  no broad platform migration changes introduced by this verification bundle.
+
+### Phase 2 source freshness + provenance governance verification (`P2-OBJ-03`)
+
+Use these commands to verify Objective #3:
+"Enforce governance around source freshness and provenance."
+
+```bash
+# 1) Required validation suites (prompt-level).
+# VC-UNIT
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# VC-DRUPAL-UNIT
+vendor/bin/phpunit \
+  --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml \
+  --testsuite drupal-unit
+
+# 2) Objective-specific governance tests.
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/SourceGovernanceServiceTest.php
+
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveThreeGateTest.php
+
+# 3) Config/schema/service/controller governance anchors.
+rg -n "source_governance|faq_lexical|faq_vector|resource_lexical|resource_vector" \
+  web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml \
+  config/ilas_site_assistant.settings.yml \
+  web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml
+
+rg -n "ilas_site_assistant.source_governance|@ilas_site_assistant.source_governance" \
+  web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml
+
+rg -n "recordObservationBatch|source_governance|checks\\['source_governance'\\]|metrics\\['source_governance'\\]|thresholds\\['source_governance'\\]" \
+  web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+# 4) Deterministic governance-state inspection/reset workflow (local).
+ddev drush state:get ilas_site_assistant.source_governance.snapshot
+ddev drush state:get ilas_site_assistant.source_governance.last_alert
+ddev drush state:delete ilas_site_assistant.source_governance.last_alert
+
+# 5) Deterministic governance-state inspection/reset workflow (Pantheon, non-prod).
+for ENV in dev test; do
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- state:get ilas_site_assistant.source_governance.snapshot
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- state:get ilas_site_assistant.source_governance.last_alert
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- state:delete ilas_site_assistant.source_governance.last_alert
+done
+
+# Optional read-only live inspection (no delete).
+terminus remote:drush "idaho-legal-aid-services.live" -- state:get ilas_site_assistant.source_governance.snapshot
+```
+
+Expected Objective #3 result:
+- Source governance policy exists in install + active config with schema parity
+  for the four source classes (`faq_lexical`, `faq_vector`, `resource_lexical`,
+  `resource_vector`).
+- Degraded status for unknown/missing governance classes is thresholded with
+  balanced ratio+sample policy (`min_observations=20`,
+  `unknown_ratio_degrade_pct=25.0`,
+  `missing_source_url_ratio_degrade_pct=10.0`), reducing small-batch noise.
+- Retrieval outputs include additive governance metadata (`provenance`,
+  `freshness`, `governance_flags`) and observation snapshots are recorded for
+  monitoring surfaces.
+- Health and metrics contracts include nested governance fields while preserving
+  top-level metrics payload shape (`timestamp`, `metrics`, `thresholds`, `cron`, `queue`).
+- Snapshot data exposes cooldown transparency (`last_alert_at`,
+  `next_alert_eligible_at`, `cooldown_seconds_remaining`) and supports
+  deterministic state reset workflows in non-production environments.
+- Governance remains soft alerts only; no stale-result filtering or ranking penalties are introduced.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.[^CLAIM-133]
+
+### Phase 2 response contract expansion verification (`P2-DEL-01`)
+
+Use these commands to verify Deliverable #1:
+"`/assistant/api/message` contract expansion: `confidence`, `citations[]`, `decision_reason`."
+
+```bash
+# 1) Required validation suites (full).
+# VC-UNIT
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# 2) Deliverable-specific gate test.
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  --filter PhaseTwoDeliverableOneGateTest
+
+# 3) Contract expansion controller anchors.
+rg -n "assembleContractFields" \
+  web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+rg -n "confidence|citations|decision_reason" \
+  web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php | \
+  grep -v "_debug\|debug_meta\|//\|@\|CLAIM\|log\|telemetry"
+
+# 4) Verify contract fields are absent from error responses.
+rg -n "internal_error|Too many requests|Invalid content|Request too large|Missing event_type|Invalid request" \
+  web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php | \
+  grep -v "assembleContractFields"
+
+# 5) Verify Langfuse span uses correct field.
+rg -n "citations_added" \
+  web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+```
+
+Expected Deliverable #1 result:
+- `assembleContractFields` appears exactly 6 times: 1 method definition + 5 call sites
+  (safety, OOS, policy, repeated-message, normal pipeline).
+- Contract fields `confidence`, `citations`, `decision_reason` are set in the
+  method body and present on all 200-response paths.
+- Error responses (429/400/413/500) do NOT include contract expansion fields.
+- Langfuse grounding span checks `$response['sources']` (not `$response['citations']`).
+- FallbackGate `getReasonCodeDescriptions()` covers all 13 REASON_* constants.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.[^CLAIM-134]
+
 ### Phase 1 Exit #3 reliability failure matrix verification (`P1-EXT-03`)
 
 Use these commands to verify Phase 1 exit criterion #3:
@@ -722,6 +893,51 @@ done
 
 `vector-search-drift-report.txt` is a reporting artifact (non-blocking for
 release by default) and should be reviewed with retrieval-quality owners.
+
+### Phase 1 retrieval architecture boundary verification (`P1-NDO-02`)
+
+Use these commands to enforce the Phase 1 NDO #2 boundary:
+"No full redesign of retrieval architecture."
+
+Allowed scope in Phase 1:
+- Additive reliability/observability safeguards, tests, and documentation updates
+  that preserve current retrieval architecture shape.
+- Retrieval-quality hardening that keeps the existing lexical + optional vector +
+  legacy fallback structure.
+
+Prohibited scope in Phase 1:
+- Full retrieval-pipeline rewrites or replacement of the current retrieval stack.
+- Removing/replacing core retrieval service anchors without explicit roadmap
+  boundary revision and signoff.
+
+```bash
+# 1) Boundary text continuity in roadmap.
+rg -n "No full redesign of retrieval architecture|Phase 1 NDO #2 disposition \(2026-03-03\)" \
+  docs/aila/roadmap.md
+
+# 2) Current-state retrieval architecture and dated addendum continuity.
+rg -n "Retrieval services combine Search API lexical results with optional vector supplementation and legacy fallback paths|Phase 1 NDO #2 Boundary Enforcement Addendum \(2026-03-03\)|\[\^CLAIM-131\]" \
+  docs/aila/current-state.md
+
+# 3) Retrieval claim anchors + boundary claim continuity in evidence index.
+rg -n "### CLAIM-060|### CLAIM-065|### CLAIM-131|P1-NDO-02" \
+  docs/aila/evidence-index.md
+
+# 4) Diagram B retrieval anchors remain documented.
+rg -n "flowchart TD|RET\\[Retrieval|FaqIndex \\+ ResourceFinder|Search API \\+ optional vector|Early retrieval|Fallback gate decision" \
+  docs/aila/system-map.mmd
+
+# 5) Retrieval service anchors remain declared.
+rg -n "ilas_site_assistant.faq_index|ilas_site_assistant.resource_finder|ilas_site_assistant.ranking_enhancer" \
+  web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml
+
+# 6) Dedicated guard test remains present.
+rg -n "PhaseOneNoRetrievalArchitectureRedesignGuardTest" \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneNoRetrievalArchitectureRedesignGuardTest.php
+```
+
+Treat any command failure as a scope-boundary violation for `P1-NDO-02` and
+reject full retrieval-architecture redesign changes in Phase 1.
 
 ### Architectural boundary verification (`P0-NDO-03`)
 
@@ -917,3 +1133,4 @@ Run this checklist for every future audit cycle that touches assistant routing, 
 [^CLAIM-122]: [CLAIM-122](evidence-index.md#claim-122)
 [^CLAIM-125]: [CLAIM-125](evidence-index.md#claim-125)
 [^CLAIM-126]: [CLAIM-126](evidence-index.md#claim-126)
+[^CLAIM-133]: [CLAIM-133](evidence-index.md#claim-133)

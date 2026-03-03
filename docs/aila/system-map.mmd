@@ -13,6 +13,7 @@ flowchart LR
     R[Routing + Controllers\nAssistantPageController\nAssistantApiController]
     PL[Pipeline\nFlood -> Validation -> Safety -> OOS -> Policy -> Intent]
     RET[Retrieval\nFaqIndex + ResourceFinder\nSearch API + optional vector]
+    SGOV[Source governance\nfreshness + provenance\nsoft alerts + snapshot]
     GEN[Generation\nLlmEnhancer\nGemini/Vertex optional]
     DASH[Dashboard APIs\n/assistant/api/health\n/assistant/api/metrics]
     ADR[Admin report dashboard\n/admin/reports/ilas-assistant]
@@ -45,6 +46,9 @@ flowchart LR
   R --> DASH
   R --> ADR
   PL --> RET
+  RET --> SGOV
+  SGOV --> DASH
+  SGOV --> ALT
   RET --> SA
   RET -->|vector enabled| PC
   PL --> GEN

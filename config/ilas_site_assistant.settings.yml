@@ -153,6 +153,37 @@ slo:
   queue_max_depth: 10000
   queue_max_age_seconds: 3600
 
+source_governance:
+  enabled: true
+  policy_version: 'p2_obj_03_v1'
+  observation_window_hours: 24
+  stale_ratio_alert_pct: 20.0
+  min_observations: 20
+  unknown_ratio_degrade_pct: 25.0
+  missing_source_url_ratio_degrade_pct: 10.0
+  alert_cooldown_minutes: 60
+  source_classes:
+    faq_lexical:
+      provenance_label: 'search_api.index.faq_accordion'
+      owner_role: 'Content Operations Lead'
+      max_age_days: 180
+      require_source_url: true
+    faq_vector:
+      provenance_label: 'search_api.index.faq_accordion_vector'
+      owner_role: 'Content Operations Lead'
+      max_age_days: 180
+      require_source_url: true
+    resource_lexical:
+      provenance_label: 'search_api.index.assistant_resources'
+      owner_role: 'Content Operations Lead'
+      max_age_days: 180
+      require_source_url: true
+    resource_vector:
+      provenance_label: 'search_api.index.assistant_resources_vector'
+      owner_role: 'Content Operations Lead'
+      max_age_days: 180
+      require_source_url: true
+
 audit_governance:
   audit_domain_classes:
     - legal_advice

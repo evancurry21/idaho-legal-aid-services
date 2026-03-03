@@ -83,6 +83,13 @@ class FaqIndex {
   protected $rankingEnhancer;
 
   /**
+   * The source freshness/provenance governance service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\SourceGovernanceService|null
+   */
+  protected $sourceGovernance;
+
+  /**
    * The Search API index.
    *
    * @var \Drupal\search_api\IndexInterface|null
@@ -107,13 +114,15 @@ class FaqIndex {
     CacheBackendInterface $cache,
     ConfigFactoryInterface $config_factory,
     LanguageManagerInterface $language_manager,
-    RankingEnhancer $ranking_enhancer = NULL
+    RankingEnhancer $ranking_enhancer = NULL,
+    SourceGovernanceService $source_governance = NULL
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->cache = $cache;
     $this->configFactory = $config_factory;
     $this->languageManager = $language_manager;
     $this->rankingEnhancer = $ranking_enhancer;
+    $this->sourceGovernance = $source_governance;
   }
 
   /**
@@ -301,7 +310,12 @@ class FaqIndex {
     $item['parent_url'] = $parent_info['url'] ?? $this->getDefaultUrl();
     $item['url'] = $item['parent_url'] . '#' . $item['anchor'];
     $item['source_url'] = $item['url'];
+    $item['updated_at'] = $parent_info['changed'] ?? NULL;
     $item['source'] = 'lexical';
+
+    if ($this->sourceGovernance) {
+      $item = $this->sourceGovernance->annotateResult($item, 'faq_lexical');
+    }
 
     return $item;
   }
@@ -389,6 +403,9 @@ class FaqIndex {
         return [
           'title' => $parent->getTitle(),
           'url' => $parent->toUrl()->toString(),
+          'changed' => method_exists($parent, 'getChangedTime')
+            ? (int) $parent->getChangedTime()
+            : NULL,
         ];
       }
       catch (\Exception $e) {
@@ -399,6 +416,7 @@ class FaqIndex {
     return [
       'title' => NULL,
       'url' => $this->getDefaultUrl(),
+      'changed' => NULL,
     ];
   }
 
@@ -489,7 +507,12 @@ class FaqIndex {
     $item['parent_url'] = $parent_info['url'];
     $item['url'] = $item['parent_url'] . '#' . $item['anchor'];
     $item['source_url'] = $item['url'];
+    $item['updated_at'] = $parent_info['changed'] ?? NULL;
     $item['source'] = 'lexical';
+
+    if ($this->sourceGovernance) {
+      $item = $this->sourceGovernance->annotateResult($item, 'faq_lexical');
+    }
 
     return $item;
   }
@@ -775,6 +798,9 @@ class FaqIndex {
             $item['score'] = $raw_score * $normalization;
             $item['vector_score'] = $raw_score;
             $item['source'] = 'vector';
+            if ($this->sourceGovernance) {
+              $item = $this->sourceGovernance->annotateResult($item, 'faq_vector');
+            }
             $items[] = $item;
           }
         }
@@ -843,7 +869,11 @@ class FaqIndex {
 
     // Use enhanced ranking if available.
     if ($this->rankingEnhancer) {
-      return $this->rankingEnhancer->scoreFaqResults($all_items, $query, $limit);
+      $items = $this->rankingEnhancer->scoreFaqResults($all_items, $query, $limit);
+      if ($this->sourceGovernance) {
+        $items = $this->sourceGovernance->annotateBatch($items, 'faq_lexical');
+      }
+      return $items;
     }
 
     // Fallback to basic ranking.
@@ -890,7 +920,11 @@ class FaqIndex {
       return $b['score'] - $a['score'];
     });
 
-    return array_slice($results, 0, $limit);
+    $results = array_slice($results, 0, $limit);
+    if ($this->sourceGovernance) {
+      $results = $this->sourceGovernance->annotateBatch($results, 'faq_lexical');
+    }
+    return $results;
   }
 
   /**

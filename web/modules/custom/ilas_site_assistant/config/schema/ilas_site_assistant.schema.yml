@@ -380,6 +380,102 @@ ilas_site_assistant.settings:
         queue_max_age_seconds:
           type: integer
           label: 'Maximum queue item age in seconds (default: 3600)'
+    source_governance:
+      type: mapping
+      label: 'Source freshness and provenance governance settings'
+      mapping:
+        enabled:
+          type: boolean
+          label: 'Enable source freshness/provenance governance'
+        policy_version:
+          type: string
+          label: 'Governance policy version identifier'
+        observation_window_hours:
+          type: integer
+          label: 'Observation window length in hours'
+        stale_ratio_alert_pct:
+          type: float
+          label: 'Stale-source ratio alert threshold percent'
+        min_observations:
+          type: integer
+          label: 'Minimum observation count before unknown/missing ratio degradation'
+        unknown_ratio_degrade_pct:
+          type: float
+          label: 'Unknown-freshness ratio threshold percent for degraded status'
+        missing_source_url_ratio_degrade_pct:
+          type: float
+          label: 'Missing-source-url ratio threshold percent for degraded status'
+        alert_cooldown_minutes:
+          type: integer
+          label: 'Minimum minutes between stale-ratio alerts'
+        source_classes:
+          type: mapping
+          label: 'Per-source-class governance policy'
+          mapping:
+            faq_lexical:
+              type: mapping
+              label: 'FAQ lexical source policy'
+              mapping:
+                provenance_label:
+                  type: string
+                  label: 'Provenance label for FAQ lexical source'
+                owner_role:
+                  type: string
+                  label: 'Governance owner role for FAQ lexical source'
+                max_age_days:
+                  type: integer
+                  label: 'Maximum freshness age in days for FAQ lexical source'
+                require_source_url:
+                  type: boolean
+                  label: 'Whether FAQ lexical source must include source URL'
+            faq_vector:
+              type: mapping
+              label: 'FAQ vector source policy'
+              mapping:
+                provenance_label:
+                  type: string
+                  label: 'Provenance label for FAQ vector source'
+                owner_role:
+                  type: string
+                  label: 'Governance owner role for FAQ vector source'
+                max_age_days:
+                  type: integer
+                  label: 'Maximum freshness age in days for FAQ vector source'
+                require_source_url:
+                  type: boolean
+                  label: 'Whether FAQ vector source must include source URL'
+            resource_lexical:
+              type: mapping
+              label: 'Resource lexical source policy'
+              mapping:
+                provenance_label:
+                  type: string
+                  label: 'Provenance label for resource lexical source'
+                owner_role:
+                  type: string
+                  label: 'Governance owner role for resource lexical source'
+                max_age_days:
+                  type: integer
+                  label: 'Maximum freshness age in days for resource lexical source'
+                require_source_url:
+                  type: boolean
+                  label: 'Whether resource lexical source must include source URL'
+            resource_vector:
+              type: mapping
+              label: 'Resource vector source policy'
+              mapping:
+                provenance_label:
+                  type: string
+                  label: 'Provenance label for resource vector source'
+                owner_role:
+                  type: string
+                  label: 'Governance owner role for resource vector source'
+                max_age_days:
+                  type: integer
+                  label: 'Maximum freshness age in days for resource vector source'
+                require_source_url:
+                  type: boolean
+                  label: 'Whether resource vector source must include source URL'
     audit_governance:
       type: mapping
       label: 'Audit governance configuration'

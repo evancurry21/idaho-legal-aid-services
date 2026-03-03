@@ -170,6 +170,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Observability | Request completion logs include intent/safety/gate; optional Langfuse trace spans/events and Sentry tagging on failures.[^CLAIM-048][^CLAIM-079][^CLAIM-080][^CLAIM-083] |
 | Integration failure contract formalization (IMP-REL-01) | All failure paths are documented as a consolidated matrix with deterministic fallback classes (legacy_fallback, lexical_preserved, original_preserved, internal_error) and cross-cutting request_id presence. Controller catch-all, observability isolation, and correlation ID header consistency are contract-tested.[^CLAIM-048] |
 | Idempotency and replay correctness (IMP-REL-02) | Correlation IDs are verified (accept valid UUID4, reject invalid, generate fallback). Cache keys are deterministic (`ilas_conv:<uuid>`). Repeated messages produce escalation (not duplication). All responses include consistent request_id in body and X-Correlation-ID header.[^CLAIM-035][^CLAIM-046] |
+| Response contract expansion (`P2-DEL-01`) | All 200-response paths now include `confidence` (float 0-1, from FallbackGate or 1.0 for deterministic exits), `citations[]` (formalized from ResponseGrounder `sources`), and `decision_reason` (human-readable string from reason codes or path-specific defaults). Error responses (4xx/5xx) are excluded. Assembled by `assembleContractFields()` at five call sites.[^CLAIM-134] |
 
 ### C) Safety & compliance layers
 
@@ -199,6 +200,8 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Failure modes | Vector and Search API failures degrade gracefully to empty/legacy paths; FAQ has explicit legacy entity-query fallback.[^CLAIM-063][^CLAIM-065] |
 | Deterministic degrade outcomes (formalized) | Search API unavailable or query exceptions deterministically route to legacy retrieval in FAQ/resource paths. Vector index unavailable/failing paths preserve lexical/legacy output and do not propagate unhandled dependency exceptions upstream.[^CLAIM-063][^CLAIM-065] |
 | Observability | Retrieval warnings/info are logged; quality/empty-search conditions flow into analytics/no-answer capture paths.[^CLAIM-085][^CLAIM-047] |
+| Source freshness + provenance governance | Retrieval results now include additive governance metadata (`provenance`, `freshness`, `governance_flags`) across lexical/vector FAQ/resource classes. Governance remains soft alerts only: snapshots and cooldowned warnings are exposed in health/metrics surfaces without stale-result suppression, reranking, or architecture rewrite.[^CLAIM-067][^CLAIM-122][^CLAIM-133] |
+| Retrieval confidence formalization | FallbackGate `confidence` (float 0-1) and `reason_code` are now surfaced as formal response contract fields on all 200-response paths. Non-retrieval deterministic exits (safety/OOS/policy) receive `confidence: 1.0`. ResponseGrounder `sources[]` are formalized as `citations[]` in the response contract.[^CLAIM-062][^CLAIM-134] |
 
 ### E) Generation / LLM integration
 
@@ -223,7 +226,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Langfuse status | Langfuse requires config + credentials; traces capture spans/events/generations and export via terminate subscriber + queue worker.[^CLAIM-079][^CLAIM-080][^CLAIM-081][^CLAIM-082] |
 | Runtime monitoring | `PerformanceMonitor` records rolling latency/error metrics and exposes p95/p99/error/availability values with SLO-backed thresholds via `/assistant/api/health` and `/assistant/api/metrics`.[^CLAIM-084][^CLAIM-051] |
 | SLO policy + alerts | `SloDefinitions` + `SloAlertService` define/enforce availability, latency, error-rate, cron freshness, and queue depth/age SLOs with cooldowned structured warning alerts from cron.[^CLAIM-084][^CLAIM-121] |
-| Promptfoo + quality gate harness | Existing test assets are enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `master`/`main`/`release/*` and advisory behavior elsewhere. First-party workflow (`.github/workflows/quality-gate.yml`) runs both gates on `push`/`pull_request` for blocking branches, and branch protection requires `PHPUnit Quality Gate` + `Promptfoo Gate` on `master` with `enforce_admins=true`.[^CLAIM-086][^CLAIM-105][^CLAIM-122] |
+| Promptfoo + quality gate harness | Existing test assets are enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `master`/`main`/`release/*` and advisory behavior elsewhere. Blocking mode retains deep multi-turn coverage (`promptfooconfig.deep.yaml`) and advisory mode retains abuse/safety coverage (`promptfooconfig.abuse.yaml`), while dataset assertions cover RAG/response-correctness families including topical coherence, caveat/escalation behavior, and injection-resistance checks. First-party workflow (`.github/workflows/quality-gate.yml`) runs both gates on `push`/`pull_request` for blocking branches, and branch protection requires `PHPUnit Quality Gate` + `Promptfoo Gate` on `master` with `enforce_admins=true`.[^CLAIM-086][^CLAIM-105][^CLAIM-122][^CLAIM-132] |
 | Redaction posture | Sentry subscriber and analytics/conversation log codepaths apply redaction/truncation before persistence/export.[^CLAIM-053][^CLAIM-083][^CLAIM-085] |
 
 ### G) Cron/queues/background processes
@@ -328,6 +331,58 @@ Critical command groups documented there:
 |---|---|---|
 | Long-run cron cadence and queue drain timing under load | Cron samples and `system.cron_last` snapshots were captured, but no continuous observation window or non-zero queue backlog was captured in this addendum | Time-series cron observations + queue depth/throughput metrics over a sustained interval | [^CLAIM-114][^CLAIM-117][^CLAIM-118][^CLAIM-121] |
 | ~~Promptfoo CI ownership outside this repository~~ **RESOLVED** | First-party GitHub Actions workflow (`.github/workflows/quality-gate.yml`) now exists with branch protection required status checks (`PHPUnit Quality Gate` + `Promptfoo Gate`) on `master`. `enforce_admins: true` prevents bypass. Concurrency control prevents stale-run races. CI quality gate is mandatory for merge/release path. | [^CLAIM-122] |
+
+### Phase 2 Objective #3 Source Freshness + Provenance Governance Disposition (2026-03-03)
+
+This dated addendum records `P2-OBJ-03` completion for Phase 2 Objective #3:
+"Enforce governance around source freshness and provenance."
+
+1. Source freshness/provenance governance is now an enforceable in-repo contract:
+   config policy, schema coverage, runtime annotations, and guard tests are
+   aligned for four source classes (`faq_lexical`, `faq_vector`,
+   `resource_lexical`, `resource_vector`).[^CLAIM-067][^CLAIM-133]
+2. Governance behavior is explicitly soft alerts only: stale/unknown/missing
+   provenance conditions are observable via annotations, snapshots, and
+   cooldowned warnings, while retrieval filtering/ranking outputs remain
+   unchanged.[^CLAIM-067][^CLAIM-133]
+3. Monitoring surfaces now carry governance state in existing contracts:
+   health checks include `checks.source_governance`; metrics include nested
+   `metrics.source_governance` and `thresholds.source_governance` while
+   preserving top-level payload shape.[^CLAIM-122][^CLAIM-133]
+4. Scope boundaries remain unchanged for this objective closure: no live
+   production LLM enablement through Phase 2 and no broad platform migration
+   outside the current Pantheon baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-133]
+5. Follow-on tuning keeps soft-alert semantics but reduces small-sample noise:
+   degraded status for `unknown_freshness`/`missing_source_url` now uses
+   ratio+minimum-observation thresholds (`min_observations=20`,
+   `unknown_ratio_degrade_pct=25.0`, `missing_source_url_ratio_degrade_pct=10.0`)
+   while stale-ratio degradation remains unchanged. Snapshot fields expose
+   cooldown timing (`last_alert_at`, `next_alert_eligible_at`,
+   `cooldown_seconds_remaining`) for deterministic operations visibility.[^CLAIM-133]
+
+### Phase 2 Deliverable #1 Response Contract Expansion Disposition (2026-03-03)
+
+This dated addendum records `P2-DEL-01` completion for Phase 2 Key Deliverable #1:
+"`/assistant/api/message` contract expansion: `confidence`, `citations[]`, `decision_reason`, request-id normalization."
+
+1. All 200-response paths now carry three formal contract fields: `confidence`
+   (float 0-1, from FallbackGate evaluation or 1.0 for deterministic exits),
+   `citations[]` (formalized from ResponseGrounder `sources[]`), and
+   `decision_reason` (human-readable string derived from FallbackGate reason
+   codes or path-specific defaults for early exits).[^CLAIM-134]
+2. Contract fields are assembled by `assembleContractFields()` and injected at
+   five call sites: safety exit, OOS exit, policy violation exit, repeated-message
+   exit, and normal pipeline completion. Error responses (4xx/5xx) are excluded
+   and retain their minimal shape.[^CLAIM-134]
+3. Request-id normalization (IMP-REL-02) is verified complete: `resolveCorrelationId()`
+   validates UUID4, rejects invalid inputs, and generates fallback correlation IDs.
+   No additional changes were needed.[^CLAIM-035][^CLAIM-134]
+4. Langfuse grounding span bug fixed: citation field check now references
+   `$response['sources']` (produced by ResponseGrounder) instead of
+   `$response['citations']` (populated later by contract assembly).[^CLAIM-134]
+5. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-134]
 
 ### Phase 0 Exit #3 Dependency Disposition (2026-02-27)
 
@@ -502,6 +557,43 @@ This dated addendum records `P1-SBD-02` completion for Sprint 3 scope:
 5. Residual risk remains unchanged: B-04 (cron/queue throughput under load)
    remains unresolved pending sustained runtime observation.[^CLAIM-118][^CLAIM-121]
 
+### Phase 2 Objective #2 Evaluation Coverage + Release Confidence Disposition (2026-03-03)
+
+This dated addendum records `P2-OBJ-02` completion for Phase 2 Objective #2:
+"Mature evaluation coverage and release confidence for RAG/response correctness."
+
+1. Evaluation maturity is formalized as an enforceable contract across docs,
+   runbook verification commands, and guard tests anchored to CLAIM-086
+   (Promptfoo harness/gates) and CLAIM-105 (deterministic classifier coverage).[^CLAIM-086][^CLAIM-105][^CLAIM-132]
+2. Release confidence remains branch-aware and reproducible: blocking branches
+   (`master`/`main`/`release/*`) retain deep multi-turn Promptfoo coverage, while
+   advisory branches retain abuse/safety regression coverage without merge-blocking
+   semantics.[^CLAIM-086][^CLAIM-122][^CLAIM-132]
+3. Deterministic correctness confidence remains enforced through `VC-UNIT` and
+   `VC-DRUPAL-UNIT` suites, including SafetyClassifier and OutOfScopeClassifier
+   coverage paths referenced by CLAIM-105.[^CLAIM-105][^CLAIM-132]
+4. Intentional non-scope remains unchanged for this objective closure: no live
+   production LLM enablement, no broad platform migration, and no runtime response
+   contract or retrieval-behavior rewrite in this prompt scope.[^CLAIM-115][^CLAIM-119][^CLAIM-132]
+
+### Phase 1 NDO #2 Boundary Enforcement Addendum (2026-03-03)
+
+This dated addendum records `P1-NDO-02` closure for the Phase 1 scope boundary:
+"No full redesign of retrieval architecture."
+
+1. Boundary enforcement is now explicit and reproducible via a dedicated runbook
+   verification subsection for `P1-NDO-02`, including roadmap/current-state/
+   evidence/system-map/service-anchor continuity checks.[^CLAIM-131]
+2. A dedicated guard test (`PhaseOneNoRetrievalArchitectureRedesignGuardTest.php`)
+   locks Phase 1 NDO #2 text continuity, retrieval architecture shape language,
+   retrieval claims (`CLAIM-060`, `CLAIM-065`), Diagram B retrieval anchors, and
+   retrieval service anchors.[^CLAIM-060][^CLAIM-065][^CLAIM-131]
+3. Retrieval architecture remains unchanged: Search API lexical retrieval with
+   optional vector supplementation and legacy fallback paths remain the operative
+   runtime pattern.[^CLAIM-060][^CLAIM-065]
+4. Phase constraints remain unchanged: no live LLM rollout through Phase 2 and
+   no full retrieval-architecture redesign in Phase 1.[^CLAIM-119][^CLAIM-131]
+
 ---
 
 ### Evidence footnotes
@@ -621,3 +713,6 @@ This dated addendum records `P1-SBD-02` completion for Sprint 3 scope:
 [^CLAIM-128]: [CLAIM-128](evidence-index.md#claim-128)
 [^CLAIM-129]: [CLAIM-129](evidence-index.md#claim-129)
 [^CLAIM-130]: [CLAIM-130](evidence-index.md#claim-130)
+[^CLAIM-131]: [CLAIM-131](evidence-index.md#claim-131)
+[^CLAIM-132]: [CLAIM-132](evidence-index.md#claim-132)
+[^CLAIM-133]: [CLAIM-133](evidence-index.md#claim-133)
