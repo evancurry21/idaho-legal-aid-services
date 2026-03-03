@@ -108,6 +108,13 @@ Explicit mapping:
 4. Scope boundaries remain unchanged: no live LLM rollout and no full redesign of retrieval architecture. (Refs: current-state §5, §4D; evidence-index CLAIM-119, CLAIM-060, CLAIM-065; runbook §3, §4)
 5. Residual risk remains unchanged: B-04 (sustained cron/queue load behavior) stays open and outside Sprint 2 closure. (Refs: current-state §8; evidence-index CLAIM-118, CLAIM-121; runbook §3)
 
+### Phase 1 Sprint 3 disposition (2026-03-03)
+1. Sprint 3 scope is closed as implemented: alert policy finalization is verified through non-live alert/dashboard checks and SLO alert policy enforcement for availability/latency/error/cron/queue dimensions. (Refs: current-state §4F, §4G; evidence-index CLAIM-121, CLAIM-127, CLAIM-130; runbook §3)
+2. CI gate rollout is completed and mandatory for merge/release path via first-party workflow coverage (`master`/`main`/`release/**`) and branch protection required checks (`PHPUnit Quality Gate`, `Promptfoo Gate`) on `master`. (Refs: current-state §8; evidence-index CLAIM-122, CLAIM-130; runbook §3, §4)
+3. Reliability failure matrix completion is verified by local contract suites and Pantheon target-environment checks (`llm.enabled=false`, `llm.fallback_on_error=true`, `vector_search.enabled=false`) with runtime proof captured. (Refs: current-state §4B, §4D; evidence-index CLAIM-048, CLAIM-063, CLAIM-065, CLAIM-128, CLAIM-130; runbook §4)
+4. Scope boundaries remain unchanged: no live LLM rollout and no full redesign of retrieval architecture. (Refs: current-state §5, §4D; evidence-index CLAIM-119, CLAIM-060, CLAIM-065; runbook §3, §4)
+5. Residual risk remains unchanged: B-04 (sustained cron/queue load behavior) stays open and outside Sprint 3 closure. (Refs: current-state §8; evidence-index CLAIM-118, CLAIM-121; runbook §3)
+
 ### Suggested sprint breakdown
 1. Sprint 2: Sentry/Langfuse bootstrap, log schema normalization, initial SLO drafts.
 2. Sprint 3: Alert policy finalization, CI gate rollout, reliability failure matrix completion.
@@ -187,7 +194,7 @@ Explicit mapping:
 ## Critical path and blocker list
 1. **Blocker B-01 (RESOLVED 2026-03-03):** `/assistant/api/message` strict CSRF path is verified; `/assistant/api/track` follows approved same-origin mitigation and no longer blocks Phase 1 entry criterion #1. (Refs: current-state §8; evidence-index CLAIM-012, CLAIM-123; system-map Diagram B; runbook §2)
 2. **Blocker B-02 (RESOLVED 2026-03-03):** `vector_search` schema/export parity is restored and enforced by drift/schema contract tests, so cross-env retrieval tuning is no longer blocked by config parity. (Refs: current-state §4H, §5; evidence-index CLAIM-095, CLAIM-124; system-map Diagram A; runbook §4)
-3. **Blocker B-03:** CI workflow ownership/source of truth unknown blocks mandatory gate rollout. (Refs: current-state §8; evidence-index CLAIM-122; system-map Diagram A; runbook §3)
+3. **Blocker B-03 (RESOLVED 2026-03-03):** CI workflow ownership/source of truth is first-party in-repo (`.github/workflows/quality-gate.yml`) with branch-protection required checks enforcing mandatory merge/release gate behavior. (Refs: current-state §8; evidence-index CLAIM-122, CLAIM-130; system-map Diagram A; runbook §3, §4)
 4. **Blocker B-04:** Sustained cron/queue load behavior unverified blocks final SLO tuning for async telemetry pipelines. (Refs: current-state §8; evidence-index CLAIM-118, CLAIM-121; system-map Diagram B; runbook §3)
 
 ## Scope boundaries across roadmap

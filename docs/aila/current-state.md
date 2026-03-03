@@ -19,7 +19,7 @@ Aila is a Drupal custom-module assistant exposed as `/assistant` and `/assistant
 | Audit timestamp (UTC) | `2026-02-27T20:15:50Z` | [^CLAIM-001] |
 | Runtime addendum capture window (UTC) | `2026-02-26T19:19:30Z` to `2026-02-27T20:15:50Z` | [^CLAIM-108][^CLAIM-122][^CLAIM-123] |
 | Git branch | `master` | [^CLAIM-001] |
-| Git commit | `eb57c238bee95544b6752c4fa98b94cf6dbfc00a` | [^CLAIM-001] |
+| Git commit | `4cc709269a3cc8ad1073c3c4e6411d2004dc9860` | [^CLAIM-001] |
 | Worktree note | `docs/aila/` was uncommitted at capture | [^CLAIM-002] |
 | Local runtime status | Verified in DDEV: stack started, Drupal bootstrap succeeded, drush/runtime endpoint checks captured | [^CLAIM-108][^CLAIM-109][^CLAIM-111][^CLAIM-112] |
 | Environment context used | Local = code/config + runtime verification; Pantheon = direct Terminus `remote:drush` verification on dev/test/live + code/config | [^CLAIM-109][^CLAIM-115][^CLAIM-116][^CLAIM-117] |
@@ -36,7 +36,7 @@ Aila is a Drupal custom-module assistant exposed as `/assistant` and `/assistant
 | Langfuse tracing/export | Present but disabled by default | `langfuse.settings` config not present in dev/test/live; `ilas_langfuse_export` queue exists with `0` items in sampled runtime | Queue-based export on terminate/cron when enabled/configured | [^CLAIM-079][^CLAIM-082][^CLAIM-118][^CLAIM-120] |
 | Sentry integration | Conditional on secret injection | `raven.settings` config not present in dev/test/live sampled runtime | PII send disabled and payload redaction subscriber active when integration is configured | [^CLAIM-083][^CLAIM-120] |
 | GA4 tag and live rate-limit override | Not applied outside `live` env branch | Applied in `PANTHEON_ENVIRONMENT=live` branch | Sets `google_tag_id` and per-IP limits | [^CLAIM-099] |
-| Promptfoo harness | Repo-local npm scripts + provider | Pantheon target can be used via URL env var | Enforced external CI gate scripts are in-repo (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`); no first-party workflow file is the canonical gate path in this repository | [^CLAIM-086][^CLAIM-122] |
+| Promptfoo harness | Repo-local npm scripts + provider | Pantheon target can be used via URL env var | Enforced external CI gate scripts remain in-repo (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) and first-party workflow (`.github/workflows/quality-gate.yml`) is now the canonical mandatory gate path for blocking branches | [^CLAIM-086][^CLAIM-122] |
 
 Pantheon `config:status` sample results: `dev` and `test` reported no DB/sync differences; `live` reported one `core.entity_view_display.node.adept_lesson.teaser` difference.[^CLAIM-116]
 
@@ -223,7 +223,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Langfuse status | Langfuse requires config + credentials; traces capture spans/events/generations and export via terminate subscriber + queue worker.[^CLAIM-079][^CLAIM-080][^CLAIM-081][^CLAIM-082] |
 | Runtime monitoring | `PerformanceMonitor` records rolling latency/error metrics and exposes p95/p99/error/availability values with SLO-backed thresholds via `/assistant/api/health` and `/assistant/api/metrics`.[^CLAIM-084][^CLAIM-051] |
 | SLO policy + alerts | `SloDefinitions` + `SloAlertService` define/enforce availability, latency, error-rate, cron freshness, and queue depth/age SLOs with cooldowned structured warning alerts from cron.[^CLAIM-084][^CLAIM-121] |
-| Promptfoo + quality gate harness | Existing test assets are now enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `master`/`main`/`release/*` and advisory behavior elsewhere. First-party workflow ownership remains external to this repo snapshot.[^CLAIM-086][^CLAIM-105][^CLAIM-122] |
+| Promptfoo + quality gate harness | Existing test assets are enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `master`/`main`/`release/*` and advisory behavior elsewhere. First-party workflow (`.github/workflows/quality-gate.yml`) runs both gates on `push`/`pull_request` for blocking branches, and branch protection requires `PHPUnit Quality Gate` + `Promptfoo Gate` on `master` with `enforce_admins=true`.[^CLAIM-086][^CLAIM-105][^CLAIM-122] |
 | Redaction posture | Sentry subscriber and analytics/conversation log codepaths apply redaction/truncation before persistence/export.[^CLAIM-053][^CLAIM-083][^CLAIM-085] |
 
 ### G) Cron/queues/background processes
@@ -346,6 +346,9 @@ P0-EXT-03 dependency-gate disposition for Phase 1 planning:
 This dated addendum formalizes conversion of existing test assets into
 enforced quality gates while preserving the external CI ownership known
 unknown.
+
+Historical note: this disposition is superseded for merge/release enforcement by
+the Phase 1 Exit #2 Mandatory Gate Disposition (2026-03-03).
 
 1. `tests/run-quality-gate.sh` is the mandatory module-level gate and now
    enforces unit coverage, deterministic classifier Drupal-unit coverage
@@ -477,6 +480,28 @@ This dated addendum records `P1-SBD-01` completion for Sprint 2 scope:
 5. Residual risk remains unchanged: B-04 (cron/queue throughput under load) remains unresolved
    pending sustained runtime observation.[^CLAIM-118][^CLAIM-121]
 
+### Phase 1 Sprint 3 Closure Addendum (2026-03-03)
+
+This dated addendum records `P1-SBD-02` completion for Sprint 3 scope:
+"Alert policy finalization, CI gate rollout, reliability failure matrix completion."
+
+1. Alert policy finalization is locked by non-live verification coverage for
+   dashboard/controller surfaces (`/assistant/api/health`, `/assistant/api/metrics`,
+   `/admin/reports/ilas-assistant`) and SLO warning emission context validation
+   (`@slo_dimension`) captured in runtime evidence.[^CLAIM-127][^CLAIM-130]
+2. CI gate rollout is complete and mandatory on merge/release path: first-party
+   workflow triggers cover `master`/`main`/`release/**`, branch protection requires
+   `PHPUnit Quality Gate` + `Promptfoo Gate` on `master`, and contract tests lock
+   trigger/concurrency/documentation invariants.[^CLAIM-122][^CLAIM-130]
+3. Reliability failure matrix completion remains verified for local matrix suites
+   (`DependencyFailureDegradeContractTest.php`, `IntegrationFailureContractTest.php`,
+   `LlmEnhancerHardeningTest.php`) plus Pantheon target-env setting assumptions,
+   with consolidated runtime evidence retained.[^CLAIM-128][^CLAIM-130]
+4. Scope boundaries remain unchanged: no live LLM rollout and no full retrieval
+   architecture redesign.[^CLAIM-119][^CLAIM-060][^CLAIM-065]
+5. Residual risk remains unchanged: B-04 (cron/queue throughput under load)
+   remains unresolved pending sustained runtime observation.[^CLAIM-118][^CLAIM-121]
+
 ---
 
 ### Evidence footnotes
@@ -595,3 +620,4 @@ This dated addendum records `P1-SBD-01` completion for Sprint 2 scope:
 [^CLAIM-127]: [CLAIM-127](evidence-index.md#claim-127)
 [^CLAIM-128]: [CLAIM-128](evidence-index.md#claim-128)
 [^CLAIM-129]: [CLAIM-129](evidence-index.md#claim-129)
+[^CLAIM-130]: [CLAIM-130](evidence-index.md#claim-130)

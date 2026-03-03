@@ -337,6 +337,32 @@ Expected Sprint 2 verification result:
 - Scope boundaries remain enforced (`llm.enabled=false` through Phase 2; no full
   retrieval-architecture redesign).
 
+### Phase 1 Sprint 3 verification (`P1-SBD-02`)
+
+Use this bundle to verify Sprint 3 closure scope:
+"Alert policy finalization, CI gate rollout, reliability failure matrix completion."
+
+```bash
+# VC-UNIT
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# VC-QUALITY-GATE
+ddev exec bash /var/www/html/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+```
+
+Expected Sprint 3 verification result:
+- `VC-UNIT` and `VC-QUALITY-GATE` pass with Sprint 3 gate coverage included.
+- Runtime evidence summary is captured in
+  `docs/aila/runtime/phase1-sprint3-closure.txt`.
+- Linked closure artifacts remain present:
+  `docs/aila/runtime/phase1-exit1-alerts-dashboards.txt` and
+  `docs/aila/runtime/phase1-exit3-reliability-failure-matrix.txt`.
+- Scope boundaries remain enforced (`llm.enabled=false` through Phase 2; no full
+  retrieval-architecture redesign).
+
 ### Phase 1 Exit #1 non-live alerts + dashboards verification
 
 Use this command bundle to verify Phase 1 Exit criterion #1 in non-live contexts

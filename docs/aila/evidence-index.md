@@ -1028,3 +1028,20 @@ Evidence precedence used in this audit:
   - `docs/aila/runbook.md` (Phase 1 Sprint 2 verification subsection)
   - `docs/aila/backlog.md` (SLO baseline story marked done with dated closure reference)
   - `docs/aila/system-map.mmd` (Observability node includes normalized telemetry log schema)
+
+---
+
+## Phase 1 Sprint 3 Gap Closure (`P1-SBD-02`)
+
+### CLAIM-130
+- Claim: Phase 1 Sprint 3 (`P1-SBD-02`) is closed in-repo: alert policy finalization, CI gate rollout, and reliability failure matrix completion are documented, runtime-evidenced, and locked by closure contract tests without enabling live LLM or redesigning retrieval architecture.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 1 Sprint 3 disposition dated 2026-03-03 + Blocker B-03 resolved language)
+  - `docs/aila/current-state.md` (Phase 1 Sprint 3 Closure Addendum + updated quality-gate harness row)
+  - `docs/aila/runbook.md` (Phase 1 Sprint 3 verification subsection with VC-UNIT + VC-QUALITY-GATE aliases)
+  - `docs/aila/runtime/phase1-sprint3-closure.txt` (Sprint 3 command/output summary and linked artifacts)
+  - `.github/workflows/quality-gate.yml` (first-party mandatory gate workflow wiring)
+  - `docs/aila/runtime/phase1-exit1-alerts-dashboards.txt` (alert policy finalization runtime proof)
+  - `docs/aila/runtime/phase1-exit3-reliability-failure-matrix.txt` (reliability matrix completion runtime proof)
+  - `docs/aila/backlog.md` (CI quality gate + reliability matrix stories marked done with closure linkage)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneSprintThreeGateTest.php` (Sprint 3 doc/evidence/runtime continuity lock)
