@@ -227,7 +227,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Langfuse status | Langfuse requires config + credentials; traces capture spans/events/generations and export via terminate subscriber + queue worker.[^CLAIM-079][^CLAIM-080][^CLAIM-081][^CLAIM-082] |
 | Runtime monitoring | `PerformanceMonitor` records rolling latency/error metrics and exposes p95/p99/error/availability values with SLO-backed thresholds via `/assistant/api/health` and `/assistant/api/metrics`.[^CLAIM-084][^CLAIM-051] |
 | SLO policy + alerts | `SloDefinitions` + `SloAlertService` define/enforce availability, latency, error-rate, cron freshness, and queue depth/age SLOs with cooldowned structured warning alerts from cron.[^CLAIM-084][^CLAIM-121] |
-| Promptfoo + quality gate harness | Existing test assets are enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `master`/`main`/`release/*` and advisory behavior elsewhere. Blocking mode retains deep multi-turn coverage (`promptfooconfig.deep.yaml`) and advisory mode retains abuse/safety coverage (`promptfooconfig.abuse.yaml`), while dataset assertions cover RAG/response-correctness families including topical coherence, caveat/escalation behavior, injection-resistance checks, and retrieval confidence/refusal threshold metrics (`rag-contract-meta-present`, `rag-citation-coverage`, `rag-low-confidence-refusal`) enforced at 90% minimum per metric.[^CLAIM-086][^CLAIM-105][^CLAIM-122][^CLAIM-132][^CLAIM-135] |
+| Promptfoo + quality gate harness | Existing test assets are enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `master`/`main`/`release/*` and advisory behavior elsewhere. Blocking mode retains deep multi-turn coverage (`promptfooconfig.deep.yaml`) and advisory mode retains abuse/safety coverage (`promptfooconfig.abuse.yaml`), while dataset assertions cover RAG/response-correctness families including topical coherence, caveat/escalation behavior, injection-resistance checks, retrieval confidence/refusal threshold metrics (`rag-contract-meta-present`, `rag-citation-coverage`, `rag-low-confidence-refusal`), and explicit deliverable-level weak-grounding/escalation/safety-boundary scenario coverage (`p2del04-contract-meta-present`, `p2del04-weak-grounding-handling`, `p2del04-escalation-routing`, `p2del04-escalation-actionability`, `p2del04-safety-boundary-routing`, `p2del04-boundary-dampening`, `p2del04-boundary-urgent-routing`).[^CLAIM-086][^CLAIM-105][^CLAIM-122][^CLAIM-132][^CLAIM-135][^CLAIM-137] |
 | Redaction posture | Sentry subscriber and analytics/conversation log codepaths apply redaction/truncation before persistence/export.[^CLAIM-053][^CLAIM-083][^CLAIM-085] |
 
 ### G) Cron/queues/background processes
@@ -434,6 +434,31 @@ This dated addendum records `P2-DEL-03` completion for Phase 2 Key Deliverable #
    `R-GOV-02`; scope boundaries remain unchanged: no live production LLM
    enablement through Phase 2 and no broad platform migration outside the
    current Pantheon baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-136]
+
+### Phase 2 Deliverable #4 Promptfoo Dataset Expansion Disposition (2026-03-04)
+
+This dated addendum records `P2-DEL-04` completion for Phase 2 Key Deliverable #4:
+"Promptfoo dataset expansion for weak grounding, escalation, and safety boundary scenarios."
+
+1. Promptfoo regression coverage now includes a dedicated `P2-DEL-04` dataset
+   (`promptfoo-evals/tests/grounding-escalation-safety-boundaries.yaml`) with
+   36 scenarios split evenly across `weak_grounding`, `escalation`, and
+   `safety_boundary` families, each tagged in `metadata.scenario_family`.[^CLAIM-086][^CLAIM-137]
+2. The new suite asserts contract metadata continuity
+   (`confidence`, `response_type`, `response_mode`, `reason_code`,
+   `decision_reason`) and family-specific behavior checks for weak-grounding
+   handling, escalation routing/actionability, and safety-boundary
+   dampening/refusal transitions.[^CLAIM-055][^CLAIM-086][^CLAIM-105][^CLAIM-137]
+3. Gate wiring remains additive only: `promptfooconfig.abuse.yaml` includes the
+   new dataset, while branch-aware pass/fail mode and retrieval-threshold gate
+   policy remain unchanged.[^CLAIM-086][^CLAIM-135][^CLAIM-137]
+4. Deliverable closure continuity is locked via
+   `PhaseTwoDeliverableFourGateTest.php`; risk linkage is recorded to
+   `R-MNT-02` and `R-LLM-01` with conservative text updates and no status
+   transitions.[^CLAIM-105][^CLAIM-137]
+5. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-137]
 
 ### Phase 0 Exit #3 Dependency Disposition (2026-02-27)
 
@@ -770,3 +795,4 @@ This dated addendum records `P1-NDO-02` closure for the Phase 1 scope boundary:
 [^CLAIM-134]: [CLAIM-134](evidence-index.md#claim-134)
 [^CLAIM-135]: [CLAIM-135](evidence-index.md#claim-135)
 [^CLAIM-136]: [CLAIM-136](evidence-index.md#claim-136)
+[^CLAIM-137]: [CLAIM-137](evidence-index.md#claim-137)

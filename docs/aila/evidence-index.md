@@ -363,6 +363,16 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/src/Service/SafetyClassifier.php:221-267`
   - `web/modules/custom/ilas_site_assistant/src/Service/SafetyClassifier.php:594-601`
 
+- Addendum (2026-03-04): `P2-DEL-04` expands promptfoo safety-boundary
+  scenario coverage to include prompt-injection refusal behavior and
+  informational-vs-urgent boundary checks in a dedicated dataset.
+- Addendum evidence:
+  - `promptfoo-evals/tests/grounding-escalation-safety-boundaries.yaml` (`scenario_family: safety_boundary`)
+  - `docs/aila/roadmap.md` (Phase 2 Deliverable #4 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-DEL-04 dataset expansion addendum)
+  - `docs/aila/runbook.md` (P2-DEL-04 verification subsection in §4)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableFourGateTest.php`
+
 ### CLAIM-056
 - Claim: OutOfScopeClassifier is deterministic with category-specific pattern rules and dampening for informational queries.
 - Evidence:
@@ -628,6 +638,17 @@ Evidence precedence used in this audit:
   - `docs/aila/runbook.md` (P2-OBJ-02 verification subsection in §4)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveTwoGateTest.php`
 
+- Addendum (2026-03-04): Phase 2 Deliverable #4 (`P2-DEL-04`) expands the
+  abuse promptfoo config with a dedicated weak-grounding/escalation/
+  safety-boundary dataset while preserving existing branch-aware gate policy.
+- Addendum evidence:
+  - `promptfoo-evals/promptfooconfig.abuse.yaml` (includes `grounding-escalation-safety-boundaries.yaml`)
+  - `promptfoo-evals/tests/grounding-escalation-safety-boundaries.yaml`
+  - `docs/aila/roadmap.md` (Phase 2 Deliverable #4 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-DEL-04 dataset expansion addendum)
+  - `docs/aila/runbook.md` (P2-DEL-04 verification subsection in §4)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableFourGateTest.php`
+
 ---
 
 ## Cron / Queues / Data Model / Retention
@@ -776,6 +797,16 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (P2-OBJ-02 evaluation coverage + release confidence addendum)
   - `docs/aila/runbook.md` (P2-OBJ-02 verification subsection in §4)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveTwoGateTest.php`
+
+- Addendum (2026-03-04): `P2-DEL-04` extends classifier-focused promptfoo
+  regression coverage with explicit escalation and safety-boundary families and
+  closure guard enforcement anchored to deliverable-level continuity checks.
+- Addendum evidence:
+  - `promptfoo-evals/tests/grounding-escalation-safety-boundaries.yaml`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableFourGateTest.php`
+  - `docs/aila/roadmap.md` (Phase 2 Deliverable #4 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-DEL-04 dataset expansion addendum)
+  - `docs/aila/runbook.md` (P2-DEL-04 verification subsection in §4)
 
 ### CLAIM-106
 - Claim: LLM request payload construction does not include explicit tool/function-calling fields; payload is `contents` + `generationConfig` + `safetySettings`.
@@ -1242,3 +1273,24 @@ Evidence precedence used in this audit:
   - `docs/aila/system-map.mmd` (Diagram A vector-index-hygiene node/path anchors)
   - `docs/aila/backlog.md` (Retrieval Quality row moved to active mitigation for `IMP-RAG-02 / P2-DEL-03`)
   - `docs/aila/risk-register.md` (`R-RAG-02` and `R-GOV-02` moved to active mitigation with hygiene drift/overdue signals)
+
+---
+
+## Phase 2 Deliverable #4 Promptfoo Dataset Expansion (`P2-DEL-04`)
+
+### CLAIM-137
+- Claim: Phase 2 Deliverable #4 (`P2-DEL-04`) is closed in-repo: promptfoo
+  dataset coverage is expanded with explicit weak-grounding, escalation, and
+  safety-boundary scenarios (36 total, 12 per family) wired into the primary
+  abuse promptfoo config. Coverage asserts contract-metadata continuity and
+  family-specific behavior checks while preserving existing branch-aware gate
+  policy and Phase 2 scope constraints (no live LLM enablement, no broad
+  platform migration).
+- Evidence:
+  - `promptfoo-evals/tests/grounding-escalation-safety-boundaries.yaml` (36 scenarios; `metadata.scenario_family` families + `p2del04-*` metrics)
+  - `promptfoo-evals/promptfooconfig.abuse.yaml` (dataset wiring in primary abuse gate config)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableFourGateTest.php` (closure continuity/enforcement lock)
+  - `docs/aila/roadmap.md` (Phase 2 Deliverable #4 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (Section 4F harness row + P2-DEL-04 addendum)
+  - `docs/aila/runbook.md` (P2-DEL-04 verification subsection in section 4)
+  - `docs/aila/risk-register.md` (`R-MNT-02` and `R-LLM-01` conservative linkage text updates with unchanged status values)

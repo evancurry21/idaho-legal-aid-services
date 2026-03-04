@@ -932,6 +932,63 @@ Expected Deliverable #3 result:
 - Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
   no broad platform migration outside the current Pantheon baseline.[^CLAIM-136]
 
+### Phase 2 promptfoo dataset expansion verification (`P2-DEL-04`)
+
+Use these commands to verify Deliverable #4:
+"Promptfoo dataset expansion for weak grounding, escalation, and safety boundary scenarios."
+
+```bash
+# 1) Required validation suites (deliverable-level).
+# VC-UNIT
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# VC-KERNEL
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Kernel
+
+# VC-QUALITY-GATE
+ddev exec bash /var/www/html/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+
+# 2) Deliverable-specific closure guard.
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  --filter PhaseTwoDeliverableFourGateTest
+
+# 3) Promptfoo dataset wiring and family coverage anchors.
+rg -n "grounding-escalation-safety-boundaries.yaml" \
+  promptfoo-evals/promptfooconfig.abuse.yaml
+
+rg -n "scenario_family: weak_grounding|scenario_family: escalation|scenario_family: safety_boundary|p2del04-" \
+  promptfoo-evals/tests/grounding-escalation-safety-boundaries.yaml
+
+# 4) Risk-linkage continuity checks.
+rg -n "R-MNT-02|R-LLM-01|Promptfoo dataset|PhaseTwoDeliverableFourGateTest|status values remain unchanged" \
+  docs/aila/risk-register.md \
+  docs/aila/roadmap.md \
+  docs/aila/current-state.md \
+  docs/aila/evidence-index.md
+```
+
+Expected Deliverable #4 result:
+- Promptfoo abuse config includes `grounding-escalation-safety-boundaries.yaml`
+  with 36 scenarios split across `weak_grounding`, `escalation`, and
+  `safety_boundary` families.
+- Dataset assertions verify contract metadata continuity plus family-specific
+  weak-grounding handling, escalation actionability, and safety-boundary
+  dampening/refusal transitions.
+- `PhaseTwoDeliverableFourGateTest` passes and confirms roadmap/current-state/
+  runbook/evidence/risk continuity for `P2-DEL-04`.
+- Risk linkage is present for `R-MNT-02` and `R-LLM-01` with unchanged status
+  values.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.[^CLAIM-137]
+
 ### Phase 1 Exit #3 reliability failure matrix verification (`P1-EXT-03`)
 
 Use these commands to verify Phase 1 exit criterion #3:
@@ -1278,3 +1335,4 @@ Run this checklist for every future audit cycle that touches assistant routing, 
 [^CLAIM-134]: [CLAIM-134](evidence-index.md#claim-134)
 [^CLAIM-135]: [CLAIM-135](evidence-index.md#claim-135)
 [^CLAIM-136]: [CLAIM-136](evidence-index.md#claim-136)
+[^CLAIM-137]: [CLAIM-137](evidence-index.md#claim-137)

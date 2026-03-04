@@ -184,6 +184,14 @@ Explicit mapping:
 4. Backlog/risk linkage is advanced to active mitigation for vector hygiene/freshness governance risks (`R-RAG-02`, `R-GOV-02`) with drift and overdue detection signals anchored to hygiene snapshots and metadata drift fields. (Refs: current-state §8; evidence-index CLAIM-067, CLAIM-136; runbook §4)
 5. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-136; runbook §3)
 
+### Phase 2 Deliverable #4 disposition (2026-03-04)
+1. Key deliverable #4 is closed as implemented: Promptfoo dataset coverage now explicitly includes weak grounding, escalation, and safety boundary scenarios through `promptfoo-evals/tests/grounding-escalation-safety-boundaries.yaml`, wired into the primary abuse gate config (`promptfooconfig.abuse.yaml`). (Refs: current-state §4C, §4F; evidence-index CLAIM-055, CLAIM-086, CLAIM-105, CLAIM-137; system-map Diagram B; runbook §4)
+2. The new dataset adds 36 scenarios (12 per family) with explicit `metadata.scenario_family` markers (`weak_grounding`, `escalation`, `safety_boundary`) and contract-metadata assertions over `confidence`, `response_type`, `response_mode`, `reason_code`, and `decision_reason`, plus family-level safety/actionability checks. (Refs: current-state §4F; evidence-index CLAIM-086, CLAIM-137; runbook §4)
+3. Closure enforcement is anchored through runbook verification commands and a dedicated continuity guard (`PhaseTwoDeliverableFourGateTest.php`) without modifying promptfoo gate threshold policy or production runtime behavior. (Refs: evidence-index CLAIM-086, CLAIM-105, CLAIM-137; runbook §4)
+4. Backlog linkage remains unchanged for this deliverable: no direct backlog row is introduced and roadmap closure remains authoritative. (Refs: docs/aila/backlog.md; runbook §4)
+5. Risk linkage is recorded for `R-MNT-02` and `R-LLM-01` with conservative text updates only; existing risk status values remain unchanged. (Refs: docs/aila/risk-register.md; evidence-index CLAIM-137)
+6. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-137; runbook §3)
+
 ### Suggested sprint breakdown
 1. Sprint 4: response contract + retrieval-confidence implementation and tests.
 2. Sprint 5: dataset expansion, provenance/freshness workflows, threshold calibration.
