@@ -527,6 +527,103 @@ Hard gate policy:
 Store sanitized output in:
 - `docs/aila/runtime/phase2-exit3-live-llm-disabled-phase3-readiness.txt`[^CLAIM-142]
 
+### Phase 2 NDO #1 no live production LLM enablement verification (`P2-NDO-01`)
+
+Use this command bundle to verify Phase 2 "What we will NOT do #1":
+"No live production LLM enablement in this phase."
+
+```bash
+# VC-TOGGLE-CHECK
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging" \
+    docs/aila/current-state.md docs/aila/evidence-index.md
+
+# Runtime guard anchor checks
+rg -n "llm.enabled.*FALSE" web/sites/default/settings.php
+rg -n "cannot be enabled in the live environment" \
+  web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php
+rg -n "isLiveEnvironment" \
+  web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php \
+  web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php
+rg -n "isLlmEffectivelyEnabled" \
+  web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php
+
+# Guard test
+ddev exec vendor/bin/phpunit \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoNoLiveLlmProductionEnablementGuardTest.php \
+  --group=ilas_site_assistant
+```
+
+Expected `P2-NDO-01` verification result:
+- `VC-TOGGLE-CHECK` confirms `llm.enabled=false` continuity across
+  current-state and evidence-index documentation.
+- Runtime guard anchors remain present in `settings.php`,
+  `AssistantSettingsForm`, `LlmEnhancer`, and `FallbackGate`.
+- `PhaseTwoNoLiveLlmProductionEnablementGuardTest.php` passes with all
+  assertion groups enforced: roadmap disposition, current-state addendum,
+  evidence-index CLAIM-145, runbook verification bundle, runtime artifact
+  proof markers, runtime guard anchors, and `VC-TOGGLE-CHECK` alias.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase2-ndo1-no-live-llm-production-enablement.txt`[^CLAIM-145]
+
+### Phase 2 NDO #2 no broad platform migration verification (`P2-NDO-02`)
+
+Use this command bundle to verify Phase 2 "What we will NOT do #2":
+"No broad platform migration outside current Pantheon baseline."
+
+```bash
+# VC-TOGGLE-CHECK
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging" \
+    docs/aila/current-state.md docs/aila/evidence-index.md
+
+# Boundary continuity checks
+rg -n "Phase 2 NDO #2 disposition \(2026-03-05\)|No broad platform migration outside current Pantheon baseline|CLAIM-146|PhaseTwoNoBroadPlatformMigrationGuardTest.php|phase2-ndo2-no-broad-platform-migration.txt" \
+  docs/aila/roadmap.md
+
+rg -n "Phase 2 NDO #2 No Broad Platform Migration Disposition \(2026-03-05\)|P2-NDO-02|phase2-ndo2-no-broad-platform-migration.txt|\[\^CLAIM-146\]" \
+  docs/aila/current-state.md
+
+rg -n "## Phase 2 NDO #2 No Broad Platform Migration Boundary \(`P2-NDO-02`\)|### CLAIM-146|CLAIM-115|CLAIM-119|PhaseTwoNoBroadPlatformMigrationGuardTest.php" \
+  docs/aila/evidence-index.md
+
+# Pantheon baseline anchor checks
+rg -n "api_version: 1" pantheon.yml pantheon.upstream.yml
+rg -n "web_docroot: true|php_version: 8.3|database:|version: 10.6|build_step: true|protected_web_paths:" \
+  pantheon.upstream.yml
+rg -n "include __DIR__ . \"/settings.pantheon.php\";|PANTHEON_ENVIRONMENT|llm\\.enabled.*FALSE" \
+  web/sites/default/settings.php
+
+# Diagram A continuity checks
+rg -n "flowchart LR|Drupal 11 / ilas_site_assistant|External Integrations|CI\\[External CI runner|PF\\[Promptfoo harness" \
+  docs/aila/system-map.mmd
+
+# Guard test
+ddev exec vendor/bin/phpunit \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoNoBroadPlatformMigrationGuardTest.php \
+  --group=ilas_site_assistant
+```
+
+Expected `P2-NDO-02` verification result:
+- `VC-TOGGLE-CHECK` succeeds with documented toggle continuity anchors present.
+- Roadmap/current-state/evidence index continuity markers for `P2-NDO-02` and
+  `CLAIM-146` are present.
+- Pantheon baseline anchors remain present in `pantheon.yml`,
+  `pantheon.upstream.yml`, and `web/sites/default/settings.php`.
+- Diagram A continuity anchors remain unchanged and present in
+  `docs/aila/system-map.mmd`.
+- `PhaseTwoNoBroadPlatformMigrationGuardTest.php` passes with assertion groups
+  enforced for docs, runtime artifact markers, baseline anchors, and alias
+  continuity.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase2-ndo2-no-broad-platform-migration.txt`[^CLAIM-146]
+
 ### Phase 1 Exit #1 non-live alerts + dashboards verification
 
 Use this command bundle to verify Phase 1 Exit criterion #1 in non-live contexts
@@ -1693,6 +1790,10 @@ sed -E \
   - `docs/aila/runtime/phase2-exit3-live-llm-disabled-phase3-readiness.txt`[^CLAIM-142]
 - Phase 2 Sprint 5 closure proof is captured in:
   - `docs/aila/runtime/phase2-sprint5-closure.txt`[^CLAIM-144]
+- Phase 2 NDO #1 no live production LLM enablement proof is captured in:
+  - `docs/aila/runtime/phase2-ndo1-no-live-llm-production-enablement.txt`[^CLAIM-145]
+- Phase 2 NDO #2 no broad platform migration proof is captured in:
+  - `docs/aila/runtime/phase2-ndo2-no-broad-platform-migration.txt`[^CLAIM-146]
 
 ## 7) Retrospective regression checklist (mandatory)
 
@@ -1754,3 +1855,5 @@ Run this checklist for every future audit cycle that touches assistant routing, 
 [^CLAIM-142]: [CLAIM-142](evidence-index.md#claim-142)
 [^CLAIM-143]: [CLAIM-143](evidence-index.md#claim-143)
 [^CLAIM-144]: [CLAIM-144](evidence-index.md#claim-144)
+[^CLAIM-145]: [CLAIM-145](evidence-index.md#claim-145)
+[^CLAIM-146]: [CLAIM-146](evidence-index.md#claim-146)

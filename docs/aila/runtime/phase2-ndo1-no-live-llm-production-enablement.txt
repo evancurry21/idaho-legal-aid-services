@@ -1,0 +1,47 @@
+P2-NDO-01 — No Live Production LLM Enablement in Phase 2
+=========================================================
+Captured: 2026-03-04
+Guard test: PhaseTwoNoLiveLlmProductionEnablementGuardTest.php
+
+## VC-TOGGLE-CHECK output (sanitized)
+
+`VC-TOGGLE-CHECK` confirms llm.enabled=false continuity across current-state
+and evidence-index documentation:
+
+  current-state.md: llm.enabled | false | false
+  current-state.md: Verified false on dev/test/live; live runtime override enforces false
+  evidence-index.md: llm.enabled=false posture verified on dev/test/live
+
+## Runtime guard anchor verification
+
+Guard anchor checks confirm defense-in-depth layering for live LLM disablement:
+
+  guard-anchor-settings-php=present
+    settings.php contains: $config['ilas_site_assistant.settings']['llm.enabled'] = FALSE;
+    Scoped to PANTHEON_ENVIRONMENT === 'live'
+
+  guard-anchor-assistant-settings-form=present
+    AssistantSettingsForm.php contains live enforcement:
+    - Form element: '#disabled' => $is_live_environment
+    - Validation: LLM enhancement cannot be enabled in the live environment through Phase 2.
+    - Submit: if ($this->isLiveEnvironment()) { $llm_enabled = FALSE; }
+
+  guard-anchor-llm-enhancer=present
+    LlmEnhancer.php contains: protected function isLiveEnvironment(): bool
+
+  guard-anchor-fallback-gate=present
+    FallbackGate.php contains:
+    - protected function isLiveEnvironment(): bool
+    - protected function isLlmEffectivelyEnabled(): bool
+
+## VC-TOGGLE-CHECK alias continuity
+
+implementation-prompt-pack.md retains VC-TOGGLE-CHECK alias scanning:
+  llm.enabled|vector_search|rate_limit_per_minute|conversation_logging
+  against docs/aila/current-state.md docs/aila/evidence-index.md
+
+## Disposition markers
+
+p2-ndo-01-status=closed
+p2-ndo-01-enforcement=guard-test+runtime-guards
+p2-ndo-01-scope=boundary-enforcement-artifacts-only

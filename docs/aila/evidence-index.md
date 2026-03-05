@@ -1604,3 +1604,49 @@ Evidence precedence used in this audit:
   - `docs/aila/runbook.md` (P2-SBD-02 verification subsection in section 4)
   - `docs/aila/runtime/phase2-sprint5-closure.txt` (sanitized VC alias output + calibration anchors + scope guardrails)
   - `docs/aila/system-map.mmd` (verified unchanged; no new architecture edge introduced)
+
+---
+
+## Phase 2 NDO #1 No Live Production LLM Enablement Closure (`P2-NDO-01`)
+
+### CLAIM-145
+- Claim: P2-NDO-01 closed — no live production LLM enablement in Phase 2. The
+  "What we will NOT do #1" boundary is explicitly enforced through guard test
+  continuity locks and defense-in-depth runtime guards. Live LLM disablement
+  posture (`llm.enabled=false`) remains unchanged on all environments with no
+  new runtime behavior, code paths, or architecture edges introduced. This is a
+  boundary enforcement disposition only.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoNoLiveLlmProductionEnablementGuardTest.php` (P2-NDO-01 guard test)
+  - `web/sites/default/settings.php` (live hard-disable override for `llm.enabled`)
+  - `web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php` (live form/validation/submit enforcement)
+  - `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php` (`isLiveEnvironment()` guard)
+  - `web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php` (`isLiveEnvironment()`, `isLlmEffectivelyEnabled()` guards)
+  - `docs/aila/roadmap.md` (Phase 2 NDO #1 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-NDO-01 closure addendum)
+  - `docs/aila/runbook.md` (P2-NDO-01 verification subsection in section 3)
+  - `docs/aila/runtime/phase2-ndo1-no-live-llm-production-enablement.txt` (sanitized VC-TOGGLE-CHECK output + guard anchor markers)
+  - `docs/aila/implementation-prompt-pack.md` (`VC-TOGGLE-CHECK` alias continuity)
+
+---
+
+## Phase 2 NDO #2 No Broad Platform Migration Boundary (`P2-NDO-02`)
+
+### CLAIM-146
+- Claim: P2-NDO-02 closed — no broad platform migration outside current Pantheon
+  baseline in Phase 2. Boundary enforcement is explicit and reproducible via
+  documentation continuity locks, Pantheon baseline anchor checks, and a
+  dedicated guard test, with no runtime behavior changes or new platform
+  architecture edges introduced.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoNoBroadPlatformMigrationGuardTest.php` (P2-NDO-02 guard test)
+  - `docs/aila/roadmap.md` (Phase 2 NDO #2 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P2-NDO-02 closure addendum)
+  - `docs/aila/runbook.md` (P2-NDO-02 verification subsection in section 3)
+  - `docs/aila/system-map.mmd` (Diagram A continuity anchors for Pantheon baseline integration topology)
+  - `pantheon.yml` (Pantheon project-level baseline config anchor)
+  - `pantheon.upstream.yml` (Pantheon upstream baseline config anchor)
+  - `web/sites/default/settings.php` (Pantheon settings include + live override anchor continuity)
+  - `docs/aila/runtime/phase2-ndo2-no-broad-platform-migration.txt` (sanitized VC-TOGGLE-CHECK output + platform-baseline anchor markers)
+  - `docs/aila/implementation-prompt-pack.md` (`VC-TOGGLE-CHECK` alias continuity)
+  - `docs/aila/evidence-index.md` (CLAIM-115 and CLAIM-119 continuity context anchors)

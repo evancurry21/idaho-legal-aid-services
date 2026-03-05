@@ -237,6 +237,20 @@ Explicit mapping:
 5. System map continuity is unchanged for Sprint 5 scope; no diagram change required because no new architecture edge was introduced. (Refs: system-map Diagram A, Diagram B; evidence-index CLAIM-144; runbook §4)
 6. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-144; runbook §3)
 
+### Phase 2 NDO #1 disposition (2026-03-04)
+1. Phase 2 "What we will NOT do #1" is closed as enforced: no live production LLM enablement in this phase. Live LLM disablement posture remains continuously enforced through defense-in-depth runtime guards with no behavioral change. (Refs: current-state §5; evidence-index CLAIM-119, CLAIM-142, CLAIM-145; runbook §3)
+2. Enforcement is wired through guard test (`PhaseTwoNoLiveLlmProductionEnablementGuardTest.php`) plus runtime guards: `settings.php` live hard-disable, `AssistantSettingsForm` live enforcement, `LlmEnhancer` and `FallbackGate` `isLiveEnvironment()` service checks. (Refs: evidence-index CLAIM-145; runbook §3)
+3. This is a boundary enforcement disposition only — no runtime behavior change, no new code paths, no new architecture edges. (Refs: system-map Diagram B; evidence-index CLAIM-145)
+4. Runtime verification output is captured in `docs/aila/runtime/phase2-ndo1-no-live-llm-production-enablement.txt` with `VC-TOGGLE-CHECK` alias output and guard anchor verification markers. (Refs: evidence-index CLAIM-145; runbook §3)
+5. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-145; runbook §3)
+
+### Phase 2 NDO #2 disposition (2026-03-05)
+1. Phase 2 "What we will NOT do #2" is closed as enforced: no broad platform migration outside current Pantheon baseline. Pantheon baseline continuity remains unchanged across platform/runtime anchors with no broad migration actions introduced. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-146; runbook §3)
+2. Enforcement is wired through guard test (`PhaseTwoNoBroadPlatformMigrationGuardTest.php`) plus reproducible runbook verification commands that validate repository anchors in `pantheon.yml`, `pantheon.upstream.yml`, `web/sites/default/settings.php`, and Diagram A continuity in `docs/aila/system-map.mmd`. (Refs: evidence-index CLAIM-146; runbook §3)
+3. This is a boundary enforcement disposition only — no runtime behavior change, no platform-architecture edge additions, and no migration of hosting/runtime baseline beyond Pantheon. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-146; system-map Diagram A)
+4. Runtime verification output is captured in `docs/aila/runtime/phase2-ndo2-no-broad-platform-migration.txt` with `VC-TOGGLE-CHECK` alias output and platform-baseline anchor verification markers. (Refs: evidence-index CLAIM-146; runbook §3)
+5. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-146; runbook §3)
+
 ### Suggested sprint breakdown
 1. Sprint 4: response contract + retrieval-confidence implementation and tests.
 2. Sprint 5: dataset expansion, provenance/freshness workflows, threshold calibration.

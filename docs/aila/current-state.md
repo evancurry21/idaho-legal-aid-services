@@ -853,6 +853,49 @@ This dated addendum records `P1-NDO-02` closure for the Phase 1 scope boundary:
 4. Phase constraints remain unchanged: no live LLM rollout through Phase 2 and
    no full retrieval-architecture redesign in Phase 1.[^CLAIM-119][^CLAIM-131]
 
+### Phase 2 NDO #1 No Live Production LLM Enablement Disposition (2026-03-04)
+
+This dated addendum records `P2-NDO-01` closure for Phase 2 "What we will NOT
+do #1": "No live production LLM enablement in this phase."
+
+1. Live LLM disablement posture continuity is confirmed: `llm.enabled=false`
+   remains enforced on all environments through Phase 2 with no change to the
+   toggle matrix (§5) or runtime guard layering established in
+   `P2-EXT-03`.[^CLAIM-119][^CLAIM-142][^CLAIM-145]
+2. Defense-in-depth runtime guards remain layered: `settings.php` live
+   hard-disable, `AssistantSettingsForm` form/validation/submit enforcement,
+   `LlmEnhancer` and `FallbackGate` `isLiveEnvironment()` service
+   checks.[^CLAIM-099][^CLAIM-119][^CLAIM-145]
+3. Runtime verification output is captured in
+   `docs/aila/runtime/phase2-ndo1-no-live-llm-production-enablement.txt`,
+   including `VC-TOGGLE-CHECK` alias output and guard anchor verification
+   markers.[^CLAIM-145]
+4. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-145]
+
+### Phase 2 NDO #2 No Broad Platform Migration Disposition (2026-03-05)
+
+This dated addendum records `P2-NDO-02` closure for Phase 2 "What we will NOT
+do #2": "No broad platform migration outside current Pantheon baseline."
+
+1. Pantheon baseline continuity is confirmed against current-state §1 and §5:
+   environment/runtime posture and toggle matrix anchors remain unchanged for
+   Phase 2, including continued `llm.enabled=false` posture on Pantheon
+   `dev`/`test`/`live`.[^CLAIM-115][^CLAIM-119][^CLAIM-146]
+2. Platform boundary enforcement is now explicit via a dedicated guard test
+   (`PhaseTwoNoBroadPlatformMigrationGuardTest.php`) and runbook verification
+   bundle covering Pantheon config anchors (`pantheon.yml`,
+   `pantheon.upstream.yml`), settings include/override anchors in
+   `web/sites/default/settings.php`, and Diagram A continuity checks.[^CLAIM-146]
+3. Runtime verification output is captured in
+   `docs/aila/runtime/phase2-ndo2-no-broad-platform-migration.txt`,
+   including `VC-TOGGLE-CHECK` excerpts and platform-baseline anchor
+   markers.[^CLAIM-146]
+4. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-146]
+
 ---
 
 ### Evidence footnotes
@@ -986,3 +1029,5 @@ This dated addendum records `P1-NDO-02` closure for the Phase 1 scope boundary:
 [^CLAIM-142]: [CLAIM-142](evidence-index.md#claim-142)
 [^CLAIM-143]: [CLAIM-143](evidence-index.md#claim-143)
 [^CLAIM-144]: [CLAIM-144](evidence-index.md#claim-144)
+[^CLAIM-145]: [CLAIM-145](evidence-index.md#claim-145)
+[^CLAIM-146]: [CLAIM-146](evidence-index.md#claim-146)

@@ -1,0 +1,55 @@
+P2-NDO-02 - No Broad Platform Migration Outside Current Pantheon Baseline (Phase 2)
+===============================================================================
+Captured: 2026-03-05
+Guard test: PhaseTwoNoBroadPlatformMigrationGuardTest.php
+
+## VC-TOGGLE-CHECK output (sanitized)
+
+`VC-TOGGLE-CHECK` confirms toggle continuity anchors remain documented in
+current-state and evidence-index:
+
+  current-state.md: LLM master switch | `llm.enabled` | `false` | `false`
+  current-state.md: Vector supplement | `vector_search.*` | present, enabled=false
+  current-state.md: Flood per-minute | `rate_limit_per_minute` | `15`
+  evidence-index.md: CLAIM-119 documents Pantheon `llm.enabled=false` continuity
+
+## Platform baseline anchor verification
+
+Pantheon baseline anchor checks confirm no broad platform migration changes:
+
+  guard-anchor-pantheon-yml=present
+    pantheon.yml contains: api_version: 1
+
+  guard-anchor-pantheon-upstream=present
+    pantheon.upstream.yml contains:
+    - web_docroot: true
+    - php_version: 8.3
+    - database version: 10.6
+    - build_step: true
+    - protected_web_paths entries
+
+  guard-anchor-settings-pantheon-include=present
+    settings.php contains: include __DIR__ . "/settings.pantheon.php";
+    settings.php contains Pantheon environment branch anchors for live guards
+
+## Diagram A continuity verification
+
+System-map Diagram A continuity anchors remain present:
+
+  guard-anchor-system-map-diagram-a=present
+    - flowchart LR
+    - Drupal 11 / ilas_site_assistant
+    - External Integrations
+    - CI[External CI runner]
+    - PF[Promptfoo harness]
+
+## Scope boundary summary
+
+No runtime behavior change or platform migration action is introduced by this
+closure artifact set. Enforcement is boundary-governance only.
+
+## Disposition markers
+
+p2-ndo-02-status=closed
+p2-ndo-02-enforcement=guard-test+platform-baseline-anchors
+p2-ndo-02-scope=boundary-enforcement-artifacts-only
