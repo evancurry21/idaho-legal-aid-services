@@ -265,6 +265,12 @@ Explicit mapping:
 2. Finalize performance and cost guardrails with operational runbooks. (Refs: current-state §4F, §4E; evidence-index CLAIM-077, CLAIM-084; system-map Diagram A; runbook §3)
 3. Deliver release readiness package and governance attestation. (Refs: current-state §7; evidence-index CLAIM-108, CLAIM-115; system-map Diagram A; runbook §4)
 
+### Phase 3 Objective #2 disposition (2026-03-05)
+1. Objective #2 is closed as implemented: performance and cost guardrails are finalized through operational runbook verification and closure artifacts anchored to LLM call guardrails (`CLAIM-077`) and SLO/performance monitoring guardrails (`CLAIM-084`). (Refs: current-state §4E, §4F, §7; evidence-index CLAIM-077, CLAIM-084, CLAIM-147; system-map Diagram A; runbook §3)
+2. Operational verification is codified in runbook section-3 command bundles (`VC-UNIT`, `VC-DRUPAL-UNIT`) plus source-anchor checks for `LlmEnhancer`, `LlmCircuitBreaker`, `LlmRateLimiter`, `PerformanceMonitor`, and `SloAlertService`, with runtime proof captured in `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`. (Refs: evidence-index CLAIM-147; runbook §3)
+3. Governance posture is updated to active mitigation for cost pre-rollout controls (`IMP-COST-01`, `R-PERF-01`) with objective-level guard continuity enforced by `PhaseThreeObjectiveTwoGateTest.php`. (Refs: evidence-index CLAIM-147; runbook §3)
+4. Scope boundaries remain unchanged: no net-new assistant channels or third-party model expansion beyond audited providers, and no platform-wide refactor of unrelated Drupal subsystems. (Refs: current-state §1, §4E; evidence-index CLAIM-010, CLAIM-073, CLAIM-074, CLAIM-147; system-map Diagram A; runbook §3, §4)
+
 ### Key deliverables
 1. Keyboard/SR regression suite and mobile timeout/error-state acceptance tests (`IMP-UX-01`). (Refs: current-state §4A; evidence-index CLAIM-025, CLAIM-026, CLAIM-032; system-map Diagram A; runbook §2)
 2. Cost-control policy and budget guardrails (`IMP-COST-01`). (Refs: current-state §4E; evidence-index CLAIM-076, CLAIM-077, CLAIM-080; system-map Diagram A; runbook §3)

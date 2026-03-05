@@ -39,7 +39,7 @@ jobs:
       - name: Run PHPUnit pure-unit tests (VC-UNIT)
         run: vendor/bin/phpunit -c phpunit.pure.xml --colors=always
 
-      - name: Run PHPUnit drupal-unit tests (VC-KERNEL)
+      - name: Run PHPUnit drupal-unit tests (VC-DRUPAL-UNIT)
         run: vendor/bin/phpunit -c phpunit.xml --testsuite drupal-unit --colors=always
 
       - name: Run full quality gate (golden transcript only)

@@ -105,9 +105,18 @@ final class QualityGateEnforcementContractTest extends TestCase {
   public function testWorkflowTriggersCoverAllBlockingBranches(): void {
     $workflow = self::readFile('.github/workflows/quality-gate.yml');
 
+    // push section must include all blocking branches.
+    $pushPos = strpos($workflow, 'push:');
+    $this->assertNotFalse($pushPos, 'push trigger must exist in workflow');
+
     // pull_request section must include release/** for blocking branch coverage.
     $prPos = strpos($workflow, 'pull_request:');
     $this->assertNotFalse($prPos, 'pull_request trigger must exist in workflow');
+
+    $pushSection = substr($workflow, (int) $pushPos, (int) $prPos - (int) $pushPos);
+    $this->assertStringContainsString('- master', $pushSection, 'push trigger must include master');
+    $this->assertStringContainsString('- main', $pushSection, 'push trigger must include main');
+    $this->assertStringContainsString("'release/**'", $pushSection, 'push trigger must include release/**');
 
     // Find release/** after the pull_request: declaration.
     $releasePos = strpos($workflow, "release/**", $prPos);
@@ -126,6 +135,12 @@ final class QualityGateEnforcementContractTest extends TestCase {
       'cancel-in-progress:',
       $workflow,
       'Workflow must include cancel-in-progress for concurrency control'
+    );
+
+    $this->assertStringContainsString(
+      'needs: quality-gate',
+      $workflow,
+      'Promptfoo gate must explicitly depend on quality-gate job'
     );
   }
 

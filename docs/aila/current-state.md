@@ -896,6 +896,28 @@ do #2": "No broad platform migration outside current Pantheon baseline."
    Phase 2 and no broad platform migration outside the current Pantheon
    baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-146]
 
+### Phase 3 Objective #2 Performance + Cost Guardrails Operational Disposition (2026-03-05)
+
+This dated addendum records `P3-OBJ-02` closure for Phase 3 Objective #2:
+"Finalize performance and cost guardrails with operational runbooks."
+
+1. Performance and cost guardrails are now objective-level closure artifacts:
+   LLM call guardrails remain enforced through circuit-breaker and global-rate-
+   limiter integration (`CLAIM-077`), while SLO/performance monitoring guardrails
+   remain enforced through `PerformanceMonitor` + `SloAlertService` (`CLAIM-084`)
+   with no runtime architecture expansion.[^CLAIM-077][^CLAIM-084][^CLAIM-147]
+2. Runbook section-3 verification for `P3-OBJ-02` now requires `VC-UNIT` and
+   `VC-DRUPAL-UNIT` plus source-anchor checks for
+   `LlmEnhancer`/`LlmCircuitBreaker`/`LlmRateLimiter`/`PerformanceMonitor`/
+   `SloAlertService`, and captures sanitized runtime proof in
+   `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`.[^CLAIM-147]
+3. Cost governance linkage is promoted to active mitigation for
+   backlog/risk artifacts (`IMP-COST-01`, `R-PERF-01`) with closure continuity
+   enforced by `PhaseThreeObjectiveTwoGateTest.php`.[^CLAIM-147]
+4. Scope boundaries remain unchanged: no net-new assistant channels or
+   third-party model expansion beyond audited providers, and no platform-wide
+   refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-147]
+
 ---
 
 ### Evidence footnotes
@@ -1031,3 +1053,4 @@ do #2": "No broad platform migration outside current Pantheon baseline."
 [^CLAIM-144]: [CLAIM-144](evidence-index.md#claim-144)
 [^CLAIM-145]: [CLAIM-145](evidence-index.md#claim-145)
 [^CLAIM-146]: [CLAIM-146](evidence-index.md#claim-146)
+[^CLAIM-147]: [CLAIM-147](evidence-index.md#claim-147)

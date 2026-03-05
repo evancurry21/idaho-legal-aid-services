@@ -297,6 +297,63 @@ for ENV in dev test live; do
 done
 ```
 
+### Phase 3 objective #2 performance + cost guardrails operational verification (`P3-OBJ-02`)
+
+Use this command bundle to verify Phase 3 Objective #2:
+"Finalize performance and cost guardrails with operational runbooks."
+
+```bash
+# 1) Required prompt validation aliases.
+# VC-UNIT
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# VC-DRUPAL-UNIT
+vendor/bin/phpunit \
+  --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml \
+  --testsuite drupal-unit
+
+# 2) Source guardrail anchor checks (LLM + performance/SLO).
+rg -n "isLiveEnvironment|llm\\.enabled|circuitBreaker|rateLimiter|global rate limit|circuit breaker" \
+  web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php
+
+rg -n "class LlmCircuitBreaker|isAvailable|recordFailure|recordSuccess|STATE_KEY" \
+  web/modules/custom/ilas_site_assistant/src/Service/LlmCircuitBreaker.php
+
+rg -n "class LlmRateLimiter|isAllowed|recordCall|wasRateLimited|STATE_KEY" \
+  web/modules/custom/ilas_site_assistant/src/Service/LlmRateLimiter.php
+
+rg -n "class PerformanceMonitor|recordRequest|getSummary|THRESHOLD_P95_MS|THRESHOLD_ERROR_RATE" \
+  web/modules/custom/ilas_site_assistant/src/Service/PerformanceMonitor.php
+
+rg -n "class SloAlertService|checkAll|SLO violation|checkLatencySlo|checkErrorRateSlo|checkQueueSlo" \
+  web/modules/custom/ilas_site_assistant/src/Service/SloAlertService.php
+
+# 3) Objective closure guard test.
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php
+```
+
+Expected `P3-OBJ-02` verification result:
+- `VC-UNIT` and `VC-DRUPAL-UNIT` pass with objective closure guard coverage included.
+- LLM call guardrail anchors remain present in `LlmEnhancer`,
+  `LlmCircuitBreaker`, and `LlmRateLimiter` without net-new provider/channel
+  expansion.
+- Performance/SLO guardrail anchors remain present in `PerformanceMonitor` and
+  `SloAlertService`.
+- `PhaseThreeObjectiveTwoGateTest.php` passes across roadmap/current-state/
+  runbook/evidence/runtime artifact/backlog/risk continuity checks.
+- Scope boundaries remain unchanged: no net-new assistant channels or
+  third-party model expansion beyond audited providers, and no platform-wide
+  refactor of unrelated Drupal subsystems.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`[^CLAIM-147]
+
 ### Phase 1 Sprint 2 verification (`P1-SBD-01`)
 
 Use this bundle to verify Sprint 2 closure scope:
@@ -757,6 +814,45 @@ git remote rename origin pantheon
 git remote add origin git@github.com:<github-user>/<repo>.git
 git remote -v
 ```
+
+### Strict every-push workflow (current dual-remote layout)
+
+Use this when your repository remotes match current ILAS operations:
+- `github` = GitHub remote
+- `origin` = Pantheon remote
+- canonical branch = `master`
+
+Install strict pre-push enforcement (runs for every push, any remote):
+
+```bash
+bash scripts/ci/install-pre-push-strict-hook.sh
+```
+
+Canonical strict push sequence (GitHub first, then Pantheon):
+
+```bash
+ddev exec bash /var/www/html/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh \
+&& CI_BRANCH=master scripts/ci/run-promptfoo-gate.sh --env dev --mode auto \
+&& git push github master \
+&& git push origin master
+```
+
+Single-remote commands:
+
+```bash
+# GitHub only
+git push github master
+
+# Pantheon only
+git push origin master
+```
+
+Notes:
+- The strict hook runs `run-quality-gate.sh` plus branch-aware Promptfoo gate
+  checks on every push attempt.
+- If `ILAS_ASSISTANT_URL` is unset, `scripts/ci/run-promptfoo-gate.sh` will
+  attempt Pantheon URL derivation (`derive-assistant-url.sh`) for `--env dev`.
+- Bypass once (not recommended): `git push --no-verify`.
 
 ### External CI promptfoo gate (Pantheon-derived URL)
 
@@ -1794,6 +1890,8 @@ sed -E \
   - `docs/aila/runtime/phase2-ndo1-no-live-llm-production-enablement.txt`[^CLAIM-145]
 - Phase 2 NDO #2 no broad platform migration proof is captured in:
   - `docs/aila/runtime/phase2-ndo2-no-broad-platform-migration.txt`[^CLAIM-146]
+- Phase 3 Objective #2 performance + cost guardrails operational proof is captured in:
+  - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`[^CLAIM-147]
 
 ## 7) Retrospective regression checklist (mandatory)
 
@@ -1857,3 +1955,4 @@ Run this checklist for every future audit cycle that touches assistant routing, 
 [^CLAIM-144]: [CLAIM-144](evidence-index.md#claim-144)
 [^CLAIM-145]: [CLAIM-145](evidence-index.md#claim-145)
 [^CLAIM-146]: [CLAIM-146](evidence-index.md#claim-146)
+[^CLAIM-147]: [CLAIM-147](evidence-index.md#claim-147)

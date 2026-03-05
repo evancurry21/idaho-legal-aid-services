@@ -154,18 +154,27 @@ class AuditBaselineAcceptanceTest extends TestCase {
   }
 
   /**
-   * Evidence index must contain exactly 144 CLAIM headings.
+   * Evidence index CLAIM headings must be contiguous from 1..max claim ID.
    */
   public function testEvidenceIndexContainsExpectedClaimCount(): void {
     $path = self::repoRoot() . '/' . self::DOCS_PATH . '/evidence-index.md';
     $content = file_get_contents($path);
 
-    preg_match_all('/^### CLAIM-\d+/m', $content, $matches);
+    preg_match_all('/^### CLAIM-(\d+)/m', $content, $matches);
+    $claimNumbers = array_map('intval', $matches[1] ?? []);
+
+    $this->assertNotEmpty(
+      $claimNumbers,
+      'Evidence index must contain at least one CLAIM heading',
+    );
+
+    $maxClaim = max($claimNumbers);
 
     $this->assertCount(
-      144,
-      $matches[0],
-      'Evidence index must contain exactly 144 CLAIM headings (found ' . count($matches[0]) . ')',
+      $maxClaim,
+      $claimNumbers,
+      'Evidence index CLAIM headings must be contiguous from CLAIM-1 through CLAIM-' . $maxClaim .
+      ' (found ' . count($claimNumbers) . ' headings)',
     );
   }
 

@@ -571,6 +571,17 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php:590-595`
   - `web/modules/custom/ilas_site_assistant/src/Service/LlmCircuitBreaker.php:69-92`
   - `web/modules/custom/ilas_site_assistant/src/Service/LlmRateLimiter.php:76-103`
+- Addendum (2026-03-05): Phase 3 Objective #2 (`P3-OBJ-02`) finalizes
+  performance/cost guardrails operationalization by locking runbook command
+  continuity (`VC-UNIT`, `VC-DRUPAL-UNIT`), source-anchor verification for
+  LLM guardrail services, runtime proof capture, and closure guard-test
+  enforcement without net-new assistant channels or model-provider expansion.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Objective #2 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-OBJ-02 operational disposition addendum)
+  - `docs/aila/runbook.md` (P3-OBJ-02 verification subsection in section 3)
+  - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php`
 
 ### CLAIM-078
 - Claim: Post-generation legal-advice detection blocks unsafe generated output.
@@ -632,6 +643,18 @@ Evidence precedence used in this audit:
   - `docs/aila/runbook.md` (P2-ENT-01 verification subsection in §3)
   - `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoEntryCriteriaOneGateTest.php`
+- Addendum (2026-03-05): Phase 3 Objective #2 (`P3-OBJ-02`) confirms
+  performance/cost guardrails are operationally finalized through section-3
+  runbook verification for `PerformanceMonitor` + `SloAlertService`, runtime
+  proof artifact continuity, and backlog/risk active-mitigation linkage.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Objective #2 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-OBJ-02 operational disposition addendum)
+  - `docs/aila/runbook.md` (P3-OBJ-02 verification subsection in section 3)
+  - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`
+  - `docs/aila/backlog.md` (`IMP-COST-01` active mitigation row)
+  - `docs/aila/risk-register.md` (`R-PERF-01` active mitigation row)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php`
 
 ### CLAIM-085
 - Claim: Analytics logger redacts event values and stores no-answer queries as redacted/truncated hash records.
@@ -1026,7 +1049,7 @@ Evidence precedence used in this audit:
 - Inference basis: interval estimate is derived from adjacent `Cron run completed` timestamps in the sampled watchdog windows.
 
 ### CLAIM-122
-- Claim: In this repo snapshot, no first-party CI workflow file was found in repository-root CI locations, while Promptfoo execution remains script-driven and contrib dependencies include their own CI files.
+- Claim: Historical snapshot claim (captured 2026-02-26): no first-party CI workflow file was found in repository-root CI locations at that time, while Promptfoo execution remained script-driven and contrib dependencies included their own CI files. This baseline is superseded by the 2026-03-03 mandatory-gate addendum below.
 - Evidence:
   - `docs/aila/runtime/promptfoo-ci-search.txt:4-6`
   - `docs/aila/runtime/promptfoo-ci-search.txt:69-151`
@@ -1650,3 +1673,24 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/phase2-ndo2-no-broad-platform-migration.txt` (sanitized VC-TOGGLE-CHECK output + platform-baseline anchor markers)
   - `docs/aila/implementation-prompt-pack.md` (`VC-TOGGLE-CHECK` alias continuity)
   - `docs/aila/evidence-index.md` (CLAIM-115 and CLAIM-119 continuity context anchors)
+
+---
+
+## Phase 3 Objective #2 Performance + Cost Guardrails Operational Closure (`P3-OBJ-02`)
+
+### CLAIM-147
+- Claim: Phase 3 Objective #2 is closed as implemented — performance and cost
+  guardrails are finalized with operational runbooks by enforcing reproducible
+  verification (`VC-UNIT`, `VC-DRUPAL-UNIT`), LLM/performance guardrail source
+  anchors, runtime proof artifacts, and active-mitigation governance posture
+  updates (`IMP-COST-01`, `R-PERF-01`) without net-new assistant channels,
+  third-party model-provider expansion, or unrelated platform refactors.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Objective #2 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-OBJ-02 operational disposition addendum)
+  - `docs/aila/runbook.md` (P3-OBJ-02 verification subsection in section 3)
+  - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt` (sanitized VC alias output + guard-anchor proof markers)
+  - `docs/aila/backlog.md` (`IMP-COST-01` active mitigation row)
+  - `docs/aila/risk-register.md` (`R-PERF-01` active mitigation row)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php` (objective closure continuity/enforcement lock)
+  - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
