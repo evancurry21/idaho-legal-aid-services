@@ -378,7 +378,7 @@
   span {
     width: 8px;
     height: 8px;
-    background: $color-gray-text;
+    background: $color-gray-muted;
     border-radius: 50%;
     animation: assistantTyping 1.2s infinite;
 
@@ -1369,5 +1369,9 @@
   .faq-result--best,
   .resource-result--best {
     border-left-width: 5px;
+  }
+
+  .typing-indicator span {
+    background: $color-black;
   }
 }

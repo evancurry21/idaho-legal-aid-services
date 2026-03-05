@@ -64,6 +64,13 @@
       // Uses position: sticky to float at the bottom of the visible area.
       this.container.appendChild(this.jumpBtn);
 
+      // Live announcer for screen readers when jump button appears.
+      this.liveAnnouncer = document.createElement('div');
+      this.liveAnnouncer.className = 'visually-hidden';
+      this.liveAnnouncer.setAttribute('role', 'status');
+      this.liveAnnouncer.setAttribute('aria-live', 'polite');
+      this.container.appendChild(this.liveAnnouncer);
+
       // Bind events.
       var self = this;
       this.container.addEventListener('scroll', function () {
@@ -163,10 +170,12 @@
 
     _showJumpBtn: function () {
       this.jumpBtn.hidden = false;
+      this.liveAnnouncer.textContent = Drupal.t('New messages available.');
     },
 
     _hideJumpBtn: function () {
       this.jumpBtn.hidden = true;
+      this.liveAnnouncer.textContent = '';
     },
   };
 
@@ -371,19 +380,23 @@
             <span>${disclaimer}</span>
           </div>
 
-          <div class="assistant-chat" role="log" aria-live="polite"></div>
+          <div class="assistant-chat" role="log" aria-live="polite" aria-atomic="false"></div>
 
           <div class="assistant-quick-actions">
-            <button type="button" class="quick-action-btn" data-action="forms">
+            <button type="button" class="quick-action-btn" data-action="forms"
+                    aria-label="${this.escapeAttr(Drupal.t('Search forms'))}">
               <i class="fas fa-file-alt" aria-hidden="true"></i> ${Drupal.t('Forms')}
             </button>
-            <button type="button" class="quick-action-btn" data-action="guides">
+            <button type="button" class="quick-action-btn" data-action="guides"
+                    aria-label="${this.escapeAttr(Drupal.t('Browse guides'))}">
               <i class="fas fa-book" aria-hidden="true"></i> ${Drupal.t('Guides')}
             </button>
-            <button type="button" class="quick-action-btn" data-action="faq">
+            <button type="button" class="quick-action-btn" data-action="faq"
+                    aria-label="${this.escapeAttr(Drupal.t('View FAQs'))}">
               <i class="fas fa-question-circle" aria-hidden="true"></i> ${Drupal.t('FAQs')}
             </button>
-            <button type="button" class="quick-action-btn" data-action="apply">
+            <button type="button" class="quick-action-btn" data-action="apply"
+                    aria-label="${this.escapeAttr(Drupal.t('Apply for help'))}">
               <i class="fas fa-hands-helping" aria-hidden="true"></i> ${Drupal.t('Apply')}
             </button>
           </div>
@@ -393,7 +406,9 @@
                    class="assistant-input"
                    placeholder="${Drupal.t('Type your question...')}"
                    autocomplete="off"
-                   maxlength="500">
+                   maxlength="500"
+                   aria-describedby="widget-input-hint">
+            <span id="widget-input-hint" class="visually-hidden">${Drupal.t('Press Enter to send your message')}</span>
             <button type="submit" class="assistant-send-btn" aria-label="${Drupal.t('Send')}">
               <i class="fas fa-paper-plane" aria-hidden="true"></i>
             </button>
@@ -496,6 +511,11 @@
       toggle.setAttribute('aria-expanded', 'true');
       this.widget.classList.add('is-open');
       this.isOpen = true;
+
+      // Warn if offline on open.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        this.addMessage('assistant', Drupal.t('You appear to be offline. Please check your connection.'));
+      }
 
       // Focus input without causing scroll jumps.
       setTimeout(() => {
@@ -1542,7 +1562,7 @@
           recoveryText = Drupal.t('Your secure session has expired. Refresh page to restart your secure session.');
           break;
         default:
-          recoveryText = Drupal.t('Access was denied. Refresh page and try again.');
+          recoveryText = Drupal.t('Your session could not be verified. Refresh the page to start a new secure session.');
           break;
       }
 
@@ -1578,7 +1598,14 @@
           : self.widget.querySelector('.assistant-chat');
         if (chat) {
           var firstBtn = chat.querySelector('.recovery-btn--retry, .recovery-btn--refresh');
-          if (firstBtn) firstBtn.focus();
+          if (firstBtn) {
+            firstBtn.focus();
+          } else {
+            setTimeout(function () {
+              var retryBtn = chat.querySelector('.recovery-btn--retry, .recovery-btn--refresh');
+              if (retryBtn) retryBtn.focus();
+            }, 150);
+          }
         }
       });
     },
