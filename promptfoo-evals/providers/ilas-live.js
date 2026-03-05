@@ -379,6 +379,21 @@ class IlasLiveProvider {
       }
     }
 
+    if (data.office && typeof data.office === 'object') {
+      if (data.office.name) {
+        parts.push(`Office: ${absolutizeRelativePathsInText(String(data.office.name))}`);
+      }
+      if (data.office.address) {
+        parts.push(`Address: ${absolutizeRelativePathsInText(String(data.office.address))}`);
+      }
+      if (data.office.phone) {
+        parts.push(`Phone: ${absolutizeRelativePathsInText(String(data.office.phone))}`);
+      }
+      if (data.office.hours) {
+        parts.push(`Hours: ${absolutizeRelativePathsInText(String(data.office.hours))}`);
+      }
+    }
+
     if (data.primary_action?.label) {
       parts.push(
         `Primary: ${absolutizeRelativePathsInText(data.primary_action.label)} (${toAbsoluteUrl(
@@ -390,6 +405,31 @@ class IlasLiveProvider {
     if (data.caveat) {
       parts.push(absolutizeRelativePathsInText(data.caveat));
     }
+    if (data.disclaimer) {
+      parts.push(absolutizeRelativePathsInText(data.disclaimer));
+    }
+    if (data.followup) {
+      parts.push(absolutizeRelativePathsInText(data.followup));
+    }
+
+    const derivedCitationUrls = new Set();
+    if (data.url) derivedCitationUrls.add(toAbsoluteUrl(data.url));
+    if (data.primary_action?.url) derivedCitationUrls.add(toAbsoluteUrl(data.primary_action.url));
+    if (Array.isArray(data.secondary_actions)) {
+      data.secondary_actions.forEach((a) => {
+        if (a?.url) derivedCitationUrls.add(toAbsoluteUrl(a.url));
+      });
+    }
+    if (Array.isArray(data.links)) {
+      data.links.forEach((l) => {
+        if (l?.url) derivedCitationUrls.add(toAbsoluteUrl(l.url));
+      });
+    }
+    if (Array.isArray(data.results)) {
+      data.results.forEach((r) => {
+        if (r?.url) derivedCitationUrls.add(toAbsoluteUrl(r.url));
+      });
+    }
 
     const rawConfidence =
       typeof data.confidence === 'number' ? data.confidence : Number(data.confidence);
@@ -397,11 +437,14 @@ class IlasLiveProvider {
       ? Number(Math.max(0, Math.min(1, rawConfidence)).toFixed(4))
       : null;
 
+    const explicitCitationCount = Array.isArray(data.citations)
+      ? data.citations.length
+      : (Array.isArray(data.sources) ? data.sources.length : 0);
+    const fallbackCitationCount = derivedCitationUrls.size;
+
     const contractMeta = {
       confidence: normalizedConfidence,
-      citations_count: Array.isArray(data.citations)
-        ? data.citations.length
-        : (Array.isArray(data.sources) ? data.sources.length : 0),
+      citations_count: explicitCitationCount > 0 ? explicitCitationCount : fallbackCitationCount,
       response_type: data.type || null,
       response_mode: data.response_mode || null,
       reason_code: data.reason_code || null,

@@ -193,7 +193,7 @@ class ResponseBuilder {
           'label' => 'Contact Hotline',
           'url' => $this->canonicalUrls['hotline'],
         ];
-        $response['answer_text'] = 'Our Legal Advice Line can help. Here\'s the information:';
+        $response['answer_text'] = 'Our Legal Advice Line can help, and Spanish interpretation is available. Here\'s the information:';
         $response['reason_code'] = 'direct_navigation_hotline';
         break;
 

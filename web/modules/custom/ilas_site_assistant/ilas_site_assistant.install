@@ -350,6 +350,48 @@ function ilas_site_assistant_update_10004() {
 }
 
 /**
+ * Backfill cost-control policy config block for older active configs.
+ */
+function ilas_site_assistant_update_10005() {
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $cost_control = $config->get('cost_control');
+
+  if (!is_array($cost_control)) {
+    $cost_control = [];
+  }
+
+  $defaults = [
+    'daily_call_limit' => 5000,
+    'monthly_call_limit' => 100000,
+    'sample_rate' => 1.0,
+    'cache_hit_rate_target' => 0.30,
+    'cache_stats_window_seconds' => 86400,
+    'manual_kill_switch' => FALSE,
+    'pricing' => [
+      'model' => 'gemini-1.5-flash',
+      'input_per_1m_tokens' => 0.075,
+      'output_per_1m_tokens' => 0.30,
+    ],
+    'alert_cooldown_minutes' => 60,
+  ];
+
+  $merged = $cost_control + $defaults;
+
+  $pricing = $cost_control['pricing'] ?? [];
+  if (!is_array($pricing)) {
+    $pricing = [];
+  }
+  $merged['pricing'] = $pricing + $defaults['pricing'];
+
+  if ($merged === $cost_control) {
+    return t('Cost-control config block already present.');
+  }
+
+  $config->set('cost_control', $merged)->save(TRUE);
+  return t('Backfilled missing cost-control config defaults.');
+}
+
+/**
  * Implements hook_install().
  */
 function ilas_site_assistant_install() {

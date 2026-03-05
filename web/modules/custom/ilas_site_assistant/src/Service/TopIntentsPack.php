@@ -83,9 +83,16 @@ class TopIntentsPack {
     $input = mb_strtolower(trim($normalized_input));
 
     foreach ($index as $synonym => $intent_key) {
-      if ($this->matchesSynonym($input, $synonym)) {
-        return $intent_key;
+      if (!$this->matchesSynonym($input, $synonym)) {
+        continue;
       }
+
+      // Guard against routing legal complaint narratives to website feedback.
+      if ($this->shouldSkipAmbiguousFeedbackMatch($input, $intent_key, $synonym)) {
+        continue;
+      }
+
+      return $intent_key;
     }
 
     return NULL;
@@ -106,6 +113,27 @@ class TopIntentsPack {
     $pattern = '/(?<![\p{L}\p{N}_])' . $escaped . '(?![\p{L}\p{N}_])/u';
 
     return (bool) preg_match($pattern, $input);
+  }
+
+  /**
+   * Rejects feedback matches for complaint phrasing without site/service context.
+   */
+  protected function shouldSkipAmbiguousFeedbackMatch(string $input, string $intent_key, string $synonym): bool {
+    if ($intent_key !== 'feedback') {
+      return FALSE;
+    }
+
+    if (!preg_match('/\b(complaint|grievance|queja)\b/u', $input)) {
+      return FALSE;
+    }
+
+    // Allow feedback when the user clearly refers to site/service feedback.
+    $explicit_feedback_context = (bool) preg_match('/\b(website|site|service|staff|experience|feedback|review|suggestion|comment|pagina|sitio|servicio|comentario|sugerencia)\b/u', $input);
+    if ($explicit_feedback_context) {
+      return FALSE;
+    }
+
+    return TRUE;
   }
 
   /**
@@ -169,9 +197,18 @@ class TopIntentsPack {
       return $this->data;
     }
 
+    $yaml_path = dirname(__DIR__, 2) . '/config/intents/top_intents.yml';
+    $cache_key = self::CACHE_KEY;
+    if (file_exists($yaml_path)) {
+      $mtime = (int) @filemtime($yaml_path);
+      if ($mtime > 0) {
+        $cache_key .= ':' . $mtime;
+      }
+    }
+
     // Try cache first.
     if ($this->cache) {
-      $cached = $this->cache->get(self::CACHE_KEY);
+      $cached = $this->cache->get($cache_key);
       if ($cached) {
         $this->data = $cached->data;
         return $this->data;
@@ -179,7 +216,6 @@ class TopIntentsPack {
     }
 
     // Parse from YAML file.
-    $yaml_path = dirname(__DIR__, 2) . '/config/intents/top_intents.yml';
     if (!file_exists($yaml_path)) {
       $this->data = ['version' => 'missing', 'intents' => []];
       return $this->data;
@@ -189,7 +225,7 @@ class TopIntentsPack {
 
     // Cache for 1 hour.
     if ($this->cache) {
-      $this->cache->set(self::CACHE_KEY, $this->data, time() + 3600);
+      $this->cache->set($cache_key, $this->data, time() + 3600);
     }
 
     return $this->data;

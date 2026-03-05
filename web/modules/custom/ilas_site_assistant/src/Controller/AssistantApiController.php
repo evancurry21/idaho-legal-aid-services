@@ -467,6 +467,10 @@ class AssistantApiController extends ControllerBase {
       'llm_used' => FALSE,
       'processing_stages' => [],
     ] : NULL;
+    $safety_flags_for_gate = $this->detectSafetyFlags($user_message);
+    if ($debug_mode) {
+      $debug_meta['safety_flags'] = $safety_flags_for_gate;
+    }
     $context = $data['context'] ?? [];
 
     // Parse ephemeral conversation ID (client-generated UUID).
@@ -570,7 +574,7 @@ class AssistantApiController extends ControllerBase {
           $debug_meta['final_action'] = $safety_classification['requires_refusal'] ? 'refusal' : 'escalation';
           $debug_meta['reason_code'] = $safety_classification['reason_code'];
           $debug_meta['intent_selected'] = 'safety_' . $safety_classification['class'];
-          $debug_meta['safety_flags'] = $this->detectSafetyFlags($user_message);
+          $debug_meta['safety_flags'] = $safety_flags_for_gate;
         }
 
         $response_data = [
@@ -725,8 +729,6 @@ class AssistantApiController extends ControllerBase {
     $policy_result = $this->policyFilter->check($normalized_message);
 
     if ($debug_mode) {
-      // Detect safety flags from policy patterns.
-      $debug_meta['safety_flags'] = $this->detectSafetyFlags($user_message);
       $debug_meta['processing_stages'][] = 'policy_checked';
     }
 
@@ -950,6 +952,99 @@ class AssistantApiController extends ControllerBase {
       }
     }
 
+    // Follow-up continuity guard: when the user asks a generic follow-up
+    // question, preserve the prior service-area context instead of drifting
+    // into generic resources/offices navigation.
+    $followup_topic_context = HistoryIntentResolver::extractTopicContext($server_history);
+    $history_area = $followup_topic_context['area'] ?? NULL;
+    $generic_followup_intents = [
+      'unknown',
+      'resources',
+      'faq',
+      'meta_help',
+      'meta_information',
+      'services_overview',
+      'forms_finder',
+      'guides_finder',
+    ];
+    $is_acknowledgement_turn = (bool) preg_match('/\b(thanks|thank\s*you|gracias|ok(?:ay)?|got\s*it|sounds\s*good)\b/u', mb_strtolower($user_message));
+    $is_follow_up_turn = ($turn_type === TurnClassifier::TURN_FOLLOW_UP);
+
+    // Office continuity guard: if a follow-up asks for office details and
+    // office context can be resolved from recent history, force office intent.
+    if (!empty($server_history) && $this->isOfficeDetailRequest($user_message)) {
+      $office_resolver = new OfficeLocationResolver();
+      $office_from_context = $this->resolveOfficeFromMessageOrHistory($user_message, $server_history, $office_resolver);
+      if ($office_from_context) {
+        $intent = [
+          'type' => 'offices',
+          'confidence' => max(0.82, (float) ($intent['confidence'] ?? 0.0)),
+          'source' => 'office_detail_followup_context',
+          'extraction' => $intent['extraction'] ?? [],
+        ];
+      }
+    }
+
+    $intent_type = (string) ($intent['type'] ?? 'unknown');
+    $intent_area = (string) ($intent['area'] ?? '');
+    $is_contextual_legal_complaint = (
+      !empty($server_history) &&
+      $history_area &&
+      $intent_type === 'feedback' &&
+      !$this->isExplicitSiteFeedbackRequest($user_message) &&
+      (bool) preg_match('/\b(complaint|grievance|queja|file)\b/u', mb_strtolower($user_message)) &&
+      !HistoryIntentResolver::detectResetSignal($user_message)
+    );
+
+    if ($is_contextual_legal_complaint) {
+      $intent = [
+        'type' => 'service_area',
+        'area' => $history_area,
+        'topic_id' => $followup_topic_context['topic_id'] ?? NULL,
+        'topic' => $followup_topic_context['topic'] ?? NULL,
+        'confidence' => max(0.70, (float) ($intent['confidence'] ?? 0.0)),
+        'source' => 'followup_service_area_complaint_continuity',
+        'extraction' => $intent['extraction'] ?? [],
+      ];
+      $intent_type = 'service_area';
+      $intent_area = $history_area;
+    }
+
+    $service_area_drift = (
+      $is_follow_up_turn &&
+      $history_area &&
+      $intent_type === 'service_area' &&
+      $intent_area !== '' &&
+      $intent_area !== $history_area &&
+      !HistoryIntentResolver::detectResetSignal($user_message) &&
+      !$this->isExplicitServiceAreaShift($user_message, $history_area)
+    );
+
+    if (
+      !empty($server_history) &&
+      $history_area &&
+      (
+        (
+          in_array($intent_type, $generic_followup_intents, TRUE) &&
+          empty($intent['area']) &&
+          !$is_acknowledgement_turn
+        ) ||
+        $service_area_drift
+      ) &&
+      !HistoryIntentResolver::detectResetSignal($user_message) &&
+      !$this->isExplicitServiceAreaShift($user_message, $history_area)
+    ) {
+      $intent = [
+        'type' => 'service_area',
+        'area' => $history_area,
+        'topic_id' => $followup_topic_context['topic_id'] ?? NULL,
+        'topic' => $followup_topic_context['topic'] ?? NULL,
+        'confidence' => max(0.70, (float) ($intent['confidence'] ?? 0.0)),
+        'source' => 'followup_service_area_continuity',
+        'extraction' => $intent['extraction'] ?? [],
+      ];
+    }
+
     if ($debug_mode) {
       $debug_meta['intent_selected'] = $intent['type'];
       $debug_meta['intent_confidence'] = $this->fallbackGate->calculateIntentConfidence($intent, $user_message);
@@ -995,7 +1090,7 @@ class AssistantApiController extends ControllerBase {
     $gate_decision = $this->fallbackGate->evaluate(
       $intent,
       $early_retrieval,
-      $debug_meta['safety_flags'] ?? [],
+      $safety_flags_for_gate,
       $gate_context
     );
     $this->langfuseTracer?->endSpan([
@@ -1014,7 +1109,37 @@ class AssistantApiController extends ControllerBase {
     // Handle gate decision.
     // Never override quick-action intents — they are deterministic button clicks.
     $is_quick_action = ($intent['source'] ?? '') === 'quick_action';
-    if (!$is_quick_action && $gate_decision['decision'] === FallbackGate::DECISION_FALLBACK_LLM && $this->llmEnhancer->isEnabled()) {
+    if (!$is_quick_action && $gate_decision['decision'] === FallbackGate::DECISION_HARD_ROUTE) {
+      // Enforce hard-route decisions so urgent/deadline signals cannot be
+      // silently bypassed by normal navigation routing.
+      $hard_route_source = (string) ($gate_decision['reason_code'] ?? '');
+      if (($intent['type'] ?? '') !== 'high_risk' && ($intent['type'] ?? '') !== 'out_of_scope') {
+        if ($hard_route_source === FallbackGate::REASON_SAFETY_URGENT) {
+          $intent = [
+            'type' => 'high_risk',
+            'risk_category' => $this->inferHighRiskCategoryFromSafetyFlags($safety_flags_for_gate, $user_message),
+            'confidence' => max(0.92, (float) ($gate_decision['confidence'] ?? 0.92)),
+            'source' => 'gate_hard_route',
+            'extraction' => $intent['extraction'] ?? [],
+          ];
+        }
+        else {
+          $intent = [
+            'type' => 'apply_for_help',
+            'confidence' => max(0.90, (float) ($gate_decision['confidence'] ?? 0.90)),
+            'source' => 'gate_hard_route',
+            'extraction' => $intent['extraction'] ?? [],
+          ];
+        }
+      }
+      if ($debug_mode) {
+        $debug_meta['intent_selected'] = $intent['type'];
+        $debug_meta['intent_source'] = 'gate_hard_route';
+        $debug_meta['gate_hard_route_reason'] = $hard_route_source;
+        $debug_meta['processing_stages'][] = 'hard_route_forced';
+      }
+    }
+    elseif (!$is_quick_action && $gate_decision['decision'] === FallbackGate::DECISION_FALLBACK_LLM && $this->llmEnhancer->isEnabled()) {
       // Try LLM classification for low-confidence cases.
       $llm_model = $config->get('llm.model') ?? 'gemini-1.5-flash';
       $this->langfuseTracer?->startGeneration('llm.classify', $llm_model, [
@@ -1058,7 +1183,7 @@ class AssistantApiController extends ControllerBase {
     // CRITICAL: Enforce canonical URL for hard-route intents.
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
     $builder = new ResponseBuilder($canonical_urls, $this->topIntentsPack);
-    $safety_flags = $debug_meta['safety_flags'] ?? [];
+    $safety_flags = $safety_flags_for_gate;
     $response = $builder->enforceHardRouteUrlWithSafetyFlags($response, $intent, $safety_flags);
 
     // Apply response grounding (add citations, validate info).
@@ -1183,7 +1308,7 @@ class AssistantApiController extends ControllerBase {
         'text' => PiiRedactor::redactForStorage($user_message, 200),
         'intent' => $intent['type'] ?? 'unknown',
         'route_source' => $intent['source'] ?? 'direct',
-        'safety_flags' => $debug_meta['safety_flags'] ?? $this->detectSafetyFlags($user_message),
+        'safety_flags' => $safety_flags_for_gate,
         'timestamp' => time(),
         'area' => $intent['area'] ?? $intent['service_area'] ?? NULL,
         'topic_id' => $intent['topic_id'] ?? NULL,
@@ -1505,9 +1630,8 @@ class AssistantApiController extends ControllerBase {
    */
   protected function detectSafetyFlags(string $message): array {
     $flags = [];
-    $message_lower = strtolower($message);
 
-    if (preg_match('/\b(domestic\s*violence|dv|abus|hit.*me|beat.*me|threaten)/i', $message)) {
+    if (preg_match('/\b(domestic\s*violence|domestic\s*issue|dv|abus|hit.*me|beat.*me|threaten(ing)?\s*me|threatening\s*me\s*over\s*debt|afraid|scared)\b/i', $message)) {
       $flags[] = 'dv_indicator';
     }
     if (preg_match('/\b(evict|sheriff|lock.*out|homeless|thrown?\s*out)/i', $message)) {
@@ -1519,7 +1643,7 @@ class AssistantApiController extends ControllerBase {
     if (preg_match('/\b(emergency|urgent|suicide|crisis|danger|911)/i', $message)) {
       $flags[] = 'crisis_emergency';
     }
-    if (preg_match('/\b(deadline|due\s*(today|tomorrow|friday|monday)|court\s*date)/i', $message)) {
+    if (preg_match('/\b(deadline|due\s*(today|tomorrow|friday|monday|this\s*week|tonight)|court\s*date|must\s*respond|respond\s*in\s*(24|48|72)\s*hours?|one\s*day\s*to\s*(answer|respond)|same[-\s]*day\s*help|before\s*i\s*sign|legal\s*letter|miss\s*filing|urgent\s*options)\b/i', $message)) {
       $flags[] = 'deadline_pressure';
     }
     if (preg_match('/\b(arrest|criminal|felony|misdemeanor|jail|prison|dui|dwi)/i', $message)) {
@@ -1527,6 +1651,66 @@ class AssistantApiController extends ControllerBase {
     }
 
     return $flags;
+  }
+
+  /**
+   * Infers a high-risk category from safety flags and message text.
+   */
+  protected function inferHighRiskCategoryFromSafetyFlags(array $safety_flags, string $message): string {
+    $flags = array_fill_keys($safety_flags, TRUE);
+    $lower = mb_strtolower($message);
+
+    if (!empty($flags['dv_indicator'])) {
+      return 'high_risk_dv';
+    }
+    if (!empty($flags['eviction_imminent'])) {
+      return 'high_risk_eviction';
+    }
+    if (!empty($flags['identity_theft'])) {
+      return 'high_risk_scam';
+    }
+    if (!empty($flags['deadline_pressure']) || preg_match('/\b(deadline|due|must\s*respond|respond\s*in\s*(24|48|72)|one\s*day|tonight|today|tomorrow)\b/u', $lower)) {
+      return 'high_risk_deadline';
+    }
+
+    return 'high_risk_deadline';
+  }
+
+  /**
+   * Returns TRUE when the user explicitly signals topic switching.
+   */
+  protected function isExplicitServiceAreaShift(string $message, string $history_area): bool {
+    $lower = mb_strtolower($message);
+    if ($history_area === '') {
+      return FALSE;
+    }
+
+    $shift_signal = (bool) preg_match('/\b(new|different|another|instead|switch(?:ing)?|other)\s+(issue|problem|topic|question)\b/u', $lower);
+    if (!$shift_signal) {
+      return FALSE;
+    }
+
+    $area_keywords = [
+      'housing' => ['eviction', 'landlord', 'tenant', 'rent', 'lease', 'foreclosure'],
+      'family' => ['divorce', 'custody', 'child support', 'visitation', 'protection order', 'domestic'],
+      'consumer' => ['debt', 'collection', 'credit', 'scam', 'fraud', 'bankruptcy'],
+      'seniors' => ['elder', 'senior', 'guardianship', 'probate', 'power of attorney'],
+      'health' => ['medicaid', 'medicare', 'snap', 'ssi', 'ssdi', 'benefits'],
+      'civil_rights' => ['discrimination', 'employment', 'fired', 'wages', 'harassment', 'civil rights'],
+    ];
+
+    foreach ($area_keywords as $area => $keywords) {
+      if ($area === $history_area) {
+        continue;
+      }
+      foreach ($keywords as $keyword) {
+        if (str_contains($lower, $keyword)) {
+          return TRUE;
+        }
+      }
+    }
+
+    return FALSE;
   }
 
   /**
@@ -1846,6 +2030,83 @@ class AssistantApiController extends ControllerBase {
 
     // Enrich response based on intent type (FAQ results, resources, etc.).
     switch ($intent_type) {
+      case 'navigation':
+        $page_key = (string) ($intent['page_key'] ?? '');
+        $is_hotline_hours_request = (bool) preg_match('/\b(hours?\s*(can|do)\s*i\s*call|linea\s*de\s*ayuda|legal\s*advice\s*line|hotline)\b/u', mb_strtolower($message));
+
+        if ($page_key === 'offices') {
+          // Guard against office over-routing: hotline-hours requests should
+          // resolve to hotline guidance, not office navigation.
+          if ($is_hotline_hours_request) {
+            $response['type'] = 'navigation';
+            $response['response_mode'] = 'navigate';
+            $response['message'] = $this->t('Our Legal Advice Line can help. Phone intakes are Monday-Wednesday, 10:00 a.m.-1:30 p.m. Mountain (9:00 a.m.-12:30 p.m. Pacific).');
+            $response['primary_action'] = [
+              'label' => $this->t('Contact Hotline'),
+              'url' => $canonical_urls['hotline'],
+            ];
+            $response['secondary_actions'] = [
+              [
+                'label' => $this->t('Call (208) 746-7541'),
+                'url' => 'tel:2087467541',
+              ],
+              [
+                'label' => $this->t('Apply for Help'),
+                'url' => $canonical_urls['apply'],
+              ],
+            ];
+            $response['reason_code'] = 'hotline_hours_requested';
+            break;
+          }
+
+          // Office detail requests should return office-specific data.
+          $resolver = new OfficeLocationResolver();
+          $office = $this->resolveOfficeFromMessageOrHistory($message, $server_history, $resolver);
+          if ($office && $this->isOfficeDetailRequest($message)) {
+            $response['type'] = 'office_location';
+            $response['response_mode'] = 'navigate';
+            $response['message'] = $this->buildOfficeDetailMessage($office);
+            $response['office'] = [
+              'name' => $office['name'],
+              'address' => $office['address'],
+              'phone' => $office['phone'],
+              'hours' => $office['hours'] ?? $this->t('Hours may vary. Please call to confirm current office hours.'),
+            ];
+            $response['url'] = $office['url'];
+            $response['primary_action'] = [
+              'label' => $this->t('@name Office Details', ['@name' => $office['name']]),
+              'url' => $office['url'],
+            ];
+            $response['secondary_actions'] = [
+              [
+                'label' => $this->t('Call @phone', ['@phone' => $office['phone']]),
+                'url' => 'tel:' . preg_replace('/[^\d]/', '', $office['phone']),
+              ],
+              [
+                'label' => $this->t('All Offices'),
+                'url' => $canonical_urls['offices'],
+              ],
+            ];
+            $response['reason_code'] = 'office_detail_requested';
+          }
+
+          if (($response['type'] ?? '') === 'navigation') {
+            $response['message'] = $this->t('Find an office near you for legal help. If you are not sure where to start, you can also Apply for Help or call our Legal Advice Line.');
+            $response['secondary_actions'] = [
+              [
+                'label' => $this->t('Apply for Help'),
+                'url' => $canonical_urls['apply'],
+              ],
+              [
+                'label' => $this->t('Call Legal Advice Line'),
+                'url' => $canonical_urls['hotline'],
+              ],
+            ];
+            $response['caveat'] = $this->t('Information is general, not legal advice.');
+          }
+        }
+        break;
+
       case 'faq':
         if (!$config->get('enable_faq')) {
           $response['type'] = 'navigation';
@@ -2059,6 +2320,7 @@ class AssistantApiController extends ControllerBase {
         if (count($results) > 0) {
           $response['message'] = $this->t('Here are some forms that might help:');
           $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
+          $response['caveat'] = $response['disclaimer'];
         }
         else {
           // Zero results — try broader area search if area context available.
@@ -2093,6 +2355,7 @@ class AssistantApiController extends ControllerBase {
             'label' => $this->t('Browse All Forms'),
             'url' => $canonical_urls['forms'],
           ];
+          $response['caveat'] = $this->t('This is general information, not legal advice. For legal advice, call our Legal Advice Line or apply for help.');
         }
         $this->logger->info('[@request_id] Form Finder search: query=@query, topic_keywords=@keywords, results=@count', [
           '@request_id' => $request_id,
@@ -2141,6 +2404,7 @@ class AssistantApiController extends ControllerBase {
         if (count($results) > 0) {
           $response['message'] = $this->t('Here are some guides that might help:');
           $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
+          $response['caveat'] = $response['disclaimer'];
         }
         else {
           // Zero results — try broader area search if area context available.
@@ -2175,6 +2439,7 @@ class AssistantApiController extends ControllerBase {
             'label' => $this->t('Browse All Guides'),
             'url' => $canonical_urls['guides'],
           ];
+          $response['caveat'] = $this->t('This is general information, not legal advice. For legal advice, call our Legal Advice Line or apply for help.');
         }
         $this->logger->info('[@request_id] Guide Finder search: query=@query, topic_keywords=@keywords, results=@count', [
           '@request_id' => $request_id,
@@ -2219,7 +2484,7 @@ class AssistantApiController extends ControllerBase {
         $online_app_url = $canonical_urls['online_application'] ?? $canonical_urls['apply'];
         $response['type'] = 'apply_cta';
         $response['response_mode'] = 'navigate';
-        $response['message'] = $this->t('Idaho Legal Aid Services offers three ways to apply—choose what works best for you.');
+        $response['message'] = $this->t('Idaho Legal Aid Services offers three Apply for Help options. If this is urgent, call our Legal Advice Line while you apply.');
         $response['apply_methods'] = [
           [
             'method' => 'online',
@@ -2272,7 +2537,7 @@ class AssistantApiController extends ControllerBase {
 
       case 'hotline':
         $response['cta'] = $this->t('Contact Hotline');
-        $response['message'] = $this->t('Our Legal Advice Line can help. Here\'s the information:');
+        $response['message'] = $this->t('Our Legal Advice Line can help, and Spanish interpretation is available. Here\'s the information:');
         break;
 
       case 'donate':
@@ -2281,14 +2546,35 @@ class AssistantApiController extends ControllerBase {
         break;
 
       case 'offices':
+        $is_hotline_hours_request = (bool) preg_match('/\b(hours?\s*(can|do)\s*i\s*call|linea\s*de\s*ayuda|legal\s*advice\s*line|hotline|call\s*anytime|appointment)\b/u', mb_strtolower($message));
+        if ($is_hotline_hours_request) {
+          $response['type'] = 'navigation';
+          $response['response_mode'] = 'navigate';
+          $response['message'] = $this->t('Our Legal Advice Line can help. Phone intakes are Monday-Wednesday, 10:00 a.m.-1:30 p.m. Mountain (9:00 a.m.-12:30 p.m. Pacific).');
+          $response['primary_action'] = [
+            'label' => $this->t('Contact Hotline'),
+            'url' => $canonical_urls['hotline'],
+          ];
+          $response['secondary_actions'] = [
+            [
+              'label' => $this->t('Call (208) 746-7541'),
+              'url' => 'tel:2087467541',
+            ],
+            [
+              'label' => $this->t('Apply for Help'),
+              'url' => $canonical_urls['apply'],
+            ],
+          ];
+          $response['reason_code'] = 'hotline_hours_requested';
+          break;
+        }
+
         $resolver = new OfficeLocationResolver();
         $office = $this->resolveOfficeFromMessageOrHistory($message, $server_history, $resolver);
         if ($office && $this->isOfficeDetailRequest($message)) {
           $response['type'] = 'office_location';
           $response['response_mode'] = 'navigate';
-          $response['message'] = $this->t('Here are the details for the @office office:', [
-            '@office' => $office['name'],
-          ]);
+          $response['message'] = $this->buildOfficeDetailMessage($office);
           $response['office'] = [
             'name' => $office['name'],
             'address' => $office['address'],
@@ -2315,7 +2601,18 @@ class AssistantApiController extends ControllerBase {
         }
 
         $response['cta'] = $this->t('Find Offices');
-        $response['message'] = $this->t('Find an office near you:');
+        $response['message'] = $this->t('Find an office near you for legal help. You can also Apply for Help or call our Legal Advice Line.');
+        $response['secondary_actions'] = [
+          [
+            'label' => $this->t('Apply for Help'),
+            'url' => $canonical_urls['apply'],
+          ],
+          [
+            'label' => $this->t('Call Legal Advice Line'),
+            'url' => $canonical_urls['hotline'],
+          ],
+        ];
+        $response['caveat'] = $this->t('Information is general, not legal advice.');
         break;
 
       case 'feedback':
@@ -2381,8 +2678,22 @@ class AssistantApiController extends ControllerBase {
         }
 
         // First mention of this service area — show the service area page.
-        $response['message'] = $this->t('Here\'s our @area legal help page:', ['@area' => $area_label]);
+        $response['message'] = $this->t('Here\'s our @area legal help page: @hint', [
+          '@area' => $area_label,
+          '@hint' => $this->getServiceAreaContextHint($area),
+        ]);
         $response['cta'] = $this->t('View @area Resources', ['@area' => $area_label]);
+        $response['secondary_actions'] = [
+          [
+            'label' => $this->t('Apply for Help'),
+            'url' => $canonical_urls['apply'],
+          ],
+          [
+            'label' => $this->t('Call Legal Advice Line'),
+            'url' => $canonical_urls['hotline'],
+          ],
+        ];
+        $response['caveat'] = $this->t('This is general information, not legal advice.');
         break;
 
       case 'disambiguation':
@@ -3048,12 +3359,13 @@ class AssistantApiController extends ControllerBase {
       return TRUE;
     }
 
-    if (preg_match('/^[a-z\'\-\s]{2,40}$/u', $normalized)) {
-      $token_count = count(array_filter(preg_split('/\s+/', $normalized) ?: []));
-      $legal_topic_tokens = '/\b(eviction|custody|divorce|benefits?|snap|hearing|court|landlord|tenant|lawsuit|disability|scam|fraud)\b/u';
-      if ($token_count > 0 && $token_count <= 4 && !preg_match($legal_topic_tokens, $normalized)) {
-        return TRUE;
-      }
+    if (preg_match('/\b(i\s*(am|m)|live\s*in|located\s*in|near|around|from)\s+(boise|pocatello|twin\s*falls|lewiston|idaho\s*falls|coeur\s*d\'?alene|nampa|meridian|ada|canyon|kootenai|bonneville|bannock|latah|nez\s*perce)\b/u', $normalized)) {
+      return TRUE;
+    }
+
+    if (preg_match('/\b\d{5}\b/u', $normalized)) {
+      // Zip-code-like reply during office follow-up.
+      return TRUE;
     }
 
     return FALSE;
@@ -3076,7 +3388,44 @@ class AssistantApiController extends ControllerBase {
    */
   protected function isOfficeDetailRequest(string $message): bool {
     $normalized = mb_strtolower(trim($message));
-    return (bool) preg_match('/\b(address|location|hours?|open|close|after\s*work|when\s*can\s*i\s*go)\b/u', $normalized);
+    return (bool) preg_match('/\b(address|location|hours?|open|close|after\s*work|when\s*can\s*i\s*go|walk\s*in|appointment|appt)\b/u', $normalized);
+  }
+
+  /**
+   * Returns TRUE when message clearly targets site/service feedback.
+   */
+  protected function isExplicitSiteFeedbackRequest(string $message): bool {
+    $normalized = mb_strtolower(trim($message));
+    return (bool) preg_match('/\b(website|site|service|staff|feedback|review|suggestion|comment|experience|pagina|sitio|servicio|comentario|sugerencia)\b/u', $normalized);
+  }
+
+  /**
+   * Builds a user-visible office detail message with hours.
+   */
+  protected function buildOfficeDetailMessage(array $office): string {
+    $hours = (string) ($office['hours'] ?? $this->t('Hours may vary. Please call to confirm current office hours.'));
+    return (string) $this->t("Here are the details for the @office office:\n\nAddress: @address\nPhone: @phone\nHours: @hours", [
+      '@office' => $office['name'] ?? $this->t('local'),
+      '@address' => $office['address'] ?? $this->t('Address unavailable'),
+      '@phone' => $office['phone'] ?? $this->t('Call for contact details'),
+      '@hours' => $hours,
+    ]);
+  }
+
+  /**
+   * Returns a short context hint for service-area responses.
+   */
+  protected function getServiceAreaContextHint(string $area): string {
+    $hints = [
+      'housing' => $this->t('Topics include eviction notices, landlord/tenant rights, repairs, and foreclosure concerns.'),
+      'family' => $this->t('Topics include custody, child support, divorce, and protection orders.'),
+      'consumer' => $this->t('Topics include debt collection, scams, garnishment, and bankruptcy issues.'),
+      'seniors' => $this->t('Topics include elder abuse, guardianship, probate, and power of attorney concerns.'),
+      'health' => $this->t('Topics include SNAP, Medicaid, Medicare, SSI/SSDI, and other public benefits.'),
+      'civil_rights' => $this->t('Topics include employment rights, discrimination, and workplace retaliation concerns.'),
+    ];
+
+    return (string) ($hints[$area] ?? $this->t('We can help you find the right legal resources and next steps.'));
   }
 
   /**
@@ -3223,7 +3572,7 @@ class AssistantApiController extends ControllerBase {
     $response = [
       'type' => 'office_location',
       'response_mode' => 'navigate',
-      'message' => $this->t("Here's the ILAS office nearest to @city:", ['@city' => $user_message]),
+      'message' => $this->buildOfficeDetailMessage($office),
       'office' => [
         'name' => $office['name'],
         'address' => $office['address'],

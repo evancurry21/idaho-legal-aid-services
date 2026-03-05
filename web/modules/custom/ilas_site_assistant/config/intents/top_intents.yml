@@ -95,7 +95,8 @@ intents:
       - { label: Our Services, intent: services_overview }
     synonyms:
       - feedback
-      - file a complaint
+      - file website complaint
+      - service feedback
       - suggestion
       - comentarios
 

@@ -6,6 +6,10 @@ use Drupal\Tests\UnitTestCase;
 use Drupal\ilas_site_assistant\Service\IntentRouter;
 use Drupal\ilas_site_assistant\Service\KeywordExtractor;
 use Drupal\ilas_site_assistant\Service\TopicResolver;
+use Drupal\ilas_site_assistant\Service\TopicRouter;
+use Drupal\ilas_site_assistant\Service\NavigationIntent;
+use Drupal\ilas_site_assistant\Service\Disambiguator;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 
@@ -23,6 +27,52 @@ class IntentRouterServiceTest extends UnitTestCase {
    * @var \Drupal\ilas_site_assistant\Service\IntentRouter
    */
   protected $intentRouter;
+
+  /**
+   * Creates a router wired like production (nav + topic pack enabled).
+   */
+  private function buildProductionRouter(): IntentRouter {
+    $config = $this->createMock(ImmutableConfig::class);
+    $config->method('get')->willReturn([]);
+
+    $configFactory = $this->createMock(ConfigFactoryInterface::class);
+    $configFactory->method('get')
+      ->with('ilas_site_assistant.settings')
+      ->willReturn($config);
+
+    $topicResolver = $this->createMock(TopicResolver::class);
+    $topicResolver->method('resolveFromText')->willReturn(NULL);
+    $topicResolver->method('searchTopics')->willReturn([]);
+
+    $keywordExtractor = $this->createMock(KeywordExtractor::class);
+    $keywordExtractor->method('extract')
+      ->willReturnCallback(static function (string $message): array {
+        return [
+          'original' => $message,
+          'normalized' => mb_strtolower($message),
+          'high_risk' => NULL,
+          'out_of_scope' => FALSE,
+          'phrases_found' => [],
+        ];
+      });
+    $keywordExtractor->method('hasNegativeKeyword')->willReturn(FALSE);
+
+    $moduleRoot = dirname(__DIR__, 4);
+    $navigationIntent = NavigationIntent::fromYaml($moduleRoot . '/config/routing/navigation_pages.yml');
+
+    $router = new IntentRouter(
+      $configFactory,
+      $topicResolver,
+      $keywordExtractor,
+      new TopicRouter(),
+      $navigationIntent,
+      new Disambiguator(),
+      new TopIntentsPack(NULL)
+    );
+    $router->setStringTranslation($this->getStringTranslationStub());
+
+    return $router;
+  }
 
   /**
    * {@inheritdoc}
@@ -285,7 +335,7 @@ class IntentRouterServiceTest extends UnitTestCase {
     $messages = [
       'feedback',
       'feedback form',
-      'file a complaint',
+      'file a complaint about your website',
     ];
 
     foreach ($messages as $message) {
@@ -499,7 +549,7 @@ class IntentRouterServiceTest extends UnitTestCase {
    * @covers ::route
    */
   public function testDepositNarrativeDoesNotRouteToDonate(): void {
-    $result = $this->intentRouter->route('she didnt give me any kind of list of what she took money for');
+    $result = $this->buildProductionRouter()->route('she didnt give me any kind of list of what she took money for');
     $this->assertNotEquals('donations', $result['type']);
   }
 
@@ -509,10 +559,28 @@ class IntentRouterServiceTest extends UnitTestCase {
    * @covers ::route
    */
   public function testRetaliationConcernDoesNotRouteToFeedback(): void {
-    $result = $this->intentRouter->route('my landlord is not renewing my lease because i complained');
+    $result = $this->buildProductionRouter()->route('my landlord is not renewing my lease because i complained');
     $this->assertNotEquals('feedback', $result['type']);
     $this->assertEquals('service_area', $result['type']);
     $this->assertEquals('housing', $result['area']);
+  }
+
+  /**
+   * Employment complaint phrasing must not route to website feedback.
+   *
+   * @covers ::route
+   */
+  public function testEmploymentComplaintDoesNotRouteToFeedback(): void {
+    $result = $this->buildProductionRouter()->route('where do i file a complaint about this firing');
+    $this->assertNotEquals('feedback', $result['type']);
+    $this->assertContains(
+      $result['type'],
+      ['service_area', 'meta_what_do_you_do', 'resources', 'unknown'],
+      'Employment complaint should route to legal-help flow, not website feedback'
+    );
+
+    $ambiguous = $this->buildProductionRouter()->route('where do i file a complaint about this');
+    $this->assertNotEquals('feedback', $ambiguous['type']);
   }
 
   /**
@@ -521,7 +589,7 @@ class IntentRouterServiceTest extends UnitTestCase {
    * @covers ::route
    */
   public function testHotlineHoursRoutesToHotline(): void {
-    $result = $this->intentRouter->route('what hours can i call');
+    $result = $this->buildProductionRouter()->route('what hours can i call');
     $this->assertEquals('legal_advice_line', $result['type']);
   }
 

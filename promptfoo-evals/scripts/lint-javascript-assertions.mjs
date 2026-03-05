@@ -29,6 +29,85 @@ function hasExplicitReturn(jsCode) {
   return lines.some((line) => /\breturn\b/.test(line));
 }
 
+function hasInlineReturn(jsCode) {
+  return /\breturn\b/.test(String(jsCode || ''));
+}
+
+function isCharEscaped(str, index) {
+  let backslashCount = 0;
+  let i = index - 1;
+  while (i >= 0 && str[i] === '\\') {
+    backslashCount++;
+    i--;
+  }
+  return backslashCount % 2 === 1;
+}
+
+function findLastStatementSemicolon(code) {
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inTemplate = false;
+  let lastSemiIndex = -1;
+
+  for (let i = 0; i < code.length; i++) {
+    const char = code[i];
+
+    if (!isCharEscaped(code, i)) {
+      if (char === '\'' && !inDoubleQuote && !inTemplate) {
+        inSingleQuote = !inSingleQuote;
+      }
+      else if (char === '"' && !inSingleQuote && !inTemplate) {
+        inDoubleQuote = !inDoubleQuote;
+      }
+      else if (char === '`' && !inSingleQuote && !inDoubleQuote) {
+        inTemplate = !inTemplate;
+      }
+    }
+
+    if (char === ';' && !inSingleQuote && !inDoubleQuote && !inTemplate) {
+      lastSemiIndex = i;
+    }
+  }
+
+  return lastSemiIndex;
+}
+
+function buildFunctionBody(jsCode) {
+  const trimmed = String(jsCode || '').trim().replace(/;+\s*$/, '');
+  if (/^(const|let|var)\s/.test(trimmed)) {
+    const lastSemiIndex = findLastStatementSemicolon(trimmed);
+    if (lastSemiIndex !== -1) {
+      const statements = trimmed.slice(0, lastSemiIndex + 1);
+      const expression = trimmed.slice(lastSemiIndex + 1).trim();
+      if (expression !== '') {
+        return `${statements} return ${expression}`;
+      }
+    }
+    return trimmed;
+  }
+  return `return ${trimmed}`;
+}
+
+function compileAssertion(jsCode, multiline) {
+  try {
+    if (multiline) {
+      // Promptfoo multiline javascript assertions are evaluated as function body.
+      // eslint-disable-next-line no-new-func
+      new Function('output', 'context', String(jsCode || ''));
+      return null;
+    }
+
+    // Promptfoo compiles single-line assertions into a function body and injects
+    // return where needed; mirror that behavior for syntax checks.
+    // eslint-disable-next-line no-new-func
+    new Function('output', 'context', buildFunctionBody(jsCode));
+    return null;
+  }
+  catch (error) {
+    return String(error?.message || error || 'Unknown syntax error');
+  }
+}
+
 function lintFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const parsed = yaml.load(content);
@@ -43,11 +122,9 @@ function lintFile(filePath) {
       }
 
       const value = String(assertion?.value || '');
-      if (!isMultiline(value)) {
-        return;
-      }
+      const multiline = isMultiline(value);
 
-      if (!hasExplicitReturn(value)) {
+      if (multiline && !hasExplicitReturn(value)) {
         errors.push({
           file: path.relative(repoRoot, filePath),
           test_index: testIndex,
@@ -55,6 +132,29 @@ function lintFile(filePath) {
           description: test?.description || null,
           metric: assertion?.metric || null,
           message: 'Multiline javascript assertion must contain an explicit return statement.',
+        });
+      }
+
+      if (!multiline && hasInlineReturn(value)) {
+        errors.push({
+          file: path.relative(repoRoot, filePath),
+          test_index: testIndex,
+          assert_index: assertIndex,
+          description: test?.description || null,
+          metric: assertion?.metric || null,
+          message: 'Single-line javascript assertion must be a pure expression and must not contain return.',
+        });
+      }
+
+      const syntaxError = compileAssertion(value, multiline);
+      if (syntaxError !== null) {
+        errors.push({
+          file: path.relative(repoRoot, filePath),
+          test_index: testIndex,
+          assert_index: assertIndex,
+          description: test?.description || null,
+          metric: assertion?.metric || null,
+          message: `Javascript assertion has invalid syntax: ${syntaxError}`,
         });
       }
     });

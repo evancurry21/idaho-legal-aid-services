@@ -114,6 +114,8 @@ final class OfficeFollowupGuardContractTest extends TestCase {
     $message = 'if i do not qualify what else can i do';
     $this->assertFalse($controller->exposedIsLocationLikeOfficeReply($message));
     $this->assertFalse($controller->exposedIsExplicitOfficeFollowupTurn($message));
+    $this->assertFalse($controller->exposedIsLocationLikeOfficeReply('divorce'));
+    $this->assertFalse($controller->exposedIsLocationLikeOfficeReply('mi casero me quiere sacar de mi casa'));
   }
 
   /**
@@ -173,6 +175,7 @@ final class OfficeFollowupGuardContractTest extends TestCase {
     $this->assertNotNull($resolved);
     $this->assertSame('Boise', $resolved['name']);
     $this->assertTrue($controller->exposedIsOfficeDetailRequest('what are the hours can i go after work'));
+    $this->assertTrue($controller->exposedIsOfficeDetailRequest('can i just walk in or do i need an appointment'));
   }
 
   /**
@@ -192,6 +195,45 @@ final class OfficeFollowupGuardContractTest extends TestCase {
     $this->assertArrayHasKey('hours', $response['office']);
     $this->assertStringContainsString('call', strtolower((string) $response['office']['hours']));
     $this->assertSame('/contact/offices/boise', $response['primary_action']['url']);
+  }
+
+  /**
+   * Topic-shift detection only triggers when user explicitly shifts topics.
+   */
+  public function testExplicitServiceAreaShiftDetectionRequiresSignal(): void {
+    $controller = $this->buildController();
+
+    $this->assertFalse($controller->exposedIsExplicitServiceAreaShift(
+      'what about all the money he already owes me the back pay',
+      'family'
+    ));
+    $this->assertTrue($controller->exposedIsExplicitServiceAreaShift(
+      'different issue now, my landlord gave me an eviction notice',
+      'family'
+    ));
+  }
+
+  /**
+   * Safety-flag inference maps hard-route safety to deterministic categories.
+   */
+  public function testInferHighRiskCategoryFromSafetyFlags(): void {
+    $controller = $this->buildController();
+
+    $this->assertSame(
+      'high_risk_deadline',
+      $controller->exposedInferHighRiskCategoryFromSafetyFlags(
+        ['deadline_pressure'],
+        'i must respond in 48 hours'
+      )
+    );
+
+    $this->assertSame(
+      'high_risk_eviction',
+      $controller->exposedInferHighRiskCategoryFromSafetyFlags(
+        ['eviction_imminent'],
+        'i got locked out today'
+      )
+    );
   }
 
 }
@@ -234,6 +276,14 @@ final class OfficeFollowupTestableController extends AssistantApiController {
 
   public function exposedProcessIntent(array $intent, string $message, array $server_history): array {
     return $this->processIntent($intent, $message, [], 'req-unit-test', $server_history);
+  }
+
+  public function exposedIsExplicitServiceAreaShift(string $message, string $historyArea): bool {
+    return $this->isExplicitServiceAreaShift($message, $historyArea);
+  }
+
+  public function exposedInferHighRiskCategoryFromSafetyFlags(array $flags, string $message): string {
+    return $this->inferHighRiskCategoryFromSafetyFlags($flags, $message);
   }
 
 }

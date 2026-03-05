@@ -13,6 +13,16 @@ function loadRows(filePath) {
   return data?.results?.results || [];
 }
 
+function isFailure(row) {
+  if (typeof row?.success === 'boolean') {
+    return row.success === false;
+  }
+  if (typeof row?.gradingResult?.pass === 'boolean') {
+    return row.gradingResult.pass === false;
+  }
+  return Boolean(row?.error || row?.failureReason);
+}
+
 function firstLine(input) {
   return String(input || '').split('\n')[0].trim();
 }
@@ -73,6 +83,15 @@ function classifyFailure(row) {
     };
   }
 
+  if (/Unexpected token 'return'/.test(reason) || /Custom function threw error:\s*SyntaxError:/.test(reason)) {
+    return {
+      class: 'harness_false_negative',
+      rationale: 'Promptfoo javascript assertion syntax/parse failure prevented behavioral evaluation.',
+      contract_meta: contractMeta,
+      failed_metrics: failedMetrics,
+    };
+  }
+
   if (rubricFalseNegativeByDescription(description)) {
     return {
       class: 'rubric_false_negative',
@@ -118,6 +137,13 @@ function toEntry(row, suite, index) {
       conversation_id: row?.vars?.conversation_id || null,
       scenario_id: row?.vars?.scenario_id || null,
     },
+    metadata: {
+      scenario_family: row?.testCase?.metadata?.scenario_family || null,
+      scenario_id: row?.testCase?.metadata?.scenario_id || null,
+      conversation_name: row?.testCase?.metadata?.conversationName || null,
+      turn: row?.testCase?.metadata?.turn ?? null,
+      total_turns: row?.testCase?.metadata?.totalTurns ?? null,
+    },
     score: row?.score ?? null,
     reason: firstLine(row?.gradingResult?.reason),
     classification,
@@ -144,8 +170,8 @@ function summarize(entries) {
 
 const primaryRows = loadRows(primaryPath);
 const deepRows = loadRows(deepPath);
-const primaryFailures = primaryRows.filter((row) => row && row.success === false);
-const deepFailures = deepRows.filter((row) => row && row.success === false);
+const primaryFailures = primaryRows.filter((row) => row && isFailure(row));
+const deepFailures = deepRows.filter((row) => row && isFailure(row));
 
 const entries = [
   ...primaryFailures.map((row, idx) => toEntry(row, 'primary', idx)),
@@ -159,6 +185,8 @@ const payload = {
     deep: 'promptfoo-evals/output/results-deep.json',
   },
   totals: {
+    primary_total_cases: primaryRows.length,
+    deep_total_cases: deepRows.length,
     primary_failures: primaryFailures.length,
     deep_failures: deepFailures.length,
     classified_failures: entries.length,

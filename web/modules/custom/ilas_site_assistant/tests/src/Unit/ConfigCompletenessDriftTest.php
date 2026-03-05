@@ -155,6 +155,41 @@ class ConfigCompletenessDriftTest extends TestCase {
   }
 
   /**
+   * Cost-control block must exist in install + active config with key fields.
+   */
+  public function testCostControlBlockPresentAndComplete(): void {
+    $install = self::installConfig();
+    $active = self::activeConfig();
+
+    $this->assertArrayHasKey('cost_control', $install, 'Install config must define cost_control');
+    $this->assertArrayHasKey('cost_control', $active, 'Active config must define cost_control');
+
+    $required_keys = [
+      'daily_call_limit',
+      'monthly_call_limit',
+      'sample_rate',
+      'cache_hit_rate_target',
+      'cache_stats_window_seconds',
+      'manual_kill_switch',
+      'pricing',
+      'alert_cooldown_minutes',
+    ];
+
+    foreach ($required_keys as $key) {
+      $this->assertArrayHasKey($key, $install['cost_control'], "Install cost_control missing key {$key}");
+      $this->assertArrayHasKey($key, $active['cost_control'], "Active cost_control missing key {$key}");
+    }
+
+    $this->assertIsArray($install['cost_control']['pricing'], 'Install cost_control.pricing must be an array');
+    $this->assertIsArray($active['cost_control']['pricing'], 'Active cost_control.pricing must be an array');
+
+    foreach (['model', 'input_per_1m_tokens', 'output_per_1m_tokens'] as $pricing_key) {
+      $this->assertArrayHasKey($pricing_key, $install['cost_control']['pricing'], "Install pricing missing {$pricing_key}");
+      $this->assertArrayHasKey($pricing_key, $active['cost_control']['pricing'], "Active pricing missing {$pricing_key}");
+    }
+  }
+
+  /**
    * Blocks with `enabled` sub-keys must all be disabled in install defaults.
    *
    * Ensures no feature is accidentally shipped enabled before operator review.

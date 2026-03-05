@@ -396,7 +396,7 @@ class NavigationIntent {
         'label' => 'Office Locations',
         'slug' => 'offices',
         'aliases' => ['offices', 'office locations', 'locations', 'contact', 'contact us', 'oficinas', 'direccion'],
-        'keywords' => ['office', 'offices', 'location', 'locations', 'address', 'contact', 'visit', 'hours', 'located', 'oficina', 'direccion', 'horario'],
+        'keywords' => ['office', 'offices', 'location', 'locations', 'address', 'contact', 'visit', 'located', 'oficina', 'direccion', 'horario'],
       ],
       'forms' => [
         'url' => '/forms',
@@ -423,15 +423,15 @@ class NavigationIntent {
         'url' => '/donate',
         'label' => 'Donate',
         'slug' => 'donate',
-        'aliases' => ['donate', 'donations', 'give', 'contribute', 'donar', 'donacion', 'donatoin', 'dontae'],
-        'keywords' => ['donate', 'donation', 'give', 'contribute', 'support', 'gift', 'donar', 'donacion'],
+        'aliases' => ['donate', 'donations', 'contribute', 'donar', 'donacion', 'donatoin', 'dontae'],
+        'keywords' => ['donate', 'donation', 'contribute', 'gift', 'donar', 'donacion'],
       ],
       'feedback' => [
         'url' => '/get-involved/feedback',
         'label' => 'Feedback',
         'slug' => 'feedback',
-        'aliases' => ['feedback', 'complaint', 'complaints', 'grievance', 'queja'],
-        'keywords' => ['feedback', 'complaint', 'grievance', 'review', 'suggestion', 'queja', 'comentario'],
+        'aliases' => ['feedback', 'feedback form', 'site feedback', 'service feedback', 'grievance', 'queja'],
+        'keywords' => ['feedback', 'grievance', 'review', 'queja', 'feedback form'],
       ],
       'resources' => [
         'url' => '/what-we-do/resources',

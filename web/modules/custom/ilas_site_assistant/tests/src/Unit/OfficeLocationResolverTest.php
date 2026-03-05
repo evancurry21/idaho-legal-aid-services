@@ -144,6 +144,7 @@ class OfficeLocationResolverTest extends TestCase {
       'bonneville_county' => ['bonneville county', 'Idaho Falls'],
       'madison_county' => ['madison county', 'Idaho Falls'],
       'fremont_county' => ['fremont county', 'Idaho Falls'],
+      'idaho_county' => ['idaho county', 'Lewiston'],
       // Bare county names (without "county" suffix).
       'bonneville_bare' => ['bonneville', 'Idaho Falls'],
       'bannock_bare' => ['bannock', 'Pocatello'],
@@ -175,6 +176,7 @@ class OfficeLocationResolverTest extends TestCase {
       'portland' => ['portland'],
       'gibberish' => ['asdfghjkl'],
       'help' => ['i need help'],
+      'spanish_idaho_not_county' => ['que derechos tengo como inquilino en idaho'],
     ];
   }
 

@@ -149,7 +149,9 @@ class TopIntentsPackTest extends TestCase {
    * Phrase-level synonyms still match expected navigation intents.
    */
   public function testMatchSynonymsPhraseAliasesStillWork(): void {
-    $this->assertSame('feedback', $this->pack->matchSynonyms('i need to file a complaint'));
+    $this->assertSame('feedback', $this->pack->matchSynonyms('i need to file website complaint'));
+    $this->assertNotSame('feedback', $this->pack->matchSynonyms('where do i file a complaint about my firing'));
+    $this->assertNotSame('feedback', $this->pack->matchSynonyms('where do i file a complaint about this'));
     $this->assertSame('legal_advice_line', $this->pack->matchSynonyms('what is the call hotline number'));
     $this->assertSame('donations', $this->pack->matchSynonyms('how can i give money'));
   }

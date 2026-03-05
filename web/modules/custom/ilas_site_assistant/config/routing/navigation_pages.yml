@@ -72,7 +72,6 @@ offices:
     - address
     - contact
     - visit
-    - hours
     - oficina
     - direccion
     - horario
@@ -153,7 +152,6 @@ donate:
   aliases:
     - donate
     - donations
-    - give
     - contribute
     - donar
     - donacion
@@ -162,9 +160,7 @@ donate:
   keywords:
     - donate
     - donation
-    - give
     - contribute
-    - support
     - gift
     - donar
     - donacion
@@ -175,18 +171,17 @@ feedback:
   slug: feedback
   aliases:
     - feedback
-    - complaint
-    - complaints
+    - feedback form
+    - site feedback
+    - service feedback
     - grievance
     - queja
   keywords:
     - feedback
-    - complaint
     - grievance
     - review
-    - suggestion
     - queja
-    - comentario
+    - feedback form
 
 resources:
   url: /what-we-do/resources

@@ -206,17 +206,22 @@ class OfficeLocationResolver {
 
     // Check county map: handle "X county" and bare county names.
     $county = $normalized;
+    $has_county_suffix = FALSE;
     if (preg_match('/^(.+?)\s+county$/', $normalized, $m)) {
       $county = $m[1];
+      $has_county_suffix = TRUE;
     }
-    if (isset(self::COUNTY_MAP[$county])) {
+    if (isset(self::COUNTY_MAP[$county]) && ($has_county_suffix || $normalized === $county)) {
       return self::OFFICES[self::COUNTY_MAP[$county]];
     }
 
-    // Fuzzy county phrase match inside longer messages.
+    // County phrases in longer messages must include explicit "county"
+    // context to avoid false positives like "tenant rights in idaho".
     foreach (self::COUNTY_MAP as $county_name => $office_slug) {
-      if (preg_match('/\b' . preg_quote($county_name, '/') . '\s*county\b/u', $normalized) ||
-        preg_match('/\b' . preg_quote($county_name, '/') . '\b/u', $normalized)) {
+      if (
+        preg_match('/\b' . preg_quote($county_name, '/') . '\s*county\b/u', $normalized) ||
+        $normalized === $county_name
+      ) {
         return self::OFFICES[$office_slug];
       }
     }
