@@ -1,0 +1,170 @@
+# Phase 2 Exit #1 Retrieval Contract + Confidence Threshold Runtime Proof (`P2-EXT-01`)
+
+Generated:
+- UTC: `2026-03-04T23:41:17Z`
+- Local (`America/Denver`): `2026-03-04 16:41:17 MST`
+
+Capture scope:
+- Prompt-matrix validation aliases: `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`
+- Promptfoo retrieval-threshold gate execution and summary extraction
+- Scope-continuity check anchors (`llm.enabled=false`, `vector_search.enabled=false`)
+
+Sanitization notes:
+- Command output excerpts are reduced to closure-relevant fields.
+- Secret-bearing values are omitted or redacted.
+
+## 0) Preflight
+
+Command:
+
+```bash
+terminus whoami
+```
+
+Output:
+
+```text
+[notice] You are not logged in.
+```
+
+Note:
+- Despite the CLI notice above, authenticated `terminus remote:drush` commands for
+  `dev`/`test`/`live` executed successfully in this run and are captured below.
+
+## 1) `VC-RUNBOOK-LOCAL`
+
+Command:
+
+```bash
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+```
+
+Output excerpts:
+
+```text
+Drupal version   : 11.3.3
+Database         : Connected
+Drupal bootstrap : Successful
+Drush version    : 13.7.0.0
+```
+
+```text
+rate_limit_per_minute: 15
+conversation_logging:
+  enabled: true
+llm:
+  enabled: false
+fallback_gate:
+  thresholds:
+    retrieval_high_score: 0.75
+    retrieval_medium_score: 0.5
+    retrieval_low_score: 0.3
+    combined_high_conf: 0.8
+    combined_fallback_threshold: 0.5
+vector_search:
+  enabled: false
+```
+
+```text
+system.cron_last=1772666925
+```
+
+## 2) `VC-RUNBOOK-PANTHEON`
+
+Validation alias command:
+
+```bash
+for ENV in dev test live; do
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings -y
+ done
+```
+
+Closure-focused continuity checks (same command family, reduced keys):
+
+```bash
+for ENV in dev test live; do
+  echo "=== ${ENV} ==="
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings llm.enabled
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings vector_search.enabled
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings rate_limit_per_minute
+ done
+```
+
+Output excerpts:
+
+```text
+=== dev ===
+'ilas_site_assistant.settings:llm.enabled': false
+'ilas_site_assistant.settings:vector_search.enabled': false
+'ilas_site_assistant.settings:rate_limit_per_minute': 15
+
+=== test ===
+'ilas_site_assistant.settings:llm.enabled': false
+'ilas_site_assistant.settings:vector_search.enabled': false
+'ilas_site_assistant.settings:rate_limit_per_minute': 15
+
+=== live ===
+'ilas_site_assistant.settings:llm.enabled': false
+'ilas_site_assistant.settings:vector_search.enabled': false
+'ilas_site_assistant.settings:rate_limit_per_minute': 15
+```
+
+## 3) Promptfoo retrieval-threshold gate run
+
+Command:
+
+```bash
+ILAS_ASSISTANT_URL="http://ilas-pantheon.ddev.site/assistant/api/message" \
+  CI_BRANCH=feature/p2-ext-01 scripts/ci/run-promptfoo-gate.sh \
+  --env dev --mode advisory
+```
+
+Summary output excerpt:
+
+```text
+Results: 57 passed, 18 failed, 0 errors (76.00%)
+Promptfoo gate summary: mode=advisory threshold=90 pass_rate=76.0% eval_exit=100
+RAG threshold summary: threshold=90% contract=100.0%(20/20) citations=90.0%(9/10) low_conf_refusal=100.0%(10/10)
+Promptfoo gate FAILED in advisory mode (non-blocking)
+```
+
+## 4) Gate summary fields (`promptfoo-evals/output/gate-summary.txt`)
+
+Command:
+
+```bash
+rg -n "rag_metric_threshold|rag_contract_meta_rate|rag_contract_meta_fail|rag_citation_coverage_rate|rag_citation_coverage_fail|rag_low_confidence_refusal_rate|rag_low_confidence_refusal_fail|pass_rate|mode|eval_exit" \
+  promptfoo-evals/output/gate-summary.txt
+```
+
+Output:
+
+```text
+mode=advisory
+eval_exit=100
+pass_rate=76.0
+rag_metric_threshold=90
+rag_contract_meta_rate=100.0
+rag_contract_meta_fail=no
+rag_citation_coverage_rate=90.0
+rag_citation_coverage_fail=no
+rag_low_confidence_refusal_rate=100.0
+rag_low_confidence_refusal_fail=no
+```
+
+## 5) Verification conclusion
+
+- Retrieval-threshold contract metrics meet configured threshold policy (`90%`) for
+  all three targeted metrics:
+  - `rag_contract_meta_fail=no`
+  - `rag_citation_coverage_fail=no`
+  - `rag_low_confidence_refusal_fail=no`
+- Scope continuity remains enforced in local and Pantheon outputs:
+  - `llm.enabled: false`
+  - `vector_search.enabled: false`
+  - `rate_limit_per_minute: 15`
+- Promptfoo advisory run still reports non-threshold scenario failures outside this
+  exit-criterion-specific retrieval-threshold contract.

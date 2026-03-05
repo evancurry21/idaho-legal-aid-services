@@ -424,6 +424,17 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/src/Service/FaqIndex.php:748-758`
   - `web/modules/custom/ilas_site_assistant/src/Service/FaqIndex.php:813-823`
 
+- Addendum (2026-03-04): Phase 2 Exit #1 (`P2-EXT-01`) confirms retrieval
+  contract/confidence regression threshold closure is enforceable through
+  runbook §4 verification bundles, runtime proof artifacts, and closure guard
+  tests without changing retrieval architecture shape.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Exit #1 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-EXT-01 retrieval contract/confidence addendum)
+  - `docs/aila/runbook.md` (P2-EXT-01 verification subsection in §4)
+  - `docs/aila/runtime/phase2-exit1-retrieval-contract-confidence-thresholds.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaOneGateTest.php`
+
 ### CLAIM-063
 - Claim: FAQ retrieval falls back to legacy entity-query search if Search API is unavailable/failing.
 - Evidence:
@@ -462,6 +473,16 @@ Evidence precedence used in this audit:
   - `docs/aila/runbook.md` (Deterministic dependency degrade contract verification subsection in §2)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/DependencyFailureDegradeContractTest.php`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseOneDeterministicDegradeContractTest.php`
+
+- Addendum (2026-03-04): Phase 2 Exit #2 (`P2-EXT-02`) confirms citation
+  coverage and low-confidence refusal metrics are within approved targets,
+  enforced through promptfoo gate summary fields and 90% threshold policy.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Exit #2 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-EXT-02 citation/refusal addendum)
+  - `docs/aila/runbook.md` (P2-EXT-02 verification subsection in §4)
+  - `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaTwoGateTest.php`
 
 ### CLAIM-066
 - Claim: Pinecone Search API server is configured with Gemini chat model, Gemini embedding model, 3072 dimensions, and cosine similarity.
@@ -601,6 +622,16 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/src/Service/SloDefinitions.php:12-112`
   - `web/modules/custom/ilas_site_assistant/src/Service/SloAlertService.php:20-260`
   - `web/modules/custom/ilas_site_assistant/src/Service/QueueHealthMonitor.php:12-181`
+- Addendum (2026-03-04): Phase 2 Entry #1 (`P2-ENT-01`) confirms
+  observability baseline continuity from Phase 1 is operational via
+  `VC-RUNBOOK-LOCAL` verification, runbook section-3 command bundle continuity,
+  and closure guard coverage without runtime behavior changes.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Entry #1 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-ENT-01 observability + CI baseline operational addendum)
+  - `docs/aila/runbook.md` (P2-ENT-01 verification subsection in §3)
+  - `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoEntryCriteriaOneGateTest.php`
 
 ### CLAIM-085
 - Claim: Analytics logger redacts event values and stores no-answer queries as redacted/truncated hash records.
@@ -648,6 +679,34 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (P2-DEL-04 dataset expansion addendum)
   - `docs/aila/runbook.md` (P2-DEL-04 verification subsection in §4)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableFourGateTest.php`
+
+- Addendum (2026-03-04): Phase 2 Exit #1 (`P2-EXT-01`) closes retrieval
+  contract/confidence threshold verification with explicit runbook alias checks
+  (`VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`), full promptfoo gate execution,
+  retrieval threshold fail-flag assertions, and provider compatibility hardening
+  for session-bound CSRF bootstrap.
+- Addendum evidence:
+  - `promptfoo-evals/providers/ilas-live.js` (bootstrap endpoint preference + fallback)
+  - `scripts/ci/run-promptfoo-gate.sh` (retrieval threshold summary/fail flags)
+  - `docs/aila/roadmap.md` (Phase 2 Exit #1 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-EXT-01 retrieval contract/confidence addendum)
+  - `docs/aila/runbook.md` (P2-EXT-01 verification subsection in §4)
+  - `docs/aila/runtime/phase2-exit1-retrieval-contract-confidence-thresholds.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaOneGateTest.php`
+
+- Addendum (2026-03-04): Phase 2 Exit #2 (`P2-EXT-02`) confirms citation
+  coverage (10 scenarios) and low-confidence refusal (10 scenarios) metrics are
+  within approved 90% threshold targets. Enforcement is verified through scenario
+  anchor counts, gate summary fail-flag fields, and `VC-RUNBOOK-LOCAL` /
+  `VC-RUNBOOK-PANTHEON` continuity checks.
+- Addendum evidence:
+  - `promptfoo-evals/tests/retrieval-confidence-thresholds.yaml` (scenario anchor counts)
+  - `scripts/ci/run-promptfoo-gate.sh` (90% threshold policy and fail-flag enforcement)
+  - `docs/aila/roadmap.md` (Phase 2 Exit #2 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-EXT-02 citation/refusal addendum)
+  - `docs/aila/runbook.md` (P2-EXT-02 verification subsection in §4)
+  - `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaTwoGateTest.php`
 
 ---
 
@@ -706,6 +765,13 @@ Evidence precedence used in this audit:
 - Claim: **SUPERSEDED by CLAIM-124.** Historical blocker basis: config schema previously defined llm/fallback/safety/history/ab/langfuse mappings but omitted `vector_search`.
 - Evidence (historical, pre-fix):
   - `web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml` (pre-fix snapshot preserved in git history)
+- Addendum (2026-03-04): Phase 2 Entry #2 (`P2-ENT-02`) confirms this historical
+  blocker (B-02) is fully resolved via CLAIM-124, with ongoing enforcement by
+  `VectorSearchConfigSchemaTest` and `ConfigCompletenessDriftTest` contract suites.
+- Addendum evidence:
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorSearchConfigSchemaTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ConfigCompletenessDriftTest.php`
+  - `docs/aila/runtime/phase2-entry2-config-parity-retrieval-tuning.txt`
 
 ### CLAIM-096
 - Claim: Admin settings form exposes and persists `vector_search` config values. Historical schema mismatch from CLAIM-095 is resolved in CLAIM-124.
@@ -886,6 +952,12 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/pantheon-dev.txt:42-45`
   - `docs/aila/runtime/pantheon-test.txt:41-43`
   - `docs/aila/runtime/pantheon-live.txt:41-48`
+- Addendum (2026-03-04): Phase 2 Entry #2 (`P2-ENT-02`) confirms Pantheon
+  config:status parity for `ilas_site_assistant.settings`; the one `live` diff
+  (`core.entity_view_display.node.adept_lesson.teaser`) is unrelated to assistant
+  config and does not affect entry-criterion closure.
+- Addendum evidence:
+  - `docs/aila/runtime/phase2-entry2-config-parity-retrieval-tuning.txt`
 
 ### CLAIM-117
 - Claim: Pantheon `system.cron_last` values were captured directly for `dev`, `test`, and `live`.
@@ -910,6 +982,21 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/pantheon-test.txt:122-130`
   - `docs/aila/runtime/pantheon-live.txt:69-77`
   - `docs/aila/runtime/pantheon-live.txt:127-135`
+- Addendum (2026-03-04): Phase 2 Exit #3 (`P2-EXT-03`) confirms live LLM
+  remains disabled pending Phase 3 readiness review through layered guardrails:
+  settings.php live override, settings-form live enforcement, and service-level
+  effective-live checks in `LlmEnhancer` + `FallbackGate`, verified by
+  `VC-RUNBOOK-LOCAL` and `VC-RUNBOOK-PANTHEON` continuity outputs.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Exit #3 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-EXT-03 live-LLM-disabled addendum)
+  - `docs/aila/runbook.md` (P2-EXT-03 verification subsection in section 3)
+  - `docs/aila/runtime/phase2-exit3-live-llm-disabled-phase3-readiness.txt`
+  - `web/sites/default/settings.php`
+  - `web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaThreeGateTest.php`
 
 ### CLAIM-120
 - Claim: `config:get` for `raven.settings` and `langfuse.settings` returned “Config ... does not exist” on Pantheon `dev`, `test`, and `live`.
@@ -988,6 +1075,18 @@ Evidence precedence used in this audit:
   - `docs/aila/roadmap.md` (Phase 2 Objective #3 disposition dated 2026-03-03)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoObjectiveThreeGateTest.php`
   - `docs/aila/evidence-index.md` (CLAIM-133)
+- Addendum (2026-03-04): Phase 2 Entry #1 (`P2-ENT-01`) confirms CI baseline
+  continuity from Phase 1 remains operational through first-party workflow
+  anchors, repo gate-script continuity, and validation alias/toggle checks,
+  while preserving Phase 2 scope boundaries.
+- Addendum evidence:
+  - `.github/workflows/quality-gate.yml` (trigger coverage + concurrency + gate job names)
+  - `scripts/ci/run-promptfoo-gate.sh`
+  - `scripts/ci/run-external-quality-gate.sh`
+  - `docs/aila/runbook.md` (P2-ENT-01 verification subsection in §3)
+  - `docs/aila/current-state.md` (P2-ENT-01 observability + CI baseline operational addendum)
+  - `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoEntryCriteriaOneGateTest.php`
 
 ---
 
@@ -1294,3 +1393,122 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (Section 4F harness row + P2-DEL-04 addendum)
   - `docs/aila/runbook.md` (P2-DEL-04 verification subsection in section 4)
   - `docs/aila/risk-register.md` (`R-MNT-02` and `R-LLM-01` conservative linkage text updates with unchanged status values)
+
+---
+
+## Phase 2 Entry #1 Observability + CI Baseline Operational (`P2-ENT-01`)
+
+### CLAIM-138
+- Claim: Phase 2 Entry criterion #1 (`P2-ENT-01`) is closed in-repo:
+  observability and CI baselines from Phase 1 are operational and verifiable via
+  command aliases (`VC-RUNBOOK-LOCAL`, `VC-TOGGLE-CHECK`), section-3 runbook
+  verification commands, CI workflow/script continuity anchors, and Diagram A
+  observability/CI path anchors. Scope constraints remain unchanged: no live LLM
+  enablement through Phase 2 and no broad platform migration outside the current
+  Pantheon baseline.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Entry #1 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-ENT-01 observability + CI baseline operational addendum)
+  - `docs/aila/runbook.md` (P2-ENT-01 verification subsection in section 3)
+  - `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt` (sanitized VC command output + CI/diagram anchor checks)
+  - `.github/workflows/quality-gate.yml` (first-party CI baseline workflow anchors)
+  - `scripts/ci/run-promptfoo-gate.sh`
+  - `scripts/ci/run-external-quality-gate.sh`
+  - `docs/aila/system-map.mmd` (Diagram A observability + CI anchors)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoEntryCriteriaOneGateTest.php` (closure continuity/enforcement lock)
+
+---
+
+## Phase 2 Entry #2 Config Parity + Retrieval Tuning Stability (`P2-ENT-02`)
+
+### CLAIM-139
+- Claim: Phase 2 Entry criterion #2 (`P2-ENT-02`) is closed in-repo: config parity
+  and retrieval tuning controls are stable across environments, enforced by
+  `VectorSearchConfigSchemaTest` (4 tests) and `ConfigCompletenessDriftTest` (5 tests)
+  providing three-way parity (install defaults / active config export / schema).
+  `vector_search` (7 keys) and `fallback_gate.thresholds` (12 keys) are verified
+  present in schema, install defaults, and active config export. Scope constraints
+  remain unchanged: no live LLM enablement through Phase 2 and no broad platform
+  migration outside the current Pantheon baseline.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Entry #2 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-ENT-02 config parity + retrieval tuning stability addendum)
+  - `docs/aila/runbook.md` (P2-ENT-02 verification subsection in section 3)
+  - `docs/aila/runtime/phase2-entry2-config-parity-retrieval-tuning.txt` (sanitized VC command output + config parity anchor checks)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorSearchConfigSchemaTest.php` (schema parity enforcement)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ConfigCompletenessDriftTest.php` (install/active/schema parity enforcement)
+  - `web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml` (schema coverage for vector_search + fallback_gate)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoEntryCriteriaTwoGateTest.php` (closure continuity/enforcement lock)
+
+---
+
+## Phase 2 Exit #1 Retrieval Contract + Confidence Thresholds (`P2-EXT-01`)
+
+### CLAIM-140
+- Claim: Phase 2 Exit criterion #1 (`P2-EXT-01`) is closed in-repo: retrieval
+  contract and confidence logic pass regression thresholds through explicit
+  runbook alias execution (`VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`), full
+  promptfoo gate execution, and deterministic retrieval-threshold fail-flag
+  validation (`rag_contract_meta_fail`, `rag_citation_coverage_fail`,
+  `rag_low_confidence_refusal_fail`). Promptfoo provider bootstrap now prefers
+  `/assistant/api/session/bootstrap` with `/session/token` fallback to preserve
+  session-bound CSRF behavior in eval harness runs. Scope constraints remain
+  unchanged: no live LLM enablement through Phase 2 and no broad platform
+  migration outside the current Pantheon baseline.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Exit #1 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-EXT-01 retrieval contract/confidence addendum)
+  - `docs/aila/runbook.md` (P2-EXT-01 verification subsection in section 4)
+  - `docs/aila/runtime/phase2-exit1-retrieval-contract-confidence-thresholds.txt` (sanitized local/pantheon/gate summary proof)
+  - `promptfoo-evals/providers/ilas-live.js` (assistant session bootstrap endpoint preference + /session/token fallback)
+  - `scripts/ci/run-promptfoo-gate.sh` (retrieval threshold summary fields and fail-flag enforcement)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaOneGateTest.php` (closure continuity/enforcement lock)
+
+## Phase 2 Exit #2 Citation Coverage + Low-Confidence Refusal Targets (`P2-EXT-02`)
+
+### CLAIM-141
+- Claim: Phase 2 exit criterion #2 ("Citation coverage and low-confidence refusal
+  metrics are within approved targets") is closed as implemented. Citation
+  coverage (10 `rag-citation-coverage` scenarios) and low-confidence refusal
+  (10 `rag-low-confidence-refusal` scenarios) pass the configured 90% per-metric
+  threshold in `scripts/ci/run-promptfoo-gate.sh`, verified through gate summary
+  fail-flag fields (`rag_citation_coverage_fail=no`,
+  `rag_low_confidence_refusal_fail=no`), scenario anchor counts in
+  `retrieval-confidence-thresholds.yaml`, and `VC-RUNBOOK-LOCAL` /
+  `VC-RUNBOOK-PANTHEON` scope continuity checks. Scope constraints remain
+  unchanged: no live LLM enablement through Phase 2 and no broad platform
+  migration outside the current Pantheon baseline.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Exit #2 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-EXT-02 citation/refusal addendum)
+  - `docs/aila/runbook.md` (P2-EXT-02 verification subsection in section 4)
+  - `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt` (sanitized local/pantheon/scenario anchor proof)
+  - `promptfoo-evals/tests/retrieval-confidence-thresholds.yaml` (10 citation + 10 refusal scenario anchors)
+  - `scripts/ci/run-promptfoo-gate.sh` (90% threshold policy and fail-flag enforcement)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaTwoGateTest.php` (closure continuity/enforcement lock)
+
+---
+
+## Phase 2 Exit #3 Live LLM Disabled Pending Phase 3 Readiness Review (`P2-EXT-03`)
+
+### CLAIM-142
+- Claim: Phase 2 exit criterion #3 ("Live LLM remains disabled pending Phase 3
+  readiness review") is closed as implemented. Live LLM disablement is enforced
+  by layered runtime controls (Pantheon live settings override, settings-form
+  live guardrails, and service-level effective-live checks in `LlmEnhancer` and
+  `FallbackGate`) plus explicit `VC-RUNBOOK-LOCAL` and
+  `VC-RUNBOOK-PANTHEON` continuity verification. Scope constraints remain
+  unchanged: no live LLM enablement through Phase 2 and no broad platform
+  migration outside the current Pantheon baseline.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 2 Exit #3 disposition dated 2026-03-04)
+  - `docs/aila/current-state.md` (P2-EXT-03 live-LLM-disabled addendum)
+  - `docs/aila/runbook.md` (P2-EXT-03 verification subsection in section 3)
+  - `docs/aila/runtime/phase2-exit3-live-llm-disabled-phase3-readiness.txt` (sanitized local/pantheon/guard-anchor proof)
+  - `web/sites/default/settings.php` (live hard-disable override for `llm.enabled`)
+  - `web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php` (live UI/validation/submit guardrails)
+  - `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php` (service-level effective-live hard-disable)
+  - `web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php` (service-level effective-live fallback routing guard)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php` (live guard behavior contract)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/FallbackGateTest.php` (live fallback decision contract)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaThreeGateTest.php` (closure continuity/enforcement lock)

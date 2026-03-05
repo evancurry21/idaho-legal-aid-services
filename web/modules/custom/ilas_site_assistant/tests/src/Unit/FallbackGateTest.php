@@ -95,6 +95,50 @@ class FallbackGateTest extends TestCase {
   }
 
   /**
+   * Tests live environment treats LLM as disabled for fallback decisions.
+   */
+  public function testLiveEnvironmentDisablesLlmFallbackDecision(): void {
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+    $hadPantheonInEnv = array_key_exists('PANTHEON_ENVIRONMENT', $_ENV);
+    $originalPantheonEnv = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
+
+    try {
+      putenv('PANTHEON_ENVIRONMENT=live');
+      $_ENV['PANTHEON_ENVIRONMENT'] = 'live';
+
+      $intent = [
+        'type' => 'unknown',
+        'extraction' => [
+          'keywords' => ['random', 'stuff'],
+          'phrases_found' => [],
+          'synonyms_applied' => [],
+        ],
+      ];
+      $message = 'This is some random query that makes no sense';
+
+      $decision = $this->fallbackGate->evaluate($intent, [], [], ['message' => $message]);
+
+      $this->assertEquals(FallbackGate::DECISION_CLARIFY, $decision['decision']);
+      $this->assertEquals(FallbackGate::REASON_LLM_DISABLED, $decision['reason_code']);
+    }
+    finally {
+      if ($originalPantheon === FALSE) {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+      else {
+        putenv("PANTHEON_ENVIRONMENT={$originalPantheon}");
+      }
+
+      if ($hadPantheonInEnv) {
+        $_ENV['PANTHEON_ENVIRONMENT'] = $originalPantheonEnv;
+      }
+      else {
+        unset($_ENV['PANTHEON_ENVIRONMENT']);
+      }
+    }
+  }
+
+  /**
    * Tests very short messages trigger clarification.
    */
   public function testShortMessageClarification(): void {

@@ -1,0 +1,89 @@
+# Phase 2 Exit #3 runtime proof (`P2-EXT-03`)
+
+Date stamp: 2026-03-04
+Captured at (UTC): 2026-03-05T00:10:56Z
+
+Scope target:
+- Live LLM remains disabled pending Phase 3 readiness review.
+- No broad platform migration outside current Pantheon baseline.
+
+Blocker policy:
+- If `VC-RUNBOOK-PANTHEON` fails (auth/connectivity/command failure), P2-EXT-03 is not closed.
+
+## Validation command aliases executed
+
+1) `VC-RUNBOOK-LOCAL`
+Command:
+- `cd /home/evancurry/idaho-legal-aid-services && ddev drush status && ddev drush config:get ilas_site_assistant.settings -y && ddev drush state:get system.cron_last`
+
+Sanitized output excerpts:
+- `Drupal bootstrap : Successful`
+- `llm.enabled: false`
+- `vector_search.enabled: false`
+- `rate_limit_per_minute: 15`
+- `rate_limit_per_hour: 120`
+- `system.cron_last: 1772666925`
+
+2) `VC-RUNBOOK-PANTHEON`
+Command:
+- `for ENV in dev test live; do terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings -y; done`
+
+Sanitized output excerpts:
+- `dev: llm.enabled: false`
+- `test: llm.enabled: false`
+- `live: llm.enabled: false`
+- `dev: vector_search.enabled: false`
+- `test: vector_search.enabled: false`
+- `live: vector_search.enabled: false`
+
+## Closure-focused continuity checks
+
+Command:
+- `for ENV in dev test live; do ... llm.enabled ... vector_search.enabled ... rate_limit_per_minute ... done`
+
+Sanitized output excerpts:
+- `dev llm.enabled: false`
+- `dev vector_search.enabled: false`
+- `dev rate_limit_per_minute: 15`
+- `test llm.enabled: false`
+- `test vector_search.enabled: false`
+- `test rate_limit_per_minute: 15`
+- `live llm.enabled: false`
+- `live vector_search.enabled: false`
+- `live rate_limit_per_minute: 15`
+
+## Runtime/service code-anchor checks
+
+Command set:
+- `rg -n "PANTHEON_ENVIRONMENT.*live|llm\.enabled.*FALSE" web/sites/default/settings.php`
+- `rg -n "isLiveEnvironment|LLM enhancement cannot be enabled in the live environment through Phase 2.|llm_enabled = FALSE" web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php`
+- `rg -n "isLiveEnvironment|llm\.enabled" web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+- `rg -n "isLiveEnvironment|isLlmEffectivelyEnabled|llm\.enabled" web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php`
+
+Anchor excerpts:
+- `settings.php`: live environment conditional + `$config['ilas_site_assistant.settings']['llm.enabled'] = FALSE;`
+- `AssistantSettingsForm.php`: `isLiveEnvironment()` + live-form guard message + submit coercion (`$llm_enabled = FALSE`)
+- `LlmEnhancer.php`: `protected function isLiveEnvironment(): bool` + `isEnabled()` live hard-disable path
+- `FallbackGate.php`: `protected function isLiveEnvironment(): bool` + `protected function isLlmEffectivelyEnabled(): bool`
+
+## Targeted PHPUnit verification
+
+Commands:
+- `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaThreeGateTest.php`
+- `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php`
+- `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/FallbackGateTest.php`
+- `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/AuditBaselineAcceptanceTest.php`
+
+Result summary:
+- `PhaseTwoExitCriteriaThreeGateTest.php`: pass
+- `LlmEnhancerHardeningTest.php`: pass
+- `FallbackGateTest.php`: pass
+- `AuditBaselineAcceptanceTest.php`: pass
+
+## Conclusion
+
+- `VC-RUNBOOK-LOCAL`: pass
+- `VC-RUNBOOK-PANTHEON`: pass
+- Live-disable continuity maintained (`llm.enabled: false`) with additional defense-in-depth guards in runtime services.
+- Scope boundaries unchanged for Phase 2.
+- phase2-ext-03-status=closed

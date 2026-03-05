@@ -237,12 +237,30 @@ PROMPT,
   }
 
   /**
+   * Returns TRUE when running in Pantheon live environment.
+   */
+  protected function isLiveEnvironment(): bool {
+    $pantheon_env = getenv('PANTHEON_ENVIRONMENT');
+    if (is_string($pantheon_env) && strtolower($pantheon_env) === 'live') {
+      return TRUE;
+    }
+
+    $pantheon_env = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
+    return is_string($pantheon_env) && strtolower($pantheon_env) === 'live';
+  }
+
+  /**
    * Checks if LLM enhancement is enabled.
    *
    * @return bool
    *   TRUE if LLM is enabled and configured.
    */
   public function isEnabled(): bool {
+    // Defense-in-depth: never allow LLM enablement on Pantheon live.
+    if ($this->isLiveEnvironment()) {
+      return FALSE;
+    }
+
     $config = $this->configFactory->get('ilas_site_assistant.settings');
 
     if (!$config->get('llm.enabled')) {

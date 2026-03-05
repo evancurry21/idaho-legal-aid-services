@@ -1,0 +1,120 @@
+# Phase 2 Entry #1 Observability + CI Baseline Runtime Proof (`P2-ENT-01`)
+
+Generated:
+- UTC: `2026-03-04T22:59:02Z`
+- Local (`America/Denver`): `2026-03-04 15:59:02 MST`
+
+Capture scope:
+- Local DDEV runtime verification (read-only command execution)
+- Repository-local CI/diagram anchor continuity checks
+
+Sanitization notes:
+- This artifact stores command output excerpts required to prove operational continuity.
+- Secret-bearing values are not printed.
+
+## 1) `VC-RUNBOOK-LOCAL`
+
+Command:
+
+```bash
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+```
+
+Output excerpts:
+
+```text
+Drupal version   : 11.3.3
+Site URI         : http://localhost
+Database         : Connected
+Drupal bootstrap : Successful
+Drush version    : 13.7.0.0
+Drupal root      : /var/www/html/web
+```
+
+```text
+rate_limit_per_minute: 15
+rate_limit_per_hour: 120
+conversation_logging:
+llm:
+  enabled: false
+vector_search:
+  enabled: false
+```
+
+```text
+system.cron_last=1772557365
+```
+
+## 2) `VC-TOGGLE-CHECK`
+
+Command:
+
+```bash
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging" \
+    docs/aila/current-state.md docs/aila/evidence-index.md
+```
+
+Output excerpts:
+
+```text
+docs/aila/current-state.md:265:| Flood per-minute | `rate_limit_per_minute` | `15` | `15` | Verified `15` on dev/test/live (`ilas_site_assistant.settings`) | Applied in message endpoint flood checks | ...
+docs/aila/current-state.md:267:| Conversation logging | `conversation_logging.*` | `enabled=false`, retention `72h`, redaction true | `enabled=true`, retention `72h`, redaction true | Verified `enabled=true`, `retention_hours=72`, `redact_pii=true` on dev/test/live | ...
+docs/aila/current-state.md:268:| LLM master switch | `llm.enabled` | `false` | `false` | Verified `false` on dev/test/live; live runtime override enforces `false` | ...
+docs/aila/current-state.md:277:| Vector supplement | `vector_search.*` | Present, `enabled=false` | Present, `enabled=false` (synced) | ...
+docs/aila/evidence-index.md:905:- Claim: Pantheon active `ilas_site_assistant.settings` in `dev`/`test`/`live` shows ... `conversation_logging.enabled=true`, `rate_limit_per_minute=15`, ... `llm.enabled=false`.
+```
+
+## 3) CI baseline anchor continuity checks
+
+Commands:
+
+```bash
+rg -n "name: Quality Gate|release/\\*\\*|cancel-in-progress|name: PHPUnit Quality Gate|name: Promptfoo Gate" \
+  .github/workflows/quality-gate.yml
+
+rg -n "run-external-quality-gate.sh|run-promptfoo-gate.sh|derive-assistant-url.sh" \
+  scripts/ci
+```
+
+Output:
+
+```text
+.github/workflows/quality-gate.yml:1:name: Quality Gate
+.github/workflows/quality-gate.yml:8:      - 'release/**'
+.github/workflows/quality-gate.yml:13:      - 'release/**'
+.github/workflows/quality-gate.yml:18:  cancel-in-progress: true
+.github/workflows/quality-gate.yml:22:    name: PHPUnit Quality Gate
+.github/workflows/quality-gate.yml:57:    name: Promptfoo Gate
+scripts/ci/run-promptfoo-gate.sh:6:DERIVE_SCRIPT="$SCRIPT_DIR/derive-assistant-url.sh"
+scripts/ci/run-external-quality-gate.sh:94:bash scripts/ci/run-promptfoo-gate.sh "${PROMPTFOO_ARGS[@]}"
+```
+
+## 4) Diagram A observability + CI anchors
+
+Command:
+
+```bash
+rg -n "OBS\\[Observability|CI\\[External CI runner|PF\\[Promptfoo harness|CI -->\\|drives scripted quality gates\\| PF" \
+  docs/aila/system-map.mmd
+```
+
+Output:
+
+```text
+docs/aila/system-map.mmd:21:    OBS[Observability\nAnalytics logger\nLangfuse tracer/queue\nSentry options subscriber\nNormalized telemetry log schema]
+docs/aila/system-map.mmd:33:    CI[External CI runner\nscripts/ci/run-external-quality-gate.sh]
+docs/aila/system-map.mmd:34:    PF[Promptfoo harness]
+docs/aila/system-map.mmd:72:  CI -->|drives scripted quality gates| PF
+```
+
+## 5) Verification summary
+
+- `VC-RUNBOOK-LOCAL` succeeded with effective local runtime/config visibility.
+- `VC-TOGGLE-CHECK` succeeded with documented toggle anchors present in current-state and evidence-index.
+- CI baseline anchors remain intact in first-party workflow and repo gate scripts.
+- Diagram A observability + CI pathway anchors remain documented.
+- Scope continuity retained: no evidence of live LLM enablement or broad platform migration changes in this closure artifact.

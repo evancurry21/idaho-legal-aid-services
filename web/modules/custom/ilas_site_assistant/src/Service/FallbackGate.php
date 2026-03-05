@@ -176,6 +176,31 @@ class FallbackGate {
   }
 
   /**
+   * Returns TRUE when running in Pantheon live environment.
+   */
+  protected function isLiveEnvironment(): bool {
+    $pantheon_env = getenv('PANTHEON_ENVIRONMENT');
+    if (is_string($pantheon_env) && strtolower($pantheon_env) === 'live') {
+      return TRUE;
+    }
+
+    $pantheon_env = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
+    return is_string($pantheon_env) && strtolower($pantheon_env) === 'live';
+  }
+
+  /**
+   * Returns whether LLM is effectively enabled for gate decisions.
+   */
+  protected function isLlmEffectivelyEnabled(): bool {
+    if ($this->isLiveEnvironment()) {
+      return FALSE;
+    }
+
+    $config = $this->configFactory->get('ilas_site_assistant.settings');
+    return (bool) $config->get('llm.enabled');
+  }
+
+  /**
    * Evaluates whether to answer, clarify, or fallback to LLM.
    *
    * @param array $intent
@@ -348,9 +373,8 @@ class FallbackGate {
       );
     }
 
-    // Check if LLM is enabled.
-    $config = $this->configFactory->get('ilas_site_assistant.settings');
-    if (!$config->get('llm.enabled')) {
+    // Check if LLM is effectively enabled.
+    if (!$this->isLlmEffectivelyEnabled()) {
       // Fallback to clarification since LLM is disabled.
       return $this->buildDecision(
         self::DECISION_CLARIFY,
@@ -388,8 +412,6 @@ class FallbackGate {
 
     // No results found.
     if (empty($retrieval_results)) {
-      $config = $this->configFactory->get('ilas_site_assistant.settings');
-
       // If high intent confidence, still route to the resource page.
       if ($intent_conf >= $thresholds['intent_high_conf']) {
         return $this->buildDecision(
@@ -401,7 +423,7 @@ class FallbackGate {
       }
 
       // Low confidence with no results - try LLM or clarify.
-      if ($config->get('llm.enabled')) {
+      if ($this->isLlmEffectivelyEnabled()) {
         return $this->buildDecision(
           self::DECISION_FALLBACK_LLM,
           self::REASON_NO_RESULTS,
@@ -458,8 +480,7 @@ class FallbackGate {
     }
 
     // Low confidence - fallback to LLM.
-    $config = $this->configFactory->get('ilas_site_assistant.settings');
-    if ($config->get('llm.enabled')) {
+    if ($this->isLlmEffectivelyEnabled()) {
       return $this->buildDecision(
         self::DECISION_FALLBACK_LLM,
         self::REASON_LOW_RETRIEVAL_SCORE,
@@ -501,9 +522,7 @@ class FallbackGate {
     $has_conjunctions = preg_match('/\b(and|also|plus|or)\b/i', $message);
 
     if ($word_count > 10 && $has_conjunctions && $intent_conf < $thresholds['intent_high_conf']) {
-      $config = $this->configFactory->get('ilas_site_assistant.settings');
-
-      if ($config->get('llm.enabled')) {
+      if ($this->isLlmEffectivelyEnabled()) {
         return $this->buildDecision(
           self::DECISION_FALLBACK_LLM,
           self::REASON_AMBIGUOUS_MULTI_INTENT,

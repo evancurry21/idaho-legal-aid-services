@@ -363,6 +363,170 @@ Expected Sprint 3 verification result:
 - Scope boundaries remain enforced (`llm.enabled=false` through Phase 2; no full
   retrieval-architecture redesign).
 
+### Phase 2 entry #1 observability + CI baseline operational verification (`P2-ENT-01`)
+
+Use this command bundle to verify Phase 2 Entry criterion #1:
+"Observability + CI baselines are operational from Phase 1."
+
+```bash
+# 1) Required prompt validation aliases.
+# VC-RUNBOOK-LOCAL
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+
+# VC-TOGGLE-CHECK
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging" \
+    docs/aila/current-state.md docs/aila/evidence-index.md
+
+# 2) CI baseline continuity checks (repo-local).
+rg -n "name: Quality Gate|release/\\*\\*|cancel-in-progress|name: PHPUnit Quality Gate|name: Promptfoo Gate" \
+  .github/workflows/quality-gate.yml
+
+rg -n "run-external-quality-gate.sh|run-promptfoo-gate.sh|derive-assistant-url.sh" \
+  scripts/ci
+
+# 3) Diagram A anchor continuity checks for observability + CI path.
+rg -n "OBS\\[Observability|CI\\[External CI runner|PF\\[Promptfoo harness|CI -->\\|drives scripted quality gates\\| PF" \
+  docs/aila/system-map.mmd
+```
+
+Expected P2-ENT-01 verification result:
+- `VC-RUNBOOK-LOCAL` returns successful local runtime status, effective assistant
+  settings visibility, and a concrete `system.cron_last` state value.
+- `VC-TOGGLE-CHECK` confirms documented toggle continuity in current-state and
+  evidence-index for `llm.enabled`, `vector_search`, flood limits, and
+  `conversation_logging`.
+- CI baseline anchors remain present: first-party workflow triggers and
+  concurrency controls are intact, and repo gate scripts remain in canonical
+  `scripts/ci/*` paths.
+- Diagram A still documents observability + CI flow anchors for this entry
+  criterion.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt`[^CLAIM-138]
+
+### Phase 2 entry #2 config parity + retrieval tuning stability verification (`P2-ENT-02`)
+
+Use this command bundle to verify Phase 2 Entry criterion #2: "Config parity and
+retrieval tuning controls are stable across environments."
+
+Local (DDEV):
+
+```bash
+# VC-RUNBOOK-LOCAL
+ddev drush status --fields=drupal-version,db-status,bootstrap && \
+ddev drush config:get ilas_site_assistant.settings && \
+ddev drush state:get system.cron_last
+```
+
+Config parity verification:
+
+```bash
+# VC-TOGGLE-CHECK
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging" \
+    docs/aila/current-state.md docs/aila/evidence-index.md
+
+# 1) Config parity contract test anchor checks.
+ls web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorSearchConfigSchemaTest.php \
+   web/modules/custom/ilas_site_assistant/tests/src/Unit/ConfigCompletenessDriftTest.php
+
+# 2) Schema coverage anchor checks for vector_search and fallback_gate.
+rg -n "vector_search|fallback_gate" \
+  web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml
+```
+
+Expected P2-ENT-02 verification result:
+- `VC-RUNBOOK-LOCAL` returns successful local runtime status, effective assistant
+  settings visibility including `vector_search` and `fallback_gate.thresholds` blocks,
+  and a concrete `system.cron_last` state value.
+- `VC-TOGGLE-CHECK` confirms documented toggle continuity in current-state and
+  evidence-index for `llm.enabled`, `vector_search`, flood limits, and
+  `conversation_logging`.
+- Config parity contract tests exist: `VectorSearchConfigSchemaTest` (4 tests) enforces
+  schema coverage for `vector_search`; `ConfigCompletenessDriftTest` (5 tests) enforces
+  three-way parity (install defaults / active config export / schema).
+- Schema covers both `vector_search` (7 keys) and `fallback_gate.thresholds` (12 keys).
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase2-entry2-config-parity-retrieval-tuning.txt`[^CLAIM-139]
+
+### Phase 2 exit #3 live LLM disabled pending Phase 3 readiness review verification (`P2-EXT-03`)
+
+Use this command bundle to verify Phase 2 exit criterion #3:
+"Live LLM remains disabled pending Phase 3 readiness review."
+
+```bash
+# 1) Validation command aliases from prompt matrix.
+# VC-RUNBOOK-LOCAL
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+
+# VC-RUNBOOK-PANTHEON
+for ENV in dev test live; do
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings -y
+done
+
+# 2) Closure-focused continuity checks.
+for ENV in dev test live; do
+  echo "=== ${ENV} ==="
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings llm.enabled
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings vector_search.enabled
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings rate_limit_per_minute
+done
+
+# 3) Runtime guard anchor checks.
+rg -n "PANTHEON_ENVIRONMENT.*live|llm\\.enabled.*FALSE" \
+  web/sites/default/settings.php
+
+rg -n "isLiveEnvironment|LLM enhancement cannot be enabled in the live environment through Phase 2.|llm_enabled = FALSE" \
+  web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php
+
+rg -n "isLiveEnvironment|llm\\.enabled" \
+  web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php
+
+rg -n "isLiveEnvironment|isLlmEffectivelyEnabled|llm\\.enabled" \
+  web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php
+
+# 4) Targeted guard/closure tests.
+ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaThreeGateTest.php
+
+ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php
+
+ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/FallbackGateTest.php
+```
+
+Expected `P2-EXT-03` verification result:
+- `VC-RUNBOOK-LOCAL` confirms local runtime visibility with `system.cron_last`
+  value and `llm.enabled=false` continuity.
+- `VC-RUNBOOK-PANTHEON` confirms `llm.enabled=false` continuity on
+  `dev`/`test`/`live`.
+- Runtime guard anchors remain present in `settings.php`,
+  `AssistantSettingsForm`, `LlmEnhancer`, and `FallbackGate`.
+- `PhaseTwoExitCriteriaThreeGateTest.php`, `LlmEnhancerHardeningTest.php`, and
+  `FallbackGateTest.php` pass with live hard-disable expectations enforced.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.
+
+Hard gate policy:
+- If `VC-RUNBOOK-PANTHEON` fails (auth/connectivity/command failure),
+  P2-EXT-03 is not closed.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase2-exit3-live-llm-disabled-phase3-readiness.txt`[^CLAIM-142]
+
 ### Phase 1 Exit #1 non-live alerts + dashboards verification
 
 Use this command bundle to verify Phase 1 Exit criterion #1 in non-live contexts
@@ -989,6 +1153,130 @@ Expected Deliverable #4 result:
 - Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
   no broad platform migration outside the current Pantheon baseline.[^CLAIM-137]
 
+### Phase 2 exit #1 retrieval contract + confidence threshold verification (`P2-EXT-01`)
+
+Use these commands to verify Exit criterion #1:
+"Retrieval contract and confidence logic pass regression thresholds."
+
+```bash
+# 0) Preflight (Pantheon auth required for VC-RUNBOOK-PANTHEON).
+terminus whoami
+
+# 1) Validation command aliases from prompt matrix.
+# VC-RUNBOOK-LOCAL
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+
+# VC-RUNBOOK-PANTHEON
+for ENV in dev test live; do
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings -y
+done
+
+# 2) Retrieval-threshold gate anchors.
+rg -n "rag-contract-meta-present|rag-citation-coverage|rag-low-confidence-refusal" \
+  promptfoo-evals/tests/retrieval-confidence-thresholds.yaml \
+  promptfoo-evals/promptfooconfig.abuse.yaml \
+  scripts/ci/run-promptfoo-gate.sh
+
+rg -n "assistant/api/session/bootstrap|session/token|\\[contract_meta\\]" \
+  promptfoo-evals/providers/ilas-live.js
+
+# 3) Full promptfoo gate (local DDEV endpoint via HTTP for Node fetch compatibility).
+ILAS_ASSISTANT_URL="http://ilas-pantheon.ddev.site/assistant/api/message" \
+  CI_BRANCH=feature/p2-ext-01 scripts/ci/run-promptfoo-gate.sh \
+  --env dev --mode advisory
+
+# 4) Inspect retrieval-threshold summary fields from gate output artifact.
+rg -n "rag_metric_threshold|rag_contract_meta_rate|rag_contract_meta_fail|rag_citation_coverage_rate|rag_citation_coverage_fail|rag_low_confidence_refusal_rate|rag_low_confidence_refusal_fail" \
+  promptfoo-evals/output/gate-summary.txt
+```
+
+Capture sanitized outputs in:
+- `docs/aila/runtime/phase2-exit1-retrieval-contract-confidence-thresholds.txt`[^CLAIM-140]
+
+Expected Exit #1 result:
+- `VC-RUNBOOK-LOCAL` confirms local runtime visibility with `system.cron_last`
+  value and `llm.enabled=false` continuity.
+- `VC-RUNBOOK-PANTHEON` confirms `llm.enabled=false` continuity on
+  `dev`/`test`/`live` (or is captured as explicit blocker if auth is unavailable).
+- Promptfoo gate summary includes retrieval-threshold fields and all fail flags
+  remain `no`: `rag_contract_meta_fail`, `rag_citation_coverage_fail`,
+  `rag_low_confidence_refusal_fail`.
+- Diagram B retrieval/fallback architecture anchors remain unchanged; this bundle
+  introduces no retrieval-architecture redesign.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.[^CLAIM-140]
+
+### Phase 2 exit #2 citation coverage + low-confidence refusal target verification (`P2-EXT-02`)
+
+Use these commands to verify Phase 2 exit criterion #2:
+"Citation coverage and low-confidence refusal metrics are within approved targets."
+
+Local citation/refusal metric verification (DDEV):
+
+```bash
+# VC-RUNBOOK-LOCAL — confirm local runtime visibility and scope continuity.
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+```
+
+Pantheon continuity checks:
+
+```bash
+# VC-RUNBOOK-PANTHEON — confirm scope continuity on dev/test/live.
+for ENV in dev test live; do
+  echo "=== ${ENV} ==="
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings llm.enabled
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings vector_search.enabled
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings rate_limit_per_minute
+done
+```
+
+Scenario anchor checks:
+
+```bash
+# Verify citation coverage and low-confidence refusal scenario counts.
+rg -c "metric: rag-citation-coverage" \
+  promptfoo-evals/tests/retrieval-confidence-thresholds.yaml
+rg -c "metric: rag-low-confidence-refusal" \
+  promptfoo-evals/tests/retrieval-confidence-thresholds.yaml
+
+# Verify gate threshold policy.
+rg -n "PASS_THRESHOLD|rag_metric_threshold" scripts/ci/run-promptfoo-gate.sh
+```
+
+Full promptfoo gate execution (requires live DDEV endpoint):
+
+```bash
+# Run full promptfoo gate with retrieval-threshold scenarios.
+ILAS_ASSISTANT_URL="http://ilas-pantheon.ddev.site/assistant/api/message" \
+  CI_BRANCH=feature/p2-ext-02 scripts/ci/run-promptfoo-gate.sh \
+  --env dev --mode advisory
+
+# Inspect citation/refusal summary fields from gate output artifact.
+rg -n "rag_citation_coverage_rate|rag_citation_coverage_fail|rag_low_confidence_refusal_rate|rag_low_confidence_refusal_fail" \
+  promptfoo-evals/output/gate-summary.txt
+```
+
+Capture sanitized outputs in:
+- `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt`[^CLAIM-141]
+
+Expected Exit #2 result:
+- `VC-RUNBOOK-LOCAL` confirms local runtime visibility with `system.cron_last`
+  value and `llm.enabled=false` continuity.
+- `VC-RUNBOOK-PANTHEON` confirms `llm.enabled=false` continuity on
+  `dev`/`test`/`live` (or is captured as explicit blocker if auth is unavailable).
+- Scenario anchor checks confirm 10 `rag-citation-coverage` and 10
+  `rag-low-confidence-refusal` scenarios in `retrieval-confidence-thresholds.yaml`.
+- Promptfoo gate summary includes citation/refusal fields and both fail flags
+  remain `no`: `rag_citation_coverage_fail`, `rag_low_confidence_refusal_fail`.
+- Scope boundaries remain unchanged: no live LLM enablement through Phase 2 and
+  no broad platform migration outside the current Pantheon baseline.[^CLAIM-141]
+
 ### Phase 1 Exit #3 reliability failure matrix verification (`P1-EXT-03`)
 
 Use these commands to verify Phase 1 exit criterion #3:
@@ -1282,6 +1570,14 @@ sed -E \
   - `docs/aila/runtime/pantheon-live.txt`
 - Promptfoo/CI location search output is captured in:
   - `docs/aila/runtime/promptfoo-ci-search.txt`[^CLAIM-122]
+- Phase 2 Entry #1 observability + CI baseline proof is captured in:
+  - `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt`[^CLAIM-138]
+- Phase 2 Exit #1 retrieval contract + confidence threshold proof is captured in:
+  - `docs/aila/runtime/phase2-exit1-retrieval-contract-confidence-thresholds.txt`[^CLAIM-140]
+- Phase 2 Exit #2 citation coverage + low-confidence refusal target proof is captured in:
+  - `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt`[^CLAIM-141]
+- Phase 2 Exit #3 live LLM disablement continuity proof is captured in:
+  - `docs/aila/runtime/phase2-exit3-live-llm-disabled-phase3-readiness.txt`[^CLAIM-142]
 
 ## 7) Retrospective regression checklist (mandatory)
 
@@ -1336,3 +1632,8 @@ Run this checklist for every future audit cycle that touches assistant routing, 
 [^CLAIM-135]: [CLAIM-135](evidence-index.md#claim-135)
 [^CLAIM-136]: [CLAIM-136](evidence-index.md#claim-136)
 [^CLAIM-137]: [CLAIM-137](evidence-index.md#claim-137)
+[^CLAIM-138]: [CLAIM-138](evidence-index.md#claim-138)
+[^CLAIM-139]: [CLAIM-139](evidence-index.md#claim-139)
+[^CLAIM-140]: [CLAIM-140](evidence-index.md#claim-140)
+[^CLAIM-141]: [CLAIM-141](evidence-index.md#claim-141)
+[^CLAIM-142]: [CLAIM-142](evidence-index.md#claim-142)

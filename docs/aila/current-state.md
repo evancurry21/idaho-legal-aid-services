@@ -652,6 +652,126 @@ This dated addendum records `P2-OBJ-02` completion for Phase 2 Objective #2:
    production LLM enablement, no broad platform migration, and no runtime response
    contract or retrieval-behavior rewrite in this prompt scope.[^CLAIM-115][^CLAIM-119][^CLAIM-132]
 
+### Phase 2 Entry #1 Observability + CI Baseline Operational Disposition (2026-03-04)
+
+This dated addendum records `P2-ENT-01` completion for Phase 2 Entry criterion #1:
+"Observability + CI baselines are operational from Phase 1."
+
+1. Observability baseline continuity from Phase 1 remains operational through
+   SLO-backed health/metrics contracts, queue-health telemetry, and alert-policy
+   enforcement anchored to `CLAIM-084` without expanding production runtime scope.[^CLAIM-084][^CLAIM-138]
+2. CI baseline continuity from Phase 1 remains operational through first-party
+   workflow coverage (`.github/workflows/quality-gate.yml`), repo-owned gate
+   scripts (`scripts/ci/run-promptfoo-gate.sh`,
+   `scripts/ci/run-external-quality-gate.sh`), and branch-aware blocking policy
+   continuity anchored to `CLAIM-122`.[^CLAIM-122][^CLAIM-138]
+3. Prompt-level validation aliases for this entry criterion
+   (`VC-RUNBOOK-LOCAL`, `VC-TOGGLE-CHECK`) are executed and captured in
+   `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt` with
+   sanitized command output and CI/diagram anchor checks.[^CLAIM-138]
+4. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-138]
+5. Residual risk remains unchanged: B-04 (sustained cron/queue behavior under
+   load) remains outside this entry-criterion closure and continues to require
+   sustained runtime observation.[^CLAIM-118][^CLAIM-121][^CLAIM-138]
+
+### Phase 2 Entry #2 Config Parity + Retrieval Tuning Stability Disposition (2026-03-04)
+
+This dated addendum records `P2-ENT-02` completion for Phase 2 Entry criterion #2:
+"Config parity and retrieval tuning controls are stable across environments."
+
+1. Config parity enforcement is operational through `VectorSearchConfigSchemaTest`
+   (4 tests) and `ConfigCompletenessDriftTest` (5 tests), providing three-way parity
+   (install defaults / active config export / schema). Historical blocker B-02
+   (config schema omitting `vector_search`) was resolved via CLAIM-124.[^CLAIM-095][^CLAIM-124][^CLAIM-139]
+2. Retrieval tuning control stability is verified: `vector_search` block (7 keys) and
+   `fallback_gate.thresholds` block (12 keys) are present in schema, install defaults,
+   and active config export with matching values.[^CLAIM-096][^CLAIM-124][^CLAIM-139]
+3. Prompt-level validation aliases for this entry criterion
+   (`VC-RUNBOOK-LOCAL`, `VC-TOGGLE-CHECK`) are executed and captured in
+   `docs/aila/runtime/phase2-entry2-config-parity-retrieval-tuning.txt` with
+   sanitized command output and config parity anchor checks.[^CLAIM-139]
+4. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-139]
+5. Residual risk remains unchanged: B-04 (sustained cron/queue behavior under
+   load) remains outside this entry-criterion closure and continues to require
+   sustained runtime observation.[^CLAIM-118][^CLAIM-121][^CLAIM-139]
+
+### Phase 2 Exit #1 Retrieval Contract + Confidence Threshold Disposition (2026-03-04)
+
+This dated addendum records `P2-EXT-01` completion for Phase 2 Exit criterion #1:
+"Retrieval contract and confidence logic pass regression thresholds."
+
+1. Retrieval contract and confidence threshold gating is now closure-anchored as
+   a reproducible verification bundle using `VC-RUNBOOK-LOCAL`,
+   `VC-RUNBOOK-PANTHEON`, and full promptfoo gate execution with metric fail-flag
+   contract fields (`rag_contract_meta_fail`, `rag_citation_coverage_fail`,
+   `rag_low_confidence_refusal_fail`) captured in runtime proof artifacts.[^CLAIM-062][^CLAIM-086][^CLAIM-140]
+2. Promptfoo provider CSRF bootstrap now prefers
+   `/assistant/api/session/bootstrap` (session-bound token + cookie continuity)
+   with `/session/token` fallback, preserving existing `[contract_meta]` output
+   shape and 403/429 retry behavior for regression harness compatibility.[^CLAIM-086][^CLAIM-140]
+3. Runtime verification output is captured in
+   `docs/aila/runtime/phase2-exit1-retrieval-contract-confidence-thresholds.txt`,
+   including local/pantheon command excerpts and retrieval-threshold summary
+   fields tied to gate policy anchors.[^CLAIM-140]
+4. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-140]
+5. Residual risk posture remains unchanged: B-04 (sustained cron/queue behavior
+   under load) continues to require longitudinal runtime observation outside this
+   closure item.[^CLAIM-118][^CLAIM-121][^CLAIM-140]
+
+### Phase 2 Exit #2 Citation Coverage + Low-Confidence Refusal Targets Disposition (2026-03-04)
+
+This dated addendum records `P2-EXT-02` closure for Phase 2 exit criterion #2:
+"Citation coverage and low-confidence refusal metrics are within approved targets."
+
+1. Citation coverage and low-confidence refusal metrics meet the configured 90%
+   per-metric threshold policy, enforced through `rag_citation_coverage_fail` and
+   `rag_low_confidence_refusal_fail` gate summary fields in the promptfoo
+   harness.[^CLAIM-065][^CLAIM-086][^CLAIM-141]
+2. Enforcement mechanism verification confirms 10 `rag-citation-coverage` and
+   10 `rag-low-confidence-refusal` scenarios anchored in
+   `promptfoo-evals/tests/retrieval-confidence-thresholds.yaml`, with 90%
+   threshold policy in `scripts/ci/run-promptfoo-gate.sh`.[^CLAIM-086][^CLAIM-141]
+3. Runtime verification output is captured in
+   `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt`,
+   including `VC-RUNBOOK-LOCAL` and `VC-RUNBOOK-PANTHEON` continuity checks and
+   scenario anchor verification.[^CLAIM-141]
+4. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-141]
+5. Residual risk posture remains unchanged: B-04 (sustained cron/queue behavior
+   under load) continues to require longitudinal runtime observation outside this
+   closure item.[^CLAIM-118][^CLAIM-121][^CLAIM-141]
+
+### Phase 2 Exit #3 Live LLM Disabled Pending Phase 3 Readiness Review Disposition (2026-03-04)
+
+This dated addendum records `P2-EXT-03` closure for Phase 2 exit criterion #3:
+"Live LLM remains disabled pending Phase 3 readiness review."
+
+1. Live LLM disablement remains closure-anchored as a reproducible verification
+   bundle using `VC-RUNBOOK-LOCAL` and `VC-RUNBOOK-PANTHEON`, with explicit
+   `llm.enabled=false` continuity on local and Pantheon (`dev`/`test`/`live`)
+   outputs captured in runtime proof artifacts.[^CLAIM-119][^CLAIM-142]
+2. Runtime guardrails are now layered for defense-in-depth: live runtime override
+   in `settings.php`, live enforcement in `AssistantSettingsForm`, and
+   service-level effective-live guards in `LlmEnhancer` and `FallbackGate` to
+   prevent live LLM activation from config drift paths.[^CLAIM-099][^CLAIM-119][^CLAIM-142]
+3. Runtime verification output is captured in
+   `docs/aila/runtime/phase2-exit3-live-llm-disabled-phase3-readiness.txt`,
+   including alias command excerpts, guard-anchor checks, and targeted unit
+   suite summaries tied to this closure item.[^CLAIM-142]
+4. Scope boundaries remain unchanged: no live production LLM enablement through
+   Phase 2 and no broad platform migration outside the current Pantheon
+   baseline.[^CLAIM-115][^CLAIM-119][^CLAIM-142]
+5. Residual risk posture remains unchanged: B-04 (sustained cron/queue behavior
+   under load) continues to require longitudinal runtime observation outside this
+   closure item.[^CLAIM-118][^CLAIM-121][^CLAIM-142]
+
 ### Phase 1 NDO #2 Boundary Enforcement Addendum (2026-03-03)
 
 This dated addendum records `P1-NDO-02` closure for the Phase 1 scope boundary:
@@ -796,3 +916,8 @@ This dated addendum records `P1-NDO-02` closure for the Phase 1 scope boundary:
 [^CLAIM-135]: [CLAIM-135](evidence-index.md#claim-135)
 [^CLAIM-136]: [CLAIM-136](evidence-index.md#claim-136)
 [^CLAIM-137]: [CLAIM-137](evidence-index.md#claim-137)
+[^CLAIM-138]: [CLAIM-138](evidence-index.md#claim-138)
+[^CLAIM-139]: [CLAIM-139](evidence-index.md#claim-139)
+[^CLAIM-140]: [CLAIM-140](evidence-index.md#claim-140)
+[^CLAIM-141]: [CLAIM-141](evidence-index.md#claim-141)
+[^CLAIM-142]: [CLAIM-142](evidence-index.md#claim-142)

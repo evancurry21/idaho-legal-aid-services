@@ -154,7 +154,7 @@ class AuditBaselineAcceptanceTest extends TestCase {
   }
 
   /**
-   * Evidence index must contain exactly 137 CLAIM headings.
+   * Evidence index must contain exactly 142 CLAIM headings.
    */
   public function testEvidenceIndexContainsExpectedClaimCount(): void {
     $path = self::repoRoot() . '/' . self::DOCS_PATH . '/evidence-index.md';
@@ -163,9 +163,9 @@ class AuditBaselineAcceptanceTest extends TestCase {
     preg_match_all('/^### CLAIM-\d+/m', $content, $matches);
 
     $this->assertCount(
-      137,
+      142,
       $matches[0],
-      'Evidence index must contain exactly 137 CLAIM headings (found ' . count($matches[0]) . ')',
+      'Evidence index must contain exactly 142 CLAIM headings (found ' . count($matches[0]) . ')',
     );
   }
 

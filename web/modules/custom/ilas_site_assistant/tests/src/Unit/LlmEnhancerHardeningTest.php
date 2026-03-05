@@ -723,6 +723,50 @@ class LlmEnhancerHardeningTest extends TestCase {
   }
 
   /**
+   * Tests live environment hard-disables LLM even when config is enabled.
+   */
+  public function testLiveEnvironmentHardDisablesLlmDespiteEnabledConfig(): void {
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+    $hadPantheonInEnv = array_key_exists('PANTHEON_ENVIRONMENT', $_ENV);
+    $originalPantheonEnv = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
+
+    try {
+      putenv('PANTHEON_ENVIRONMENT=live');
+      $_ENV['PANTHEON_ENVIRONMENT'] = 'live';
+
+      $enhancer = $this->buildEnhancer(configOverrides: [
+        'llm.enabled' => TRUE,
+        'llm.api_key' => 'test-api-key',
+      ]);
+
+      $response = [
+        'type' => 'faq',
+        'results' => [['question' => 'Q?', 'answer' => 'A.']],
+      ];
+      $result = $enhancer->enhanceResponse($response, 'test question');
+
+      $this->assertFalse($enhancer->isEnabled(), 'Live environment must force LLM disabled');
+      $this->assertSame(0, $this->control->apiCallCount, 'Live guard must prevent LLM API calls');
+      $this->assertArrayNotHasKey('llm_summary', $result, 'Live guard must preserve deterministic response class');
+    }
+    finally {
+      if ($originalPantheon === FALSE) {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+      else {
+        putenv("PANTHEON_ENVIRONMENT={$originalPantheon}");
+      }
+
+      if ($hadPantheonInEnv) {
+        $_ENV['PANTHEON_ENVIRONMENT'] = $originalPantheonEnv;
+      }
+      else {
+        unset($_ENV['PANTHEON_ENVIRONMENT']);
+      }
+    }
+  }
+
+  /**
    * Builds the config factory with given overrides.
    */
   private function buildConfigFactory(array $overrides = []): ConfigFactoryInterface {

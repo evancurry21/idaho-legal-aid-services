@@ -130,26 +130,42 @@ class IlasLiveProvider {
     this.messageUrl = envUrl;
   }
 
-  /** Fetch a fresh CSRF token from /session/token (captures anonymous session cookie). */
+  /** Fetch a fresh CSRF token, preferring assistant session bootstrap first. */
   async _fetchCsrfToken() {
-    const tokenUrl = `${this.baseUrl}/session/token`;
-    const res = await fetch(tokenUrl, {
-      method: 'GET',
-      headers: { Accept: 'text/plain' },
-    });
+    const tokenUrls = [
+      `${this.baseUrl}/assistant/api/session/bootstrap`,
+      `${this.baseUrl}/session/token`,
+    ];
+    let lastError = null;
 
-    if (!res.ok) {
-      throw new Error(`CSRF token fetch failed: ${res.status} ${res.statusText}`);
+    for (const tokenUrl of tokenUrls) {
+      const res = await fetch(tokenUrl, {
+        method: 'GET',
+        headers: { Accept: 'text/plain' },
+      });
+      if (!res.ok) {
+        lastError = new Error(`CSRF token fetch failed (${tokenUrl}): ${res.status} ${res.statusText}`);
+        continue;
+      }
+
+      // Capture session cookie if present (common for Drupal).
+      const setCookie = res.headers.get('set-cookie');
+      const cookiePair = extractFirstSetCookieValue(setCookie);
+      if (cookiePair) {
+        this.cookie = cookiePair;
+      }
+
+      const token = (await res.text()).trim();
+      if (!token) {
+        lastError = new Error(`CSRF token fetch returned empty token (${tokenUrl})`);
+        continue;
+      }
+
+      this.csrfToken = token;
+      return;
     }
 
-    // Capture session cookie if present (common for Drupal)
-    const setCookie = res.headers.get('set-cookie');
-    const cookiePair = extractFirstSetCookieValue(setCookie);
-    if (cookiePair) {
-      this.cookie = cookiePair;
-    }
-
-    this.csrfToken = (await res.text()).trim();
+    throw lastError || new Error('CSRF token fetch failed: no token endpoint succeeded');
   }
 
   _getConversationId(prompt, context) {

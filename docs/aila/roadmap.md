@@ -145,10 +145,40 @@ Explicit mapping:
 1. Observability + CI baselines are operational from Phase 1. (Refs: current-state §4F; evidence-index CLAIM-084, CLAIM-122; system-map Diagram A; runbook §3)
 2. Config parity and retrieval tuning controls are stable across environments. (Refs: current-state §4H, §5; evidence-index CLAIM-095, CLAIM-096, CLAIM-116; system-map Diagram A; runbook §3)
 
+### Phase 2 Entry #1 disposition (2026-03-04)
+1. Entry criterion #1 is closed as operational: observability baseline continuity from Phase 1 remains active through SLO-backed health/metrics contracts and alert-policy enforcement (`CLAIM-084`). (Refs: current-state §4F; evidence-index CLAIM-084, CLAIM-138; system-map Diagram A; runbook §3)
+2. CI baseline continuity from Phase 1 remains operational through first-party workflow coverage (`.github/workflows/quality-gate.yml`), repo-owned gate scripts (`scripts/ci/run-promptfoo-gate.sh`, `scripts/ci/run-external-quality-gate.sh`), and branch-aware merge/release gate policy (`CLAIM-122`). (Refs: current-state §4F, §8; evidence-index CLAIM-122, CLAIM-138; system-map Diagram A; runbook §3, §4)
+3. Runtime verification evidence for `VC-RUNBOOK-LOCAL` and `VC-TOGGLE-CHECK` is captured in `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt`. (Refs: evidence-index CLAIM-138; runbook §3)
+4. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-138; runbook §3)
+
+### Phase 2 Entry #2 disposition (2026-03-04)
+1. Entry criterion #2 is closed: config parity and retrieval tuning controls are stable across environments, enforced by `VectorSearchConfigSchemaTest` (4 tests) and `ConfigCompletenessDriftTest` (5 tests) providing three-way parity (install defaults / active config export / schema). (Refs: current-state §4H, §5; evidence-index CLAIM-095, CLAIM-124, CLAIM-139; runbook §3)
+2. Retrieval tuning controls are verified stable: `vector_search` block (7 keys) and `fallback_gate.thresholds` block (12 keys) are present in schema, install defaults, and active config export with matching values. (Refs: current-state §4H; evidence-index CLAIM-096, CLAIM-124, CLAIM-139; runbook §3)
+3. Runtime verification evidence for `VC-RUNBOOK-LOCAL` and `VC-TOGGLE-CHECK` is captured in `docs/aila/runtime/phase2-entry2-config-parity-retrieval-tuning.txt`. (Refs: evidence-index CLAIM-139; runbook §3)
+4. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-139; runbook §3)
+
 ### Exit criteria
 1. Retrieval contract and confidence logic pass regression thresholds. (Refs: current-state §4D, §4F; evidence-index CLAIM-062, CLAIM-086; system-map Diagram B; runbook §4)
 2. Citation coverage and low-confidence refusal metrics are within approved targets. (Refs: current-state §4D; evidence-index CLAIM-065; system-map Diagram B; runbook §4)
 3. Live LLM remains disabled pending Phase 3 readiness review. (Refs: current-state §5; evidence-index CLAIM-119; system-map Diagram B; runbook §3)
+
+### Phase 2 Exit #1 disposition (2026-03-04)
+1. Exit criterion #1 is closed as implemented: retrieval contract and confidence logic regression thresholds are enforced through the Promptfoo harness and gate summary contract fields (`rag_contract_meta_fail`, `rag_citation_coverage_fail`, `rag_low_confidence_refusal_fail`) with no production runtime contract expansion beyond `P2-DEL-01`. (Refs: current-state §4D, §4F; evidence-index CLAIM-062, CLAIM-086, CLAIM-140; runbook §4)
+2. Runtime verification evidence for `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`, and full promptfoo gate execution is captured in `docs/aila/runtime/phase2-exit1-retrieval-contract-confidence-thresholds.txt`. (Refs: evidence-index CLAIM-140; runbook §4)
+3. Retrieval architecture remains unchanged: Search API lexical retrieval with optional vector supplementation and legacy fallback paths remains the operative pattern. (Refs: current-state §4D; evidence-index CLAIM-060, CLAIM-065; system-map Diagram B; runbook §4)
+4. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-140; runbook §3)
+
+### Phase 2 Exit #2 disposition (2026-03-04)
+1. Exit criterion #2 is closed as implemented: citation coverage and low-confidence refusal metrics are within approved targets, enforced through the Promptfoo harness gate summary contract fields (`rag_citation_coverage_fail`, `rag_low_confidence_refusal_fail`) with 90% per-metric threshold policy in `scripts/ci/run-promptfoo-gate.sh`. (Refs: current-state §4D; evidence-index CLAIM-065, CLAIM-086, CLAIM-141; runbook §4)
+2. Runtime verification evidence for `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`, and scenario anchor checks is captured in `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt`. (Refs: evidence-index CLAIM-141; runbook §4)
+3. Scenario coverage scope: 10 `rag-citation-coverage` scenarios and 10 `rag-low-confidence-refusal` scenarios in `promptfoo-evals/tests/retrieval-confidence-thresholds.yaml` are anchored and verified present. (Refs: evidence-index CLAIM-086, CLAIM-141; runbook §4)
+4. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-141; runbook §3)
+
+### Phase 2 Exit #3 disposition (2026-03-04)
+1. Exit criterion #3 is closed as implemented: live LLM remains disabled pending Phase 3 readiness review, with layered runtime guardrails in `settings.php`, `AssistantSettingsForm`, and service-level live-environment hard-disable checks in `LlmEnhancer` + `FallbackGate` to prevent live LLM activation from config drift. (Refs: current-state §5; evidence-index CLAIM-119, CLAIM-142; system-map Diagram B; runbook §3)
+2. Runtime verification evidence for `VC-RUNBOOK-LOCAL` and `VC-RUNBOOK-PANTHEON` is captured in `docs/aila/runtime/phase2-exit3-live-llm-disabled-phase3-readiness.txt`. (Refs: evidence-index CLAIM-142; runbook §3)
+3. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-142; runbook §3)
+4. Residual risk posture remains unchanged: B-04 (sustained cron/queue behavior under load) continues to require longitudinal runtime observation outside this closure item. (Refs: current-state §8; evidence-index CLAIM-118, CLAIM-121, CLAIM-142; runbook §3)
 
 ### Phase 2 Objective #2 disposition (2026-03-03)
 1. Objective #2 is closed as implemented: evaluation coverage and release confidence for RAG/response correctness are formalized through repo-owned gate contracts, verification commands, and closure guard tests grounded in CLAIM-086/CLAIM-105 evidence paths. (Refs: current-state §4F; evidence-index CLAIM-086, CLAIM-105, CLAIM-132; system-map Diagram A; runbook §4)

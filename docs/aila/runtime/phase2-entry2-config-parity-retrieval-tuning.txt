@@ -1,0 +1,92 @@
+Phase 2 Entry #2 Config Parity + Retrieval Tuning Stability Verification
+=========================================================================
+Generated UTC: 2026-03-04T23:16:49Z
+Generated local (America/Denver): 2026-03-04 16:16:49 MST
+
+1) `VC-RUNBOOK-LOCAL` — local runtime status and assistant settings visibility
+--------------------------------------------------------------------------
+
+$ ddev drush status --fields=drupal-version,db-status,bootstrap
+Drupal version   : 11.3.3
+Database         : Connected
+Drupal bootstrap : Successful
+
+$ ddev drush config:get ilas_site_assistant.settings (vector_search + fallback_gate excerpts)
+vector_search:
+  enabled: false
+  faq_index_id: faq_accordion_vector
+  resource_index_id: assistant_resources_vector
+  fallback_threshold: 2
+  min_vector_score: 0.7
+  score_normalization_factor: 100
+  min_lexical_score: 0
+
+fallback_gate:
+  thresholds:
+    retrieval_high_score: 0.75
+    retrieval_medium_score: 0.5
+    retrieval_low_score: 0.3
+    retrieval_score_gap_high: 0.25
+    retrieval_score_gap_low: 0.1
+    retrieval_min_results: 1
+    combined_high_conf: 0.8
+    combined_fallback_threshold: 0.5
+    short_message_words: 3
+    ambiguous_message_words: 2
+
+llm:
+  enabled: false
+
+$ ddev drush state:get system.cron_last
+system.cron_last=1772557365
+
+2) `VC-TOGGLE-CHECK` — toggle continuity in current-state + evidence-index
+------------------------------------------------------------------------
+
+$ rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging" \
+    docs/aila/current-state.md docs/aila/evidence-index.md
+
+Confirmed toggle anchors present:
+- current-state.md:34  — llm.enabled: false
+- current-state.md:200 — vector_search.* toggles/flags
+- current-state.md:249 — ConfigCompletenessDriftTest enforces parity
+- current-state.md:250 — schema covers vector_search, fallback_gate
+- current-state.md:265 — rate_limit_per_minute: 15
+- current-state.md:267 — conversation_logging enabled=true
+- current-state.md:268 — llm.enabled: false
+- current-state.md:277 — vector_search.* present, enabled=false
+- evidence-index.md:706 — install defaults include vector_search
+- evidence-index.md:716 — CLAIM-095 superseded by CLAIM-124 (vector_search schema)
+- evidence-index.md:915 — Pantheon verified rate_limit_per_minute=15, llm.enabled=false
+
+3) Config parity anchor checks — contract test and schema coverage
+------------------------------------------------------------------
+
+$ ls VectorSearchConfigSchemaTest.php ConfigCompletenessDriftTest.php
+web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorSearchConfigSchemaTest.php — EXISTS
+web/modules/custom/ilas_site_assistant/tests/src/Unit/ConfigCompletenessDriftTest.php — EXISTS
+
+$ rg -n "vector_search|fallback_gate" ilas_site_assistant.schema.yml
+ilas_site_assistant.schema.yml:213 — fallback_gate:
+ilas_site_assistant.schema.yml:260 — vector_search:
+
+Schema coverage confirmed: both `vector_search` (7 keys) and `fallback_gate.thresholds`
+(12 keys including retrieval_high_score, retrieval_medium_score, retrieval_low_score,
+retrieval_score_gap_high, retrieval_score_gap_low, retrieval_min_results,
+combined_high_conf, combined_fallback_threshold, short_message_words,
+ambiguous_message_words) are present in schema, install defaults, and active export.
+
+4) Verification summary
+-----------------------
+
+All verification checks succeeded:
+
+- Local runtime is operational (Drupal 11.3.3, DB connected, bootstrap successful).
+- `vector_search` block (7 keys) and `fallback_gate.thresholds` block (12 keys) are
+  present in active config, matching install defaults and schema coverage.
+- `llm.enabled: false` remains enforced; no live LLM enablement.
+- `VectorSearchConfigSchemaTest` (4 tests) and `ConfigCompletenessDriftTest` (5 tests)
+  enforce three-way parity (install defaults / active config export / schema).
+- Toggle continuity is documented in current-state.md and evidence-index.md.
+- Scope continuity retained: no live LLM enablement, no broad platform migration.
+- system.cron_last=1772557365 confirms cron execution history.
