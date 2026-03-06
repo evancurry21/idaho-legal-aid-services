@@ -1049,6 +1049,79 @@ product/platform owners."
    refactor of unrelated Drupal subsystems. Residual `B-04` remains open and
    outside this closure item.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-118][^CLAIM-121][^CLAIM-154]
 
+### Phase 3 Exit #3 Final Release Packet Known-Unknown Disposition + Residual Risk Signoff Disposition (2026-03-06)
+
+This dated addendum records `P3-EXT-03` closure for Phase 3 Exit criterion #3:
+"Final release packet includes known-unknown disposition and residual risk signoff."
+
+1. Exit criterion #3 is closed as implemented through a release-packet closure
+   artifact that explicitly records known-unknown disposition continuity from
+   current-state §8 and CI governance continuity from `CLAIM-122`, without
+   runtime architecture expansion.[^CLAIM-122][^CLAIM-155]
+2. Verification for `P3-EXT-03` is codified in runbook section-4 via
+   `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`, continuity checks for known unknowns
+   and `R-REL-02`, and targeted closure guard coverage in
+   `PhaseThreeExitCriteriaThreeGateTest.php`.[^CLAIM-155]
+3. Known-unknown disposition is explicit in closure artifacts: Promptfoo CI
+   ownership remains resolved, while long-run cron/queue load observation remains
+   open and is carried as residual boundary `B-04` for sustained-load
+   verification.[^CLAIM-118][^CLAIM-121][^CLAIM-122][^CLAIM-155]
+4. Residual risk signoff is recorded as role-based release evidence in
+   `docs/aila/runtime/phase3-exit3-release-packet-known-unknown-risk-signoff.txt`
+   (`residual-risk-signoff-product-role=accepted`,
+   `residual-risk-signoff-platform-role=accepted`,
+   `residual-risk-signoff-date=2026-03-06`) while keeping residual risk open.[^CLAIM-155]
+5. Scope boundaries remain unchanged: no net-new assistant channels or
+   third-party model expansion beyond audited providers, and no platform-wide
+   refactor of unrelated Drupal subsystems. Residual `B-04` remains open and
+   outside runtime closure scope.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-118][^CLAIM-121][^CLAIM-155]
+
+### Phase 3 Sprint 6 Week 1 UX/a11y + Mobile Hardening Disposition (2026-03-06)
+
+This dated addendum records `P3-SBD-01` completion for Phase 3 Sprint 6 Week 1 closure:
+"Sprint 6 Week 1: UX/a11y and mobile hardening."
+
+1. Sprint-level closure is completed as specified and anchored to existing
+   objective/exit continuity: accessibility and mobile acceptance controls
+   (`P3-OBJ-01`) and UX/a11y gating controls (`P3-EXT-01`) remain active with
+   no runtime architecture expansion.[^CLAIM-149][^CLAIM-153][^CLAIM-156]
+2. Verification for `P3-SBD-01` is codified in runbook section-4 using required
+   validation aliases (`VC-UNIT`, `VC-QUALITY-GATE`) plus continuity anchors
+   across acceptance/gating test artifacts (`AccessibilityMobileUxAcceptanceGateTest`,
+   `RecoveryUxContractTest`, `assistant-widget-hardening.test.js`). Sanitized
+   runtime proof is captured in
+   `docs/aila/runtime/phase3-sprint6-week1-ux-a11y-mobile-hardening.txt`.[^CLAIM-105][^CLAIM-149][^CLAIM-153][^CLAIM-156]
+3. Sprint closure continuity is enforceable via
+   `PhaseThreeSprintSixWeekOneGateTest.php` across roadmap/current-state/
+   runbook/evidence/runtime/system-map anchors for `P3-SBD-01`.[^CLAIM-156]
+4. Scope boundaries remain unchanged: no net-new assistant channels or
+   third-party model expansion beyond audited providers, and no platform-wide
+   refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-156]
+
+### Phase 3 Sprint 6 Week 2 Performance/Cost Guardrails + Governance Signoff Disposition (2026-03-06)
+
+This dated addendum records `P3-SBD-02` completion for Phase 3 Sprint 6 Week 2 closure:
+"Sprint 6 Week 2: performance/cost guardrails and governance signoff."
+
+1. Sprint-level closure is completed as specified and anchored to existing
+   objective/exit continuity: performance/cost guardrails
+   (`P3-OBJ-02`, `P3-EXT-02`) and governance signoff
+   (`P3-OBJ-03`, `P3-EXT-03`) remain active with no runtime architecture
+   expansion.[^CLAIM-147][^CLAIM-148][^CLAIM-154][^CLAIM-155][^CLAIM-157]
+2. Verification for `P3-SBD-02` is codified in runbook sections 3/4 using
+   required validation aliases (`VC-UNIT`, `VC-QUALITY-GATE`) plus continuity
+   anchors across objective/exit guard tests
+   (`PhaseThreeObjectiveTwoGateTest`, `PhaseThreeObjectiveThreeGateTest`,
+   `PhaseThreeExitCriteriaTwoGateTest`, `PhaseThreeExitCriteriaThreeGateTest`).
+   Sanitized runtime proof is captured in
+   `docs/aila/runtime/phase3-sprint6-week2-performance-cost-governance-signoff.txt`.[^CLAIM-105][^CLAIM-147][^CLAIM-148][^CLAIM-154][^CLAIM-155][^CLAIM-157]
+3. Sprint closure continuity is enforceable via
+   `PhaseThreeSprintSixWeekTwoGateTest.php` across roadmap/current-state/
+   runbook/evidence/runtime/system-map anchors for `P3-SBD-02`.[^CLAIM-157]
+4. Scope boundaries remain unchanged: no net-new assistant channels or
+   third-party model expansion beyond audited providers, and no platform-wide
+   refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-157]
+
 ---
 
 ### Evidence footnotes
@@ -1192,3 +1265,6 @@ product/platform owners."
 [^CLAIM-152]: [CLAIM-152](evidence-index.md#claim-152)
 [^CLAIM-153]: [CLAIM-153](evidence-index.md#claim-153)
 [^CLAIM-154]: [CLAIM-154](evidence-index.md#claim-154)
+[^CLAIM-155]: [CLAIM-155](evidence-index.md#claim-155)
+[^CLAIM-156]: [CLAIM-156](evidence-index.md#claim-156)
+[^CLAIM-157]: [CLAIM-157](evidence-index.md#claim-157)

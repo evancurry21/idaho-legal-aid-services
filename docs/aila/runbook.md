@@ -1102,6 +1102,180 @@ Expected `P3-EXT-01` verification result:
 Store sanitized output in:
 - `docs/aila/runtime/phase3-exit1-ux-a11y-gating.txt`[^CLAIM-153]
 
+### Phase 3 Sprint 6 Week 1 UX/a11y + mobile hardening verification (`P3-SBD-01`)
+
+Use this command bundle to verify Sprint 6 Week 1 closure scope:
+"Sprint 6 Week 1: UX/a11y and mobile hardening."
+
+```bash
+# 1) Required validation aliases from prompt matrix.
+# VC-UNIT
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# VC-QUALITY-GATE
+ddev exec bash /var/www/html/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+
+# 2) Sprint closure continuity anchors (docs + tests + runtime artifact).
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "Phase 3 Sprint 6 Week 1 disposition \\(2026-03-06\\)|P3-SBD-01|phase3-sprint6-week1-ux-a11y-mobile-hardening\\.txt|PhaseThreeSprintSixWeekOneGateTest\\.php" \
+    docs/aila/roadmap.md \
+    docs/aila/current-state.md \
+    docs/aila/evidence-index.md \
+    docs/aila/runbook.md \
+    web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeSprintSixWeekOneGateTest.php
+
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "AccessibilityMobileUxAcceptanceGateTest|RecoveryUxContractTest|assistant-widget-hardening\\.test\\.js|run-assistant-widget-hardening\\.mjs" \
+    docs/aila/roadmap.md \
+    docs/aila/current-state.md \
+    docs/aila/evidence-index.md \
+    web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeSprintSixWeekOneGateTest.php
+
+# 3) Sprint closure guard test.
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeSprintSixWeekOneGateTest.php
+```
+
+Expected `P3-SBD-01` verification result:
+- `VC-UNIT` and `VC-QUALITY-GATE` pass with Sprint 6 Week 1 closure coverage
+  included.
+- Continuity anchors are present across roadmap/current-state/runbook/evidence
+  for `P3-SBD-01`, `CLAIM-149`, `CLAIM-153`, and `CLAIM-156`.
+- `PhaseThreeSprintSixWeekOneGateTest.php` passes with
+  roadmap/current-state/runbook/evidence/runtime/system-map continuity checks.
+- Runtime proof markers in
+  `docs/aila/runtime/phase3-sprint6-week1-ux-a11y-mobile-hardening.txt` record
+  closed status and scope-boundary continuity.
+- Scope boundaries remain unchanged: no net-new assistant channels or
+  third-party model expansion beyond audited providers, and no platform-wide
+  refactor of unrelated Drupal subsystems.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase3-sprint6-week1-ux-a11y-mobile-hardening.txt`[^CLAIM-156]
+
+### Phase 3 Sprint 6 Week 2 performance/cost guardrails + governance signoff verification (`P3-SBD-02`)
+
+Use this command bundle to verify Sprint 6 Week 2 closure scope:
+"Sprint 6 Week 2: performance/cost guardrails and governance signoff."
+
+```bash
+# 1) Required validation aliases from prompt matrix.
+# VC-UNIT
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# VC-QUALITY-GATE
+ddev exec bash /var/www/html/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+
+# 2) Sprint closure continuity anchors (docs + tests + runtime artifact).
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "Phase 3 Sprint 6 Week 2 disposition \\(2026-03-06\\)|P3-SBD-02|phase3-sprint6-week2-performance-cost-governance-signoff\\.txt|PhaseThreeSprintSixWeekTwoGateTest\\.php" \
+    docs/aila/roadmap.md \
+    docs/aila/current-state.md \
+    docs/aila/evidence-index.md \
+    docs/aila/runbook.md \
+    web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeSprintSixWeekTwoGateTest.php
+
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "P3-OBJ-02|P3-OBJ-03|P3-EXT-02|P3-EXT-03|PhaseThreeObjectiveTwoGateTest|PhaseThreeObjectiveThreeGateTest|PhaseThreeExitCriteriaTwoGateTest|PhaseThreeExitCriteriaThreeGateTest" \
+    docs/aila/roadmap.md \
+    docs/aila/current-state.md \
+    docs/aila/evidence-index.md \
+    web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeSprintSixWeekTwoGateTest.php
+
+# 3) Sprint closure guard test.
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeSprintSixWeekTwoGateTest.php
+```
+
+Expected `P3-SBD-02` verification result:
+- `VC-UNIT` and `VC-QUALITY-GATE` pass with Sprint 6 Week 2 closure coverage
+  included.
+- Continuity anchors are present across roadmap/current-state/runbook/evidence
+  for `P3-SBD-02`, `P3-OBJ-02`, `P3-OBJ-03`, `P3-EXT-02`, `P3-EXT-03`,
+  and `CLAIM-157`.
+- `PhaseThreeSprintSixWeekTwoGateTest.php` passes with
+  roadmap/current-state/runbook/evidence/runtime/system-map continuity checks.
+- Runtime proof markers in
+  `docs/aila/runtime/phase3-sprint6-week2-performance-cost-governance-signoff.txt`
+  record closed status, objective/exit linkage, and scope-boundary continuity.
+- Scope boundaries remain unchanged: no net-new assistant channels or
+  third-party model expansion beyond audited providers, and no platform-wide
+  refactor of unrelated Drupal subsystems. Residual `B-04` remains open.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase3-sprint6-week2-performance-cost-governance-signoff.txt`[^CLAIM-157]
+
+### Phase 3 exit #3 final release packet known-unknown disposition + residual risk signoff verification (`P3-EXT-03`)
+
+Use this command bundle to verify Phase 3 Exit criterion #3:
+"Final release packet includes known-unknown disposition and residual risk signoff."
+
+```bash
+# 1) Validation command aliases from prompt matrix.
+# VC-RUNBOOK-LOCAL
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+
+# VC-RUNBOOK-PANTHEON
+for ENV in dev test live; do
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings -y
+done
+
+# 2) Known-unknown and residual-risk continuity checks.
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "## 8\\) Known unknowns|Promptfoo CI ownership|Long-run cron cadence and queue drain timing under load|Phase 3 Exit #3 Final Release Packet Known-Unknown Disposition \\+ Residual Risk Signoff Disposition \\(2026-03-06\\)" \
+    docs/aila/current-state.md
+
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "### CLAIM-122|Addendum \\(2026-03-06\\): Phase 3 Exit #3 \\(`P3-EXT-03`\\)|## Phase 3 Exit #3 Final Release Packet Includes Known-Unknown Disposition \\+ Residual Risk Signoff \\(`P3-EXT-03`\\)|### CLAIM-155" \
+    docs/aila/evidence-index.md
+
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "\\| R-REL-02 \\||P3-EXT-03|phase3-exit3-release-packet-known-unknown-risk-signoff.txt|residual-risk-signoff-product-role|residual-risk-signoff-platform-role" \
+    docs/aila/risk-register.md
+
+# 3) Closure guard test.
+cd /home/evancurry/idaho-legal-aid-services && \
+  vendor/bin/phpunit --configuration phpunit.xml --group ilas_site_assistant \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaThreeGateTest.php
+```
+
+Expected `P3-EXT-03` verification result:
+- `VC-RUNBOOK-LOCAL` confirms local runtime visibility with `system.cron_last`
+  continuity and assistant config visibility.
+- `VC-RUNBOOK-PANTHEON` confirms target-environment continuity on
+  `dev`/`test`/`live`.
+- Current-state §8 known-unknown continuity remains explicit: Promptfoo CI
+  ownership is resolved and long-run cron/queue load observation remains open.
+- `CLAIM-122` continuity plus terminal closure claim `CLAIM-155` remain present
+  in evidence index with `P3-EXT-03` addendum linkage.
+- `R-REL-02` includes explicit `P3-EXT-03` runtime-marker continuity and
+  role-based residual-risk signoff marker references.
+- Runtime artifact includes release-packet closure markers and role-based signoff
+  fields in
+  `docs/aila/runtime/phase3-exit3-release-packet-known-unknown-risk-signoff.txt`.
+- Scope boundaries remain unchanged: no net-new assistant channels or
+  third-party model expansion beyond audited providers, and no platform-wide
+  refactor of unrelated Drupal subsystems. Residual `B-04` remains open.
+- If `VC-RUNBOOK-PANTHEON` fails (auth/connectivity/command failure),
+  treat `P3-EXT-03` closure as blocked until authenticated Pantheon continuity
+  output is captured.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase3-exit3-release-packet-known-unknown-risk-signoff.txt`[^CLAIM-155]
+
 ### Phase 1 Exit #1 non-live alerts + dashboards verification
 
 Use this command bundle to verify Phase 1 Exit criterion #1 in non-live contexts
@@ -2319,8 +2493,14 @@ sed -E \
   - `docs/aila/runtime/phase3-entry2-slo-alert-trend-history.txt`[^CLAIM-152]
 - Phase 3 Exit #1 UX/a11y suite gating + passing closure proof is captured in:
   - `docs/aila/runtime/phase3-exit1-ux-a11y-gating.txt`[^CLAIM-153]
+- Phase 3 Sprint 6 Week 1 UX/a11y + mobile hardening closure proof is captured in:
+  - `docs/aila/runtime/phase3-sprint6-week1-ux-a11y-mobile-hardening.txt`[^CLAIM-156]
+- Phase 3 Sprint 6 Week 2 performance/cost guardrails + governance signoff closure proof is captured in:
+  - `docs/aila/runtime/phase3-sprint6-week2-performance-cost-governance-signoff.txt`[^CLAIM-157]
 - Phase 3 Exit #2 cost/performance controls + owner acceptance closure proof is captured in:
   - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt`[^CLAIM-154]
+- Phase 3 Exit #3 final release packet known-unknown disposition + residual risk signoff proof is captured in:
+  - `docs/aila/runtime/phase3-exit3-release-packet-known-unknown-risk-signoff.txt`[^CLAIM-155]
 
 ## 7) Retrospective regression checklist (mandatory)
 
@@ -2391,3 +2571,6 @@ Run this checklist for every future audit cycle that touches assistant routing, 
 [^CLAIM-152]: [CLAIM-152](evidence-index.md#claim-152)
 [^CLAIM-153]: [CLAIM-153](evidence-index.md#claim-153)
 [^CLAIM-154]: [CLAIM-154](evidence-index.md#claim-154)
+[^CLAIM-155]: [CLAIM-155](evidence-index.md#claim-155)
+[^CLAIM-156]: [CLAIM-156](evidence-index.md#claim-156)
+[^CLAIM-157]: [CLAIM-157](evidence-index.md#claim-157)

@@ -1,0 +1,53 @@
+# Phase 3 Exit #3 Runtime Evidence (P3-EXT-03)
+Date: 2026-03-06
+
+## Verification bundle summary
+- Validation aliases executed: `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`
+- Known-unknown continuity checks executed against current-state §8, `CLAIM-122`, and `R-REL-02`
+- Closure guard-test continuity anchor: `PhaseThreeExitCriteriaThreeGateTest.php`
+
+## Command outcome summary
+### `VC-RUNBOOK-LOCAL`
+command=cd /home/evancurry/idaho-legal-aid-services && ddev drush status && ddev drush config:get ilas_site_assistant.settings -y && ddev drush state:get system.cron_last
+status=passed
+exit_code=0
+system.cron_last=1772830317
+llm.enabled=false
+vector_search.enabled=false
+
+### `VC-RUNBOOK-PANTHEON`
+command=for ENV in dev test live; do terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings -y; done
+status=passed
+exit_code=0
+env.dev.llm.enabled=false
+env.test.llm.enabled=false
+env.live.llm.enabled=false
+env.dev.vector_search.enabled=false
+env.test.vector_search.enabled=false
+env.live.vector_search.enabled=false
+note=dev rate_limit_per_minute=300 observed; test/live rate_limit_per_minute=15.
+
+## Known-unknown disposition summary
+promptfoo-ci-ownership-disposition=resolved
+cron-queue-load-observation-disposition=open
+residual-risk-reference=B-04
+
+## Residual risk signoff (role-based)
+residual-risk-signoff-product-role=accepted
+residual-risk-signoff-platform-role=accepted
+residual-risk-signoff-date=2026-03-06
+residual-risk-disposition=accepted-open
+
+## Closure markers
+p3-ext-03-status=closed
+p3-ext-03-claim-122=present
+p3-ext-03-claim-155=present
+known-unknown.promptfoo-ci-ownership=resolved
+known-unknown.cron-queue-load-observation=open
+residual-risk-id=B-04
+b04-status=open
+
+## Scope continuity markers
+no-net-new-assistant-channels=true
+no-third-party-model-expansion=true
+no-unrelated-drupal-platform-refactor=true

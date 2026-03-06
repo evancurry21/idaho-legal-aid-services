@@ -1248,6 +1248,17 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (P2-ENT-01 observability + CI baseline operational addendum)
   - `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoEntryCriteriaOneGateTest.php`
+- Addendum (2026-03-06): Phase 3 Exit #3 (`P3-EXT-03`) finalizes release-packet
+  known-unknown disposition continuity by explicitly carrying resolved CI ownership
+  posture forward while documenting long-run cron/queue load observation as open
+  residual risk with role-based signoff markers in closure artifacts.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Exit #3 disposition dated 2026-03-06)
+  - `docs/aila/current-state.md` (P3-EXT-03 release-packet known-unknown/risk-signoff addendum)
+  - `docs/aila/runbook.md` (P3-EXT-03 verification subsection in §4)
+  - `docs/aila/runtime/phase3-exit3-release-packet-known-unknown-risk-signoff.txt`
+  - `docs/aila/risk-register.md` (`R-REL-02` row with P3-EXT-03 runtime-marker + signoff linkage)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaThreeGateTest.php`
 
 ---
 
@@ -2004,4 +2015,65 @@ Evidence precedence used in this audit:
   - `docs/aila/backlog.md` (`IMP-COST-01` row includes P3-EXT-02 owner-acceptance traceability)
   - `docs/aila/risk-register.md` (`R-PERF-01` row includes P3-EXT-02 runtime-marker continuity)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php` (exit-criterion closure continuity lock)
+  - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
+
+## Phase 3 Exit #3 Final Release Packet Includes Known-Unknown Disposition + Residual Risk Signoff (`P3-EXT-03`)
+
+### CLAIM-155
+- Claim: Phase 3 exit criterion #3 is closed as implemented — final release packet
+  includes known-unknown disposition and residual risk signoff. Closure is
+  enforced through section-4 runbook verification (`VC-RUNBOOK-LOCAL`,
+  `VC-RUNBOOK-PANTHEON`), known-unknown continuity checks grounded in
+  current-state §8 and `CLAIM-122`, `R-REL-02` risk-register linkage, and a
+  dedicated runtime proof artifact with role-based residual-risk signoff markers,
+  while scope boundaries remain unchanged and residual `B-04` stays open.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Exit #3 disposition dated 2026-03-06)
+  - `docs/aila/current-state.md` (P3-EXT-03 final release-packet disposition addendum)
+  - `docs/aila/runbook.md` (P3-EXT-03 verification subsection in section 4)
+  - `docs/aila/runtime/phase3-exit3-release-packet-known-unknown-risk-signoff.txt` (sanitized VC alias output + known-unknown + signoff markers)
+  - `docs/aila/risk-register.md` (`R-REL-02` row includes P3-EXT-03 runtime-marker/signoff continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaThreeGateTest.php` (exit-criterion closure continuity lock)
+  - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
+
+## Phase 3 Sprint 6 Week 1 UX/a11y + Mobile Hardening Closure (`P3-SBD-01`)
+
+### CLAIM-156
+- Claim: Phase 3 Sprint 6 Week 1 is closed as implemented — "Sprint 6 Week 1:
+  UX/a11y and mobile hardening." Closure is enforced through required validation
+  aliases (`VC-UNIT`, `VC-QUALITY-GATE`), continuity anchors to already-closed
+  `P3-OBJ-01` and `P3-EXT-01` artifacts, a dedicated runtime proof artifact, and
+  sprint-level guard-test continuity without net-new assistant channels,
+  third-party model-provider expansion, or unrelated Drupal platform refactors.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Sprint 6 Week 1 disposition dated 2026-03-06)
+  - `docs/aila/current-state.md` (P3-SBD-01 Sprint 6 Week 1 disposition addendum)
+  - `docs/aila/runbook.md` (P3-SBD-01 verification subsection in section 4)
+  - `docs/aila/runtime/phase3-sprint6-week1-ux-a11y-mobile-hardening.txt` (sanitized VC alias output + closure markers)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeSprintSixWeekOneGateTest.php` (sprint-closure continuity lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AccessibilityMobileUxAcceptanceGateTest.php` (objective acceptance continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/RecoveryUxContractTest.php` (recovery UX continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/js/assistant-widget-hardening.test.js` (widget hardening continuity)
+  - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
+
+## Phase 3 Sprint 6 Week 2 Performance/Cost Guardrails + Governance Signoff Closure (`P3-SBD-02`)
+
+### CLAIM-157
+- Claim: Phase 3 Sprint 6 Week 2 is closed as implemented — "Sprint 6 Week 2:
+  performance/cost guardrails and governance signoff." Closure is enforced through
+  required validation aliases (`VC-UNIT`, `VC-QUALITY-GATE`), continuity anchors to
+  already-closed objective/exit artifacts (`P3-OBJ-02`, `P3-OBJ-03`, `P3-EXT-02`,
+  `P3-EXT-03`), a dedicated runtime proof artifact, and sprint-level guard-test
+  continuity without net-new assistant channels, third-party model-provider
+  expansion, or unrelated Drupal platform refactors. Residual `B-04` remains open.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Sprint 6 Week 2 disposition dated 2026-03-06)
+  - `docs/aila/current-state.md` (P3-SBD-02 Sprint 6 Week 2 disposition addendum)
+  - `docs/aila/runbook.md` (P3-SBD-02 verification subsection in section 4)
+  - `docs/aila/runtime/phase3-sprint6-week2-performance-cost-governance-signoff.txt` (sanitized VC alias output + closure markers)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeSprintSixWeekTwoGateTest.php` (sprint-closure continuity lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php` (performance/cost objective continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveThreeGateTest.php` (governance objective continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php` (cost/performance exit continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaThreeGateTest.php` (governance signoff exit continuity)
   - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)

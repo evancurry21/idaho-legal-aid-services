@@ -1,0 +1,35 @@
+# Phase 3 Sprint 6 Week 2 Runtime Evidence (P3-SBD-02)
+
+Date: 2026-03-06
+
+### VC-UNIT
+command=ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml --group ilas_site_assistant /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+status=passed
+exit_code=0
+
+### VC-QUALITY-GATE
+command=ddev exec bash /var/www/html/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+status=passed
+exit_code=0
+
+### Closure continuity markers
+p3-sbd-02-status=closed
+p3-sbd-02-claim-147=present
+p3-sbd-02-claim-148=present
+p3-sbd-02-claim-154=present
+p3-sbd-02-claim-155=present
+p3-sbd-02-claim-157=present
+p3-sbd-02-objective-link-primary=P3-OBJ-02
+p3-sbd-02-objective-link-secondary=P3-OBJ-03
+p3-sbd-02-exit-link-primary=P3-EXT-02
+p3-sbd-02-exit-link-secondary=P3-EXT-03
+p3-sbd-02-objective-two-gate-test=present
+p3-sbd-02-objective-three-gate-test=present
+p3-sbd-02-exit-two-gate-test=present
+p3-sbd-02-exit-three-gate-test=present
+
+### Scope continuity markers
+no-net-new-assistant-channels=true
+no-third-party-model-expansion=true
+no-unrelated-drupal-platform-refactor=true
+b04-status=open
