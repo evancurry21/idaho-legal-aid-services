@@ -293,6 +293,12 @@ Explicit mapping:
 1. Phase 2 retrieval quality targets are met and documented. (Refs: current-state §4D, §4F; evidence-index CLAIM-065, CLAIM-086; system-map Diagram B; runbook §4)
 2. SLO/alert operational data has at least one sprint of trend history. (Refs: current-state §4F, §4G; evidence-index CLAIM-084, CLAIM-121; system-map Diagram B; runbook §3)
 
+### Phase 3 Entry #1 disposition (2026-03-05)
+1. Entry criterion #1 is closed as documented: all Phase 2 retrieval quality targets are met and documented through completed objectives, deliverables, sprint closures, and exit criteria with dated dispositions covering confidence-aware response behavior, eval coverage, source freshness governance, response contract expansion, retrieval confidence/refusal thresholds, vector index hygiene, and promptfoo dataset expansion. (Refs: current-state §4D, §4F; evidence-index CLAIM-065, CLAIM-086, CLAIM-151; system-map Diagram B; runbook §4)
+2. Phase 2 retrieval quality completions referenced: Objective #2 (2026-03-03), Objective #3 (2026-03-03), Deliverable #1 (2026-03-03), Deliverable #2 (2026-03-03), Deliverable #3 (2026-03-04), Deliverable #4 (2026-03-04), Exit #1 (2026-03-04), Exit #2 (2026-03-04), Sprint 4 (2026-03-05), Sprint 5 (2026-03-05). (Refs: evidence-index CLAIM-132, CLAIM-133, CLAIM-134, CLAIM-135, CLAIM-136, CLAIM-137, CLAIM-140, CLAIM-141, CLAIM-143, CLAIM-144, CLAIM-151; runbook §4)
+3. Runtime verification evidence for `VC-RUNBOOK-LOCAL` and `VC-TOGGLE-CHECK` is captured in `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`. (Refs: evidence-index CLAIM-151; runbook §4)
+4. Scope boundaries remain unchanged: no net-new assistant channels or third-party model expansion beyond audited providers, and no platform-wide refactor of unrelated Drupal subsystems. (Refs: current-state §1, §4E; evidence-index CLAIM-010, CLAIM-073, CLAIM-074, CLAIM-151; runbook §4)
+
 ### Exit criteria
 1. UX/a11y test suite is gating and passing. (Refs: current-state §4A; evidence-index CLAIM-025, CLAIM-032, CLAIM-105; system-map Diagram A; runbook §4)
 2. Cost/performance controls are documented, monitored, and accepted by product/platform owners. (Refs: current-state §4E, §4F; evidence-index CLAIM-077, CLAIM-084; system-map Diagram A; runbook §3)

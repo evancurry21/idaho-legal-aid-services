@@ -500,6 +500,16 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaTwoGateTest.php`
 
+- Addendum (2026-03-05): Phase 3 Entry #1 (`P3-ENT-01`) confirms all Phase 2
+  retrieval quality targets are met and documented, with resource retrieval
+  pipeline anchors (lexical/vector/fallback) verified present in system-map
+  Diagram B and evidence-index continuity checks.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Entry #1 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-ENT-01 retrieval quality targets addendum)
+  - `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaOneGateTest.php`
+
 ### CLAIM-066
 - Claim: Pinecone Search API server is configured with Gemini chat model, Gemini embedding model, 3072 dimensions, and cosine similarity.
 - Evidence:
@@ -752,6 +762,16 @@ Evidence precedence used in this audit:
   - `docs/aila/runbook.md` (P2-EXT-02 verification subsection in §4)
   - `docs/aila/runtime/phase2-exit2-citation-coverage-refusal-targets.txt`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoExitCriteriaTwoGateTest.php`
+
+- Addendum (2026-03-05): Phase 3 Entry #1 (`P3-ENT-01`) confirms all Phase 2
+  retrieval quality targets are met and documented, with promptfoo harness gate
+  enforcement verified through dated disposition continuity covering eval
+  coverage, dataset expansion, and threshold calibration completions.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Entry #1 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-ENT-01 retrieval quality targets addendum)
+  - `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaOneGateTest.php`
 
 ---
 
@@ -1821,3 +1841,24 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/tests/src/DrupalUnit/IntentRouterServiceTest.php`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/OfficeLocationResolverTest.php`
   - `web/modules/custom/ilas_site_assistant/tests/src/DrupalUnit/SafetyClassifierTest.php`
+
+## Phase 3 Entry #1 Retrieval Quality Targets Met + Documented (P3-ENT-01)
+
+### CLAIM-151
+- Claim: Phase 3 entry criterion #1 ("Phase 2 retrieval quality targets are met
+  and documented") is satisfied. All Phase 2 retrieval quality deliverables have
+  dated dispositions in the roadmap covering confidence-aware response behavior,
+  eval coverage, source freshness governance, response contract expansion,
+  retrieval confidence/refusal thresholds, vector index hygiene, and promptfoo
+  dataset expansion. Disposition closures referenced: Objective #2 (2026-03-03),
+  Objective #3 (2026-03-03), Deliverable #1 (2026-03-03), Deliverable #2
+  (2026-03-03), Deliverable #3 (2026-03-04), Deliverable #4 (2026-03-04),
+  Exit #1 (2026-03-04), Exit #2 (2026-03-04), Sprint 4 (2026-03-05), Sprint 5
+  (2026-03-05).
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Entry #1 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-ENT-01 retrieval quality targets addendum)
+  - `docs/aila/runbook.md` (P3-ENT-01 verification subsection in §4)
+  - `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`
+  - `docs/aila/system-map.mmd` (Diagram B: Early retrieval, Fallback gate decision anchors)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaOneGateTest.php`

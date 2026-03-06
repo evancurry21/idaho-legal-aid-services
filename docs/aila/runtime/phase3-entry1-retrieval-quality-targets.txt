@@ -1,0 +1,61 @@
+Phase 3 Entry #1 Retrieval Quality Targets Met + Documented (P3-ENT-01)
+Verification date: 2026-03-05
+
+## `VC-RUNBOOK-LOCAL`
+
+ddev drush status:
+  Drupal version: 11.3.3
+  Drupal bootstrap: Successful
+  Database: Connected
+  Default theme: b5subtheme
+  PHP version: 8.3.23
+
+ddev drush config:get ilas_site_assistant.settings:
+  enable_global_widget: true
+  enable_faq: true
+  enable_resources: true
+  enable_logging: true
+  log_retention_days: 90
+
+ddev drush state:get system.cron_last:
+  system.cron_last=1772748124
+
+## `VC-TOGGLE-CHECK`
+
+rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging"
+  docs/aila/current-state.md and docs/aila/evidence-index.md:
+  - llm.enabled references present in current-state §4E and evidence-index
+  - vector_search references present in current-state §4D and evidence-index
+  - rate_limit_per_minute references present in current-state §4E
+  - conversation_logging references present in current-state §4E
+
+## Phase 2 retrieval quality closure continuity checks
+
+Phase 2 Objective #2 disposition (2026-03-03): present at roadmap.md:183
+Phase 2 Objective #3 disposition (2026-03-03): present at roadmap.md:189
+Phase 2 Deliverable #1 disposition (2026-03-03): present at roadmap.md:196
+Phase 2 Deliverable #2 disposition (2026-03-03): present at roadmap.md:203
+Phase 2 Deliverable #3 disposition (2026-03-04): present at roadmap.md:210
+Phase 2 Deliverable #4 disposition (2026-03-04): present at roadmap.md:217
+Phase 2 Exit #1 disposition (2026-03-04): present at roadmap.md:165
+Phase 2 Exit #2 disposition (2026-03-04): present at roadmap.md:171
+Phase 2 Sprint 4 disposition (2026-03-05): present at roadmap.md:225
+Phase 2 Sprint 5 disposition (2026-03-05): present at roadmap.md:232
+
+## Retrieval evidence anchor continuity
+
+CLAIM-065 (resource retrieval with lexical/vector/fallback): present at
+  evidence-index.md:475 with addenda through P3-ENT-01.
+CLAIM-086 (promptfoo harness with gate enforcement): present at
+  evidence-index.md:687 with addenda through P3-ENT-01.
+
+## Diagram B pipeline retrieval anchors
+
+system-map.mmd:76 — flowchart TD
+system-map.mmd:92 — J --> K[Early retrieval\nFAQ/resources]
+system-map.mmd:93 — K --> L[Fallback gate decision\nclarify vs llm path]
+
+## Scope boundaries
+
+No net-new assistant channels or third-party model expansion beyond audited
+providers. No platform-wide refactor of unrelated Drupal subsystems.

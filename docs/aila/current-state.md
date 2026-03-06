@@ -971,6 +971,25 @@ This dated addendum records `P3-OBJ-01` closure for Phase 3 Objective #1:
    third-party model expansion beyond audited providers, and no platform-wide
    refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-149]
 
+### Phase 3 Entry #1 Retrieval Quality Targets Met + Documented Disposition (2026-03-05)
+
+1. Phase 3 entry criterion #1 ("Phase 2 retrieval quality targets are met and
+   documented") is closed. All Phase 2 retrieval quality deliverables have dated
+   dispositions in the roadmap: Objective #2 (2026-03-03), Objective #3
+   (2026-03-03), Deliverable #1 (2026-03-03), Deliverable #2 (2026-03-03),
+   Deliverable #3 (2026-03-04), Deliverable #4 (2026-03-04), Exit #1
+   (2026-03-04), Exit #2 (2026-03-04), Sprint 4 (2026-03-05), Sprint 5
+   (2026-03-05).[^CLAIM-065][^CLAIM-086][^CLAIM-151]
+2. Verification used `VC-RUNBOOK-LOCAL`, `VC-TOGGLE-CHECK`, and Phase 2
+   retrieval closure continuity checks. Runtime proof is captured in
+   `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`.[^CLAIM-151]
+3. Retrieval pipeline anchors (Diagram B: Early retrieval, Fallback gate
+   decision) and evidence anchors (CLAIM-065 resource retrieval, CLAIM-086
+   promptfoo harness) remain present and unchanged.[^CLAIM-065][^CLAIM-086][^CLAIM-151]
+4. Scope boundaries remain unchanged: no net-new assistant channels or
+   third-party model expansion beyond audited providers, and no platform-wide
+   refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-151]
+
 ---
 
 ### Evidence footnotes
@@ -1110,3 +1129,4 @@ This dated addendum records `P3-OBJ-01` closure for Phase 3 Objective #1:
 [^CLAIM-148]: [CLAIM-148](evidence-index.md#claim-148)
 [^CLAIM-149]: [CLAIM-149](evidence-index.md#claim-149)
 [^CLAIM-150]: [CLAIM-150](evidence-index.md#claim-150)
+[^CLAIM-151]: [CLAIM-151](evidence-index.md#claim-151)

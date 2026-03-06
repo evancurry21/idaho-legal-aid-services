@@ -830,6 +830,72 @@ Expected `P2-NDO-02` verification result:
 Store sanitized output in:
 - `docs/aila/runtime/phase2-ndo2-no-broad-platform-migration.txt`[^CLAIM-146]
 
+### Phase 3 entry #1 retrieval quality targets met + documented verification (P3-ENT-01)
+
+Use this command bundle to verify Phase 3 Entry criterion #1: all Phase 2
+retrieval quality targets are met and documented.
+
+```bash
+# VC-RUNBOOK-LOCAL
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+
+# VC-TOGGLE-CHECK
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging" \
+    docs/aila/current-state.md docs/aila/evidence-index.md
+
+# Phase 2 retrieval quality closure continuity checks
+rg -n "Phase 2 Objective #2 disposition|Phase 2 Objective #3 disposition" \
+  docs/aila/roadmap.md
+
+rg -n "Phase 2 Deliverable #1 disposition|Phase 2 Deliverable #2 disposition|Phase 2 Deliverable #3 disposition|Phase 2 Deliverable #4 disposition" \
+  docs/aila/roadmap.md
+
+rg -n "Phase 2 Exit #1 disposition|Phase 2 Exit #2 disposition" \
+  docs/aila/roadmap.md
+
+rg -n "Phase 2 Sprint 4 disposition|Phase 2 Sprint 5 disposition" \
+  docs/aila/roadmap.md
+
+# Retrieval evidence anchor continuity
+rg -n "CLAIM-065|CLAIM-086" \
+  docs/aila/evidence-index.md | head -20
+
+# Diagram B pipeline retrieval anchors
+rg -n "Early retrieval|Fallback gate decision|flowchart TD" \
+  docs/aila/system-map.mmd
+
+# Closure guard test
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaOneGateTest.php
+```
+
+Expected `P3-ENT-01` verification result:
+- `VC-RUNBOOK-LOCAL` returns Drupal bootstrap status, assistant settings, and
+  `system.cron_last=<timestamp>`.
+- `VC-TOGGLE-CHECK` confirms toggle references are present in docs.
+- All Phase 2 retrieval quality dispositions are present in roadmap: Objective #2
+  (2026-03-03), Objective #3 (2026-03-03), Deliverable #1 (2026-03-03),
+  Deliverable #2 (2026-03-03), Deliverable #3 (2026-03-04), Deliverable #4
+  (2026-03-04), Exit #1 (2026-03-04), Exit #2 (2026-03-04), Sprint 4
+  (2026-03-05), Sprint 5 (2026-03-05).
+- CLAIM-065 and CLAIM-086 evidence anchors remain present.
+- Diagram B retrieval pipeline anchors (Early retrieval, Fallback gate decision)
+  remain present.
+- `PhaseThreeEntryCriteriaOneGateTest.php` passes with all assertion groups
+  enforced.
+- Scope boundaries remain unchanged: no net-new assistant channels or third-party
+  model expansion beyond audited providers, and no platform-wide refactor of
+  unrelated Drupal subsystems.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`[^CLAIM-151]
+
 ### Phase 1 Exit #1 non-live alerts + dashboards verification
 
 Use this command bundle to verify Phase 1 Exit criterion #1 in non-live contexts
