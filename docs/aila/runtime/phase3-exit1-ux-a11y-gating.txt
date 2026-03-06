@@ -1,0 +1,33 @@
+# Phase 3 Exit #1 Runtime Evidence (P3-EXT-01)
+Date: 2026-03-06
+
+## Verification bundle summary
+- Validation aliases executed: `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`
+- Targeted UX/a11y runner executed: `node web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs`
+- Targeted guard tests executed:
+  - `QualityGateEnforcementContractTest.php`
+  - `PhaseThreeExitCriteriaOneGateTest.php`
+- CI anchor checks executed against:
+  - `.github/workflows/quality-gate.yml`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaOneGateTest.php`
+
+## Command outcome summary
+- `VC-RUNBOOK-LOCAL`: executed; local runtime/config visibility captured.
+- `VC-RUNBOOK-PANTHEON`: executed; dev/test/live continuity check succeeded.
+- JS hardening runner: pass.
+- Guard tests: pass.
+- CI anchors: present.
+
+## Closure markers
+p3-ext-01-status=closed
+p3-ext-01-ci-gate=promptfoo-gate-required
+p3-ext-01-a11y-js-suite=passed
+p3-ext-01-claim-025=present
+p3-ext-01-claim-032=present
+p3-ext-01-claim-105=present
+
+## Scope continuity markers
+- no-net-new-assistant-channels=true
+- no-third-party-model-expansion=true
+- no-unrelated-drupal-platform-refactor=true

@@ -1,0 +1,79 @@
+Phase 3 Entry #2 SLO/Alert Operational Trend History (P3-ENT-02)
+Verification date: 2026-03-05
+
+## `VC-RUNBOOK-LOCAL`
+
+Command bundle status: passed
+- ddev drush status: Drupal bootstrap successful, database connected.
+- ddev drush config:get ilas_site_assistant.settings -y: operational config visible.
+- ddev drush state:get system.cron_last: `1772748124`.
+
+Operational toggle continuity snapshot:
+- `llm.enabled=false`
+- `vector_search.enabled=false`
+- `rate_limit_per_minute=15`
+- `conversation_logging.enabled=true`
+
+## `VC-TOGGLE-CHECK`
+
+Toggle reference scan status: passed
+- `docs/aila/current-state.md`: references for `llm.enabled`, `vector_search`,
+  `rate_limit_per_minute`, and `conversation_logging` are present.
+- `docs/aila/evidence-index.md`: references for the same toggle set are present.
+
+## Local watchdog trend query outputs
+
+Trend min/max + span query:
+- trend_start_ts=`2026-02-20 12:42:52`
+- trend_end_ts=`2026-03-05 15:04:50`
+- span_hours=`314`
+- span_calendar_days=`14`
+- cron_rows=`11`
+
+Recursive CTE calendar/business-day window query:
+- trend_window_start=`2026-02-20`
+- trend_window_end=`2026-03-05`
+- trend_calendar_days=`14`
+- trend_business_days=`10`
+
+SLO-violation in-window query:
+- slo_violation_count=`4`
+- first_slo_violation=`2026-03-02 13:31:08`
+- last_slo_violation=`2026-03-02 19:59:05`
+
+## CLAIM anchor checks
+
+CLAIM-084 continuity anchors:
+- `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt` includes
+  `VC-RUNBOOK-LOCAL` and `system.cron_last` evidence markers.
+- `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt` includes
+  `guard-anchor-performance-monitor=present` and
+  `guard-anchor-slo-alert-service=present`.
+
+CLAIM-121 continuity anchors:
+- `docs/aila/runtime/phase1-exit1-alerts-dashboards.txt` includes
+  `SLO violation:` watchdog evidence rows.
+- `docs/aila/runtime/pantheon-dev.txt`, `pantheon-test.txt`, and
+  `pantheon-live.txt` include `system.cron_last`, `Cron run completed`, and
+  `ilas_site_assistant_cron()` continuity markers.
+
+## Scope guardrails
+
+No net-new assistant channels or third-party model expansion beyond audited
+providers. No platform-wide refactor of unrelated Drupal subsystems.
+
+Residual risk boundary remains unchanged:
+- B-04 (sustained cron/queue load behavior under non-zero backlog) remains
+  open and is outside this closure item.
+
+## Disposition markers
+
+p3-ent-02-status=closed
+p3-ent-02-definition=10-business-days
+trend-window-start=2026-02-20
+trend-window-end=2026-03-05
+trend-calendar-days=14
+trend-business-days=10
+trend-anchor-claim-084=present
+trend-anchor-claim-121=present
+b04-status=open

@@ -165,6 +165,16 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AccessibilityMobileUxAcceptanceGateTest.php`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/RecoveryUxContractTest.php`
   - `web/modules/custom/ilas_site_assistant/tests/assistant-widget-hardening.test.js`
+- Addendum (2026-03-06): Phase 3 Exit #1 (`P3-EXT-01`) hardens required UX/a11y
+  gate continuity by executing the JS widget hardening suite in the required
+  `Promptfoo Gate` workflow job via `run-assistant-widget-hardening.mjs`, with
+  guard-test enforcement for CI wiring and closure continuity.
+- Addendum evidence:
+  - `.github/workflows/quality-gate.yml` (required `Promptfoo Gate` step wiring)
+  - `web/modules/custom/ilas_site_assistant/tests/js/assistant-widget-hardening.test.js` (browser-correct safety assertion lock)
+  - `web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs` (deterministic JS suite runner)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaOneGateTest.php`
 
 ### CLAIM-026
 - Claim: Widget API client sends CSRF header, uses 15s AbortController timeout, maps 429/403/5xx error behaviors.
@@ -212,6 +222,15 @@ Evidence precedence used in this audit:
 - Addendum evidence:
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AccessibilityMobileUxAcceptanceGateTest.php`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/RecoveryUxContractTest.php`
+- Addendum (2026-03-06): Phase 3 Exit #1 (`P3-EXT-01`) binds Twig ARIA/screen-
+  reader continuity to required CI gate enforcement and closure guard tests, so
+  UX/a11y suite coverage is both executable and required in merge/release gate
+  paths.
+- Addendum evidence:
+  - `.github/workflows/quality-gate.yml`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaOneGateTest.php`
+  - `docs/aila/runtime/phase3-exit1-ux-a11y-gating.txt`
 
 ---
 
@@ -614,6 +633,19 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php`
   - `web/modules/custom/ilas_site_assistant/src/Service/CostControlPolicy.php`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CostControlPolicyTest.php`
+- Addendum (2026-03-06): Phase 3 Exit #2 (`P3-EXT-02`) closes
+  cost/performance exit-criterion continuity by requiring section-3
+  `VC-RUNBOOK-LOCAL` + `VC-RUNBOOK-PANTHEON` verification, service guard-anchor
+  continuity checks, role-based product/platform owner acceptance markers, and
+  closure guard-test enforcement.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Exit #2 disposition dated 2026-03-06)
+  - `docs/aila/current-state.md` (P3-EXT-02 cost/performance owner-acceptance addendum)
+  - `docs/aila/runbook.md` (P3-EXT-02 verification subsection in section 3)
+  - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt`
+  - `docs/aila/backlog.md` (`IMP-COST-01` row with P3-EXT-02 owner-acceptance traceability)
+  - `docs/aila/risk-register.md` (`R-PERF-01` row with P3-EXT-02 runtime-marker continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php`
 
 ### CLAIM-078
 - Claim: Post-generation legal-advice detection blocks unsafe generated output.
@@ -687,6 +719,32 @@ Evidence precedence used in this audit:
   - `docs/aila/backlog.md` (`IMP-COST-01` active mitigation row)
   - `docs/aila/risk-register.md` (`R-PERF-01` active mitigation row)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php`
+- Addendum (2026-03-05): Phase 3 Entry #2 (`P3-ENT-02`) closes trend-history
+  continuity by verifying at least one sprint of operational SLO/alert history
+  using locked sprint definition `10 business days` over explicit local window
+  2026-02-20 through 2026-03-05 (14 calendar days / 10 business days), with no
+  synthetic/backfilled data introduced and no scope-boundary changes.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Entry #2 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-ENT-02 trend-history disposition addendum)
+  - `docs/aila/runbook.md` (P3-ENT-02 verification subsection in §4)
+  - `docs/aila/runtime/phase3-entry2-slo-alert-trend-history.txt`
+  - `docs/aila/system-map.mmd` (Diagram B continuity anchors)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaTwoGateTest.php`
+- Addendum (2026-03-06): Phase 3 Exit #2 (`P3-EXT-02`) extends
+  performance/SLO monitoring continuity from objective-level closure into
+  exit-criterion closure by requiring reproducible health/metrics verification
+  (`/assistant/api/health`, `/assistant/api/metrics`), Pantheon/local alias
+  continuity checks, role-based owner acceptance markers, and guard-test
+  enforcement without scope-boundary expansion.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Exit #2 disposition dated 2026-03-06)
+  - `docs/aila/current-state.md` (P3-EXT-02 cost/performance owner-acceptance addendum)
+  - `docs/aila/runbook.md` (P3-EXT-02 verification subsection in section 3)
+  - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt`
+  - `docs/aila/backlog.md` (`IMP-COST-01` active-mitigation continuity with P3-EXT-02 linkage)
+  - `docs/aila/risk-register.md` (`R-PERF-01` active-mitigation continuity with P3-EXT-02 linkage)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php`
 
 ### CLAIM-085
 - Claim: Analytics logger redacts event values and stores no-answer queries as redacted/truncated hash records.
@@ -938,6 +996,15 @@ Evidence precedence used in this audit:
   - `docs/aila/roadmap.md` (Phase 2 Deliverable #4 disposition dated 2026-03-04)
   - `docs/aila/current-state.md` (P2-DEL-04 dataset expansion addendum)
   - `docs/aila/runbook.md` (P2-DEL-04 verification subsection in §4)
+- Addendum (2026-03-06): Phase 3 Exit #1 (`P3-EXT-01`) extends deterministic
+  quality-gate continuity by making UX/a11y JS hardening suite execution a
+  required pre-promptfoo step in the `Promptfoo Gate` workflow while preserving
+  existing classifier coverage guarantees and branch-aware policy.
+- Addendum evidence:
+  - `.github/workflows/quality-gate.yml`
+  - `web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaOneGateTest.php`
 
 ### CLAIM-106
 - Claim: LLM request payload construction does not include explicit tool/function-calling fields; payload is `contents` + `generationConfig` + `safetySettings`.
@@ -1107,6 +1174,17 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/pantheon-live.txt:168-225`
   - `docs/aila/runtime/pantheon-live.txt:252-262`
 - Inference basis: interval estimate is derived from adjacent `Cron run completed` timestamps in the sampled watchdog windows.
+- Addendum (2026-03-05): Phase 3 Entry #2 (`P3-ENT-02`) confirms local
+  watchdog trend history covers at least one sprint window using locked
+  definition `10 business days` (2026-02-20 to 2026-03-05) and non-zero
+  in-window SLO violation records, while keeping residual risk `B-04` explicitly
+  open for sustained non-zero backlog/load validation.
+- Addendum evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Entry #2 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-ENT-02 trend-history disposition addendum)
+  - `docs/aila/runbook.md` (P3-ENT-02 verification subsection in §4)
+  - `docs/aila/runtime/phase3-entry2-slo-alert-trend-history.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaTwoGateTest.php`
 
 ### CLAIM-122
 - Claim: Historical snapshot claim (captured 2026-02-26): no first-party CI workflow file was found in repository-root CI locations at that time, while Promptfoo execution remained script-driven and contrib dependencies included their own CI files. This baseline is superseded by the 2026-03-03 mandatory-gate addendum below.
@@ -1862,3 +1940,68 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`
   - `docs/aila/system-map.mmd` (Diagram B: Early retrieval, Fallback gate decision anchors)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaOneGateTest.php`
+
+## Phase 3 Entry #2 SLO/Alert Operational Trend History (P3-ENT-02)
+
+### CLAIM-152
+- Claim: Phase 3 entry criterion #2 ("SLO/alert operational data has at least
+  one sprint of trend history") is satisfied. Closure is anchored to an
+  explicit local watchdog trend window from 2026-02-20 through 2026-03-05,
+  covering 14 calendar days and 10 business days (locked sprint definition for
+  this disposition), with non-zero in-window SLO violation records and
+  continuity checks for CLAIM-084/CLAIM-121 evidence paths. Scope boundaries
+  remain unchanged (no net-new assistant channels/providers, no unrelated
+  Drupal refactor), and residual boundary B-04 remains open because sustained
+  non-zero backlog/load validation is outside this entry-criterion closure.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Entry #2 disposition dated 2026-03-05)
+  - `docs/aila/current-state.md` (P3-ENT-02 trend-history disposition addendum)
+  - `docs/aila/runbook.md` (P3-ENT-02 verification subsection in §4)
+  - `docs/aila/runtime/phase3-entry2-slo-alert-trend-history.txt`
+  - `docs/aila/system-map.mmd` (Diagram B continuity anchors)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaTwoGateTest.php`
+
+## Phase 3 Exit #1 UX/a11y Test Suite Gating + Passing (`P3-EXT-01`)
+
+### CLAIM-153
+- Claim: Phase 3 exit criterion #1 is closed as implemented — UX/a11y test suite
+  is gating and passing through required CI workflow enforcement plus closure
+  continuity tests. The required `Promptfoo Gate` job now executes
+  `run-assistant-widget-hardening.mjs` before promptfoo gate execution, targeted
+  JS assertion correction retains DOM-injection safety coverage, and closure
+  artifacts include runbook/local+Pantheon verification bundles and runtime proof
+  markers. Scope boundaries remain unchanged: no net-new assistant channels or
+  third-party model expansion beyond audited providers, and no platform-wide
+  refactor of unrelated Drupal subsystems.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Exit #1 disposition dated 2026-03-06)
+  - `docs/aila/current-state.md` (P3-EXT-01 UX/a11y suite gating disposition addendum)
+  - `docs/aila/runbook.md` (P3-EXT-01 verification subsection in §4)
+  - `docs/aila/runtime/phase3-exit1-ux-a11y-gating.txt` (sanitized VC alias output + closure markers)
+  - `.github/workflows/quality-gate.yml` (required Promptfoo gate JS suite execution step)
+  - `web/modules/custom/ilas_site_assistant/tests/js/assistant-widget-hardening.test.js` (browser-correct XSS-safe attribute assertions)
+  - `web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs` (deterministic JS runner)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php` (workflow wiring lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaOneGateTest.php` (exit-criterion closure continuity lock)
+  - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
+
+## Phase 3 Exit #2 Cost/Performance Controls Documented + Monitored + Product/Platform Owner Accepted (`P3-EXT-02`)
+
+### CLAIM-154
+- Claim: Phase 3 exit criterion #2 is closed as implemented — cost/performance
+  controls are documented, monitored, and accepted by product/platform owners.
+  Closure is enforced through section-3 runbook verification (`VC-RUNBOOK-LOCAL`,
+  `VC-RUNBOOK-PANTHEON`), monitoring continuity checks (`/assistant/api/health`,
+  `/assistant/api/metrics`), role-based owner acceptance markers in a runtime
+  proof artifact, and closure guard-test continuity without net-new assistant
+  channels, third-party model-provider expansion, or unrelated platform
+  refactors. Residual boundary `B-04` remains open.
+- Evidence:
+  - `docs/aila/roadmap.md` (Phase 3 Exit #2 disposition dated 2026-03-06)
+  - `docs/aila/current-state.md` (P3-EXT-02 cost/performance owner-acceptance disposition addendum)
+  - `docs/aila/runbook.md` (P3-EXT-02 verification subsection in section 3)
+  - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt` (sanitized VC alias output + monitoring + owner-acceptance markers)
+  - `docs/aila/backlog.md` (`IMP-COST-01` row includes P3-EXT-02 owner-acceptance traceability)
+  - `docs/aila/risk-register.md` (`R-PERF-01` row includes P3-EXT-02 runtime-marker continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php` (exit-criterion closure continuity lock)
+  - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)

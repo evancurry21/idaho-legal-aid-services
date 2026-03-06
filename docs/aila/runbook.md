@@ -427,6 +427,84 @@ Expected `P3-OBJ-02` verification result:
 Store sanitized output in:
 - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`[^CLAIM-147]
 
+### Phase 3 exit #2 cost/performance controls documented + monitored + owner acceptance verification (`P3-EXT-02`)
+
+Use this command bundle to verify Phase 3 Exit criterion #2:
+"Cost/performance controls are documented, monitored, and accepted by
+product/platform owners."
+
+```bash
+# 1) Validation command aliases from prompt matrix.
+# VC-RUNBOOK-LOCAL
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+
+# VC-RUNBOOK-PANTHEON
+for ENV in dev test live; do
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings -y
+done
+
+# 2) Monitoring checks (local + Pantheon continuity).
+LOCAL_BASE_URL="https://ilas-pantheon.ddev.site"
+curl -k -sS "${LOCAL_BASE_URL}/assistant/api/health"
+curl -k -sS "${LOCAL_BASE_URL}/assistant/api/metrics"
+
+for ENV in dev test live; do
+  BASE_URL="$(terminus env:view "idaho-legal-aid-services.${ENV}" --print)"
+  curl -k -sS "${BASE_URL%/}/assistant/api/health"
+  curl -k -sS "${BASE_URL%/}/assistant/api/metrics"
+done
+
+# 3) Guardrail and owner-acceptance linkage continuity checks.
+rg -n "class LlmEnhancer|circuit breaker|global rate limit|CostControlPolicy" \
+  web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php \
+  web/modules/custom/ilas_site_assistant/src/Service/CostControlPolicy.php
+
+rg -n "class PerformanceMonitor|class SloAlertService|SLO violation" \
+  web/modules/custom/ilas_site_assistant/src/Service/PerformanceMonitor.php \
+  web/modules/custom/ilas_site_assistant/src/Service/SloAlertService.php
+
+rg -n "Phase 3 Exit #2 disposition \\(2026-03-06\\)|P3-EXT-02|phase3-exit2-cost-performance-owner-acceptance.txt|CLAIM-154|PhaseThreeExitCriteriaTwoGateTest.php" \
+  docs/aila/roadmap.md \
+  docs/aila/current-state.md \
+  docs/aila/evidence-index.md \
+  docs/aila/runbook.md
+
+rg -n "IMP-COST-01 / P3-OBJ-02, 2026-03-05|P3-EXT-02|phase3-exit2-cost-performance-owner-acceptance.txt|owner-acceptance" \
+  docs/aila/backlog.md \
+  docs/aila/risk-register.md
+
+# 4) Closure guard tests.
+cd /home/evancurry/idaho-legal-aid-services && \
+  vendor/bin/phpunit --configuration phpunit.xml --group ilas_site_assistant \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php
+```
+
+Expected `P3-EXT-02` verification result:
+- `VC-RUNBOOK-LOCAL` confirms local runtime visibility with `system.cron_last`
+  continuity and assistant config visibility.
+- `VC-RUNBOOK-PANTHEON` confirms target-environment continuity on
+  `dev`/`test`/`live`.
+- `/assistant/api/health` and `/assistant/api/metrics` monitoring checks return
+  valid payloads in local and Pantheon contexts.
+- Guardrail anchors remain present for `CLAIM-077` and `CLAIM-084` service paths.
+- Owner-acceptance continuity markers are present across roadmap/current-state/
+  evidence/runbook/backlog/risk and runtime artifact references.
+- `PhaseThreeExitCriteriaTwoGateTest.php` and `PhaseThreeObjectiveTwoGateTest.php`
+  pass with closure continuity assertions enforced.
+- Scope boundaries remain unchanged: no net-new assistant channels or
+  third-party model expansion beyond audited providers, and no platform-wide
+  refactor of unrelated Drupal subsystems. Residual `B-04` remains open.
+- If `VC-RUNBOOK-PANTHEON` fails (auth/connectivity/command failure),
+  treat `P3-EXT-02` closure as blocked until authenticated Pantheon continuity
+  output is captured.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt`[^CLAIM-154]
+
 ### Phase 3 objective #3 release readiness package + governance attestation verification (`P3-OBJ-03`)
 
 Use this command bundle to verify Phase 3 Objective #3:
@@ -895,6 +973,132 @@ Expected `P3-ENT-01` verification result:
 
 Store sanitized output in:
 - `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`[^CLAIM-151]
+
+### Phase 3 entry #2 SLO/alert operational trend history verification (P3-ENT-02)
+
+Use this command bundle to verify Phase 3 Entry criterion #2:
+"SLO/alert operational data has at least one sprint of trend history."
+Sprint definition for this closure is locked to `10 business days`.
+
+```bash
+# VC-RUNBOOK-LOCAL
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+
+# VC-TOGGLE-CHECK
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "llm.enabled|vector_search|rate_limit_per_minute|conversation_logging" \
+    docs/aila/current-state.md docs/aila/evidence-index.md
+
+# Local watchdog trend min/max + span hours/days.
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush sqlq "SELECT FROM_UNIXTIME(MIN(timestamp)) AS trend_start_ts, FROM_UNIXTIME(MAX(timestamp)) AS trend_end_ts, TIMESTAMPDIFF(HOUR, FROM_UNIXTIME(MIN(timestamp)), FROM_UNIXTIME(MAX(timestamp))) AS span_hours, TIMESTAMPDIFF(DAY, DATE(FROM_UNIXTIME(MIN(timestamp))), DATE(FROM_UNIXTIME(MAX(timestamp)))) + 1 AS span_calendar_days, COUNT(*) AS cron_rows FROM watchdog WHERE type = 'cron' AND message = 'Cron run completed.';"
+
+# Local watchdog calendar/business-day trend window (recursive CTE).
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush sqlq "WITH RECURSIVE bounds AS (SELECT DATE(FROM_UNIXTIME(MIN(timestamp))) AS start_day, DATE(FROM_UNIXTIME(MAX(timestamp))) AS end_day FROM watchdog WHERE type = 'cron' AND message = 'Cron run completed.'), calendar AS (SELECT start_day AS day, end_day FROM bounds UNION ALL SELECT DATE_ADD(day, INTERVAL 1 DAY), end_day FROM calendar WHERE day < end_day) SELECT MIN(day) AS trend_window_start, MAX(day) AS trend_window_end, COUNT(*) AS trend_calendar_days, SUM(CASE WHEN DAYOFWEEK(day) BETWEEN 2 AND 6 THEN 1 ELSE 0 END) AS trend_business_days FROM calendar;"
+
+# Local watchdog SLO-violation count across trend window.
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush sqlq "WITH bounds AS (SELECT MIN(timestamp) AS min_ts, MAX(timestamp) AS max_ts FROM watchdog WHERE type = 'cron' AND message = 'Cron run completed.') SELECT COUNT(*) AS slo_violation_count, FROM_UNIXTIME(MIN(w.timestamp)) AS first_slo_violation, FROM_UNIXTIME(MAX(w.timestamp)) AS last_slo_violation FROM watchdog w CROSS JOIN bounds b WHERE w.message LIKE 'SLO violation:%' AND w.timestamp BETWEEN b.min_ts AND b.max_ts;"
+
+# CLAIM-084 continuity anchors (SLO/performance monitor bundle evidence).
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "VC-RUNBOOK-LOCAL|system\\.cron_last|guard-anchor-performance-monitor|guard-anchor-slo-alert-service" \
+    docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt \
+    docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt
+
+# CLAIM-121 continuity anchors (cron watchdog trend evidence paths).
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "Cron run completed|ilas_site_assistant_cron\\(\\)|SLO violation:|system\\.cron_last" \
+    docs/aila/runtime/phase1-exit1-alerts-dashboards.txt \
+    docs/aila/runtime/pantheon-dev.txt \
+    docs/aila/runtime/pantheon-test.txt \
+    docs/aila/runtime/pantheon-live.txt | head -40
+
+# Closure guard test
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaTwoGateTest.php
+```
+
+Expected `P3-ENT-02` verification result:
+- `VC-RUNBOOK-LOCAL` returns successful local runtime/config visibility with
+  `system.cron_last=<timestamp>`.
+- `VC-TOGGLE-CHECK` confirms canonical toggle references remain present in
+  current-state and evidence-index.
+- Trend-window queries return one sprint of local operational history using the
+  locked definition `10 business days`, with explicit window dates
+  2026-02-20 through 2026-03-05 (14 calendar days / 10 business days).
+- SLO violation count query returns non-zero in-window evidence (`>=1`) for
+  operational trend visibility without synthetic/backfilled data.
+- CLAIM-084 and CLAIM-121 continuity anchors remain present in existing runtime
+  evidence files.
+- `PhaseThreeEntryCriteriaTwoGateTest.php` passes with all continuity assertion
+  groups enforced.
+- Entry criterion closure scope remains bounded: no net-new assistant channels
+  or third-party model expansion beyond audited providers, no platform-wide
+  refactor of unrelated Drupal subsystems, and residual `B-04` remains open.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase3-entry2-slo-alert-trend-history.txt`[^CLAIM-152]
+
+### Phase 3 exit #1 UX/a11y test suite gating + passing verification (`P3-EXT-01`)
+
+Use this command bundle to verify Phase 3 Exit criterion #1:
+"UX/a11y test suite is gating and passing."
+
+```bash
+# VC-RUNBOOK-LOCAL
+cd /home/evancurry/idaho-legal-aid-services && \
+  ddev drush status && \
+  ddev drush config:get ilas_site_assistant.settings -y && \
+  ddev drush state:get system.cron_last
+
+# VC-RUNBOOK-PANTHEON
+for ENV in dev test live; do
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- config:get ilas_site_assistant.settings -y
+done
+
+# Targeted UX/a11y JS suite runner (CI gate parity).
+cd /home/evancurry/idaho-legal-aid-services && \
+  node web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs
+
+# Targeted guard tests for workflow + closure continuity.
+cd /home/evancurry/idaho-legal-aid-services && \
+  vendor/bin/phpunit --configuration phpunit.xml --group ilas_site_assistant \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaOneGateTest.php
+
+# CI wiring anchor checks.
+cd /home/evancurry/idaho-legal-aid-services && \
+  rg -n "Run UX/a11y widget hardening suite \\(P3-EXT-01\\)|run-assistant-widget-hardening\\.mjs|promptfoo-gate" \
+    .github/workflows/quality-gate.yml \
+    web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php \
+    web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaOneGateTest.php
+```
+
+Expected `P3-EXT-01` verification result:
+- `VC-RUNBOOK-LOCAL` confirms local runtime visibility with `system.cron_last`
+  continuity and assistant config visibility.
+- `VC-RUNBOOK-PANTHEON` confirms target-environment continuity on `dev`/`test`/`live`.
+- JS suite runner reports `assistant-widget-hardening: pass=<N> fail=0`.
+- `QualityGateEnforcementContractTest.php` and `PhaseThreeExitCriteriaOneGateTest.php`
+  pass with CI/document/runtime continuity assertions enforced.
+- CI anchor checks confirm required `Promptfoo Gate` wiring includes
+  `run-assistant-widget-hardening.mjs`.
+- Scope boundaries remain unchanged: no net-new assistant channels or
+  third-party model expansion beyond audited providers, and no platform-wide
+  refactor of unrelated Drupal subsystems.
+- If `VC-RUNBOOK-PANTHEON` fails (auth/connectivity/command failure),
+  treat `P3-EXT-01` closure as blocked until authenticated Pantheon
+  continuity output is captured.
+
+Store sanitized output in:
+- `docs/aila/runtime/phase3-exit1-ux-a11y-gating.txt`[^CLAIM-153]
 
 ### Phase 1 Exit #1 non-live alerts + dashboards verification
 
@@ -2109,6 +2313,12 @@ sed -E \
   - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`[^CLAIM-147]
 - Phase 3 Objective #3 release readiness package + governance attestation proof is captured in:
   - `docs/aila/runtime/phase3-obj3-release-readiness-governance-attestation.txt`[^CLAIM-148]
+- Phase 3 Entry #2 SLO/alert trend-history closure proof is captured in:
+  - `docs/aila/runtime/phase3-entry2-slo-alert-trend-history.txt`[^CLAIM-152]
+- Phase 3 Exit #1 UX/a11y suite gating + passing closure proof is captured in:
+  - `docs/aila/runtime/phase3-exit1-ux-a11y-gating.txt`[^CLAIM-153]
+- Phase 3 Exit #2 cost/performance controls + owner acceptance closure proof is captured in:
+  - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt`[^CLAIM-154]
 
 ## 7) Retrospective regression checklist (mandatory)
 
@@ -2174,3 +2384,8 @@ Run this checklist for every future audit cycle that touches assistant routing, 
 [^CLAIM-146]: [CLAIM-146](evidence-index.md#claim-146)
 [^CLAIM-147]: [CLAIM-147](evidence-index.md#claim-147)
 [^CLAIM-148]: [CLAIM-148](evidence-index.md#claim-148)
+[^CLAIM-149]: [CLAIM-149](evidence-index.md#claim-149)
+[^CLAIM-151]: [CLAIM-151](evidence-index.md#claim-151)
+[^CLAIM-152]: [CLAIM-152](evidence-index.md#claim-152)
+[^CLAIM-153]: [CLAIM-153](evidence-index.md#claim-153)
+[^CLAIM-154]: [CLAIM-154](evidence-index.md#claim-154)

@@ -71,6 +71,9 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Run UX/a11y widget hardening suite (P3-EXT-01)
+        run: node web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs
+
       - name: Run promptfoo gate (real eval when ILAS_ASSISTANT_URL is configured)
         env:
           ILAS_ASSISTANT_URL: ${{ secrets.ILAS_ASSISTANT_URL }}

@@ -90,6 +90,16 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('upload-artifact', $workflow);
 
     // Job 2: Promptfoo gate references.
+    $this->assertStringContainsString(
+      'run-assistant-widget-hardening.mjs',
+      $workflow,
+      'Promptfoo gate must run the UX/a11y JS hardening suite'
+    );
+    $this->assertStringContainsString(
+      'Run UX/a11y widget hardening suite (P3-EXT-01)',
+      $workflow,
+      'Promptfoo gate must include the explicit P3-EXT-01 step name'
+    );
     $this->assertStringContainsString('run-promptfoo-gate.sh', $workflow);
     $this->assertStringContainsString('--skip-eval', $workflow);
     $this->assertStringContainsString('--simulate-pass-rate', $workflow);

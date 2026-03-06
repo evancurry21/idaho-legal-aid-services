@@ -299,10 +299,30 @@ Explicit mapping:
 3. Runtime verification evidence for `VC-RUNBOOK-LOCAL` and `VC-TOGGLE-CHECK` is captured in `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt`. (Refs: evidence-index CLAIM-151; runbook §4)
 4. Scope boundaries remain unchanged: no net-new assistant channels or third-party model expansion beyond audited providers, and no platform-wide refactor of unrelated Drupal subsystems. (Refs: current-state §1, §4E; evidence-index CLAIM-010, CLAIM-073, CLAIM-074, CLAIM-151; runbook §4)
 
+### Phase 3 Entry #2 disposition (2026-03-05)
+1. Entry criterion #2 is closed as documented: SLO/alert operational data now has at least one sprint of trend history using the locked sprint definition `10 business days` and explicit local trend-window evidence from 2026-02-20 through 2026-03-05 (14 calendar days / 10 business days) derived from watchdog cron/SLO operational records. (Refs: current-state §4F, §4G; evidence-index CLAIM-084, CLAIM-121, CLAIM-152; system-map Diagram B; runbook §3)
+2. Verification is codified via `VC-RUNBOOK-LOCAL`, `VC-TOGGLE-CHECK`, local watchdog trend queries (window bounds + business-day calculation + SLO-violation count), and continuity anchor checks tied to existing CLAIM-084/CLAIM-121 runtime evidence paths. Runtime proof is captured in `docs/aila/runtime/phase3-entry2-slo-alert-trend-history.txt`. (Refs: evidence-index CLAIM-152; runbook §3)
+3. Scope boundaries remain unchanged: no net-new assistant channels or third-party model expansion beyond audited providers, and no platform-wide refactor of unrelated Drupal subsystems. (Refs: current-state §1, §4E; evidence-index CLAIM-010, CLAIM-073, CLAIM-074, CLAIM-152; system-map Diagram A; runbook §3, §4)
+4. Residual risk status remains unchanged: B-04 (sustained cron/queue load behavior under non-zero backlog) remains open and outside this entry-criterion closure. (Refs: current-state §8; evidence-index CLAIM-118, CLAIM-121, CLAIM-152; runbook §3)
+
 ### Exit criteria
 1. UX/a11y test suite is gating and passing. (Refs: current-state §4A; evidence-index CLAIM-025, CLAIM-032, CLAIM-105; system-map Diagram A; runbook §4)
 2. Cost/performance controls are documented, monitored, and accepted by product/platform owners. (Refs: current-state §4E, §4F; evidence-index CLAIM-077, CLAIM-084; system-map Diagram A; runbook §3)
 3. Final release packet includes known-unknown disposition and residual risk signoff. (Refs: current-state §8; evidence-index CLAIM-122; system-map Diagram A; runbook §4)
+
+### Phase 3 Exit #1 disposition (2026-03-06)
+1. Exit criterion #1 is closed as implemented: UX/a11y test suite is gating and passing. The required `Promptfoo Gate` CI job now executes `web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs` before promptfoo gate evaluation, and this workflow wiring is continuity-locked by `QualityGateEnforcementContractTest.php`. (Refs: current-state §4A; evidence-index CLAIM-025, CLAIM-032, CLAIM-105, CLAIM-153; system-map Diagram A; runbook §4)
+2. JS a11y suite execution is now CI-deterministic and non-optional for required checks; suite hardening retains safety coverage while correcting browser-accurate `data-retry-message` assertion semantics without weakening DOM injection protections. (Refs: evidence-index CLAIM-025, CLAIM-032, CLAIM-153; runbook §4)
+3. Runtime verification and closure markers are captured in `docs/aila/runtime/phase3-exit1-ux-a11y-gating.txt` with `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`, targeted gate-test execution, and CI anchor checks recorded under `CLAIM-153`. (Refs: current-state §8; evidence-index CLAIM-153; runbook §4)
+4. Scope boundaries remain unchanged: no net-new assistant channels or third-party model expansion beyond audited providers, and no platform-wide refactor of unrelated Drupal subsystems. (Refs: current-state §1, §4E; evidence-index CLAIM-010, CLAIM-073, CLAIM-074, CLAIM-153; system-map Diagram A; runbook §3, §4)
+
+### Phase 3 Exit #2 disposition (2026-03-06)
+1. Exit criterion #2 is closed as implemented: cost/performance controls are documented, monitored, and accepted by product/platform owners. Closure continuity is anchored to existing LLM call guardrails (`CLAIM-077`) and SLO/performance monitoring guardrails (`CLAIM-084`) without runtime architecture expansion. (Refs: current-state §4E, §4F, §7; evidence-index CLAIM-077, CLAIM-084, CLAIM-154; system-map Diagram A; runbook §3)
+2. Verification is codified in runbook section-3 command bundles with required `VC-RUNBOOK-LOCAL` and `VC-RUNBOOK-PANTHEON` aliases, dashboard monitoring checks (`/assistant/api/health`, `/assistant/api/metrics`), source-anchor continuity checks, and closure guard-test enforcement in `PhaseThreeExitCriteriaTwoGateTest.php`. Runtime proof is captured in `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt`. (Refs: evidence-index CLAIM-154; runbook §3)
+3. Product/platform owner acceptance is recorded as role-based closure evidence (`owner-acceptance-product-role=accepted`, `owner-acceptance-platform-role=accepted`, dated 2026-03-06) in the runtime artifact and linked documentation. (Refs: current-state §7; evidence-index CLAIM-154; runbook §3)
+4. Performance/cost governance linkage remains active and now includes explicit exit-criterion continuity in backlog/risk artifacts (`IMP-COST-01`, `R-PERF-01`) tied to `P3-EXT-02` runtime markers. (Refs: current-state §4E, §4F, §7; evidence-index CLAIM-077, CLAIM-084, CLAIM-154; runbook §3)
+5. Scope boundaries remain unchanged: no net-new assistant channels or third-party model expansion beyond audited providers, and no platform-wide refactor of unrelated Drupal subsystems. (Refs: current-state §1, §4E; evidence-index CLAIM-010, CLAIM-073, CLAIM-074, CLAIM-154; system-map Diagram A; runbook §3, §4)
+6. Residual risk posture remains unchanged: B-04 (sustained cron/queue load behavior under non-zero backlog) remains open and outside this closure item. (Refs: current-state §8; evidence-index CLAIM-118, CLAIM-121, CLAIM-154; runbook §3)
 
 ### Suggested sprint breakdown
 1. Sprint 6 Week 1: UX/a11y and mobile hardening.

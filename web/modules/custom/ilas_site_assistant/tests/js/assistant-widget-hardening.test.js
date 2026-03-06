@@ -523,8 +523,10 @@
     var retryBtn = xssContainer.querySelector('.recovery-btn--retry');
 
     assert(retryBtn !== null, 'XSS: retry button created');
-    assert(retryBtn.getAttribute('data-retry-message').indexOf('<') === -1,
-      'XSS: data-retry-message has no unescaped angle brackets');
+    assert(xssHtml.indexOf('&lt;img') !== -1,
+      'XSS: injected tag is escaped in generated recovery HTML');
+    assert(retryBtn.getAttribute('data-retry-message') === xssMessage,
+      'XSS: original message round-trips as text payload only');
     assert(xssContainer.querySelector('img') === null,
       'XSS: no injected img element');
   });

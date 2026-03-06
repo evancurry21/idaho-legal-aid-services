@@ -990,6 +990,65 @@ This dated addendum records `P3-OBJ-01` closure for Phase 3 Objective #1:
    third-party model expansion beyond audited providers, and no platform-wide
    refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-151]
 
+### Phase 3 Entry #2 SLO/Alert Trend History Disposition (2026-03-05)
+
+1. Phase 3 entry criterion #2 ("SLO/alert operational data has at least one
+   sprint of trend history") is closed using the locked sprint definition
+   `10 business days` and explicit watchdog trend-window evidence from
+   2026-02-20 through 2026-03-05 (14 calendar days / 10 business days). The
+   closure is anchored to `CLAIM-084` (SLO/performance monitoring contracts)
+   and `CLAIM-121` (cron watchdog interval continuity) without runtime behavior
+   changes.[^CLAIM-084][^CLAIM-121][^CLAIM-152]
+2. Verification used `VC-RUNBOOK-LOCAL`, `VC-TOGGLE-CHECK`, local trend-window
+   SQL checks (min/max bounds, span hours/days, business-day window
+   calculation, and SLO violation counts), plus continuity anchor checks against
+   existing runtime evidence for `CLAIM-084` and `CLAIM-121`. Runtime proof is
+   captured in `docs/aila/runtime/phase3-entry2-slo-alert-trend-history.txt`.[^CLAIM-152]
+3. Scope boundaries remain unchanged: no net-new assistant channels or
+   third-party model expansion beyond audited providers, and no platform-wide
+   refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-152]
+4. Residual risk status remains unchanged: B-04 (sustained cron/queue load
+   behavior under non-zero backlog) remains unresolved and outside this entry
+   closure; no synthetic/backfilled operational data was introduced.[^CLAIM-118][^CLAIM-121][^CLAIM-152]
+
+### Phase 3 Exit #1 UX/a11y Test Suite Gating + Passing Disposition (2026-03-06)
+
+This dated addendum records `P3-EXT-01` closure for Phase 3 Exit criterion #1:
+"UX/a11y test suite is gating and passing."
+
+1. Exit criterion #1 is now enforced through required CI wiring: `.github/workflows/quality-gate.yml` `Promptfoo Gate` executes `web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs` before promptfoo gate evaluation, and continuity is locked by `QualityGateEnforcementContractTest.php`.[^CLAIM-025][^CLAIM-032][^CLAIM-105][^CLAIM-153]
+2. The JS hardening suite remains coverage-preserving while using browser-correct safety assertions for `data-retry-message`: no DOM injection occurs, escaped serialization remains intact, and text payload round-trip behavior remains deterministic.[^CLAIM-025][^CLAIM-032][^CLAIM-153]
+3. Verification for `P3-EXT-01` is codified in runbook section-4 via `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`, targeted gate tests (`PhaseThreeExitCriteriaOneGateTest`, `QualityGateEnforcementContractTest`), direct JS runner execution, and CI anchor checks.[^CLAIM-153]
+4. Sanitized runtime closure proof is captured in `docs/aila/runtime/phase3-exit1-ux-a11y-gating.txt` with explicit closure markers and scope-boundary continuity notes.[^CLAIM-153]
+5. Scope boundaries remain unchanged: no net-new assistant channels or third-party model expansion beyond audited providers, and no platform-wide refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-153]
+
+### Phase 3 Exit #2 Cost/Performance Controls + Product/Platform Owner Acceptance Disposition (2026-03-06)
+
+This dated addendum records `P3-EXT-02` closure for Phase 3 Exit criterion #2:
+"Cost/performance controls are documented, monitored, and accepted by
+product/platform owners."
+
+1. Exit criterion #2 is closed as implemented: cost/performance controls are
+   documented and monitored through section-3 operational guardrails anchored to
+   existing `CLAIM-077` (LLM call guardrails) and `CLAIM-084` (SLO/performance
+   monitoring contracts) continuity without runtime architecture expansion.[^CLAIM-077][^CLAIM-084][^CLAIM-154]
+2. Verification for `P3-EXT-02` is codified in runbook section-3 via
+   `VC-RUNBOOK-LOCAL`, `VC-RUNBOOK-PANTHEON`, dashboard monitoring checks for
+   `/assistant/api/health` + `/assistant/api/metrics`, source-anchor checks, and
+   targeted closure guard coverage in `PhaseThreeExitCriteriaTwoGateTest.php`.[^CLAIM-154]
+3. Product/platform owner acceptance is recorded as role-based closure markers
+   in runtime evidence (`owner-acceptance-product-role=accepted`,
+   `owner-acceptance-platform-role=accepted`,
+   `owner-acceptance-date=2026-03-06`) captured in
+   `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt`.[^CLAIM-154]
+4. Governance linkage remains active for `IMP-COST-01` and `R-PERF-01`, now
+   carrying explicit `P3-EXT-02` owner-acceptance/runtime-marker continuity in
+   backlog/risk artifacts with no change to risk posture.[^CLAIM-154]
+5. Scope boundaries remain unchanged: no net-new assistant channels or
+   third-party model expansion beyond audited providers, and no platform-wide
+   refactor of unrelated Drupal subsystems. Residual `B-04` remains open and
+   outside this closure item.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-118][^CLAIM-121][^CLAIM-154]
+
 ---
 
 ### Evidence footnotes
@@ -1130,3 +1189,6 @@ This dated addendum records `P3-OBJ-01` closure for Phase 3 Objective #1:
 [^CLAIM-149]: [CLAIM-149](evidence-index.md#claim-149)
 [^CLAIM-150]: [CLAIM-150](evidence-index.md#claim-150)
 [^CLAIM-151]: [CLAIM-151](evidence-index.md#claim-151)
+[^CLAIM-152]: [CLAIM-152](evidence-index.md#claim-152)
+[^CLAIM-153]: [CLAIM-153](evidence-index.md#claim-153)
+[^CLAIM-154]: [CLAIM-154](evidence-index.md#claim-154)
