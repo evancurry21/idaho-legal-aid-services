@@ -150,6 +150,8 @@ button-audit/
 reports/
 fixtures/
 chatbot-golden-dataset.csv
+!promptfoo-evals/tests/fixtures/
+!promptfoo-evals/tests/fixtures/*.json
 
 # Dev documentation / notes (not needed on Pantheon)
 PERFORMANCE_AUDIT.md

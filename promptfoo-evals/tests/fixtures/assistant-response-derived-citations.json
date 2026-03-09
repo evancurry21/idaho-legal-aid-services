@@ -1,0 +1,35 @@
+{
+  "message": "You can review Idaho family-law forms here.",
+  "type": "search_results",
+  "response_mode": "grounded_answer",
+  "reason_code": "retrieval_match",
+  "decision_reason": "ranked_search_match",
+  "confidence": 0.82,
+  "url": "/issues/family-law",
+  "primary_action": {
+    "label": "View the family law guide",
+    "url": "/issues/family-law"
+  },
+  "results": [
+    {
+      "title": "Family law overview",
+      "answer": "This guide explains Idaho family-law basics.",
+      "url": "/issues/family-law"
+    },
+    {
+      "title": "Court forms",
+      "answer": "Use the court assistance forms when filing.",
+      "url": "/forms/court-assistance"
+    }
+  ],
+  "links": [
+    {
+      "label": "Court Assistance Office",
+      "url": "/forms/court-assistance"
+    },
+    {
+      "label": "Contact Idaho Legal Aid",
+      "url": "/contact"
+    }
+  ]
+}

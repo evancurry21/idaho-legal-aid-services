@@ -9,4 +9,9 @@
       <directory>web/modules/custom/ilas_site_assistant/tests/src/Unit</directory>
     </testsuite>
   </testsuites>
+  <groups>
+    <exclude>
+      <group>ilas_site_assistant_docs</group>
+    </exclude>
+  </groups>
 </phpunit>

@@ -72,6 +72,7 @@ mkdir -p "$EVALS_OUTPUT_DIR"
   echo "vc_unit_command=vendor/bin/phpunit --configuration ${REPO_ROOT}/phpunit.xml --group ilas_site_assistant ${MODULE_DIR}/tests/src/Unit"
   echo "vc_drupal_unit_command=vendor/bin/phpunit --configuration ${REPO_ROOT}/phpunit.xml --testsuite drupal-unit"
   echo "golden_transcript_command=vendor/bin/phpunit --no-configuration --bootstrap ${REPO_ROOT}/vendor/autoload.php --group ilas_site_assistant --filter GoldenTranscriptTest ${MODULE_DIR}/tests/src/Unit/GoldenTranscriptTest.php"
+  echo "promptfoo_runtime_command=npm run test:promptfoo:runtime"
 } > "$SUMMARY_FILE"
 
 append_phase_result() {
@@ -172,6 +173,37 @@ fi
 echo ""
 echo "PASS: Golden transcript tests passed"
 echo "Summary file: $SUMMARY_FILE"
+echo ""
+
+# ── Phase 1d: Promptfoo runtime tests ──────────────────────────────
+echo "--- Phase 1d: Promptfoo runtime tests ---"
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo ""
+  echo "FAIL: npm is required to run promptfoo runtime tests"
+  echo "Install Node.js/npm or run the gate in an environment that provides them."
+  append_phase_result "promptfoo_runtime" "2"
+  exit 2
+fi
+
+PROMPTFOO_RUNTIME_EXIT=0
+(
+  cd "$REPO_ROOT"
+  npm run test:promptfoo:runtime
+) || PROMPTFOO_RUNTIME_EXIT=$?
+
+append_phase_result "promptfoo_runtime" "$PROMPTFOO_RUNTIME_EXIT"
+
+if [ "$PROMPTFOO_RUNTIME_EXIT" -ne 0 ]; then
+  echo ""
+  echo "FAIL: Promptfoo runtime tests failed (exit code $PROMPTFOO_RUNTIME_EXIT)"
+  echo "Run \`npm run test:promptfoo:runtime\` from $REPO_ROOT for details."
+  echo "Summary file: $SUMMARY_FILE"
+  exit 2
+fi
+
+echo ""
+echo "PASS: Promptfoo runtime tests passed"
 echo ""
 
 # ── Phase 2: Promptfoo abuse evals (optional) ───────────────────────

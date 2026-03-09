@@ -271,15 +271,15 @@ rg -n "Done \(IMP-UX-01, 2026-03-05\)" \
 rg -n "R-UX-01|R-UX-02|phase3-obj1-ux-a11y-mobile-acceptance.txt|Active mitigation" \
   docs/aila/risk-register.md
 
-# 5) Objective closure guard test.
+# 5) Optional docs continuity check (non-blocking).
 ddev exec vendor/bin/phpunit \
   --configuration /var/www/html/phpunit.xml \
-  --group ilas_site_assistant \
+  --group ilas_site_assistant_docs \
   /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveOneGateTest.php
 ```
 
 Expected `P3-OBJ-01` verification result:
-- `VC-UNIT` and `VC-DRUPAL-UNIT` pass with objective closure guard coverage included.
+- `VC-UNIT` and `VC-DRUPAL-UNIT` pass with behavioral acceptance coverage included.
 - `AccessibilityMobileUxAcceptanceGateTest` (20 test methods) and
   `RecoveryUxContractTest` (4 test methods) pass for widget accessibility,
   ARIA semantics, focus management, and recovery UX contracts.
@@ -287,8 +287,9 @@ Expected `P3-OBJ-01` verification result:
   mobile UX (`CLAIM-026`, `CLAIM-031`) evidence remains present.
 - UX/accessibility backlog rows are marked Done and risk register entries
   (`R-UX-01`, `R-UX-02`) show active mitigation posture.
-- `PhaseThreeObjectiveOneGateTest.php` passes across roadmap/current-state/
-  runbook/evidence/runtime artifact/backlog/risk/system-map continuity checks.
+- Optional docs continuity remains runnable through
+  `PhaseThreeObjectiveOneGateTest.php` in the non-blocking
+  `ilas_site_assistant_docs` group.
 - Scope boundaries remain unchanged: no net-new assistant channels or
   third-party model expansion beyond audited providers, and no platform-wide
   refactor of unrelated Drupal subsystems.
@@ -402,15 +403,15 @@ rg -n "class SloAlertService|checkAll|SLO violation|checkLatencySlo|checkErrorRa
 rg -n "class CostControlPolicy|isRequestAllowed|evaluateKillSwitch|estimateCost|getSummary|isDailyBudgetExhausted|isMonthlyBudgetExhausted" \
   web/modules/custom/ilas_site_assistant/src/Service/CostControlPolicy.php
 
-# 3) Objective closure guard test.
+# 3) Optional docs continuity check (non-blocking).
 ddev exec vendor/bin/phpunit \
   --configuration /var/www/html/phpunit.xml \
-  --group ilas_site_assistant \
+  --group ilas_site_assistant_docs \
   /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php
 ```
 
 Expected `P3-OBJ-02` verification result:
-- `VC-UNIT` and `VC-DRUPAL-UNIT` pass with objective closure guard coverage included.
+- `VC-UNIT` and `VC-DRUPAL-UNIT` pass with behavioral cost/performance proof included.
 - LLM call guardrail anchors remain present in `LlmEnhancer`,
   `LlmCircuitBreaker`, and `LlmRateLimiter` without net-new provider/channel
   expansion.
@@ -418,8 +419,9 @@ Expected `P3-OBJ-02` verification result:
   `SloAlertService`.
 - `CostControlPolicy` anchors remain present with budget caps, sampling gate,
   cache-hit monitoring, cost estimation, and kill-switch evaluator (IMP-COST-01).
-- `PhaseThreeObjectiveTwoGateTest.php` passes across roadmap/current-state/
-  runbook/evidence/runtime artifact/backlog/risk continuity checks.
+- Optional docs continuity remains runnable through
+  `PhaseThreeObjectiveTwoGateTest.php` in the non-blocking
+  `ilas_site_assistant_docs` group.
 - Scope boundaries remain unchanged: no net-new assistant channels or
   third-party model expansion beyond audited providers, and no platform-wide
   refactor of unrelated Drupal subsystems.
@@ -476,9 +478,9 @@ rg -n "IMP-COST-01 / P3-OBJ-02, 2026-03-05|P3-EXT-02|phase3-exit2-cost-performan
   docs/aila/backlog.md \
   docs/aila/risk-register.md
 
-# 4) Closure guard tests.
+# 4) Optional docs continuity checks (non-blocking).
 cd /home/evancurry/idaho-legal-aid-services && \
-  vendor/bin/phpunit --configuration phpunit.xml --group ilas_site_assistant \
+  vendor/bin/phpunit --configuration phpunit.xml --group ilas_site_assistant_docs \
   web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php \
   web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php
 ```
@@ -495,8 +497,10 @@ Expected `P3-EXT-02` verification result:
 - Guardrail anchors remain present for `CLAIM-077` and `CLAIM-084` service paths.
 - Owner-acceptance continuity markers are present across roadmap/current-state/
   evidence/runbook/backlog/risk and runtime artifact references.
-- `PhaseThreeExitCriteriaTwoGateTest.php` and `PhaseThreeObjectiveTwoGateTest.php`
-  pass with closure continuity assertions enforced.
+- Optional docs continuity remains runnable through
+  `PhaseThreeExitCriteriaTwoGateTest.php` and
+  `PhaseThreeObjectiveTwoGateTest.php` in the non-blocking
+  `ilas_site_assistant_docs` group.
 - Scope boundaries remain unchanged: no net-new assistant channels or
   third-party model expansion beyond audited providers, and no platform-wide
   refactor of unrelated Drupal subsystems. Residual `B-04` remains open.
@@ -559,23 +563,24 @@ rg -n "R-GOV-01|phase3-obj3-release-readiness-governance-attestation.txt|Active 
 rg -n "flowchart LR|Drupal 11 / ilas_site_assistant|External Integrations|CI\\[External CI runner|PF\\[Promptfoo harness" \
   docs/aila/system-map.mmd
 
-# 6) Objective closure guard test.
+# 6) Optional docs continuity check (non-blocking).
 ddev exec vendor/bin/phpunit \
   --configuration /var/www/html/phpunit.xml \
-  --group ilas_site_assistant \
+  --group ilas_site_assistant_docs \
   /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveThreeGateTest.php
 ```
 
 Expected `P3-OBJ-03` verification result:
-- `VC-UNIT` and `VC-DRUPAL-UNIT` pass with objective closure guard coverage included.
+- `VC-UNIT` and `VC-DRUPAL-UNIT` pass with behavioral release-readiness proof included.
 - Roadmap/current-state/evidence-index continuity markers for `P3-OBJ-03`,
   `CLAIM-108`, `CLAIM-115`, and `CLAIM-148` are present.
 - Local and Pantheon runtime readiness anchors remain present in
   `local-preflight.txt` and `pantheon-dev`/`test`/`live` artifacts.
 - Governance attestation linkage is active in governance backlog rows and
   `R-GOV-01` risk posture with runtime proof continuity.
-- `PhaseThreeObjectiveThreeGateTest.php` passes across roadmap/current-state/
-  runbook/evidence/runtime artifact/backlog/risk/system-map continuity checks.
+- Optional docs continuity remains runnable through
+  `PhaseThreeObjectiveThreeGateTest.php` in the non-blocking
+  `ilas_site_assistant_docs` group.
 - Scope boundaries remain unchanged: no net-new assistant channels or
   third-party model expansion beyond audited providers, and no platform-wide
   refactor of unrelated Drupal subsystems.
@@ -1014,10 +1019,10 @@ rg -n "CLAIM-065|CLAIM-086" \
 rg -n "Early retrieval|Fallback gate decision|flowchart TD" \
   docs/aila/system-map.mmd
 
-# Closure guard test
+# Optional docs continuity check (non-blocking)
 ddev exec vendor/bin/phpunit \
   --configuration /var/www/html/phpunit.xml \
-  --group ilas_site_assistant \
+  --group ilas_site_assistant_docs \
   /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeEntryCriteriaOneGateTest.php
 ```
 
@@ -1033,8 +1038,9 @@ Expected `P3-ENT-01` verification result:
 - CLAIM-065 and CLAIM-086 evidence anchors remain present.
 - Diagram B retrieval pipeline anchors (Early retrieval, Fallback gate decision)
   remain present.
-- `PhaseThreeEntryCriteriaOneGateTest.php` passes with all assertion groups
-  enforced.
+- Optional docs continuity remains runnable through
+  `PhaseThreeEntryCriteriaOneGateTest.php` in the non-blocking
+  `ilas_site_assistant_docs` group.
 - Scope boundaries remain unchanged: no net-new assistant channels or third-party
   model expansion beyond audited providers, and no platform-wide refactor of
   unrelated Drupal subsystems.
@@ -1723,21 +1729,30 @@ rg -n "Phase 3 Entry #1 disposition|phase3-entry1-retrieval-quality-targets.txt"
 rg -n "Phase 2 Deliverable #2 disposition \\(2026-03-03\\): present|CLAIM-086" \
   docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt
 
-# 4) Targeted gate test for row #5 dependency enforcement.
+# 4) Targeted behavioral dependency proof for row #5.
 ddev exec vendor/bin/phpunit \
   --configuration /var/www/html/phpunit.xml \
   --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableTwoBehaviorTest.php \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowFiveBehaviorTest.php
+
+# 5) Optional docs continuity check (non-blocking).
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant_docs \
   /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowFiveGateTest.php
 ```
 
 Expected `XDP-05` dependency result:
-- `VC-UNIT` passes with row #5 gate coverage included.
+- `VC-UNIT` passes with row #5 behavioral proof included.
 - `VC-RUNBOOK-PANTHEON` confirms target-environment continuity on
   `dev`/`test`/`live`.
 - Prerequisite anchors for config parity, observability signals, and eval
   harness continuity remain present in schema/tests/runtime artifacts/scripts.
 - Phase 3 readiness-signoff continuity anchors remain present in roadmap,
   current-state, and runtime closure artifacts.
+- Optional docs continuity remains runnable through the non-blocking
+  `ilas_site_assistant_docs` group.
 - Dependency status semantics remain deterministic:
   any missing prerequisite => `xdp-05-status=blocked`;
   all prerequisites present => `xdp-05-status=closed`,
@@ -1786,21 +1801,29 @@ rg -n "p3-obj-02-status=closed|guard-anchor-cost-control-policy=present" \
 rg -n "p3-ext-02-status=closed|owner-acceptance-product-role=accepted|owner-acceptance-platform-role=accepted" \
   docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt
 
-# 4) Targeted gate test for row #6 dependency enforcement.
+# 4) Targeted behavioral dependency proof for row #6.
 ddev exec vendor/bin/phpunit \
   --configuration /var/www/html/phpunit.xml \
   --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowSixBehaviorTest.php
+
+# 5) Optional docs continuity check (non-blocking).
+ddev exec vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant_docs \
   /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowSixGateTest.php
 ```
 
 Expected `XDP-06` dependency result:
-- `VC-UNIT` passes with row #6 gate coverage included.
+- `VC-UNIT` passes with row #6 behavioral proof included.
 - `VC-RUNBOOK-PANTHEON` confirms target-environment continuity on
   `dev`/`test`/`live`.
-- Prerequisite anchors for Phase 1/2 observability and usage telemetry
-  continuity remain present in runtime artifacts.
+- Cost-control config, fail-closed cost policy behavior, and SLO monitoring
+  remain verified.
 - Phase 3 cost-guardrail continuity anchors remain present in objective/exit
   runtime closure artifacts.
+- Optional docs continuity remains runnable through the non-blocking
+  `ilas_site_assistant_docs` group.
 - Dependency status semantics remain deterministic:
   any missing prerequisite => `xdp-06-status=blocked`;
   all prerequisites present => `xdp-06-status=closed`,

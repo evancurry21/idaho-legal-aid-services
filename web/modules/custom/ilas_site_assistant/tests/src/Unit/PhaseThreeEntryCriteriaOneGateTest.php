@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Guards Phase 3 Entry criteria #1 closure artifacts (`P3-ENT-01`).
  */
-#[Group('ilas_site_assistant')]
+#[Group('ilas_site_assistant_docs')]
 final class PhaseThreeEntryCriteriaOneGateTest extends TestCase {
 
   /**

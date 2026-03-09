@@ -42,6 +42,8 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('--group ilas_site_assistant', $script);
     $this->assertStringContainsString('tests/src/Unit', $script);
     $this->assertStringContainsString('--testsuite drupal-unit', $script);
+    $this->assertStringContainsString('npm run test:promptfoo:runtime', $script);
+    $this->assertStringContainsString('promptfoo_runtime', $script);
     $this->assertStringContainsString('promptfoo-evals/output', $script);
     $this->assertStringContainsString('phpunit-summary.txt', $script);
   }
@@ -75,6 +77,8 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('promptfooconfig.deep.yaml', $script);
     $this->assertStringContainsString('promptfooconfig.abuse.yaml', $script);
     $this->assertStringContainsString('config_file=', $script);
+    $this->assertStringContainsString('gate-metrics.js', $script);
+    $this->assertStringContainsString('apply_metric_threshold_report', $script);
   }
 
   /**
@@ -174,6 +178,16 @@ final class QualityGateEnforcementContractTest extends TestCase {
       $currentState,
       'current-state.md must reference branch protection enforcement'
     );
+  }
+
+  /**
+   * Pure unit profile must exclude docs-only continuity guards.
+   */
+  public function testPureUnitProfileExcludesDocsOnlyContinuityGuards(): void {
+    $purePhpunit = self::readFile('phpunit.pure.xml');
+
+    $this->assertStringContainsString('<group>ilas_site_assistant_docs</group>', $purePhpunit);
+    $this->assertStringContainsString('<exclude>', $purePhpunit);
   }
 
   /**

@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Guards cross-phase dependency row #6 closure artifacts (`XDP-06`).
  */
-#[Group('ilas_site_assistant')]
+#[Group('ilas_site_assistant_docs')]
 final class CrossPhaseDependencyRowSixGateTest extends TestCase {
 
   /**
@@ -124,9 +124,9 @@ final class CrossPhaseDependencyRowSixGateTest extends TestCase {
     $this->assertStringContainsString('xdp-06-workstream=IMP-COST-01', $artifact);
     $this->assertStringContainsString('xdp-06-owner-role=Product + Platform', $artifact);
     $this->assertStringContainsString('xdp-06-consumed-in=Phase 3', $artifact);
-    $this->assertStringContainsString('dependency.phase1-observability-gates=pass', $artifact);
-    $this->assertStringContainsString('dependency.phase1-alerts-dashboards=pass', $artifact);
-    $this->assertStringContainsString('dependency.phase2-observability-ci-baseline=pass', $artifact);
+    $this->assertStringContainsString('dependency.cost-control-config=pass', $artifact);
+    $this->assertStringContainsString('dependency.cost-policy-fail-closed=pass', $artifact);
+    $this->assertStringContainsString('dependency.slo-monitoring=pass', $artifact);
     $this->assertStringContainsString('xdp-06-unresolved-dependencies=none', $artifact);
 
     $matches = [];

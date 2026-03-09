@@ -658,9 +658,9 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/src/Service/LlmRateLimiter.php:76-103`
 - Addendum (2026-03-05): Phase 3 Objective #2 (`P3-OBJ-02`) finalizes
   performance/cost guardrails operationalization by locking runbook command
-  continuity (`VC-UNIT`, `VC-DRUPAL-UNIT`), source-anchor verification for
-  LLM guardrail services, runtime proof capture, and closure guard-test
-  enforcement without net-new assistant channels or model-provider expansion.
+  continuity (`VC-UNIT`, `VC-DRUPAL-UNIT`), behavioral proof for LLM/cost
+  guardrail services, runtime proof capture, and non-blocking docs continuity
+  without net-new assistant channels or model-provider expansion.
 - Addendum (2026-03-05, IMP-COST-01): `CostControlPolicy` service implements
   budget caps (daily/monthly), sampling gate, cache-hit-rate monitoring, cost
   estimation, and consolidated kill-switch evaluator. Integrated into
@@ -670,14 +670,14 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (P3-OBJ-02 operational disposition addendum)
   - `docs/aila/runbook.md` (P3-OBJ-02 verification subsection in section 3)
   - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php` (non-blocking docs continuity)
   - `web/modules/custom/ilas_site_assistant/src/Service/CostControlPolicy.php`
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CostControlPolicyTest.php`
 - Addendum (2026-03-06): Phase 3 Exit #2 (`P3-EXT-02`) closes
   cost/performance exit-criterion continuity by requiring section-3
   `VC-RUNBOOK-LOCAL` + `VC-RUNBOOK-PANTHEON` verification, service guard-anchor
   continuity checks, role-based product/platform owner acceptance markers, and
-  closure guard-test enforcement.
+  non-blocking docs continuity.
 - Addendum evidence:
   - `docs/aila/roadmap.md` (Phase 3 Exit #2 disposition dated 2026-03-06)
   - `docs/aila/current-state.md` (P3-EXT-02 cost/performance owner-acceptance addendum)
@@ -687,18 +687,20 @@ Evidence precedence used in this audit:
   - `docs/aila/risk-register.md` (`R-PERF-01` row with P3-EXT-02 runtime-marker continuity)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php`
 - Addendum (2026-03-07): Cross-phase dependency row #6 (`XDP-06`) closes
-  cost-guardrail dependency continuity by requiring Phase 1/2 observability and
-  usage telemetry prerequisites, deterministic unresolved-dependency reporting,
-  and docs/runtime guard-test continuity for Phase 3 consumption.
+  cost-guardrail dependency continuity by requiring cost-control config,
+  fail-closed cost policy behavior, SLO monitoring, deterministic
+  unresolved-dependency reporting, and non-blocking docs continuity for
+  Phase 3 consumption.
 - Addendum evidence:
   - `docs/aila/roadmap.md` (cross-phase dependency row #6 disposition dated 2026-03-07)
   - `docs/aila/current-state.md` (XDP-06 cross-phase dependency addendum)
   - `docs/aila/runbook.md` (XDP-06 verification subsection + runtime bundle reference)
   - `docs/aila/runtime/phase3-xdp06-cost-guardrails-dependency-gate.txt`
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowSixGateTest.php`
-  - `docs/aila/runtime/phase1-observability-gates.txt` (Phase 1 observability prerequisite anchor)
-  - `docs/aila/runtime/phase1-exit1-alerts-dashboards.txt` (Phase 1 usage telemetry prerequisite anchor)
-  - `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt` (Phase 2 observability/CI baseline prerequisite anchor)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowSixBehaviorTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowSixGateTest.php` (non-blocking docs continuity)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CostControlPolicyTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PerformanceMonitorTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/SloAlertServiceTest.php`
 
 ### CLAIM-078
 - Claim: Post-generation legal-advice detection blocks unsafe generated output.
@@ -788,8 +790,8 @@ Evidence precedence used in this audit:
   performance/SLO monitoring continuity from objective-level closure into
   exit-criterion closure by requiring reproducible health/metrics verification
   (`/assistant/api/health`, `/assistant/api/metrics`), Pantheon/local alias
-  continuity checks, role-based owner acceptance markers, and guard-test
-  enforcement without scope-boundary expansion.
+  continuity checks, role-based owner acceptance markers, and non-blocking
+  docs continuity without scope-boundary expansion.
 - Addendum evidence:
   - `docs/aila/roadmap.md` (Phase 3 Exit #2 disposition dated 2026-03-06)
   - `docs/aila/current-state.md` (P3-EXT-02 cost/performance owner-acceptance addendum)
@@ -1610,8 +1612,11 @@ Evidence precedence used in this audit:
   - `promptfoo-evals/providers/ilas-live.js` (appended `[contract_meta]` JSON metadata line for eval assertions)
   - `promptfoo-evals/tests/retrieval-confidence-thresholds.yaml` (metric assertions for metadata, citation coverage, low-confidence refusal/clarify behavior)
   - `promptfoo-evals/promptfooconfig.abuse.yaml` (includes retrieval confidence threshold suite in primary gate config)
-  - `scripts/ci/run-promptfoo-gate.sh` (metric parsing via namedScores/namedScoresCount + 90% per-metric threshold enforcement + summary fields)
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableTwoGateTest.php` (closure continuity/enforcement lock)
+  - `scripts/ci/run-promptfoo-gate.sh` (helper-backed metric parsing + 90% per-metric threshold enforcement + summary fields)
+  - `promptfoo-evals/lib/gate-metrics.js` (shared promptfoo metric/result evaluation helper)
+  - `promptfoo-evals/tests/node/gate-metrics.test.js` (runtime helper pass/fail fixtures for contract meta, citation counting, and threshold evaluation)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableTwoBehaviorTest.php` (blocking behavioral proof for retrieval threshold closure)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableTwoGateTest.php` (non-blocking docs continuity lock)
   - `docs/aila/roadmap.md` (Phase 2 Deliverable #2 disposition dated 2026-03-03)
   - `docs/aila/current-state.md` (Section 4D retrieval row + Section 4F harness row + P2-DEL-02 disposition)
   - `docs/aila/runbook.md` (P2-DEL-02 verification subsection in section 4)
@@ -1630,15 +1635,15 @@ Evidence precedence used in this audit:
   - `docs/aila/runbook.md` (P2-SBD-01 verification subsection)
 - Addendum (2026-03-06): Cross-phase dependency row #5 (`XDP-05`) closes
   retrieval-confidence-contract dependency guardrails with deterministic
-  unresolved-dependency reporting and docs/runtime continuity enforcement
-  anchored by dedicated guard tests and Phase 3 readiness-signoff continuity
-  markers.
+  unresolved-dependency reporting, blocking behavioral proof, and non-blocking
+  docs continuity for Phase 3 readiness-signoff markers.
 - Addendum evidence:
   - `docs/aila/roadmap.md` (cross-phase dependency row #5 disposition dated 2026-03-06)
   - `docs/aila/current-state.md` (XDP-05 cross-phase dependency addendum)
   - `docs/aila/runbook.md` (XDP-05 verification subsection + runtime bundle reference)
   - `docs/aila/runtime/phase2-xdp05-retrieval-confidence-contract-dependency-gate.txt`
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowFiveGateTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowFiveBehaviorTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowFiveGateTest.php` (non-blocking docs continuity)
   - `docs/aila/runtime/phase3-entry1-retrieval-quality-targets.txt` (Phase 3 readiness-signoff continuity anchor)
 
 ---
@@ -1934,9 +1939,10 @@ Evidence precedence used in this audit:
 ### CLAIM-147
 - Claim: Phase 3 Objective #2 is closed as implemented — performance and cost
   guardrails are finalized with operational runbooks by enforcing reproducible
-  verification (`VC-UNIT`, `VC-DRUPAL-UNIT`), LLM/performance guardrail source
-  anchors, runtime proof artifacts, and active-mitigation governance posture
-  updates (`IMP-COST-01`, `R-PERF-01`) without net-new assistant channels,
+  verification (`VC-UNIT`, `VC-DRUPAL-UNIT`), behavioral cost/performance
+  proof, runtime proof artifacts, and active-mitigation governance posture
+  updates (`IMP-COST-01`, `R-PERF-01`) with non-blocking docs continuity and
+  without net-new assistant channels,
   third-party model-provider expansion, or unrelated platform refactors.
 - Evidence:
   - `docs/aila/roadmap.md` (Phase 3 Objective #2 disposition dated 2026-03-05)
@@ -1945,10 +1951,12 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt` (sanitized VC alias output + guard-anchor proof markers)
   - `docs/aila/backlog.md` (`IMP-COST-01` active mitigation row)
   - `docs/aila/risk-register.md` (`R-PERF-01` active mitigation row)
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php` (objective closure continuity/enforcement lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveTwoGateTest.php` (non-blocking objective docs continuity lock)
   - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
   - `web/modules/custom/ilas_site_assistant/src/Service/CostControlPolicy.php` (IMP-COST-01 budget/sampling/kill-switch policy service)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CostControlPolicyTest.php` (IMP-COST-01 acceptance test coverage)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PerformanceMonitorTest.php` (performance monitoring proof)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/SloAlertServiceTest.php` (SLO alert proof)
 
 ---
 
@@ -1961,7 +1969,7 @@ Evidence precedence used in this audit:
   anchors grounded in local and Pantheon runtime evidence (`CLAIM-108`,
   `CLAIM-115`), objective runtime proof artifacts, governance posture updates
   for backlog/risk controls (`IMP-GOV-01`, retention/access attestation
-  workflow, `R-GOV-01`), and objective guard-test enforcement without net-new
+  workflow, `R-GOV-01`), behavioral proof, and non-blocking docs continuity without net-new
   assistant channels, third-party model-provider expansion, or unrelated
   platform refactors.
 - Evidence:
@@ -1971,7 +1979,7 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/phase3-obj3-release-readiness-governance-attestation.txt` (sanitized VC alias output + readiness/governance proof markers)
   - `docs/aila/backlog.md` (governance/compliance rows moved to objective-linked active mitigation)
   - `docs/aila/risk-register.md` (`R-GOV-01` active mitigation linkage + detection markers)
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveThreeGateTest.php` (objective closure continuity/enforcement lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveThreeGateTest.php` (non-blocking objective docs continuity lock)
   - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
 
 ---
@@ -1986,7 +1994,7 @@ Evidence precedence used in this audit:
   Twig ARIA/screen-reader markup (`CLAIM-032`), API client timeout/error
   mapping (`CLAIM-026`), mobile/reduced-motion SCSS contracts (`CLAIM-031`),
   runtime proof artifacts, governance posture updates for UX/accessibility
-  risk controls (`R-UX-01`, `R-UX-02`), and objective guard-test enforcement
+  risk controls (`R-UX-01`, `R-UX-02`), behavioral acceptance proof, and non-blocking objective docs continuity
   without net-new assistant channels, third-party model-provider expansion,
   or unrelated platform refactors.
 - Evidence:
@@ -1999,7 +2007,7 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AccessibilityMobileUxAcceptanceGateTest.php` (20 acceptance test methods)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/RecoveryUxContractTest.php` (4 recovery UX contract test methods)
   - `web/modules/custom/ilas_site_assistant/tests/assistant-widget-hardening.test.js` (12 widget hardening test suites)
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveOneGateTest.php` (objective closure continuity/enforcement lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeObjectiveOneGateTest.php` (non-blocking objective docs continuity lock)
   - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
 
 ---
@@ -2108,7 +2116,7 @@ Evidence precedence used in this audit:
   Closure is enforced through section-3 runbook verification (`VC-RUNBOOK-LOCAL`,
   `VC-RUNBOOK-PANTHEON`), monitoring continuity checks (`/assistant/api/health`,
   `/assistant/api/metrics`), role-based owner acceptance markers in a runtime
-  proof artifact, and closure guard-test continuity without net-new assistant
+  proof artifact, behavioral monitoring proof, and non-blocking docs continuity without net-new assistant
   channels, third-party model-provider expansion, or unrelated platform
   refactors. Residual boundary `B-04` remains open.
 - Evidence:
@@ -2118,7 +2126,7 @@ Evidence precedence used in this audit:
   - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt` (sanitized VC alias output + monitoring + owner-acceptance markers)
   - `docs/aila/backlog.md` (`IMP-COST-01` row includes P3-EXT-02 owner-acceptance traceability)
   - `docs/aila/risk-register.md` (`R-PERF-01` row includes P3-EXT-02 runtime-marker continuity)
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php` (exit-criterion closure continuity lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php` (non-blocking exit-criterion docs continuity lock)
   - `docs/aila/system-map.mmd` (Diagram A continuity anchors retained)
 
 ## Phase 3 Exit #3 Final Release Packet Includes Known-Unknown Disposition + Residual Risk Signoff (`P3-EXT-03`)
@@ -2319,7 +2327,8 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (XDP-05 cross-phase dependency disposition addendum)
   - `docs/aila/runbook.md` (XDP-05 verification subsection and runtime bundle references)
   - `docs/aila/runtime/phase2-xdp05-retrieval-confidence-contract-dependency-gate.txt` (deterministic status + unresolved markers)
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowFiveGateTest.php` (dependency guard continuity lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowFiveBehaviorTest.php` (blocking dependency closure behavior)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowFiveGateTest.php` (non-blocking dependency docs continuity lock)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorSearchConfigSchemaTest.php` (config parity prerequisite anchor)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ConfigCompletenessDriftTest.php` (config parity drift prerequisite anchor)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/TelemetryCredentialGateTest.php` (observability signals prerequisite anchor)
@@ -2333,8 +2342,8 @@ Evidence precedence used in this audit:
 
 ### CLAIM-165
 - Claim: Cross-phase dependency row #6 for cost guardrails (`IMP-COST-01`) is
-  closed as an enforceable dependency guardrail: Phase 1/2 observability and
-  usage-telemetry prerequisites are continuity-locked for Phase 3 consumption,
+  closed as an enforceable dependency guardrail: cost-control config, fail-closed
+  cost policy behavior, and SLO monitoring are locked for Phase 3 consumption,
   and unresolved prerequisites deterministically report blocked status
   (`xdp-06-status=blocked`) until count/list markers resolve to zero/none.
 - Evidence:
@@ -2342,9 +2351,10 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (XDP-06 cross-phase dependency disposition addendum)
   - `docs/aila/runbook.md` (XDP-06 verification subsection and runtime bundle references)
   - `docs/aila/runtime/phase3-xdp06-cost-guardrails-dependency-gate.txt` (deterministic status + unresolved markers)
-  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowSixGateTest.php` (dependency guard continuity lock)
-  - `docs/aila/runtime/phase1-observability-gates.txt` (Phase 1 observability prerequisite anchor)
-  - `docs/aila/runtime/phase1-exit1-alerts-dashboards.txt` (Phase 1 usage telemetry prerequisite anchor)
-  - `docs/aila/runtime/phase2-entry1-observability-ci-baseline.txt` (Phase 2 observability/CI baseline prerequisite anchor)
-  - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt` (Phase 3 objective continuity anchor)
-  - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt` (Phase 3 exit continuity anchor)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowSixBehaviorTest.php` (blocking dependency closure behavior)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CrossPhaseDependencyRowSixGateTest.php` (non-blocking dependency docs continuity lock)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/CostControlPolicyTest.php` (cost policy fail-closed prerequisite proof)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PerformanceMonitorTest.php` (performance monitoring prerequisite proof)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/SloAlertServiceTest.php` (SLO alert prerequisite proof)
+  - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt` (Phase 3 objective continuity artifact)
+  - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt` (Phase 3 exit continuity artifact)

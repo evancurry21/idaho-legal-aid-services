@@ -58,6 +58,33 @@ final class PromptfooGateReliabilityContractTest extends TestCase {
     $this->assertStringContainsString('finalize_and_exit 2', $script);
     $this->assertStringContainsString('finalize_and_exit 3', $script);
     $this->assertStringContainsString('finalize_and_exit 4', $script);
+
+    $overridePos = strpos($script, 'apply_ddev_rate_limit_override || finalize_and_exit 4');
+    $preflightPos = strpos($script, 'run_connectivity_preflight || finalize_and_exit $?');
+    $this->assertNotFalse($overridePos);
+    $this->assertNotFalse($preflightPos);
+    $this->assertLessThan(
+      $preflightPos,
+      $overridePos,
+      'DDEV rate-limit override must occur before the live preflight so repeated local runs do not fail on stale flood counters.'
+    );
+  }
+
+  /**
+   * The documented direct gate invocation must be runnable on POSIX hosts.
+   */
+  public function testPromptfooGateScriptIsExecutableOnPosixHosts(): void {
+    $path = self::repoRoot() . '/scripts/ci/run-promptfoo-gate.sh';
+    self::assertFileExists($path);
+
+    if (DIRECTORY_SEPARATOR === '\\' || PHP_OS_FAMILY === 'Windows') {
+      $this->markTestSkipped('Executable bit assertions are POSIX-only.');
+    }
+
+    $this->assertTrue(
+      is_executable($path),
+      'scripts/ci/run-promptfoo-gate.sh must be executable so documented direct invocations work.'
+    );
   }
 
   /**

@@ -1,0 +1,26 @@
+{
+  "results": {
+    "prompts": [
+      {
+        "metrics": {
+          "namedScores": {
+            "rag-contract-meta-present": 0,
+            "rag-low-confidence-refusal": 9
+          },
+          "namedScoresCount": {
+            "rag-contract-meta-present": 0,
+            "rag-low-confidence-refusal": 10
+          }
+        }
+      }
+    ],
+    "results": [
+      {
+        "success": false,
+        "response": {
+          "error": "[ilas_error]{\"kind\":\"eval\",\"code\":\"missing_metric_count\",\"message\":\"retrieval threshold metric count missing\"}"
+        }
+      }
+    ]
+  }
+}

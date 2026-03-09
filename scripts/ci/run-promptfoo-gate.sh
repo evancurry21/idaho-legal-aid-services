@@ -7,6 +7,7 @@ DERIVE_SCRIPT="$SCRIPT_DIR/derive-assistant-url.sh"
 RESOLVE_TARGET_SCRIPT="$SCRIPT_DIR/resolve-assistant-target.sh"
 PROMPTFOO_SCRIPT="$REPO_ROOT/promptfoo-evals/scripts/run-promptfoo.sh"
 ASSERTION_LINTER="$REPO_ROOT/promptfoo-evals/scripts/lint-javascript-assertions.mjs"
+GATE_METRICS_SCRIPT="$REPO_ROOT/promptfoo-evals/scripts/gate-metrics.js"
 PREFLIGHT_SCRIPT="$REPO_ROOT/promptfoo-evals/scripts/preflight-live.js"
 CA_DISCOVERY_SCRIPT="$REPO_ROOT/promptfoo-evals/scripts/discover-node-extra-ca-certs.js"
 RESULTS_FILE="$REPO_ROOT/promptfoo-evals/output/results.json"
@@ -32,6 +33,7 @@ ILAS_HOURLY_LIMIT_PREFLIGHT="${ILAS_HOURLY_LIMIT_PREFLIGHT:-true}"
 ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE="${ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE:-}"
 ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR="${ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR:-}"
 ILAS_429_FAIL_FAST="${ILAS_429_FAIL_FAST:-1}"
+REQUEST_DELAY_OVERRIDE_MS="${ILAS_REQUEST_DELAY_MS:-}"
 ILAS_GATE_MODE=1
 
 TARGET_KIND="unknown"
@@ -170,45 +172,6 @@ count_cases_for_config() {
   echo "$total"
 }
 
-read_named_metric_rate() {
-  local results_file="$1"
-  local metric_name="$2"
-
-  node - "$results_file" "$metric_name" <<'NODE'
-const fs = require('node:fs');
-const [resultsFile, metricName] = process.argv.slice(2);
-try {
-  const json = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
-  const prompts = json?.results?.prompts;
-  if (!Array.isArray(prompts)) {
-    process.stdout.write('0 0 0\n');
-    process.exit(0);
-  }
-
-  let score = 0;
-  let count = 0;
-  for (const prompt of prompts) {
-    const namedScores = prompt?.metrics?.namedScores || {};
-    const namedCounts = prompt?.metrics?.namedScoresCount || {};
-    if (Object.prototype.hasOwnProperty.call(namedCounts, metricName)) {
-      score += Number(namedScores[metricName] || 0);
-      count += Number(namedCounts[metricName] || 0);
-    }
-  }
-
-  if (count <= 0) {
-    process.stdout.write('0 0 0\n');
-    process.exit(0);
-  }
-
-  const rate = (score * 100) / count;
-  process.stdout.write(`${rate.toFixed(1)} ${score} ${count}\n`);
-} catch (err) {
-  process.stdout.write('0 0 0\n');
-}
-NODE
-}
-
 usage() {
   cat <<USAGE
 Usage: $0 --env <dev|test|live> [--site <pantheon-site>] [--mode auto|blocking|advisory] [--threshold <0-100>] [--config <promptfoo-config>] [--deep-config <deep-config>] [--connectivity-only] [--skip-eval] [--simulate-pass-rate <0-100>]
@@ -235,21 +198,7 @@ parse_results_pass_rate() {
     echo "0 0 0"
     return 0
   fi
-
-  node - "$results_file" <<'NODE'
-const fs = require('node:fs');
-const resultsFile = process.argv[2];
-try {
-  const json = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
-  const rows = json.results?.results || json.results || [];
-  const total = Array.isArray(rows) ? rows.length : 0;
-  const passed = Array.isArray(rows) ? rows.filter((row) => row && row.success).length : 0;
-  const rate = total > 0 ? (100 * passed / total) : 0;
-  process.stdout.write(`${rate.toFixed(1)} ${total} ${passed}\n`);
-} catch (err) {
-  process.stdout.write('0 0 0\n');
-}
-NODE
+  node "$GATE_METRICS_SCRIPT" pass-rate "$results_file" 2>/dev/null || echo "0 0 0"
 }
 
 parse_structured_error_from_results() {
@@ -258,39 +207,117 @@ parse_structured_error_from_results() {
     echo ""
     return 0
   fi
-
-  node - "$results_file" "$REPO_ROOT/promptfoo-evals/lib/ilas-live-shared.js" <<'NODE'
-const fs = require('node:fs');
-const [resultsFile, libPath] = process.argv.slice(2);
-const { parseStructuredError } = require(libPath);
-
-try {
-  const json = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
-  const rows = json.results?.results || json.results || [];
-  const sources = [];
-
-  for (const row of Array.isArray(rows) ? rows : []) {
-    sources.push(
-      row?.error,
-      row?.response?.error,
-      row?.failureReason,
-      row?.gradingResult?.reason
-    );
-  }
-
-  for (const value of sources) {
-    const parsed = parseStructuredError(value);
-    if (parsed) {
-      process.stdout.write(`${parsed.kind} ${parsed.code}\n`);
-      process.exit(0);
-    }
-  }
-} catch (_) {
-  // Ignore parse failures and fall through to empty result.
+  node "$GATE_METRICS_SCRIPT" structured-error "$results_file" 2>/dev/null || echo ""
 }
 
-process.stdout.write('\n');
-NODE
+apply_metric_threshold_report() {
+  local results_file="$1"
+  local threshold="$2"
+  local min_count="$3"
+  local namespace="$4"
+  shift 4
+
+  local line type metric rate score count count_fail fail
+  while IFS='|' read -r type metric rate score count count_fail fail; do
+    if [[ -z "$type" ]]; then
+      continue
+    fi
+
+    if [[ "$type" == "overall" ]]; then
+      case "$namespace" in
+        rag)
+          RAG_THRESHOLD_FAIL="$metric"
+          ;;
+
+        p2del04)
+          P2DEL04_THRESHOLD_FAIL="$metric"
+          ;;
+      esac
+      continue
+    fi
+
+    case "${namespace}:${metric}" in
+      rag:rag-contract-meta-present)
+        RAG_CONTRACT_META_RATE="$rate"
+        RAG_CONTRACT_META_SCORE="$score"
+        RAG_CONTRACT_META_COUNT="$count"
+        RAG_CONTRACT_META_COUNT_FAIL="$count_fail"
+        RAG_CONTRACT_META_FAIL="$fail"
+        ;;
+
+      rag:rag-citation-coverage)
+        RAG_CITATION_COVERAGE_RATE="$rate"
+        RAG_CITATION_COVERAGE_SCORE="$score"
+        RAG_CITATION_COVERAGE_COUNT="$count"
+        RAG_CITATION_COVERAGE_COUNT_FAIL="$count_fail"
+        RAG_CITATION_COVERAGE_FAIL="$fail"
+        ;;
+
+      rag:rag-low-confidence-refusal)
+        RAG_LOW_CONF_REFUSAL_RATE="$rate"
+        RAG_LOW_CONF_REFUSAL_SCORE="$score"
+        RAG_LOW_CONF_REFUSAL_COUNT="$count"
+        RAG_LOW_CONF_REFUSAL_COUNT_FAIL="$count_fail"
+        RAG_LOW_CONF_REFUSAL_FAIL="$fail"
+        ;;
+
+      p2del04:p2del04-contract-meta-present)
+        P2DEL04_CONTRACT_META_RATE="$rate"
+        P2DEL04_CONTRACT_META_SCORE="$score"
+        P2DEL04_CONTRACT_META_COUNT="$count"
+        P2DEL04_CONTRACT_META_COUNT_FAIL="$count_fail"
+        P2DEL04_CONTRACT_META_FAIL="$fail"
+        ;;
+
+      p2del04:p2del04-weak-grounding-handling)
+        P2DEL04_WEAK_GROUNDING_RATE="$rate"
+        P2DEL04_WEAK_GROUNDING_SCORE="$score"
+        P2DEL04_WEAK_GROUNDING_COUNT="$count"
+        P2DEL04_WEAK_GROUNDING_COUNT_FAIL="$count_fail"
+        P2DEL04_WEAK_GROUNDING_FAIL="$fail"
+        ;;
+
+      p2del04:p2del04-escalation-routing)
+        P2DEL04_ESCALATION_ROUTING_RATE="$rate"
+        P2DEL04_ESCALATION_ROUTING_SCORE="$score"
+        P2DEL04_ESCALATION_ROUTING_COUNT="$count"
+        P2DEL04_ESCALATION_ROUTING_COUNT_FAIL="$count_fail"
+        P2DEL04_ESCALATION_ROUTING_FAIL="$fail"
+        ;;
+
+      p2del04:p2del04-escalation-actionability)
+        P2DEL04_ESCALATION_ACTIONABILITY_RATE="$rate"
+        P2DEL04_ESCALATION_ACTIONABILITY_SCORE="$score"
+        P2DEL04_ESCALATION_ACTIONABILITY_COUNT="$count"
+        P2DEL04_ESCALATION_ACTIONABILITY_COUNT_FAIL="$count_fail"
+        P2DEL04_ESCALATION_ACTIONABILITY_FAIL="$fail"
+        ;;
+
+      p2del04:p2del04-safety-boundary-routing)
+        P2DEL04_SAFETY_BOUNDARY_ROUTING_RATE="$rate"
+        P2DEL04_SAFETY_BOUNDARY_ROUTING_SCORE="$score"
+        P2DEL04_SAFETY_BOUNDARY_ROUTING_COUNT="$count"
+        P2DEL04_SAFETY_BOUNDARY_ROUTING_COUNT_FAIL="$count_fail"
+        P2DEL04_SAFETY_BOUNDARY_ROUTING_FAIL="$fail"
+        ;;
+
+      p2del04:p2del04-boundary-dampening)
+        P2DEL04_BOUNDARY_DAMPENING_RATE="$rate"
+        P2DEL04_BOUNDARY_DAMPENING_SCORE="$score"
+        P2DEL04_BOUNDARY_DAMPENING_COUNT="$count"
+        P2DEL04_BOUNDARY_DAMPENING_COUNT_FAIL="$count_fail"
+        P2DEL04_BOUNDARY_DAMPENING_FAIL="$fail"
+        ;;
+
+      p2del04:p2del04-boundary-urgent-routing)
+        P2DEL04_BOUNDARY_URGENT_ROUTING_RATE="$rate"
+        P2DEL04_BOUNDARY_URGENT_ROUTING_SCORE="$score"
+        P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT="$count"
+        P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT_FAIL="$count_fail"
+        P2DEL04_BOUNDARY_URGENT_ROUTING_FAIL="$fail"
+        ;;
+    esac
+  done < <(node "$GATE_METRICS_SCRIPT" evaluate-thresholds "$results_file" "$threshold" "$min_count" "$@" 2>/dev/null)
 }
 
 resolve_remote_rate_limit() {
@@ -504,8 +531,13 @@ apply_ddev_rate_limit_override() {
   DDEV_ORIGINAL_RATE_LIMIT_PER_MINUTE="$CONFIGURED_RATE_LIMIT_PER_MINUTE_VALUE"
   DDEV_ORIGINAL_RATE_LIMIT_PER_HOUR="$CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE"
 
-  local override_minute=120
-  local override_hour=$((PLANNED_CASE_COUNT + 50))
+  # Local DDEV verification commonly reruns the full gate back-to-back; use a
+  # generous local-only ceiling so residual flood counters do not force 429s.
+  local override_minute=240
+  local override_hour=$((PLANNED_CASE_COUNT * 3))
+  if [[ "$override_hour" -lt 1000 ]]; then
+    override_hour=1000
+  fi
 
   if ! ddev exec drush cset ilas_site_assistant.settings rate_limit_per_minute "$override_minute" -y >/dev/null ||
     ! ddev exec drush cset ilas_site_assistant.settings rate_limit_per_hour "$override_hour" -y >/dev/null ||
@@ -520,7 +552,11 @@ apply_ddev_rate_limit_override() {
   CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE="$override_hour"
   EFFECTIVE_RATE_LIMIT_PER_MINUTE="$override_minute"
   EFFECTIVE_RATE_LIMIT_PER_HOUR="$override_hour"
-  EFFECTIVE_REQUEST_DELAY_MS="$(compute_request_delay_ms "$override_minute")"
+  if [[ "$REQUEST_DELAY_OVERRIDE_MS" =~ ^[0-9]+$ && "$REQUEST_DELAY_OVERRIDE_MS" -gt 0 ]]; then
+    EFFECTIVE_REQUEST_DELAY_MS="$REQUEST_DELAY_OVERRIDE_MS"
+  else
+    EFFECTIVE_REQUEST_DELAY_MS="$(compute_request_delay_ms "$override_minute")"
+  fi
   export ILAS_REQUEST_DELAY_MS="$EFFECTIVE_REQUEST_DELAY_MS"
   export ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE="$override_minute"
   export ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR="$override_hour"
@@ -751,6 +787,11 @@ if [[ ! -f "$ASSERTION_LINTER" ]]; then
   exit 1
 fi
 
+if [[ ! -f "$GATE_METRICS_SCRIPT" ]]; then
+  echo "Promptfoo gate metrics helper not found: $GATE_METRICS_SCRIPT" >&2
+  exit 1
+fi
+
 node "$ASSERTION_LINTER"
 
 CI_BRANCH_NAME="${CI_BRANCH:-${GIT_BRANCH:-$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)}}"
@@ -827,6 +868,10 @@ else
   RATE_LIMIT_PREFLIGHT_STATUS="$([[ "$TARGET_KIND" == "ddev" ]] && echo "ddev_override_planned" || echo "skipped")"
 fi
 
+if [[ "$TARGET_KIND" == "ddev" ]]; then
+  apply_ddev_rate_limit_override || finalize_and_exit 4
+fi
+
 run_connectivity_preflight || finalize_and_exit $?
 
 if [[ "$CONNECTIVITY_ONLY" == "true" ]]; then
@@ -839,10 +884,6 @@ if [[ ! -x "$PROMPTFOO_SCRIPT" ]]; then
   FAILURE_KIND="eval"
   FAILURE_CODE="runner_missing"
   finalize_and_exit 2
-fi
-
-if [[ "$TARGET_KIND" == "ddev" ]]; then
-  apply_ddev_rate_limit_override || finalize_and_exit 4
 fi
 
 QUALITY_PHASE="smoke"
@@ -897,42 +938,30 @@ fi
 
 if [[ "$EVAL_EXIT" -eq 0 && -f "$RESULTS_FILE" ]]; then
   RAG_METRICS_ENFORCED="true"
-  read -r RAG_CONTRACT_META_RATE RAG_CONTRACT_META_SCORE RAG_CONTRACT_META_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "rag-contract-meta-present")
-  read -r RAG_CITATION_COVERAGE_RATE RAG_CITATION_COVERAGE_SCORE RAG_CITATION_COVERAGE_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "rag-citation-coverage")
-  read -r RAG_LOW_CONF_REFUSAL_RATE RAG_LOW_CONF_REFUSAL_SCORE RAG_LOW_CONF_REFUSAL_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "rag-low-confidence-refusal")
-
-  RAG_CONTRACT_META_COUNT_FAIL=$(node -e "const c=parseFloat('${RAG_CONTRACT_META_COUNT}'); const m=parseFloat('${RAG_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-  RAG_CITATION_COVERAGE_COUNT_FAIL=$(node -e "const c=parseFloat('${RAG_CITATION_COVERAGE_COUNT}'); const m=parseFloat('${RAG_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-  RAG_LOW_CONF_REFUSAL_COUNT_FAIL=$(node -e "const c=parseFloat('${RAG_LOW_CONF_REFUSAL_COUNT}'); const m=parseFloat('${RAG_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-
-  RAG_CONTRACT_META_FAIL=$(node -e "const r=parseFloat('${RAG_CONTRACT_META_RATE}'); const t=parseFloat('${RAG_METRIC_THRESHOLD}'); const cf='${RAG_CONTRACT_META_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
-  RAG_CITATION_COVERAGE_FAIL=$(node -e "const r=parseFloat('${RAG_CITATION_COVERAGE_RATE}'); const t=parseFloat('${RAG_METRIC_THRESHOLD}'); const cf='${RAG_CITATION_COVERAGE_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
-  RAG_LOW_CONF_REFUSAL_FAIL=$(node -e "const r=parseFloat('${RAG_LOW_CONF_REFUSAL_RATE}'); const t=parseFloat('${RAG_METRIC_THRESHOLD}'); const cf='${RAG_LOW_CONF_REFUSAL_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
+  RAG_THRESHOLD_FAIL="no"
+  apply_metric_threshold_report \
+    "$RESULTS_FILE" \
+    "$RAG_METRIC_THRESHOLD" \
+    "$RAG_METRIC_MIN_COUNT" \
+    "rag" \
+    "rag-contract-meta-present" \
+    "rag-citation-coverage" \
+    "rag-low-confidence-refusal"
 
   P2DEL04_METRICS_ENFORCED="true"
-  read -r P2DEL04_CONTRACT_META_RATE P2DEL04_CONTRACT_META_SCORE P2DEL04_CONTRACT_META_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "p2del04-contract-meta-present")
-  read -r P2DEL04_WEAK_GROUNDING_RATE P2DEL04_WEAK_GROUNDING_SCORE P2DEL04_WEAK_GROUNDING_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "p2del04-weak-grounding-handling")
-  read -r P2DEL04_ESCALATION_ROUTING_RATE P2DEL04_ESCALATION_ROUTING_SCORE P2DEL04_ESCALATION_ROUTING_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "p2del04-escalation-routing")
-  read -r P2DEL04_ESCALATION_ACTIONABILITY_RATE P2DEL04_ESCALATION_ACTIONABILITY_SCORE P2DEL04_ESCALATION_ACTIONABILITY_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "p2del04-escalation-actionability")
-  read -r P2DEL04_SAFETY_BOUNDARY_ROUTING_RATE P2DEL04_SAFETY_BOUNDARY_ROUTING_SCORE P2DEL04_SAFETY_BOUNDARY_ROUTING_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "p2del04-safety-boundary-routing")
-  read -r P2DEL04_BOUNDARY_DAMPENING_RATE P2DEL04_BOUNDARY_DAMPENING_SCORE P2DEL04_BOUNDARY_DAMPENING_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "p2del04-boundary-dampening")
-  read -r P2DEL04_BOUNDARY_URGENT_ROUTING_RATE P2DEL04_BOUNDARY_URGENT_ROUTING_SCORE P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT < <(read_named_metric_rate "$RESULTS_FILE" "p2del04-boundary-urgent-routing")
-
-  P2DEL04_CONTRACT_META_COUNT_FAIL=$(node -e "const c=parseFloat('${P2DEL04_CONTRACT_META_COUNT}'); const m=parseFloat('${P2DEL04_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-  P2DEL04_WEAK_GROUNDING_COUNT_FAIL=$(node -e "const c=parseFloat('${P2DEL04_WEAK_GROUNDING_COUNT}'); const m=parseFloat('${P2DEL04_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-  P2DEL04_ESCALATION_ROUTING_COUNT_FAIL=$(node -e "const c=parseFloat('${P2DEL04_ESCALATION_ROUTING_COUNT}'); const m=parseFloat('${P2DEL04_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-  P2DEL04_ESCALATION_ACTIONABILITY_COUNT_FAIL=$(node -e "const c=parseFloat('${P2DEL04_ESCALATION_ACTIONABILITY_COUNT}'); const m=parseFloat('${P2DEL04_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-  P2DEL04_SAFETY_BOUNDARY_ROUTING_COUNT_FAIL=$(node -e "const c=parseFloat('${P2DEL04_SAFETY_BOUNDARY_ROUTING_COUNT}'); const m=parseFloat('${P2DEL04_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-  P2DEL04_BOUNDARY_DAMPENING_COUNT_FAIL=$(node -e "const c=parseFloat('${P2DEL04_BOUNDARY_DAMPENING_COUNT}'); const m=parseFloat('${P2DEL04_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-  P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT_FAIL=$(node -e "const c=parseFloat('${P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT}'); const m=parseFloat('${P2DEL04_METRIC_MIN_COUNT}'); console.log(!Number.isFinite(c) || !Number.isFinite(m) || c < m ? 'yes' : 'no');")
-
-  P2DEL04_CONTRACT_META_FAIL=$(node -e "const r=parseFloat('${P2DEL04_CONTRACT_META_RATE}'); const t=parseFloat('${P2DEL04_METRIC_THRESHOLD}'); const cf='${P2DEL04_CONTRACT_META_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
-  P2DEL04_WEAK_GROUNDING_FAIL=$(node -e "const r=parseFloat('${P2DEL04_WEAK_GROUNDING_RATE}'); const t=parseFloat('${P2DEL04_METRIC_THRESHOLD}'); const cf='${P2DEL04_WEAK_GROUNDING_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
-  P2DEL04_ESCALATION_ROUTING_FAIL=$(node -e "const r=parseFloat('${P2DEL04_ESCALATION_ROUTING_RATE}'); const t=parseFloat('${P2DEL04_METRIC_THRESHOLD}'); const cf='${P2DEL04_ESCALATION_ROUTING_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
-  P2DEL04_ESCALATION_ACTIONABILITY_FAIL=$(node -e "const r=parseFloat('${P2DEL04_ESCALATION_ACTIONABILITY_RATE}'); const t=parseFloat('${P2DEL04_METRIC_THRESHOLD}'); const cf='${P2DEL04_ESCALATION_ACTIONABILITY_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
-  P2DEL04_SAFETY_BOUNDARY_ROUTING_FAIL=$(node -e "const r=parseFloat('${P2DEL04_SAFETY_BOUNDARY_ROUTING_RATE}'); const t=parseFloat('${P2DEL04_METRIC_THRESHOLD}'); const cf='${P2DEL04_SAFETY_BOUNDARY_ROUTING_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
-  P2DEL04_BOUNDARY_DAMPENING_FAIL=$(node -e "const r=parseFloat('${P2DEL04_BOUNDARY_DAMPENING_RATE}'); const t=parseFloat('${P2DEL04_METRIC_THRESHOLD}'); const cf='${P2DEL04_BOUNDARY_DAMPENING_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
-  P2DEL04_BOUNDARY_URGENT_ROUTING_FAIL=$(node -e "const r=parseFloat('${P2DEL04_BOUNDARY_URGENT_ROUTING_RATE}'); const t=parseFloat('${P2DEL04_METRIC_THRESHOLD}'); const cf='${P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT_FAIL}'; console.log(!Number.isFinite(r) || !Number.isFinite(t) || r < t || cf === 'yes' ? 'yes' : 'no');")
+  P2DEL04_THRESHOLD_FAIL="no"
+  apply_metric_threshold_report \
+    "$RESULTS_FILE" \
+    "$P2DEL04_METRIC_THRESHOLD" \
+    "$P2DEL04_METRIC_MIN_COUNT" \
+    "p2del04" \
+    "p2del04-contract-meta-present" \
+    "p2del04-weak-grounding-handling" \
+    "p2del04-escalation-routing" \
+    "p2del04-escalation-actionability" \
+    "p2del04-safety-boundary-routing" \
+    "p2del04-boundary-dampening" \
+    "p2del04-boundary-urgent-routing"
 fi
 
 if [[ -n "$DEEP_CONFIG_FILE" ]]; then
@@ -947,20 +976,6 @@ THRESHOLD_FAIL="$(node -e "const p=parseFloat('${PASS_RATE}'); const t=parseFloa
 DEEP_THRESHOLD_FAIL="no"
 if [[ -n "$DEEP_CONFIG_FILE" ]]; then
   DEEP_THRESHOLD_FAIL="$(node -e "const p=parseFloat('${DEEP_PASS_RATE}'); const t=parseFloat('${THRESHOLD}'); console.log(Number.isFinite(p)&&Number.isFinite(t)&&p<t ? 'yes':'no');")"
-fi
-
-RAG_THRESHOLD_FAIL="no"
-if [[ "$RAG_METRICS_ENFORCED" == "true" ]]; then
-  if [[ "$RAG_CONTRACT_META_FAIL" == "yes" || "$RAG_CITATION_COVERAGE_FAIL" == "yes" || "$RAG_LOW_CONF_REFUSAL_FAIL" == "yes" ]]; then
-    RAG_THRESHOLD_FAIL="yes"
-  fi
-fi
-
-P2DEL04_THRESHOLD_FAIL="no"
-if [[ "$P2DEL04_METRICS_ENFORCED" == "true" ]]; then
-  if [[ "$P2DEL04_CONTRACT_META_FAIL" == "yes" || "$P2DEL04_WEAK_GROUNDING_FAIL" == "yes" || "$P2DEL04_ESCALATION_ROUTING_FAIL" == "yes" || "$P2DEL04_ESCALATION_ACTIONABILITY_FAIL" == "yes" || "$P2DEL04_SAFETY_BOUNDARY_ROUTING_FAIL" == "yes" || "$P2DEL04_BOUNDARY_DAMPENING_FAIL" == "yes" || "$P2DEL04_BOUNDARY_URGENT_ROUTING_FAIL" == "yes" ]]; then
-    P2DEL04_THRESHOLD_FAIL="yes"
-  fi
 fi
 
 if [[ "$DEEP_ERROR_KIND" == "capacity" ]]; then

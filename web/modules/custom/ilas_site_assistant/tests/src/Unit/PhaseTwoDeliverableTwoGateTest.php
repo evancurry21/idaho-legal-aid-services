@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Guards Phase 2 Deliverable #2 closure artifacts (`P2-DEL-02`).
  */
-#[Group('ilas_site_assistant')]
+#[Group('ilas_site_assistant_docs')]
 final class PhaseTwoDeliverableTwoGateTest extends TestCase {
 
   /**
@@ -101,6 +101,7 @@ final class PhaseTwoDeliverableTwoGateTest extends TestCase {
   public function testPromptfooConfigAndProviderContainThresholdSignals(): void {
     $abuseConfig = self::readFile('promptfoo-evals/promptfooconfig.abuse.yaml');
     $thresholdSuite = self::readFile('promptfoo-evals/tests/retrieval-confidence-thresholds.yaml');
+    $sharedRuntime = self::readFile('promptfoo-evals/lib/ilas-live-shared.js');
     $provider = self::readFile('promptfoo-evals/providers/ilas-live.js');
 
     $this->assertStringContainsString('retrieval-confidence-thresholds.yaml', $abuseConfig);
@@ -108,12 +109,14 @@ final class PhaseTwoDeliverableTwoGateTest extends TestCase {
     $this->assertStringContainsString('rag-citation-coverage', $thresholdSuite);
     $this->assertStringContainsString('rag-low-confidence-refusal', $thresholdSuite);
 
+    $this->assertStringContainsString('renderAssistantOutput', $provider);
+    $this->assertStringContainsString('buildContractMeta', $sharedRuntime);
     $this->assertStringContainsString('[contract_meta]', $provider);
-    $this->assertStringContainsString('citations_count', $provider);
-    $this->assertStringContainsString('response_type', $provider);
-    $this->assertStringContainsString('response_mode', $provider);
-    $this->assertStringContainsString('reason_code', $provider);
-    $this->assertStringContainsString('decision_reason', $provider);
+    $this->assertStringContainsString('citations_count', $sharedRuntime);
+    $this->assertStringContainsString('response_type', $sharedRuntime);
+    $this->assertStringContainsString('response_mode', $sharedRuntime);
+    $this->assertStringContainsString('reason_code', $sharedRuntime);
+    $this->assertStringContainsString('decision_reason', $sharedRuntime);
   }
 
   /**
@@ -133,8 +136,9 @@ final class PhaseTwoDeliverableTwoGateTest extends TestCase {
     $this->assertStringContainsString('rag_citation_coverage_count_fail=', $gateScript);
     $this->assertStringContainsString('rag_low_confidence_refusal_count_fail=', $gateScript);
     $this->assertStringContainsString('rag_metrics_enforced=', $gateScript);
-    $this->assertStringContainsString('RAG threshold summary:', $gateScript);
-    $this->assertStringContainsString('RAG count-floor summary:', $gateScript);
+    $this->assertStringContainsString('gate-metrics.js', $gateScript);
+    $this->assertStringContainsString('apply_metric_threshold_report', $gateScript);
+    $this->assertStringContainsString('evaluate-thresholds', $gateScript);
     $this->assertStringContainsString('P2DEL04_METRIC_THRESHOLD="${P2DEL04_METRIC_THRESHOLD:-85}"', $gateScript);
     $this->assertStringContainsString('P2DEL04_METRIC_MIN_COUNT="${P2DEL04_METRIC_MIN_COUNT:-10}"', $gateScript);
     $this->assertStringContainsString('p2del04_metrics_enforced=', $gateScript);
@@ -147,8 +151,6 @@ final class PhaseTwoDeliverableTwoGateTest extends TestCase {
     $this->assertStringContainsString('p2del04_safety_boundary_routing_fail=', $gateScript);
     $this->assertStringContainsString('p2del04_boundary_dampening_fail=', $gateScript);
     $this->assertStringContainsString('p2del04_boundary_urgent_routing_fail=', $gateScript);
-    $this->assertStringContainsString('P2DEL04 threshold summary:', $gateScript);
-    $this->assertStringContainsString('P2DEL04 count-floor summary:', $gateScript);
     $this->assertStringContainsString('P2DEL04_THRESHOLD_FAIL', $gateScript);
     $this->assertStringContainsString('RAG_THRESHOLD_FAIL', $gateScript);
   }

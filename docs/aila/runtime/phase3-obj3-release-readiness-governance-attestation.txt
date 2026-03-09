@@ -31,5 +31,5 @@ No platform-wide refactor of unrelated Drupal subsystems.
 
 ### Disposition Markers
 p3-obj-03-status=closed
-p3-obj-03-enforcement=runbook+guard-test+runtime-artifact
+p3-obj-03-enforcement=runbook+behavioral-proof+docs-continuity-nonblocking+runtime-artifact
 p3-obj-03-scope=objective-closure-artifacts-only

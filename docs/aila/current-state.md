@@ -622,8 +622,8 @@ This dated addendum records `XDP-05` closure for cross-phase dependency row #5:
 "Retrieval confidence contract (`IMP-RAG-01`)."
 
 1. Dependency row #5 is closure-locked as implemented: config parity,
-   observability signals, and eval-harness continuity are required
-   prerequisites for downstream Phase 3 readiness signoff continuity, with
+   observability signals, and eval-harness runtime behavior are required
+   prerequisites for downstream Phase 3 readiness signoff, with
    owner-role continuity preserved (AI/RAG Engineer).[^CLAIM-120][^CLAIM-124][^CLAIM-135][^CLAIM-151][^CLAIM-164]
 2. Dependency reporting semantics are deterministic:
    any unresolved prerequisite reports `xdp-05-status=blocked`; all prerequisites
@@ -633,7 +633,8 @@ This dated addendum records `XDP-05` closure for cross-phase dependency row #5:
 3. Runtime proof and command summaries are captured in
    `docs/aila/runtime/phase2-xdp05-retrieval-confidence-contract-dependency-gate.txt`,
    including prerequisite pass/fail markers for config parity,
-   observability signals, and eval-harness continuity.[^CLAIM-164]
+   observability signals, and eval-harness behavior, with non-blocking docs
+   continuity retained separately.[^CLAIM-164]
 4. Scope boundaries remain unchanged: this closure adds governance enforcement
    artifacts only and does not expand runtime behavior.[^CLAIM-164]
 
@@ -642,10 +643,10 @@ This dated addendum records `XDP-05` closure for cross-phase dependency row #5:
 This dated addendum records `XDP-06` closure for cross-phase dependency row #6:
 "Cost guardrails (`IMP-COST-01`)."
 
-1. Dependency row #6 is closure-locked as implemented: observability and usage
-   telemetry continuity from Phase 1/2 are required prerequisites for downstream
-   Phase 3 cost-guardrail continuity, with owner-role continuity preserved
-   (Product + Platform).[^CLAIM-126][^CLAIM-127][^CLAIM-138][^CLAIM-165]
+1. Dependency row #6 is closure-locked as implemented: cost-control config,
+   fail-closed cost policy behavior, and SLO monitoring are required
+   prerequisites for downstream Phase 3 cost guardrails, with owner-role
+   continuity preserved (Product + Platform).[^CLAIM-077][^CLAIM-084][^CLAIM-147][^CLAIM-165]
 2. Dependency reporting semantics are deterministic:
    any unresolved prerequisite reports `xdp-06-status=blocked`; all prerequisites
    pass reports `xdp-06-status=closed` with
@@ -653,9 +654,9 @@ This dated addendum records `XDP-06` closure for cross-phase dependency row #6:
    `xdp-06-unresolved-dependencies=none`.[^CLAIM-165]
 3. Runtime proof and command summaries are captured in
    `docs/aila/runtime/phase3-xdp06-cost-guardrails-dependency-gate.txt`,
-   including prerequisite pass/fail markers for Phase 1 observability gates,
-   Phase 1 alert/dashboard verification, and Phase 2 observability/CI baseline
-   continuity.[^CLAIM-165]
+   including prerequisite pass/fail markers for cost-control config,
+   fail-closed cost policy behavior, and SLO monitoring, with non-blocking
+   docs continuity retained separately.[^CLAIM-165]
 4. Scope boundaries remain unchanged: this closure adds governance enforcement
    artifacts only and does not expand runtime behavior.[^CLAIM-165]
 
@@ -1036,13 +1037,14 @@ This dated addendum records `P3-OBJ-02` closure for Phase 3 Objective #2:
    `LlmEnhancer` as nullable dependency with full unit test coverage in
    `CostControlPolicyTest.php`.[^CLAIM-147]
 3. Runbook section-3 verification for `P3-OBJ-02` now requires `VC-UNIT` and
-   `VC-DRUPAL-UNIT` plus source-anchor checks for
-   `LlmEnhancer`/`LlmCircuitBreaker`/`LlmRateLimiter`/`PerformanceMonitor`/
-   `SloAlertService`/`CostControlPolicy`, and captures sanitized runtime proof in
+   `VC-DRUPAL-UNIT` plus behavioral proof from `CostControlPolicyTest.php`,
+   `PerformanceMonitorTest.php`, and `SloAlertServiceTest.php`, and captures
+   sanitized runtime proof in
    `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt`.[^CLAIM-147]
 4. Cost governance linkage is promoted to active mitigation for
    backlog/risk artifacts (`IMP-COST-01`, `R-PERF-01`) with closure continuity
-   enforced by `PhaseThreeObjectiveTwoGateTest.php`.[^CLAIM-147]
+   retained as non-blocking docs continuity via
+   `PhaseThreeObjectiveTwoGateTest.php`.[^CLAIM-147]
 4. Scope boundaries remain unchanged: no net-new assistant channels or
    third-party model expansion beyond audited providers, and no platform-wide
    refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-147]
@@ -1064,8 +1066,8 @@ This dated addendum records `P3-OBJ-03` closure for Phase 3 Objective #3:
    `docs/aila/runtime/phase3-obj3-release-readiness-governance-attestation.txt`.[^CLAIM-148]
 3. Governance attestation linkage is promoted to active mitigation for
    governance/compliance artifacts (`IMP-GOV-01` row, retention/access
-   attestation workflow row, `R-GOV-01`) with closure continuity enforced by
-   `PhaseThreeObjectiveThreeGateTest.php`.[^CLAIM-148]
+   attestation workflow row, `R-GOV-01`) with behavioral runbook proof and
+   non-blocking docs continuity via `PhaseThreeObjectiveThreeGateTest.php`.[^CLAIM-148]
 4. Scope boundaries remain unchanged: no net-new assistant channels or
    third-party model expansion beyond audited providers, and no platform-wide
    refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-148]
@@ -1089,7 +1091,7 @@ This dated addendum records `P3-OBJ-01` closure for Phase 3 Objective #1:
    `docs/aila/runtime/phase3-obj1-ux-a11y-mobile-acceptance.txt`.[^CLAIM-149]
 3. Governance posture is updated to active mitigation for accessibility
    regression controls (`R-UX-01`) and mobile error-state quality controls
-   (`R-UX-02`) with closure continuity enforced by
+   (`R-UX-02`) with behavioral acceptance proof and non-blocking docs continuity via
    `PhaseThreeObjectiveOneGateTest.php`.[^CLAIM-149]
 4. Scope boundaries remain unchanged: no net-new assistant channels or
    third-party model expansion beyond audited providers, and no platform-wide

@@ -1,0 +1,32 @@
+{
+  "results": {
+    "prompts": [
+      {
+        "metrics": {
+          "namedScores": {
+            "rag-contract-meta-present": 18,
+            "rag-citation-coverage": 9,
+            "rag-low-confidence-refusal": 9
+          },
+          "namedScoresCount": {
+            "rag-contract-meta-present": 20,
+            "rag-citation-coverage": 10,
+            "rag-low-confidence-refusal": 10
+          }
+        }
+      }
+    ],
+    "results": [
+      { "success": true },
+      { "success": true },
+      { "success": true },
+      { "success": true },
+      { "success": true },
+      { "success": true },
+      { "success": true },
+      { "success": true },
+      { "success": true },
+      { "success": true }
+    ]
+  }
+}

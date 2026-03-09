@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Guards Phase 3 Exit criterion #2 closure artifacts (`P3-EXT-02`).
  */
-#[Group('ilas_site_assistant')]
+#[Group('ilas_site_assistant_docs')]
 final class PhaseThreeExitCriteriaTwoGateTest extends TestCase {
 
   /**
@@ -158,4 +158,3 @@ final class PhaseThreeExitCriteriaTwoGateTest extends TestCase {
   }
 
 }
-

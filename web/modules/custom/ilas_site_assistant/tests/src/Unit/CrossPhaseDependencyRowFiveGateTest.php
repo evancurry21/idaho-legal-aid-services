@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Guards cross-phase dependency row #5 closure artifacts (`XDP-05`).
  */
-#[Group('ilas_site_assistant')]
+#[Group('ilas_site_assistant_docs')]
 final class CrossPhaseDependencyRowFiveGateTest extends TestCase {
 
   /**
@@ -152,7 +152,7 @@ final class CrossPhaseDependencyRowFiveGateTest extends TestCase {
 
     $abuseConfig = self::readFile('promptfoo-evals/promptfooconfig.abuse.yaml');
     $thresholdSuite = self::readFile('promptfoo-evals/tests/retrieval-confidence-thresholds.yaml');
-    $provider = self::readFile('promptfoo-evals/providers/ilas-live.js');
+    $sharedRuntime = self::readFile('promptfoo-evals/lib/ilas-live-shared.js');
     $promptfooGateScript = self::readFile('scripts/ci/run-promptfoo-gate.sh');
     $phaseTwoExitOneRuntime = self::readFile('docs/aila/runtime/phase2-exit1-retrieval-contract-confidence-thresholds.txt');
 
@@ -175,11 +175,12 @@ final class CrossPhaseDependencyRowFiveGateTest extends TestCase {
     $this->assertStringContainsString('rag-contract-meta-present', $thresholdSuite);
     $this->assertStringContainsString('rag-citation-coverage', $thresholdSuite);
     $this->assertStringContainsString('rag-low-confidence-refusal', $thresholdSuite);
-    $this->assertStringContainsString('[contract_meta]', $provider);
-    $this->assertStringContainsString('citations_count', $provider);
-    $this->assertStringContainsString('decision_reason', $provider);
+    $this->assertStringContainsString('[contract_meta]', $sharedRuntime);
+    $this->assertStringContainsString('citations_count', $sharedRuntime);
+    $this->assertStringContainsString('decision_reason', $sharedRuntime);
     $this->assertStringContainsString('RAG_METRIC_THRESHOLD', $promptfooGateScript);
     $this->assertStringContainsString('RAG_METRIC_MIN_COUNT', $promptfooGateScript);
+    $this->assertStringContainsString('gate-metrics.js', $promptfooGateScript);
     $this->assertStringContainsString('rag_contract_meta_fail=', $phaseTwoExitOneRuntime);
     $this->assertStringContainsString('rag_citation_coverage_fail=', $phaseTwoExitOneRuntime);
     $this->assertStringContainsString('rag_low_confidence_refusal_fail=', $phaseTwoExitOneRuntime);

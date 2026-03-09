@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Guards Phase 3 Objective #3 closure artifacts (`P3-OBJ-03`).
  */
-#[Group('ilas_site_assistant')]
+#[Group('ilas_site_assistant_docs')]
 final class PhaseThreeObjectiveThreeGateTest extends TestCase {
 
   /**
