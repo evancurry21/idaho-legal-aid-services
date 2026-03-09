@@ -602,20 +602,25 @@ PROMPT,
     // Cost control policy check (after cache, before API call).
     $this->costControlPolicy?->recordCacheMiss();
     if ($this->costControlPolicy) {
-      $policyResult = $this->costControlPolicy->isRequestAllowed();
+      $policyResult = $this->costControlPolicy->beginRequest();
       if (!$policyResult['allowed']) {
+        if ($policyResult['reason'] === 'circuit_breaker_open') {
+          throw new \RuntimeException('LLM circuit breaker is open, skipping API call.');
+        }
+        if ($policyResult['reason'] === 'rate_limit_exceeded') {
+          throw new \RuntimeException('LLM global rate limit exceeded, skipping API call.');
+        }
         throw new \RuntimeException('Cost control policy denied request: ' . $policyResult['reason']);
       }
     }
-
-    // Circuit breaker check (after cache — cached responses always served).
-    if ($this->circuitBreaker && !$this->circuitBreaker->isAvailable()) {
-      throw new \RuntimeException('LLM circuit breaker is open, skipping API call.');
-    }
-
-    // Global rate limit check (after cache + circuit breaker, before API call).
-    if ($this->rateLimiter && !$this->rateLimiter->isAllowed()) {
-      throw new \RuntimeException('LLM global rate limit exceeded, skipping API call.');
+    else {
+      // Backward compatibility path when the consolidated policy is not wired.
+      if ($this->circuitBreaker && !$this->circuitBreaker->isAvailable()) {
+        throw new \RuntimeException('LLM circuit breaker is open, skipping API call.');
+      }
+      if ($this->rateLimiter && !$this->rateLimiter->isAllowed()) {
+        throw new \RuntimeException('LLM global rate limit exceeded, skipping API call.');
+      }
     }
 
     try {
@@ -626,8 +631,6 @@ PROMPT,
         $result = $this->callGeminiApi($prompt, $options);
       }
       $this->circuitBreaker?->recordSuccess();
-      $this->rateLimiter?->recordCall();
-      $this->costControlPolicy?->recordCall($this->lastUsage);
     }
     catch (\Exception $e) {
       $this->circuitBreaker?->recordFailure();

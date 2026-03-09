@@ -4,8 +4,10 @@ namespace Drupal\Tests\ilas_site_assistant\Unit;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Lock\NullLockBackend;
 use Drupal\Core\State\StateInterface;
 use Drupal\ilas_site_assistant\Service\CostControlPolicy;
+use Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator;
 use Drupal\ilas_site_assistant\Service\LlmCircuitBreaker;
 use Drupal\ilas_site_assistant\Service\LlmRateLimiter;
 use PHPUnit\Framework\Attributes\Group;
@@ -368,6 +370,41 @@ class CostControlPolicyTest extends TestCase {
   }
 
   /**
+   * Tests that beginRequest spends daily/monthly budget on admission.
+   */
+  public function testBeginRequestReservesBudgetOnAdmission(): void {
+    $policy = $this->buildPolicy(configOverrides: [
+      'cost_control.daily_call_limit' => 1,
+      'cost_control.monthly_call_limit' => 1,
+      'llm.global_rate_limit.max_per_hour' => 0,
+    ]);
+
+    $this->assertSame(['allowed' => TRUE, 'reason' => 'allowed'], $policy->beginRequest());
+    $this->assertSame(1, $policy->getSummary()['daily_calls']);
+    $this->assertSame(1, $policy->getSummary()['monthly_calls']);
+
+    $result = $policy->beginRequest();
+    $this->assertFalse($result['allowed']);
+    $this->assertSame('daily_budget_exhausted', $result['reason']);
+  }
+
+  /**
+   * Tests that beginRequest spends the rate-limit slot on admission.
+   */
+  public function testBeginRequestReservesRateLimitOnAdmission(): void {
+    $policy = $this->buildPolicy(configOverrides: [
+      'llm.global_rate_limit.max_per_hour' => 1,
+    ]);
+
+    $this->assertTrue($policy->beginRequest()['allowed']);
+
+    $result = $policy->beginRequest();
+    $this->assertFalse($result['allowed']);
+    $this->assertSame('rate_limit_exceeded', $result['reason']);
+    $this->assertSame(1, $this->storedState[LlmRateLimiter::STATE_KEY]['count']);
+  }
+
+  /**
    * Tests reset clears all state.
    */
   public function testResetClearsAllState(): void {
@@ -420,6 +457,11 @@ class CostControlPolicyTest extends TestCase {
       'cost_control.pricing.input_per_1m_tokens' => 0.075,
       'cost_control.pricing.output_per_1m_tokens' => 0.30,
       'cost_control.alert_cooldown_minutes' => 60,
+      'llm.global_rate_limit.max_per_hour' => 500,
+      'llm.global_rate_limit.window_seconds' => 3600,
+      'llm.circuit_breaker.failure_threshold' => 3,
+      'llm.circuit_breaker.failure_window_seconds' => 60,
+      'llm.circuit_breaker.cooldown_seconds' => 300,
     ];
     foreach ($configOverrides as $key => $value) {
       $configValues[$key] = $value;
@@ -446,7 +488,9 @@ class CostControlPolicyTest extends TestCase {
     $rateLimiter = $this->createMock(LlmRateLimiter::class);
     $rateLimiter->method('isAllowed')->willReturn($rateLimiterAllowed);
 
-    return new CostControlPolicy($state, $configFactory, $logger, $circuitBreaker, $rateLimiter);
+    $coordinator = new LlmAdmissionCoordinator($state, $configFactory, $logger, new NullLockBackend());
+
+    return new CostControlPolicy($state, $configFactory, $logger, $circuitBreaker, $rateLimiter, $coordinator);
   }
 
   /**

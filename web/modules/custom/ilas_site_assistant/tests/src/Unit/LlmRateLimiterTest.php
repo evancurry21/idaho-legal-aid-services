@@ -4,7 +4,9 @@ namespace Drupal\Tests\ilas_site_assistant\Unit;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Lock\NullLockBackend;
 use Drupal\Core\State\StateInterface;
+use Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator;
 use Drupal\ilas_site_assistant\Service\LlmRateLimiter;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -52,6 +54,20 @@ class LlmRateLimiterTest extends TestCase {
 
     $state = $limiter->getCurrentState();
     $this->assertEquals(3, $state['count']);
+  }
+
+  /**
+   * Tests that tryAcquireAllowance reserves capacity atomically.
+   */
+  public function testTryAcquireAllowanceReservesCapacity(): void {
+    $limiter = $this->buildLimiter(configOverrides: [
+      'llm.global_rate_limit.max_per_hour' => 1,
+    ]);
+
+    $this->assertTrue($limiter->tryAcquireAllowance());
+    $this->assertFalse($limiter->tryAcquireAllowance());
+    $this->assertTrue($limiter->wasRateLimited());
+    $this->assertSame(1, $limiter->getCurrentState()['count']);
   }
 
   /**
@@ -268,7 +284,9 @@ class LlmRateLimiterTest extends TestCase {
         });
     }
 
-    return new LlmRateLimiter($state, $configFactory, $logger);
+    $coordinator = new LlmAdmissionCoordinator($state, $configFactory, $logger, new NullLockBackend());
+
+    return new LlmRateLimiter($state, $configFactory, $logger, $coordinator);
   }
 
   /**

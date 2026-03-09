@@ -45,6 +45,13 @@ class LlmRateLimiter {
   protected LoggerInterface $logger;
 
   /**
+   * Shared admission/state coordinator.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator
+   */
+  protected LlmAdmissionCoordinator $admissionCoordinator;
+
+  /**
    * Whether the last isAllowed() call returned FALSE.
    *
    * @var bool
@@ -58,17 +65,19 @@ class LlmRateLimiter {
     StateInterface $state,
     ConfigFactoryInterface $config_factory,
     LoggerInterface $logger,
+    LlmAdmissionCoordinator $admission_coordinator,
   ) {
     $this->state = $state;
     $this->configFactory = $config_factory;
     $this->logger = $logger;
+    $this->admissionCoordinator = $admission_coordinator;
   }
 
   /**
    * Checks if an LLM call is allowed under the global rate limit.
    *
-   * This is a read-only check — it does NOT increment the counter.
-   * Call recordCall() after a successful API call to increment.
+   * This compatibility method is read-only and does not reserve capacity.
+   * Production callers should use tryAcquireAllowance() or CostControlPolicy.
    *
    * @return bool
    *   TRUE if under limit (or limiter disabled), FALSE if limit reached.
@@ -103,52 +112,24 @@ class LlmRateLimiter {
   }
 
   /**
+   * Atomically reserves one allowance when capacity remains.
+   *
+   * @return bool
+   *   TRUE when a request slot was reserved, FALSE otherwise.
+   */
+  public function tryAcquireAllowance(): bool {
+    $allowed = $this->admissionCoordinator->tryAcquireRateLimitAllowance();
+    $this->lastWasLimited = !$allowed;
+    return $allowed;
+  }
+
+  /**
    * Records a successful LLM API call.
    *
-   * Called ONLY after a successful API response (not on cache hits or errors).
-   * Resets the window lazily if expired, then increments the counter.
-   * Logs at 80% (notice) and 100% (warning) of the limit.
+   * Compatibility increment for callers still using the legacy split API.
    */
   public function recordCall(): void {
-    $maxPerHour = $this->getConfig('max_per_hour');
-
-    // If limiter is disabled, nothing to record.
-    if ($maxPerHour === 0) {
-      return;
-    }
-
-    $data = $this->getStateData();
-    $windowSeconds = $this->getConfig('window_seconds');
-
-    // Lazy window reset: if window expired, start fresh.
-    if ((time() - $data['window_start']) >= $windowSeconds) {
-      $data = [
-        'count' => 1,
-        'window_start' => time(),
-      ];
-      $this->setStateData($data);
-      return;
-    }
-
-    // Increment counter.
-    $data['count']++;
-    $this->setStateData($data);
-
-    // Log at threshold milestones.
-    $threshold80 = (int) ceil($maxPerHour * 0.8);
-    if ($data['count'] === $threshold80) {
-      $this->logger->notice('LLM global rate limit at 80% (@count/@max) within current window.', [
-        '@count' => $data['count'],
-        '@max' => $maxPerHour,
-      ]);
-    }
-
-    if ($data['count'] >= $maxPerHour) {
-      $this->logger->warning('LLM global rate limit reached (@count/@max). Subsequent calls will be skipped until window resets.', [
-        '@count' => $data['count'],
-        '@max' => $maxPerHour,
-      ]);
-    }
+    $this->admissionCoordinator->recordRateLimiterCall();
   }
 
   /**
@@ -175,7 +156,7 @@ class LlmRateLimiter {
    * Force-resets the rate limit counter.
    */
   public function reset(): void {
-    $this->setStateData($this->defaultState());
+    $this->admissionCoordinator->resetRateLimiter();
     $this->lastWasLimited = FALSE;
   }
 

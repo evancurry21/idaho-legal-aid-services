@@ -4,7 +4,9 @@ namespace Drupal\Tests\ilas_site_assistant\Unit;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Lock\NullLockBackend;
 use Drupal\Core\State\StateInterface;
+use Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator;
 use Drupal\ilas_site_assistant\Service\LlmCircuitBreaker;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -141,6 +143,9 @@ class LlmCircuitBreakerTest extends TestCase {
     $this->storedState = $state;
 
     $this->assertTrue($breaker->isAvailable());
+    $this->assertSame('open', $breaker->getState()['state']);
+
+    $this->assertTrue($breaker->tryAcquireAdmission());
     $state = $breaker->getState();
     $this->assertEquals('half_open', $state['state']);
   }
@@ -217,6 +222,25 @@ class LlmCircuitBreakerTest extends TestCase {
     $state['opened_at'] = time() - 601;
     $this->storedState = $state;
     $this->assertTrue($breaker->isAvailable());
+    $this->assertTrue($breaker->tryAcquireAdmission());
+    $this->assertSame('half_open', $breaker->getState()['state']);
+  }
+
+  /**
+   * Tests that isAvailable remains read-only after cooldown expiry.
+   */
+  public function testIsAvailableDoesNotMutateBreakerState(): void {
+    $this->storedState = [
+      'state' => 'open',
+      'consecutive_failures' => 3,
+      'last_failure_time' => time() - 301,
+      'opened_at' => time() - 301,
+    ];
+
+    $breaker = $this->buildBreaker();
+
+    $this->assertTrue($breaker->isAvailable());
+    $this->assertSame('open', $breaker->getState()['state']);
   }
 
   /**
@@ -235,7 +259,7 @@ class LlmCircuitBreakerTest extends TestCase {
     $state = $breaker->getState();
     $state['opened_at'] = time() - 301;
     $this->storedState = $state;
-    $breaker->isAvailable();
+    $breaker->tryAcquireAdmission();
     $this->assertLogContains('notice', 'half_open');
 
     // Record success to close — should log info.
@@ -307,7 +331,9 @@ class LlmCircuitBreakerTest extends TestCase {
         });
     }
 
-    return new LlmCircuitBreaker($state, $configFactory, $logger);
+    $coordinator = new LlmAdmissionCoordinator($state, $configFactory, $logger, new NullLockBackend());
+
+    return new LlmCircuitBreaker($state, $configFactory, $logger, $coordinator);
   }
 
   /**

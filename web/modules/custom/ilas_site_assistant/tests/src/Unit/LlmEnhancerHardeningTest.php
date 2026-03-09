@@ -6,6 +6,7 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\ilas_site_assistant\Service\CostControlPolicy;
 use Drupal\ilas_site_assistant\Service\LlmCircuitBreaker;
 use Drupal\ilas_site_assistant\Service\LlmEnhancer;
 use Drupal\ilas_site_assistant\Service\LlmRateLimiter;
@@ -581,6 +582,60 @@ class LlmEnhancerHardeningTest extends TestCase {
   }
 
   /**
+   * Tests that beginRequest denial blocks the API call.
+   */
+  public function testCostControlBeginRequestBlocksApiCall(): void {
+    $policy = $this->createMock(CostControlPolicy::class);
+    $policy->expects($this->once())
+      ->method('recordCacheMiss');
+    $policy->expects($this->once())
+      ->method('beginRequest')
+      ->willReturn(['allowed' => FALSE, 'reason' => 'circuit_breaker_open']);
+    $policy->expects($this->never())
+      ->method('recordCall');
+
+    $enhancer = $this->buildEnhancer(costControlPolicy: $policy);
+
+    $response = [
+      'type' => 'faq',
+      'results' => [['question' => 'Q?', 'answer' => 'A.']],
+    ];
+
+    $result = $enhancer->enhanceResponse($response, 'test question');
+
+    $this->assertEquals(0, $this->control->apiCallCount,
+      'API should not be called when beginRequest denies admission');
+    $this->assertArrayNotHasKey('llm_summary', $result,
+      'Response should not be enhanced when beginRequest denies admission');
+  }
+
+  /**
+   * Tests that beginRequest replaces legacy post-call cost accounting.
+   */
+  public function testCostControlBeginRequestReplacesLegacyRecordCall(): void {
+    $policy = $this->createMock(CostControlPolicy::class);
+    $policy->expects($this->once())
+      ->method('recordCacheMiss');
+    $policy->expects($this->once())
+      ->method('beginRequest')
+      ->willReturn(['allowed' => TRUE, 'reason' => 'allowed']);
+    $policy->expects($this->never())
+      ->method('recordCall');
+
+    $enhancer = $this->buildEnhancer(costControlPolicy: $policy);
+
+    $response = [
+      'type' => 'faq',
+      'results' => [['question' => 'Q?', 'answer' => 'A.']],
+    ];
+
+    $enhancer->enhanceResponse($response, 'test question');
+
+    $this->assertEquals(1, $this->control->apiCallCount,
+      'API should be called once when beginRequest allows admission');
+  }
+
+  /**
    * Tests that FAQ content is wrapped in <retrieved_content> fencing tags.
    */
   public function testContentFencingInFaqPrompt(): void {
@@ -842,6 +897,7 @@ class LlmEnhancerHardeningTest extends TestCase {
     bool $useRealMakeApiRequest = FALSE,
     ?LlmCircuitBreaker $circuitBreaker = NULL,
     ?LlmRateLimiter $rateLimiter = NULL,
+    ?CostControlPolicy $costControlPolicy = NULL,
   ): LlmEnhancer {
     $configFactory = $this->buildConfigFactory($configOverrides);
     $loggerFactory = $this->buildLoggerFactory();
@@ -857,6 +913,7 @@ class LlmEnhancerHardeningTest extends TestCase {
         $this->control,
         $circuitBreaker,
         $rateLimiter,
+        $costControlPolicy,
       );
     }
 
@@ -869,6 +926,7 @@ class LlmEnhancerHardeningTest extends TestCase {
       $this->control,
       $circuitBreaker,
       $rateLimiter,
+      $costControlPolicy,
     );
   }
 
@@ -920,8 +978,9 @@ class HardeningTestableEnhancer extends LlmEnhancer {
     \stdClass $control,
     $circuit_breaker = NULL,
     $rate_limiter = NULL,
+    $cost_control_policy = NULL,
   ) {
-    parent::__construct($config_factory, $http_client, $logger_factory, $policy_filter, $cache, $circuit_breaker, $rate_limiter);
+    parent::__construct($config_factory, $http_client, $logger_factory, $policy_filter, $cache, $circuit_breaker, $rate_limiter, $cost_control_policy);
     $this->control = $control;
   }
 
@@ -954,8 +1013,9 @@ class RetryTestableEnhancer extends LlmEnhancer {
     \stdClass $control,
     $circuit_breaker = NULL,
     $rate_limiter = NULL,
+    $cost_control_policy = NULL,
   ) {
-    parent::__construct($config_factory, $http_client, $logger_factory, $policy_filter, $cache, $circuit_breaker, $rate_limiter);
+    parent::__construct($config_factory, $http_client, $logger_factory, $policy_filter, $cache, $circuit_breaker, $rate_limiter, $cost_control_policy);
     $this->control = $control;
   }
 

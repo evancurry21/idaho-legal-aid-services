@@ -48,20 +48,32 @@ class LlmCircuitBreaker {
   protected LoggerInterface $logger;
 
   /**
+   * Shared admission/state coordinator.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator
+   */
+  protected LlmAdmissionCoordinator $admissionCoordinator;
+
+  /**
    * Constructs an LlmCircuitBreaker.
    */
   public function __construct(
     StateInterface $state,
     ConfigFactoryInterface $config_factory,
     LoggerInterface $logger,
+    LlmAdmissionCoordinator $admission_coordinator,
   ) {
     $this->state = $state;
     $this->configFactory = $config_factory;
     $this->logger = $logger;
+    $this->admissionCoordinator = $admission_coordinator;
   }
 
   /**
    * Checks if the circuit allows a request through.
+   *
+   * This compatibility method is read-only and does not reserve a half-open
+   * probe slot. Production callers should use tryAcquireAdmission().
    *
    * @return bool
    *   TRUE if a request is allowed (closed or half-open), FALSE if open.
@@ -75,16 +87,7 @@ class LlmCircuitBreaker {
 
     if ($data['state'] === 'open') {
       $cooldown = $this->getConfig('cooldown_seconds');
-      if ((time() - $data['opened_at']) >= $cooldown) {
-        // Transition to half-open: allow one probe request.
-        $data['state'] = 'half_open';
-        $this->setState($data);
-        $this->logger->notice('LLM circuit breaker transitioning from open to half_open after @cooldown s cooldown.', [
-          '@cooldown' => $cooldown,
-        ]);
-        return TRUE;
-      }
-      return FALSE;
+      return (time() - $data['opened_at']) >= $cooldown;
     }
 
     // half_open: allow the probe request through.
@@ -92,66 +95,27 @@ class LlmCircuitBreaker {
   }
 
   /**
+   * Atomically acquires circuit-breaker admission.
+   *
+   * @return bool
+   *   TRUE when the request may proceed, FALSE otherwise.
+   */
+  public function tryAcquireAdmission(): bool {
+    return $this->admissionCoordinator->tryAcquireCircuitAdmission();
+  }
+
+  /**
    * Records a successful API call.
    */
   public function recordSuccess(): void {
-    $data = $this->getState();
-
-    if ($data['state'] === 'half_open') {
-      // Probe succeeded — close the circuit.
-      $this->logger->info('LLM circuit breaker closing after successful half-open probe.');
-      $this->setState($this->defaultState());
-      return;
-    }
-
-    if ($data['state'] === 'closed' && $data['consecutive_failures'] > 0) {
-      // Reset failure counter on success.
-      $data['consecutive_failures'] = 0;
-      $data['last_failure_time'] = 0;
-      $this->setState($data);
-    }
+    $this->admissionCoordinator->recordCircuitSuccess();
   }
 
   /**
    * Records a failed API call (after all retries exhausted).
    */
   public function recordFailure(): void {
-    $data = $this->getState();
-
-    if ($data['state'] === 'half_open') {
-      // Probe failed — reopen the circuit.
-      $data['state'] = 'open';
-      $data['opened_at'] = time();
-      $data['consecutive_failures'] = $this->getConfig('failure_threshold');
-      $this->setState($data);
-      $this->logger->warning('LLM circuit breaker reopened after failed half-open probe.');
-      return;
-    }
-
-    // Closed state: count failures.
-    $now = time();
-    $window = $this->getConfig('failure_window_seconds');
-
-    // If last failure is outside the window, reset counter.
-    if ($data['last_failure_time'] > 0 && ($now - $data['last_failure_time']) > $window) {
-      $data['consecutive_failures'] = 0;
-    }
-
-    $data['consecutive_failures']++;
-    $data['last_failure_time'] = $now;
-
-    $threshold = $this->getConfig('failure_threshold');
-    if ($data['consecutive_failures'] >= $threshold) {
-      // Trip the circuit.
-      $data['state'] = 'open';
-      $data['opened_at'] = $now;
-      $this->logger->warning('LLM circuit breaker opened after @count consecutive failures within @window s.', [
-        '@count' => $data['consecutive_failures'],
-        '@window' => $window,
-      ]);
-    }
-
-    $this->setState($data);
+    $this->admissionCoordinator->recordCircuitFailure();
   }
 
   /**
@@ -173,7 +137,7 @@ class LlmCircuitBreaker {
    * Force-resets the circuit breaker to closed state.
    */
   public function reset(): void {
-    $this->setState($this->defaultState());
+    $this->admissionCoordinator->resetCircuitBreaker();
     $this->logger->info('LLM circuit breaker manually reset to closed.');
   }
 

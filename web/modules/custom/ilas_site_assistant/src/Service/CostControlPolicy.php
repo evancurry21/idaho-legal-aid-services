@@ -27,6 +27,7 @@ class CostControlPolicy {
   protected LoggerInterface $logger;
   protected LlmCircuitBreaker $circuitBreaker;
   protected LlmRateLimiter $rateLimiter;
+  protected LlmAdmissionCoordinator $admissionCoordinator;
 
   /**
    * Timestamp of last alert, to enforce cooldown.
@@ -44,12 +45,14 @@ class CostControlPolicy {
     LoggerInterface $logger,
     LlmCircuitBreaker $circuit_breaker,
     LlmRateLimiter $rate_limiter,
+    LlmAdmissionCoordinator $admission_coordinator,
   ) {
     $this->state = $state;
     $this->configFactory = $config_factory;
     $this->logger = $logger;
     $this->circuitBreaker = $circuit_breaker;
     $this->rateLimiter = $rate_limiter;
+    $this->admissionCoordinator = $admission_coordinator;
   }
 
   /**
@@ -96,32 +99,37 @@ class CostControlPolicy {
   }
 
   /**
+   * Atomically evaluates and reserves request admission state.
+   *
+   * @return array
+   *   Array with 'allowed' (bool) and 'reason' (string).
+   */
+  public function beginRequest(): array {
+    return $this->admissionCoordinator->beginRequest();
+  }
+
+  /**
    * Records a successful LLM API call against budget counters.
    *
    * @param array|null $tokenUsage
    *   Optional token usage array with 'input' and 'output' keys.
    */
   public function recordCall(?array $tokenUsage = NULL): void {
-    $this->incrementDailyCounter();
-    $this->incrementMonthlyCounter();
+    $this->admissionCoordinator->recordCostControlCall();
   }
 
   /**
    * Records a cache hit for cache-hit-rate monitoring.
    */
   public function recordCacheHit(): void {
-    $stats = $this->getCacheStats();
-    $stats['hits']++;
-    $this->setCacheStats($stats);
+    $this->admissionCoordinator->recordCacheStat('hits');
   }
 
   /**
    * Records a cache miss for cache-hit-rate monitoring.
    */
   public function recordCacheMiss(): void {
-    $stats = $this->getCacheStats();
-    $stats['misses']++;
-    $this->setCacheStats($stats);
+    $this->admissionCoordinator->recordCacheStat('misses');
   }
 
   /**
@@ -302,9 +310,7 @@ class CostControlPolicy {
    * Resets all cost-control state (for testing/recovery).
    */
   public function reset(): void {
-    $this->state->set(self::STATE_KEY_DAILY, NULL);
-    $this->state->set(self::STATE_KEY_MONTHLY, NULL);
-    $this->state->set(self::STATE_KEY_CACHE_STATS, NULL);
+    $this->admissionCoordinator->resetCostControl();
     $this->state->set(self::STATE_KEY_KILL_SWITCH, FALSE);
     $this->lastAlertTime = 0;
   }

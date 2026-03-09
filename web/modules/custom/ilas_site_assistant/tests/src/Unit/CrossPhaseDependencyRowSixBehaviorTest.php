@@ -6,8 +6,10 @@ namespace Drupal\Tests\ilas_site_assistant\Unit;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Lock\NullLockBackend;
 use Drupal\Core\State\StateInterface;
 use Drupal\ilas_site_assistant\Service\CostControlPolicy;
+use Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator;
 use Drupal\ilas_site_assistant\Service\LlmCircuitBreaker;
 use Drupal\ilas_site_assistant\Service\LlmRateLimiter;
 use Drupal\ilas_site_assistant\Service\PerformanceMonitor;
@@ -162,7 +164,9 @@ final class CrossPhaseDependencyRowSixBehaviorTest extends BehavioralDependencyG
     $rateLimiter = $this->createMock(LlmRateLimiter::class);
     $rateLimiter->method('isAllowed')->willReturn($rateLimiterAllowed);
 
-    return new CostControlPolicy($state, $configFactory, $logger, $circuitBreaker, $rateLimiter);
+    $coordinator = new LlmAdmissionCoordinator($state, $configFactory, $logger, new NullLockBackend());
+
+    return new CostControlPolicy($state, $configFactory, $logger, $circuitBreaker, $rateLimiter, $coordinator);
   }
 
   /**

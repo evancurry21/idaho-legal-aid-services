@@ -59,13 +59,17 @@ services:
     class: Drupal\ilas_site_assistant\Service\PolicyFilter
     arguments: ['@config.factory']
 
+  ilas_site_assistant.llm_admission_coordinator:
+    class: Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator
+    arguments: ['@state', '@config.factory', '@logger.channel.ilas_site_assistant', '@lock']
+
   ilas_site_assistant.llm_circuit_breaker:
     class: Drupal\ilas_site_assistant\Service\LlmCircuitBreaker
-    arguments: ['@state', '@config.factory', '@logger.channel.ilas_site_assistant']
+    arguments: ['@state', '@config.factory', '@logger.channel.ilas_site_assistant', '@ilas_site_assistant.llm_admission_coordinator']
 
   ilas_site_assistant.llm_rate_limiter:
     class: Drupal\ilas_site_assistant\Service\LlmRateLimiter
-    arguments: ['@state', '@config.factory', '@logger.channel.ilas_site_assistant']
+    arguments: ['@state', '@config.factory', '@logger.channel.ilas_site_assistant', '@ilas_site_assistant.llm_admission_coordinator']
 
   ilas_site_assistant.cost_control_policy:
     class: Drupal\ilas_site_assistant\Service\CostControlPolicy
@@ -75,6 +79,7 @@ services:
       - '@logger.channel.ilas_site_assistant'
       - '@ilas_site_assistant.llm_circuit_breaker'
       - '@ilas_site_assistant.llm_rate_limiter'
+      - '@ilas_site_assistant.llm_admission_coordinator'
 
   ilas_site_assistant.llm_enhancer:
     class: Drupal\ilas_site_assistant\Service\LlmEnhancer
