@@ -4,6 +4,7 @@ namespace Drupal\ilas_site_assistant\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Site\Settings;
 
 /**
  * Configuration form for ILAS Site Assistant.
@@ -35,6 +36,14 @@ class AssistantSettingsForm extends ConfigFormBase {
 
     $pantheon_env = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
     return is_string($pantheon_env) && strtolower($pantheon_env) === 'live';
+  }
+
+  /**
+   * Returns TRUE when a Vertex runtime secret is available.
+   */
+  protected function isVertexRuntimeSecretConfigured(): bool {
+    $serviceAccountJson = Settings::get('ilas_vertex_sa_json');
+    return is_string($serviceAccountJson) && $serviceAccountJson !== '';
   }
 
   /**
@@ -370,12 +379,13 @@ class AssistantSettingsForm extends ConfigFormBase {
     // LLM Enhancement Settings.
     $form['llm'] = [
       '#type' => 'details',
-      '#title' => $this->t('LLM Enhancement (Gemini AI)'),
-      '#description' => $this->t('Optional: Use Google Gemini to generate more natural, conversational responses. The LLM only summarizes content from your site - it does not search the web or provide legal advice.'),
+      '#title' => $this->t('LLM Enhancement (Gemini / Vertex AI)'),
+      '#description' => $this->t('Optional: Use Google Gemini or Vertex AI to generate more natural, conversational responses. The LLM only summarizes content from your site - it does not search the web or provide legal advice.'),
       '#open' => FALSE,
     ];
 
     $llm_config = $config->get('llm') ?? [];
+    $vertex_runtime_configured = $this->isVertexRuntimeSecretConfigured();
 
     $form['llm']['llm_enabled'] = [
       '#type' => 'checkbox',
@@ -469,12 +479,12 @@ class AssistantSettingsForm extends ConfigFormBase {
       '#default_value' => $llm_config['location'] ?? 'us-central1',
     ];
 
-    $form['llm']['vertex_settings']['llm_service_account'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Service Account JSON'),
-      '#default_value' => $llm_config['service_account_json'] ?? '',
-      '#description' => $this->t('Paste the entire service account JSON key here. Leave empty to use default credentials (when running on GCP).'),
-      '#rows' => 4,
+    $form['llm']['vertex_settings']['llm_service_account_runtime_notice'] = [
+      '#type' => 'item',
+      '#title' => $this->t('Service Account Credentials'),
+      '#markup' => $vertex_runtime_configured
+        ? $this->t('Configured via runtime secret injection. Drupal will not display or store the Vertex service-account JSON.')
+        : $this->t('Runtime-only. Set <code>ILAS_VERTEX_SA_JSON</code> in Pantheon runtime secrets or local DDEV environment settings. Drupal will not accept or export the Vertex service-account JSON.'),
     ];
 
     $form['llm']['llm_options'] = [
@@ -620,7 +630,6 @@ class AssistantSettingsForm extends ConfigFormBase {
       'api_key' => $form_state->getValue('llm_api_key'),
       'project_id' => $form_state->getValue('llm_project_id'),
       'location' => $form_state->getValue('llm_location'),
-      'service_account_json' => $form_state->getValue('llm_service_account'),
       'max_tokens' => (int) $form_state->getValue('llm_max_tokens'),
       'temperature' => (float) $form_state->getValue('llm_temperature'),
       'enhance_faq' => (bool) $form_state->getValue('llm_enhance_faq'),

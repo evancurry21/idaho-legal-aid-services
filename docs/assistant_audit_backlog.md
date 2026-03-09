@@ -63,6 +63,12 @@
 |--------|----------|-----------|---------|----------|-------------|--------|
 | EVAL-1 | — | **YES (new)** | No offline evaluation harness for intent routing accuracy | `AnalyticsLogger::logNoAnswer()` stores SHA-256 hashes — not reversible for eval. Need to build export + test framework. | None | prod |
 
+## 8. Re-audit remediation
+
+| Ticket | Audit ID | Verified? | Summary | Evidence | Constraints | Target |
+|--------|----------|-----------|---------|----------|-------------|--------|
+| RAUD-03 | C2 / F-15 | **YES (implemented in repo)** | Vertex service-account JSON is no longer accepted in the assistant admin UI or exportable via Drupal config. Runtime secret injection is the only supported credential source. | `AssistantSettingsForm.php`, `LlmEnhancer.php`, `settings.php`, `key.key.vertex_sa_credentials.yml`, `VertexRuntimeCredentialGuardTest.php` | Pantheon/runtime verification still requires deploy-time read-only checks. | next deploy |
+
 ---
 
 ## Prioritized Implementation Order

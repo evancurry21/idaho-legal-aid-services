@@ -155,6 +155,31 @@ class ConfigCompletenessDriftTest extends TestCase {
   }
 
   /**
+   * Vertex service-account JSON must not be exportable via config anymore.
+   */
+  public function testVertexServiceAccountJsonIsAbsentFromConfigContracts(): void {
+    $install = self::installConfig();
+    $active = self::activeConfig();
+    $schema = self::schemaConfig();
+
+    $this->assertArrayNotHasKey(
+      'service_account_json',
+      $install['llm'],
+      'Install config must not define llm.service_account_json',
+    );
+    $this->assertArrayNotHasKey(
+      'service_account_json',
+      $active['llm'],
+      'Active config export must not define llm.service_account_json',
+    );
+    $this->assertArrayNotHasKey(
+      'service_account_json',
+      $schema['ilas_site_assistant.settings']['mapping']['llm']['mapping'],
+      'Schema must not define llm.service_account_json',
+    );
+  }
+
+  /**
    * Cost-control block must exist in install + active config with key fields.
    */
   public function testCostControlBlockPresentAndComplete(): void {

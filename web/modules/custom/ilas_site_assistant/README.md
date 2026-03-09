@@ -127,11 +127,18 @@ For higher volume or enterprise needs:
 1. Enable Vertex AI API in Google Cloud Console
 2. Create a service account with Vertex AI User role
 3. Download the service account JSON key
-4. Configure in settings:
+4. Provide the credential only through runtime secret injection:
+   - Pantheon runtime secret: `ILAS_VERTEX_SA_JSON`
+   - Local DDEV environment: add `ILAS_VERTEX_SA_JSON=<json>` to `.ddev/.env`
+     and restart DDEV
+5. Configure in Drupal settings:
    - Provider: `Vertex AI`
    - Project ID: `your-gcp-project-id`
    - Location: `us-central1` (or nearest region)
-   - Service Account JSON: Paste the JSON key contents
+
+The assistant admin form no longer accepts or exports the Vertex
+service-account JSON. Drupal config exports must remain free of the private key
+blob.
 
 **Cost**: ~$0.075/1M input tokens, ~$0.30/1M output tokens for gemini-1.5-flash
 

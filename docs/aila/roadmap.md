@@ -7,6 +7,18 @@ Planning defaults applied:
 - `llm.enabled` remains disabled in `live` through Phase 2. (Refs: current-state §5; evidence-index CLAIM-069, CLAIM-119; system-map Diagram B; runbook §3)
 - Timeline = 12 weeks / 6 two-week sprints. (Refs: current-state §7; evidence-index CLAIM-108, CLAIM-115; system-map Diagram A; runbook §4)
 
+### Re-audit remediation addendum (2026-03-09)
+1. `RAUD-03` closes the repo-side implementation gap behind findings `C2` and
+   `F-15`: Vertex service-account JSON is removed from the assistant admin UI,
+   removed from install/active/schema config contracts, and resolved at runtime
+   only via `ILAS_VERTEX_SA_JSON` -> `$settings['ilas_vertex_sa_json']`.
+2. The parallel Drupal Key path is also remediated: `vertex_sa_credentials` now
+   uses the custom `ilas_runtime_site_setting` provider with non-secret config
+   only, instead of a config-stored key blob.
+3. Remaining closure work is deployment-bound: Pantheon environments must be
+   re-verified with read-only checks after deployment before the finding is
+   considered fully fixed in a live runtime.
+
 ## Phase-to-sprint mapping
 | Phase | Scope | Sprint mapping |
 |---|---|---|

@@ -964,15 +964,19 @@ Evidence precedence used in this audit:
   - `web/sites/default/settings.php:116-138`
 
 ### CLAIM-098
-- Claim: Runtime secret overrides exist for Aila LLM, Langfuse, AI key entities, Pinecone key entity, and Sentry DSN.
+- Claim: Runtime secret wiring exists for Aila LLM, Langfuse, AI key entities,
+  Pinecone key entity, and Sentry DSN; the Vertex service-account JSON is held
+  only in a Drupal site setting and a custom Key provider consumes that runtime
+  setting without storing the blob in Drupal config.
 - Evidence:
   - `web/sites/default/settings.php:190-193`
   - `web/sites/default/settings.php:201-204`
   - `web/sites/default/settings.php:212-221`
   - `web/sites/default/settings.php:228-231`
-  - `web/sites/default/settings.php:238-241`
-  - `web/sites/default/settings.php:250-253`
-  - `web/sites/default/settings.php:261-276`
+  - `web/sites/default/settings.php:242-245`
+  - `web/sites/default/settings.php:253-268`
+  - `config/key.key.vertex_sa_credentials.yml`
+  - `web/modules/custom/ilas_site_assistant/src/Plugin/KeyProvider/RuntimeSiteSettingKeyProvider.php`
 
 ### CLAIM-099
 - Claim: Production (`PANTHEON_ENVIRONMENT=live`) overrides include GA tag ID, chatbot per-IP rate limits, and a hard-disable for `llm.enabled`.
@@ -2358,3 +2362,19 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/SloAlertServiceTest.php` (SLO alert prerequisite proof)
   - `docs/aila/runtime/phase3-obj2-performance-cost-guardrails.txt` (Phase 3 objective continuity artifact)
   - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt` (Phase 3 exit continuity artifact)
+
+### CLAIM-166
+- Claim: Re-audit remediation `RAUD-03` removes plaintext Vertex credential
+  storage from the ILAS assistant admin UI and exported Drupal config, while
+  preserving runtime-only secret injection for Vertex auth.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+  - `web/sites/default/settings.php`
+  - `web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml`
+  - `config/ilas_site_assistant.settings.yml`
+  - `config/key.key.vertex_sa_credentials.yml`
+  - `web/modules/custom/ilas_site_assistant/src/Plugin/KeyProvider/RuntimeSiteSettingKeyProvider.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/VertexRuntimeCredentialGuardTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ConfigCompletenessDriftTest.php`
+  - `docs/aila/runtime/raud-03-vertex-runtime-secret-remediation.txt`

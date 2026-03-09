@@ -203,7 +203,7 @@ if ($ilas_gemini_key) {
  */
 $ilas_vertex_sa = _ilas_get_secret('ILAS_VERTEX_SA_JSON');
 if ($ilas_vertex_sa) {
-  $config['ilas_site_assistant.settings']['llm.service_account_json'] = $ilas_vertex_sa;
+  $settings['ilas_vertex_sa_json'] = $ilas_vertex_sa;
 }
 
 /**
@@ -231,16 +231,6 @@ if (defined('PANTHEON_ENVIRONMENT')) {
 $gemini_for_ai = _ilas_get_secret('ILAS_GEMINI_API_KEY');
 if ($gemini_for_ai) {
   $config['key.key.gemini_api_key']['key_provider_settings']['key_value'] = $gemini_for_ai;
-}
-
-/**
- * Vertex AI credentials for Drupal AI module (fallback provider).
- * Key entity "vertex_sa_credentials" (config provider, empty default).
- * Reuses the same SA JSON secret as ilas_site_assistant above.
- */
-$vertex_sa_for_ai = _ilas_get_secret('ILAS_VERTEX_SA_JSON');
-if ($vertex_sa_for_ai) {
-  $config['key.key.vertex_sa_credentials']['key_provider_settings']['key_value'] = $vertex_sa_for_ai;
 }
 
 /**

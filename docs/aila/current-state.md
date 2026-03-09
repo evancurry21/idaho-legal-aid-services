@@ -249,7 +249,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Config defaults vs active | Active config is now synced with install defaults: all blocks (`fallback_gate`, `safety_alerting`, `history_fallback`, `ab_testing`, `langfuse`, full LLM sub-keys) are present in active export. `conversation_logging.enabled` intentionally `true` in active (install default is `false`). `ConfigCompletenessDriftTest` enforces ongoing parity.[^CLAIM-093][^CLAIM-094][^CLAIM-124] |
 | Config schema coverage | Schema covers all install-default blocks including `vector_search`, `fallback_gate`, `safety_alerting`, `history_fallback`, `ab_testing`, `langfuse`, and full LLM sub-keys. `ConfigCompletenessDriftTest` enforces schema-install parity.[^CLAIM-095][^CLAIM-096][^CLAIM-124] |
 | Cache/state dependencies | Uses dedicated cache bin + conversation/follow-up TTLs; monitor/circuit/rate/safety trackers use Drupal state.[^CLAIM-020][^CLAIM-046][^CLAIM-077][^CLAIM-084][^CLAIM-089] |
-| Key/secrets management | `_ilas_get_secret()` reads Pantheon runtime secrets or env vars; runtime config overrides apply for LLM, Langfuse, Pinecone, Sentry, AI keys.[^CLAIM-097][^CLAIM-098] |
+| Key/secrets management | `_ilas_get_secret()` reads Pantheon runtime secrets or env vars; runtime config overrides remain in place for Gemini/Langfuse/Pinecone/Sentry, while the Vertex service-account JSON is now held only in Drupal site settings (`$settings['ilas_vertex_sa_json']`) and the custom Key provider reads that runtime setting without storing the blob in config.[^CLAIM-097][^CLAIM-098] |
 | Env-specific overrides | `live` env branch sets GA tag id and per-IP limits in settings.php; Pantheon services YAML differs preprod vs production.[^CLAIM-099][^CLAIM-009] |
 | Dependency inventory | Composer and npm dependency snapshots include AI providers, Pinecone, Search API, SecKit, Raven, Langfuse SDK, Drush, Promptfoo.[^CLAIM-102][^CLAIM-103] |
 
@@ -267,7 +267,7 @@ Values below are taken from install defaults, exported active config, and settin
 | Conversation logging | `conversation_logging.*` | `enabled=false`, retention `72h`, redaction true | `enabled=true`, retention `72h`, redaction true | Verified `enabled=true`, `retention_hours=72`, `redact_pii=true` on dev/test/live | DB logging is opt-in by config | [^CLAIM-047][^CLAIM-088][^CLAIM-093][^CLAIM-094][^CLAIM-119] |
 | LLM master switch | `llm.enabled` | `false` | `false` | Verified `false` on dev/test/live; live runtime override enforces `false` | Gated before any LLM call | [^CLAIM-069][^CLAIM-094][^CLAIM-099][^CLAIM-119] |
 | LLM provider/model | `llm.provider`, `llm.model` | `gemini_api`, `gemini-1.5-flash` | `gemini_api`, `gemini-1.5-flash` | Verified `gemini_api` + `gemini-1.5-flash` on dev/test/live | Endpoint constants support both providers | [^CLAIM-073][^CLAIM-074][^CLAIM-093][^CLAIM-094][^CLAIM-119] |
-| LLM credentials | `ILAS_GEMINI_API_KEY`, `ILAS_VERTEX_SA_JSON`, `llm.project_id` | empty | API key/project/service account empty in export | Runtime secret override path in settings.php | Values redacted intentionally | [^CLAIM-069][^CLAIM-098] |
+| LLM credentials | `ILAS_GEMINI_API_KEY`, `ILAS_VERTEX_SA_JSON`, `llm.project_id` | API key empty, project ID empty, no service-account blob key in install config | API key/project ID empty; `service_account_json` absent from export | `settings.php` injects Gemini via config override and Vertex via runtime-only site setting | Values redacted intentionally; Vertex JSON is no longer exportable through Drupal config | [^CLAIM-069][^CLAIM-098] |
 | LLM generation params | `llm.max_tokens`, `llm.temperature` + hard-coded `topP=0.8`, `topK=40` | `150`, `0.3` | `150`, `0.3` | Same code path | Safety threshold key also applied | [^CLAIM-072][^CLAIM-093][^CLAIM-094] |
 | LLM retries/timeout | `llm.max_retries`; code timeout `10s` | `2` | `2` (synced) | Matches install default | Retryable HTTP codes include 429/5xx | [^CLAIM-075][^CLAIM-093][^CLAIM-094][^CLAIM-124] |
 | LLM cache | `llm.cache_ttl` | `3600` | `3600` (synced) | Matches install default | Cache key includes policy version | [^CLAIM-076][^CLAIM-093][^CLAIM-094][^CLAIM-124] |
@@ -722,6 +722,34 @@ approvals) verification:
    `false` on all environments. Live sample rate is policy-capped at 0.1.[^CLAIM-119][^CLAIM-120]
 4. **Gate test**: `TelemetryCredentialGateTest.php` enforces settings.php wiring,
    install config defaults, runtime evidence, and destination documentation.[^CLAIM-126]
+
+### Re-Audit Remediation RAUD-03 Vertex Runtime Secret Disposition (2026-03-09)
+
+This dated addendum records re-audit remediation `RAUD-03` for findings `C2`
+and `F-15`.
+
+1. The custom admin form no longer exposes an editable Vertex service-account
+   JSON textarea. Operators can still set `llm.provider`, `llm.project_id`, and
+   `llm.location`, but the credential itself is runtime-only and is not
+   displayed or stored in Drupal config.
+2. `settings.php` now loads `ILAS_VERTEX_SA_JSON` into the Drupal site setting
+   `ilas_vertex_sa_json` instead of writing the blob into
+   `ilas_site_assistant.settings` or `key.key.vertex_sa_credentials`.
+3. `LlmEnhancer` now reads the Vertex credential from the runtime site setting
+   only, then falls back to the metadata-server token path when the runtime
+   secret is absent.
+4. The synced key entity `vertex_sa_credentials` now uses the custom
+   `ilas_runtime_site_setting` provider with non-secret config
+   (`settings_key: ilas_vertex_sa_json`) and `key_input: none`, eliminating the
+   second Drupal config secret-storage path.
+5. Regression coverage was added in `VertexRuntimeCredentialGuardTest.php` and
+   `ConfigCompletenessDriftTest.php` to fail if the service-account JSON can be
+   exported or saved again.
+6. Local verification is captured in
+   `docs/aila/runtime/raud-03-vertex-runtime-secret-remediation.txt`; Pantheon
+   runtime-secret presence remains deployment-bound and must be rechecked after
+   deployment before the finding can be marked fully fixed in a live
+   environment.
 
 ### Phase 1 Exit #1 Non-Live Alert + Dashboard Verification (2026-03-03)
 

@@ -392,6 +392,78 @@ function ilas_site_assistant_update_10005() {
 }
 
 /**
+ * Removes stored Vertex credential blobs from config and migrates the key path.
+ */
+function ilas_site_assistant_update_10006() {
+  $messages = [];
+
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $llm = $config->get('llm');
+  if (is_array($llm) && array_key_exists('service_account_json', $llm)) {
+    unset($llm['service_account_json']);
+    $config->set('llm', $llm)->save(TRUE);
+    $messages[] = t('Removed llm.service_account_json from active ILAS Site Assistant config.');
+  }
+
+  if (!\Drupal::moduleHandler()->moduleExists('key')) {
+    $messages[] = t('Key module is not enabled; skipped Vertex key entity migration.');
+    return implode(' ', $messages);
+  }
+
+  $vertexKey = \Drupal::configFactory()->getEditable('key.key.vertex_sa_credentials');
+  $vertexKeyData = $vertexKey->getRawData();
+  if (!is_array($vertexKeyData) || $vertexKeyData === []) {
+    $messages[] = t('Vertex key entity config was not found.');
+    return implode(' ', $messages);
+  }
+
+  $changed = FALSE;
+  if (($vertexKeyData['key_provider'] ?? NULL) !== 'ilas_runtime_site_setting') {
+    $vertexKey->set('key_provider', 'ilas_runtime_site_setting');
+    $changed = TRUE;
+  }
+
+  $providerSettings = $vertexKeyData['key_provider_settings'] ?? [];
+  if (!is_array($providerSettings) || ($providerSettings['settings_key'] ?? NULL) !== 'ilas_vertex_sa_json' || array_key_exists('key_value', $providerSettings)) {
+    $vertexKey->set('key_provider_settings', [
+      'settings_key' => 'ilas_vertex_sa_json',
+    ]);
+    $changed = TRUE;
+  }
+
+  if (($vertexKeyData['key_input'] ?? NULL) !== 'none') {
+    $vertexKey->set('key_input', 'none');
+    $changed = TRUE;
+  }
+
+  if (($vertexKeyData['description'] ?? NULL) !== 'GCP service account JSON for Vertex AI (fallback provider). Value resolved from a runtime-only Drupal site setting populated in settings.php.') {
+    $vertexKey->set('description', 'GCP service account JSON for Vertex AI (fallback provider). Value resolved from a runtime-only Drupal site setting populated in settings.php.');
+    $changed = TRUE;
+  }
+
+  $dependencies = $vertexKeyData['dependencies'] ?? [];
+  $moduleDependencies = $dependencies['module'] ?? [];
+  if (!is_array($moduleDependencies) || !in_array('ilas_site_assistant', $moduleDependencies, TRUE)) {
+    $moduleDependencies = is_array($moduleDependencies) ? $moduleDependencies : [];
+    $moduleDependencies[] = 'ilas_site_assistant';
+    sort($moduleDependencies);
+    $dependencies['module'] = $moduleDependencies;
+    $vertexKey->set('dependencies', $dependencies);
+    $changed = TRUE;
+  }
+
+  if ($changed) {
+    $vertexKey->save(TRUE);
+    $messages[] = t('Migrated vertex_sa_credentials to the runtime-only site-setting key provider.');
+  }
+  else {
+    $messages[] = t('Vertex key entity already uses the runtime-only site-setting key provider.');
+  }
+
+  return implode(' ', $messages);
+}
+
+/**
  * Implements hook_install().
  */
 function ilas_site_assistant_install() {

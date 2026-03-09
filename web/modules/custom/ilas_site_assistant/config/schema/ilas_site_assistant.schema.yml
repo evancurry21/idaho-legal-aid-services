@@ -157,9 +157,6 @@ ilas_site_assistant.settings:
         location:
           type: string
           label: 'Vertex AI location'
-        service_account_json:
-          type: string
-          label: 'Service account JSON'
         max_tokens:
           type: integer
           label: 'Maximum output tokens'

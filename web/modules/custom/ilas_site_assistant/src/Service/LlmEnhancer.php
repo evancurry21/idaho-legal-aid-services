@@ -5,6 +5,7 @@ namespace Drupal\ilas_site_assistant\Service;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Site\Settings;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\ilas_site_assistant\Service\InputNormalizer;
 use GuzzleHttp\ClientInterface;
@@ -840,16 +841,21 @@ PROMPT,
    *   The access token.
    */
   protected function getVertexAiAccessToken(): string {
-    $config = $this->configFactory->get('ilas_site_assistant.settings');
-
-    // Option 1: Service account JSON key stored in config.
-    $serviceAccountJson = $config->get('llm.service_account_json');
+    $serviceAccountJson = $this->getVertexServiceAccountJson();
     if (!empty($serviceAccountJson)) {
       return $this->getTokenFromServiceAccount($serviceAccountJson);
     }
 
     // Option 2: Use metadata server (when running on GCP).
     return $this->getTokenFromMetadataServer();
+  }
+
+  /**
+   * Returns the runtime-injected Vertex service account JSON, if present.
+   */
+  protected function getVertexServiceAccountJson(): string {
+    $serviceAccountJson = Settings::get('ilas_vertex_sa_json', '');
+    return is_string($serviceAccountJson) ? $serviceAccountJson : '';
   }
 
   /**

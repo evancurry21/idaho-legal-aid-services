@@ -1881,6 +1881,25 @@ Expected verification result:
 - If the target environment is auth-protected, add request auth headers in
   `promptfoo-evals/providers/ilas-live.js`.
 
+### Vertex runtime-only credential verification
+
+- `ILAS_VERTEX_SA_JSON` must be provisioned only as a runtime secret; the
+  assistant admin form no longer accepts or stores the Vertex service-account
+  JSON.
+- `settings.php` loads that secret into `$settings['ilas_vertex_sa_json']`.
+  `LlmEnhancer` and the `vertex_sa_credentials` Key entity both resolve the
+  runtime site setting; neither path stores the secret blob in Drupal config.
+- Read-only local checks after deploy/import:
+  - `ddev drush config:get ilas_site_assistant.settings llm --format=yaml`
+  - `ddev drush config:get key.key.vertex_sa_credentials --format=yaml`
+  - Optional runtime-presence check without printing the secret:
+    `ddev drush php:eval "echo \Drupal::service('key.repository')->getKey('vertex_sa_credentials')->getKeyValue() ? 'present' : 'missing';"`
+- Read-only Pantheon checks after deployment:
+  - `terminus remote:drush idaho-legal-aid-services.dev -- config:get ilas_site_assistant.settings llm --format=yaml`
+  - `terminus remote:drush idaho-legal-aid-services.dev -- config:get key.key.vertex_sa_credentials --format=yaml`
+  - Optional runtime-presence check without printing the secret:
+    `terminus remote:drush idaho-legal-aid-services.dev -- php:eval "echo \Drupal::service('key.repository')->getKey('vertex_sa_credentials')->getKeyValue() ? 'present' : 'missing';"`
+
 ### GitHub mirror onboarding (WSL2)
 
 ```bash

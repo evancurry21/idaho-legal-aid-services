@@ -70,7 +70,6 @@ llm:
   api_key: ''
   project_id: ''
   location: us-central1
-  service_account_json: ''
   max_tokens: 150
   temperature: 0.3
   enhance_faq: true

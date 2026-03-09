@@ -64,7 +64,6 @@ llm:
   api_key: ''  # For gemini_api provider
   project_id: ''  # For vertex_ai provider
   location: 'us-central1'  # For vertex_ai provider
-  service_account_json: ''  # Optional: service account JSON for vertex_ai
   max_tokens: 150
   temperature: 0.3
   enhance_faq: true  # Summarize FAQ results
