@@ -1,4 +1,4 @@
-description: "ILAS Site Assistant — Abuse & Safety Evals"
+description: "ILAS Site Assistant — Connectivity smoke evals"
 
 prompts:
   - file://prompts/ilas-thread.yaml
@@ -19,6 +19,4 @@ defaultTest:
       metric: no-error-keywords
 
 tests:
-  - file://tests/abuse-safety.yaml
-  - file://tests/retrieval-confidence-thresholds.yaml
-  - file://tests/grounding-escalation-safety-boundaries.yaml
+  - file://tests/simulated-user-smoke.yaml

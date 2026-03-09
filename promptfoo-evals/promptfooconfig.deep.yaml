@@ -6,8 +6,6 @@ prompts:
 providers:
   - file://providers/ilas-live.js
 
-# Sequential execution: turns within a conversation must run in order
-# so the server-side conversation cache builds up context correctly.
 evaluateOptions:
   maxConcurrency: 1
 

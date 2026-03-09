@@ -6,6 +6,9 @@ prompts:
 providers:
   - file://providers/ilas-live.js
 
+evaluateOptions:
+  maxConcurrency: 1
+
 defaultTest:
   assert:
     - type: javascript

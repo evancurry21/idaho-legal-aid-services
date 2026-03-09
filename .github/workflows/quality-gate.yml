@@ -74,9 +74,14 @@ jobs:
       - name: Run UX/a11y widget hardening suite (P3-EXT-01)
         run: node web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs
 
+      - name: Run promptfoo transport/runtime tests
+        run: npm run test:promptfoo:runtime
+
       - name: Run promptfoo gate (real eval when ILAS_ASSISTANT_URL is configured)
         env:
           ILAS_ASSISTANT_URL: ${{ secrets.ILAS_ASSISTANT_URL }}
+          ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE: ${{ vars.ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE }}
+          ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR: ${{ vars.ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR }}
           CI_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail

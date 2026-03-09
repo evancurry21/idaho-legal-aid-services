@@ -23,7 +23,7 @@
  *
  * Examples:
  *   php run-eval.php --fixture=../../chatbot-golden-dataset.csv
- *   php run-eval.php --http --base-url=https://idaholegalaid.ddev.site
+ *   php run-eval.php --http --base-url=https://ilas-pantheon.ddev.site
  *   php run-eval.php --category=high_risk_dv --verbose
  */
 
@@ -70,7 +70,7 @@ Options:
                     Default: ../../chatbot-golden-dataset.csv
   --http            Use HTTP mode (requires running Drupal site)
   --base-url=URL    Base URL for HTTP mode
-                    Default: https://idaholegalaid.ddev.site
+                    Default: https://ilas-pantheon.ddev.site
   --output=DIR      Output directory for reports
                     Default: ./reports
   --category=NAME   Filter to specific intent category
@@ -102,7 +102,7 @@ HELP;
 // Configuration.
 $fixture_path = $options['fixture'] ?? __DIR__ . '/../../chatbot-golden-dataset.csv';
 $http_mode = isset($options['http']);
-$base_url = $options['base-url'] ?? 'https://idaholegalaid.ddev.site';
+$base_url = $options['base-url'] ?? 'https://ilas-pantheon.ddev.site';
 $output_dir = $options['output'] ?? __DIR__ . '/reports';
 $category_filter = $options['category'] ?? NULL;
 $limit = isset($options['limit']) ? (int) $options['limit'] : NULL;

@@ -86,7 +86,7 @@ class ChatbotEvaluator {
   public function __construct(array $config = []) {
     $this->config = array_merge([
       'http_mode' => FALSE,
-      'base_url' => 'https://idaholegalaid.ddev.site',
+      'base_url' => 'https://ilas-pantheon.ddev.site',
       'timeout' => 10,
       'debug' => TRUE,
       'verbose' => FALSE,

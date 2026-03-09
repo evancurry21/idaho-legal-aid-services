@@ -6,6 +6,7 @@
     "eval:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh eval",
     "eval:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action eval",
     "eval:promptfoo:live": "ILAS_ASSISTANT_URL=https://idaholegalaid.org/assistant/api/message bash promptfoo-evals/scripts/run-promptfoo.sh eval",
+    "test:promptfoo:runtime": "node --test promptfoo-evals/tests/node/*.test.js",
     "view:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh view",
     "view:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action view"
   },

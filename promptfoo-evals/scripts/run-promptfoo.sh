@@ -39,6 +39,9 @@ fi
 # ── Ensure output directory exists ───────────────────────────────────────────
 mkdir -p "$EVALS_DIR/output"
 
+# ── Use repo-installed Promptfoo CLI ────────────────────────────────────────
+PROMPTFOO_CMD=(npx --no-install promptfoo)
+
 # ── Run ──────────────────────────────────────────────────────────────────────
 ACTION="${1:-eval}"
 
@@ -46,7 +49,7 @@ case "$ACTION" in
   eval)
     echo "Running Promptfoo evaluation..."
     OUTPUT_FILE="${PROMPTFOO_OUTPUT_FILE:-$EVALS_DIR/output/results.json}"
-    npx promptfoo@latest eval --config "$CONFIG" --output "$OUTPUT_FILE"
+    "${PROMPTFOO_CMD[@]}" eval --config "$CONFIG" --output "$OUTPUT_FILE"
     echo "Done. Results written to $OUTPUT_FILE"
     ;;
   view)
@@ -65,7 +68,7 @@ case "$ACTION" in
     echo "Open this URL in your Windows browser."
     echo "Press Ctrl+C to stop the viewer."
     echo ""
-    npx promptfoo@latest view --port "$PORT" --yes
+    "${PROMPTFOO_CMD[@]}" view --port "$PORT" --yes
     ;;
   *)
     echo "Unknown action: $ACTION" >&2

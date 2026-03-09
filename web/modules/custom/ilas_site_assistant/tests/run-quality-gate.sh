@@ -15,7 +15,7 @@
 #
 # Env vars for promptfoo (only needed with --with-promptfoo):
 #   ILAS_ASSISTANT_URL     — full URL to /assistant/api/message
-#     Local DDEV:  https://idaholegalaid.ddev.site/assistant/api/message
+#     Local DDEV:  https://ilas-pantheon.ddev.site/assistant/api/message
 #     Dev:         https://dev-idaholegalaid.pantheonsite.io/assistant/api/message
 #   ILAS_REQUEST_DELAY_MS  — 0 for DDEV, 31000 for live (rate-limit pacing)
 #
@@ -202,7 +202,7 @@ if [[ "$WITH_PROMPTFOO" == "true" ]]; then
 
   if [ -z "${ILAS_ASSISTANT_URL:-}" ]; then
     echo "ERROR: ILAS_ASSISTANT_URL not set. Export it before running." >&2
-    echo "  Local:  export ILAS_ASSISTANT_URL=https://idaholegalaid.ddev.site/assistant/api/message" >&2
+    echo "  Local:  export ILAS_ASSISTANT_URL=https://ilas-pantheon.ddev.site/assistant/api/message" >&2
     echo "  Dev:    export ILAS_ASSISTANT_URL=https://dev-idaholegalaid.pantheonsite.io/assistant/api/message" >&2
     append_phase_result "promptfoo" "2"
     exit 2

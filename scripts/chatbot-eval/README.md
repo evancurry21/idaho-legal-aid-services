@@ -53,7 +53,7 @@ php run-eval.php
 php run-eval.php --verbose
 
 # Run via HTTP against DDEV site
-php run-eval.php --http --base-url=https://idaholegalaid.ddev.site --verbose
+php run-eval.php --http --base-url=https://ilas-pantheon.ddev.site --verbose
 ```
 
 ### Run Specific Categories

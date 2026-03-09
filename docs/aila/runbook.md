@@ -2541,8 +2541,8 @@ rg -n "rag-contract-meta-present|rag-citation-coverage|rag-low-confidence-refusa
 rg -n "assistant/api/session/bootstrap|session/token|\\[contract_meta\\]" \
   promptfoo-evals/providers/ilas-live.js
 
-# 3) Full promptfoo gate (local DDEV endpoint via HTTP for Node fetch compatibility).
-ILAS_ASSISTANT_URL="http://ilas-pantheon.ddev.site/assistant/api/message" \
+# 3) Full promptfoo gate (local DDEV endpoint with mkcert trust auto-discovery).
+ILAS_ASSISTANT_URL="https://ilas-pantheon.ddev.site/assistant/api/message" \
   CI_BRANCH=feature/p2-ext-01 scripts/ci/run-promptfoo-gate.sh \
   --env dev --mode advisory
 
@@ -2611,7 +2611,7 @@ Full promptfoo gate execution (requires live DDEV endpoint):
 
 ```bash
 # Run full promptfoo gate with retrieval-threshold scenarios.
-ILAS_ASSISTANT_URL="http://ilas-pantheon.ddev.site/assistant/api/message" \
+ILAS_ASSISTANT_URL="https://ilas-pantheon.ddev.site/assistant/api/message" \
   CI_BRANCH=feature/p2-ext-02 scripts/ci/run-promptfoo-gate.sh \
   --env dev --mode advisory
 

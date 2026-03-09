@@ -11,9 +11,11 @@ CURRENT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null ||
 echo "Strict pre-push gate: remote=${REMOTE_NAME} branch=${CURRENT_BRANCH}"
 echo "Remote URL: ${REMOTE_URL}"
 
-if [[ -z "${ILAS_ASSISTANT_URL:-}" ]] && ! command -v terminus >/dev/null 2>&1; then
-  echo "ERROR: ILAS_ASSISTANT_URL is unset and Terminus is unavailable." >&2
-  echo "Set ILAS_ASSISTANT_URL or install/authenticate Terminus before push." >&2
+if [[ -z "${ILAS_ASSISTANT_URL:-}" ]] &&
+  ! command -v ddev >/dev/null 2>&1 &&
+  ! command -v terminus >/dev/null 2>&1; then
+  echo "ERROR: ILAS_ASSISTANT_URL is unset and neither DDEV nor Terminus is available." >&2
+  echo "Set ILAS_ASSISTANT_URL, start DDEV, or install/authenticate Terminus before push." >&2
   exit 1
 fi
 

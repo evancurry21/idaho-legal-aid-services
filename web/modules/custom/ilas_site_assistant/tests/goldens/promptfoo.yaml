@@ -11,7 +11,7 @@ description: "Aila Golden Transcript Evaluation"
 providers:
   - id: ilas-assistant
     config:
-      url: "{{ILAS_ASSISTANT_URL | default: 'https://idaholegalaid.ddev.site/assistant/api/message'}}"
+      url: "{{ILAS_ASSISTANT_URL | default: 'https://ilas-pantheon.ddev.site/assistant/api/message'}}"
       method: POST
       headers:
         Content-Type: application/json

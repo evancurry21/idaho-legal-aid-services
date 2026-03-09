@@ -6,7 +6,8 @@
 
 param(
     [ValidateSet("eval", "view")]
-    [string]$Action = "eval"
+    [string]$Action = "eval",
+    [string]$ConfigOverride = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,6 +23,9 @@ $env:PROMPTFOO_SELF_HOSTED = "1"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $EvalsDir = Split-Path -Parent $ScriptDir
 $Config = Join-Path $EvalsDir "promptfooconfig.yaml"
+if ($ConfigOverride) {
+    $Config = Join-Path $EvalsDir $ConfigOverride
+}
 
 # ── Project-local eval DB ─────────────────────────────────────────────────────
 $env:PROMPTFOO_CONFIG_DIR = Join-Path $EvalsDir ".promptfoo"
@@ -37,12 +41,16 @@ if (-not (Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 }
 
+# ── Use repo-installed Promptfoo CLI ────────────────────────────────────────
+$PromptfooArgs = @("--no-install", "promptfoo")
+
 # ── Run ──────────────────────────────────────────────────────────────────────
 switch ($Action) {
     "eval" {
         Write-Host "Running Promptfoo evaluation..."
-        npx promptfoo@latest eval --config $Config
-        Write-Host "Done. Results written to $OutputDir\results.json"
+        $OutputFile = if ($env:PROMPTFOO_OUTPUT_FILE) { $env:PROMPTFOO_OUTPUT_FILE } else { Join-Path $OutputDir "results.json" }
+        & npx @PromptfooArgs eval --config $Config --output $OutputFile
+        Write-Host "Done. Results written to $OutputFile"
     }
     "view" {
         $Port = if ($env:PROMPTFOO_PORT) { [int]$env:PROMPTFOO_PORT } else { 15500 }
@@ -62,6 +70,6 @@ switch ($Action) {
         Write-Host "Viewer running at http://localhost:$Port"
         Write-Host "Press Ctrl+C to stop the viewer."
         Write-Host ""
-        npx promptfoo@latest view --port $Port --yes
+        & npx @PromptfooArgs view --port $Port --yes
     }
 }

@@ -39,7 +39,7 @@ promptfoo-evals/
 ### Prerequisites
 
 - Node.js >= 18 (for `npx`)
-- No global install needed — scripts use `npx promptfoo@latest`
+- Install the repo-pinned dependency with `npm ci`; wrapper scripts use `npx --no-install promptfoo`
 
 ### Run evaluation against LIVE endpoint
 
@@ -209,7 +209,7 @@ Each test case should include:
 ## Troubleshooting
 
 - **"Cannot find module promptfoo"** — ensure Node.js >= 18 is installed.
-  Scripts use `npx promptfoo@latest` so no global install is needed.
+  Run `npm ci` first; wrapper scripts use the repo-installed `promptfoo` package.
 - **Network errors** — the default `echo` provider makes no network calls.
   If you see connection errors, you may have uncommented the HTTP provider
   without setting `ILAS_ASSISTANT_URL`.

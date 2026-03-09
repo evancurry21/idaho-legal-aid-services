@@ -60,7 +60,7 @@ Options:
                        Default: ./retrieval-fixture.json
   --http               Use HTTP mode (requires running Drupal site)
   --base-url=URL       Base URL for HTTP mode
-                       Default: https://idaholegalaid.ddev.site
+                       Default: https://ilas-pantheon.ddev.site
   --output=DIR         Output directory for reports
                        Default: ./reports
   --category=NAME      Filter to specific category
@@ -98,7 +98,7 @@ HELP;
 // Configuration.
 $fixture_path = $options['fixture'] ?? __DIR__ . '/retrieval-fixture.json';
 $http_mode = isset($options['http']);
-$base_url = $options['base-url'] ?? 'https://idaholegalaid.ddev.site';
+$base_url = $options['base-url'] ?? 'https://ilas-pantheon.ddev.site';
 $output_dir = $options['output'] ?? __DIR__ . '/reports';
 $category_filter = $options['category'] ?? NULL;
 $type_filter = $options['type'] ?? NULL;

@@ -71,6 +71,7 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('=~ ^release/', $script);
     $this->assertStringContainsString('EFFECTIVE_MODE="blocking"', $script);
     $this->assertStringContainsString('EFFECTIVE_MODE="advisory"', $script);
+    $this->assertStringContainsString('promptfooconfig.smoke.yaml', $script);
     $this->assertStringContainsString('promptfooconfig.deep.yaml', $script);
     $this->assertStringContainsString('promptfooconfig.abuse.yaml', $script);
     $this->assertStringContainsString('config_file=', $script);
@@ -100,9 +101,12 @@ final class QualityGateEnforcementContractTest extends TestCase {
       $workflow,
       'Promptfoo gate must include the explicit P3-EXT-01 step name'
     );
+    $this->assertStringContainsString('Run promptfoo transport/runtime tests', $workflow);
     $this->assertStringContainsString('run-promptfoo-gate.sh', $workflow);
     $this->assertStringContainsString('--skip-eval', $workflow);
     $this->assertStringContainsString('--simulate-pass-rate', $workflow);
+    $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE', $workflow);
+    $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR', $workflow);
 
     // Branch-aware policy annotation.
     $this->assertStringContainsString('BLOCKING', $workflow);
@@ -178,7 +182,7 @@ final class QualityGateEnforcementContractTest extends TestCase {
   public function testPromptfooGateSkipEvalBeforeScriptCheck(): void {
     $script = self::readFile('scripts/ci/run-promptfoo-gate.sh');
 
-    $skipEvalPos = strpos($script, 'if [[ "$SKIP_EVAL" != "true" ]]');
+    $skipEvalPos = strpos($script, 'if [[ "$SKIP_EVAL" == "true" ]]');
     $scriptCheckPos = strpos($script, 'if [[ ! -x "$PROMPTFOO_SCRIPT" ]]');
 
     $this->assertNotFalse($skipEvalPos, 'SKIP_EVAL guard must exist in script');
