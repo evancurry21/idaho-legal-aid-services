@@ -78,6 +78,18 @@ class AssistantApiController extends ControllerBase {
   const OFFICE_FOLLOWUP_MAX_TURNS = 2;
 
   /**
+   * Authoritative request-context quick actions accepted by /message.
+   */
+  const REQUEST_CONTEXT_QUICK_ACTIONS = [
+    'apply' => 'apply_for_help',
+    'hotline' => 'legal_advice_line',
+    'forms' => 'forms_finder',
+    'guides' => 'guides_finder',
+    'faq' => 'faq',
+    'topics' => 'services_overview',
+  ];
+
+  /**
    * The config factory.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
@@ -415,6 +427,42 @@ class AssistantApiController extends ControllerBase {
   }
 
   /**
+   * Normalizes the public /message request context to the approved schema.
+   *
+   * Unknown keys are stripped deterministically. The only accepted key is
+   * quickAction, and it must match the controller short-circuit allowlist.
+   *
+   * @param mixed $context
+   *   Raw decoded context value from the request payload.
+   *
+   * @return array
+   *   Normalized context safe to pass downstream.
+   *
+   * @throws \InvalidArgumentException
+   *   Thrown when the provided context is not a JSON object.
+   */
+  private function normalizeRequestContext($context): array {
+    if ($context === NULL) {
+      return [];
+    }
+
+    if (!is_array($context) || array_is_list($context)) {
+      throw new \InvalidArgumentException('Context must be an object.');
+    }
+
+    $normalized = [];
+    if (
+      array_key_exists('quickAction', $context) &&
+      is_string($context['quickAction']) &&
+      isset(self::REQUEST_CONTEXT_QUICK_ACTIONS[$context['quickAction']])
+    ) {
+      $normalized['quickAction'] = $context['quickAction'];
+    }
+
+    return $normalized;
+  }
+
+  /**
    * Returns normalized request-trust diagnostics for the supplied request.
    */
   private function inspectRequestTrust(Request $request): array {
@@ -552,6 +600,18 @@ class AssistantApiController extends ControllerBase {
       return $this->jsonResponse(['error' => 'Invalid request', 'request_id' => $request_id], 400, [], $request_id);
     }
 
+    try {
+      $context = $this->normalizeRequestContext($data['context'] ?? NULL);
+    }
+    catch (\InvalidArgumentException $e) {
+      return $this->jsonResponse([
+        'error' => 'Invalid request',
+        'error_code' => 'invalid_context',
+        'message' => 'Context must be a JSON object when provided.',
+        'request_id' => $request_id,
+      ], 400, [], $request_id);
+    }
+
     // Start performance tracking.
     $start_time = microtime(TRUE);
 
@@ -602,7 +662,6 @@ class AssistantApiController extends ControllerBase {
     if ($debug_mode) {
       $debug_meta['safety_flags'] = $safety_flags_for_gate;
     }
-    $context = $data['context'] ?? [];
 
     // Parse ephemeral conversation ID (client-generated UUID).
     $conversation_id = NULL;
@@ -953,14 +1012,6 @@ class AssistantApiController extends ControllerBase {
     // Quick-action short-circuit: when the request comes from a suggestion
     // button click, bypass all classifiers/routers and use the action directly.
     $this->langfuseTracer?->startSpan('intent.route');
-    $quick_action_intents = [
-      'apply' => 'apply_for_help',
-      'hotline' => 'legal_advice_line',
-      'forms' => 'forms_finder',
-      'guides' => 'guides_finder',
-      'faq' => 'faq',
-      'topics' => 'services_overview',
-    ];
     // Turn classification: determine NEW/FOLLOW_UP/INVENTORY/RESET before routing.
     $turn_type = TurnClassifier::classifyTurn($user_message, $server_history, time());
     $this->langfuseTracer?->addEvent('turn.classified', [
@@ -973,9 +1024,9 @@ class AssistantApiController extends ControllerBase {
     }
 
     $quick_action = $context['quickAction'] ?? NULL;
-    if ($quick_action && isset($quick_action_intents[$quick_action])) {
+    if ($quick_action && isset(self::REQUEST_CONTEXT_QUICK_ACTIONS[$quick_action])) {
       $intent = [
-        'type' => $quick_action_intents[$quick_action],
+        'type' => self::REQUEST_CONTEXT_QUICK_ACTIONS[$quick_action],
         'confidence' => 1.0,
         'source' => 'quick_action',
         'extraction' => [],

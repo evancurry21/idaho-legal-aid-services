@@ -281,12 +281,13 @@ Send a chat message.
 **Request:**
 ```json
 {
-  "message": "I need help with eviction",
-  "context": {
-    "history": []
-  }
+  "message": "I need help with eviction"
 }
 ```
+
+`context` is optional. When provided, the only supported key is
+`context.quickAction` with one of: `apply`, `hotline`, `forms`, `guides`,
+`faq`, or `topics`.
 
 **Response:**
 ```json

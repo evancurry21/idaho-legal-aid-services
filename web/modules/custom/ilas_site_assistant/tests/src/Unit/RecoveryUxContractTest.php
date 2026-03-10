@@ -66,7 +66,8 @@ final class RecoveryUxContractTest extends TestCase {
 
     $this->assertStringContainsString('retrySend: function', $source);
     $this->assertStringContainsString('fetchCsrfToken(true)', $source);
-    $this->assertStringContainsString('recovery_retry: true', $source);
+    $this->assertStringNotContainsString('recovery_retry: true', $source);
+    $this->assertStringNotContainsString('history: this.messageHistory.slice(-5)', $source);
   }
 
   /**
@@ -82,4 +83,3 @@ final class RecoveryUxContractTest extends TestCase {
   }
 
 }
-

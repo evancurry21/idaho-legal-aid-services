@@ -89,7 +89,7 @@ curl -k -sS -X POST "${BASE_URL}/assistant/api/message" \
   -H "Content-Type: application/json" \
   -H "X-CSRF-Token: ${CSRF_TOKEN}" \
   -b "${COOKIE_JAR}" \
-  -d '{"message":"SYNTHETIC EXAMPLE: where can I find housing forms?","conversation_id":"11111111-1111-4111-8111-111111111111","context":{"history":[]}}'
+  -d '{"message":"SYNTHETIC EXAMPLE: where can I find housing forms?","conversation_id":"11111111-1111-4111-8111-111111111111"}'
 
 # Synthetic track request
 curl -k -sS -X POST "${BASE_URL}/assistant/api/track" \

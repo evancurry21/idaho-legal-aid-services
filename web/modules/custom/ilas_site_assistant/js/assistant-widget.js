@@ -649,9 +649,6 @@
         body: JSON.stringify({
           message: message,
           conversation_id: this.conversationId,
-          context: {
-            history: this.messageHistory.slice(-5),
-          },
         }),
       })
         .then(function (response) {
@@ -734,6 +731,7 @@
         donations: Drupal.t('How can I donate?'),
         faq: Drupal.t('Show me FAQs'),
       };
+      const requestContextQuickActions = ['apply', 'hotline', 'forms', 'guides', 'faq', 'topics'];
 
       const message = actionMessages[action] || action;
 
@@ -753,13 +751,17 @@
       var self = this;
 
       // Send to API.
+      const payload = {
+        message: message,
+        conversation_id: this.conversationId,
+      };
+      if (requestContextQuickActions.indexOf(action) !== -1) {
+        payload.context = { quickAction: action };
+      }
+
       this.callApi('/message', {
         method: 'POST',
-        body: JSON.stringify({
-          message: message,
-          conversation_id: this.conversationId,
-          context: { quickAction: action },
-        }),
+        body: JSON.stringify(payload),
       })
         .then(function (response) {
           self.isSending = false;
@@ -1683,10 +1685,6 @@
             body: JSON.stringify({
               message: messageText,
               conversation_id: self.conversationId,
-              context: {
-                history: self.messageHistory.slice(-5),
-                recovery_retry: true,
-              },
             }),
           });
         })

@@ -158,10 +158,14 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/js/assistant-widget.js:221-225`
 
 ### CLAIM-024
-- Claim: Widget POST payload includes `message`, `conversation_id`, and context history/quickAction.
+- Claim: Widget POST payload includes `message` and `conversation_id`; `context`
+  is optional and limited to `quickAction` for the six controller-approved
+  short-circuit actions (`apply`, `hotline`, `forms`, `guides`, `faq`,
+  `topics`).
 - Evidence:
-  - `web/modules/custom/ilas_site_assistant/js/assistant-widget.js:584-593`
-  - `web/modules/custom/ilas_site_assistant/js/assistant-widget.js:688-694`
+  - `web/modules/custom/ilas_site_assistant/js/assistant-widget.js` (message
+    send/retry payloads omit context; quick-action payloads only include
+    allowlisted `quickAction`)
 
 ### CLAIM-025
 - Claim: Widget enforces accessibility semantics: dialog roles/labels, Escape-to-close, focus trap, typing status ARIA.
