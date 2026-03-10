@@ -109,8 +109,26 @@ desktop.ini
 .env.local
 .env.*.local
 
-# DDEV local dev environment (not needed on Pantheon)
-.ddev/
+# DDEV local dev environment
+.ddev/*
+!.ddev/.gitignore
+!.ddev/config.yaml
+!.ddev/commands/
+!.ddev/commands/host/
+!.ddev/commands/host/README.txt
+!.ddev/commands/web/
+!.ddev/commands/web/README.txt
+!.ddev/providers/
+!.ddev/providers/README.txt
+!.ddev/web-build/
+!.ddev/web-build/README.txt
+!.ddev/.env.example
+!.ddev/config.newrelic.yaml.example
+!.ddev/newrelic/
+!.ddev/newrelic/Dockerfile.newrelic.example
+.ddev/.env
+.ddev/.env.local
+.ddev/config.newrelic.yaml
 
 # PHP tooling
 .phpunit.result.cache

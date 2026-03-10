@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_site_assistant\EventSubscriber;
 
+use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
 use Drupal\ilas_site_assistant\Service\TelemetrySchema;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -42,22 +43,19 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
   public function onOptionsAlter(object $event): void {
     // Disable default PII collection (IP address, cookies, etc.).
     $event->options['send_default_pii'] = FALSE;
-
-    // Runtime attribution.
-    $pantheonEnv = getenv('PANTHEON_ENVIRONMENT') ?: 'local';
-    $sapi = PHP_SAPI;
-    $event->options['server_name'] = "{$pantheonEnv}.{$sapi}";
-
-    // Merge tags (preserve any existing tags from Raven or other subscribers).
-    $tags = $event->options['tags'] ?? [];
-    $tags['pantheon_env'] = $pantheonEnv;
-    $tags['php_sapi'] = $sapi;
-    $tags['runtime_context'] = static::resolveRuntimeContext();
-    $event->options['tags'] = $tags;
+    $context = static::observabilityContext();
+    $event->options['server_name'] = $context['server_name'];
+    $event->options['tags'] = static::mergeObservabilityTags($event->options['tags'] ?? [], $context);
 
     // Chain before_send: preserve any existing callback.
     $previous = $event->options['before_send'] ?? NULL;
     $event->options['before_send'] = static::beforeSendCallback($previous);
+
+    $previousTransaction = $event->options['before_send_transaction'] ?? NULL;
+    $event->options['before_send_transaction'] = static::beforeSendTransactionCallback($previousTransaction);
+
+    $previousLog = $event->options['before_send_log'] ?? NULL;
+    $event->options['before_send_log'] = static::beforeSendLogCallback($previousLog);
   }
 
   /**
@@ -85,53 +83,70 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
         return NULL;
       }
 
-      // Scrub event message.
-      $message = $sentryEvent->getMessage();
-      if ($message !== NULL && $message !== '') {
-        $sentryEvent->setMessage(PiiRedactor::redact($message));
-      }
+      return static::scrubEvent($sentryEvent);
+    };
+  }
 
-      // Scrub exception values.
-      $exceptions = $sentryEvent->getExceptions();
-      foreach ($exceptions as $exceptionBag) {
-        $value = $exceptionBag->getValue();
-        if ($value !== '') {
-          $exceptionBag->setValue(PiiRedactor::redact($value));
+  /**
+   * Returns the before_send_transaction callback that scrubs transactions.
+   *
+   * @param callable|null $previous
+   *   An optional previous before_send_transaction callback to chain.
+   *
+   * @return callable
+   *   A callback compatible with Sentry's before_send_transaction option.
+   */
+  public static function beforeSendTransactionCallback(?callable $previous = NULL): callable {
+    return static function (\Sentry\Event $transaction) use ($previous): ?\Sentry\Event {
+      if ($previous !== NULL) {
+        $transaction = $previous($transaction);
+        if ($transaction === NULL) {
+          return NULL;
         }
       }
 
-      // Scrub extra context strings.
-      $extra = $sentryEvent->getExtra();
-      if (!empty($extra)) {
-        $scrubbed = FALSE;
-        foreach ($extra as $key => $val) {
-          if (is_string($val) && $val !== '') {
-            $redacted = PiiRedactor::redact($val);
-            if ($redacted !== $val) {
-              $extra[$key] = $redacted;
-              $scrubbed = TRUE;
-            }
-          }
-        }
-        if ($scrubbed) {
-          $sentryEvent->setExtra($extra);
+      return static::scrubEvent($transaction, TRUE);
+    };
+  }
+
+  /**
+   * Returns the before_send_log callback that scrubs structured logs.
+   *
+   * @param callable|null $previous
+   *   An optional previous before_send_log callback to chain.
+   *
+   * @return callable
+   *   A callback compatible with Sentry's before_send_log option.
+   */
+  public static function beforeSendLogCallback(?callable $previous = NULL): callable {
+    return static function (\Sentry\Logs\Log $log) use ($previous): ?\Sentry\Logs\Log {
+      if ($previous !== NULL) {
+        $log = $previous($log);
+        if ($log === NULL) {
+          return NULL;
         }
       }
 
-      // Promote recognized telemetry fields from extra to tags for
-      // searchability in Sentry (e.g. watchdog-captured error events).
-      $extra = $sentryEvent->getExtra();
-      if (!empty($extra)) {
-        $tags = $sentryEvent->getTags();
-        foreach (TelemetrySchema::REQUIRED_FIELDS as $field) {
-          if (isset($extra[$field]) && is_string($extra[$field]) && !isset($tags[$field])) {
-            $tags[$field] = $extra[$field];
-          }
+      $log->setBody(PiiRedactor::redact($log->getBody()));
+
+      $attributes = $log->attributes()->toSimpleArray();
+      foreach ($attributes as $key => $value) {
+        if (static::isSensitiveKey($key)) {
+          $log->setAttribute($key, '[REDACTED]');
+          continue;
         }
-        $sentryEvent->setTags($tags);
+
+        $log->setAttribute($key, static::scrubStructuredValue($value));
       }
 
-      return $sentryEvent;
+      foreach (static::observabilityContext() as $key => $value) {
+        if ($key === 'server_name' || $value === '') {
+          continue;
+        }
+        $log->setAttribute($key, $value);
+      }
+
+      return $log;
     };
   }
 
@@ -176,6 +191,78 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
   }
 
   /**
+   * Returns the normalized observability context for Sentry tags.
+   *
+   * @return array<string, string>
+   *   Normalized runtime attribution tags.
+   */
+  public static function observabilityContext(): array {
+    $settings = Settings::get('ilas_observability', []);
+    $environment = isset($settings['environment']) && is_string($settings['environment']) && $settings['environment'] !== ''
+      ? $settings['environment']
+      : static::normalizeEnvironment(getenv('PANTHEON_ENVIRONMENT') ?: NULL);
+    $pantheonEnv = isset($settings['pantheon_environment']) && is_string($settings['pantheon_environment'])
+      ? $settings['pantheon_environment']
+      : (getenv('PANTHEON_ENVIRONMENT') ?: '');
+    $siteName = isset($settings['pantheon_site_name']) && is_string($settings['pantheon_site_name']) && $settings['pantheon_site_name'] !== ''
+      ? $settings['pantheon_site_name']
+      : (getenv('PANTHEON_SITE_NAME') ?: 'local');
+    $siteId = isset($settings['pantheon_site_id']) && is_string($settings['pantheon_site_id'])
+      ? $settings['pantheon_site_id']
+      : (getenv('PANTHEON_SITE_ID') ?: '');
+    $multidev = isset($settings['multidev_name']) && is_string($settings['multidev_name'])
+      ? $settings['multidev_name']
+      : static::multidevName($pantheonEnv);
+    $release = isset($settings['release']) && is_string($settings['release']) ? $settings['release'] : '';
+    $gitSha = isset($settings['git_sha']) && is_string($settings['git_sha']) ? $settings['git_sha'] : '';
+    $sapi = PHP_SAPI;
+    $runtimeContext = static::resolveRuntimeContext();
+
+    return [
+      'environment' => $environment,
+      'pantheon_env' => $pantheonEnv,
+      'multidev_name' => $multidev,
+      'site_name' => $siteName,
+      'site_id' => $siteId,
+      'php_sapi' => $sapi,
+      'runtime_context' => $runtimeContext,
+      'assistant_name' => 'aila',
+      'release' => $release,
+      'git_sha' => $gitSha,
+      'server_name' => $siteName . '.' . $environment . '.' . $sapi,
+    ];
+  }
+
+  /**
+   * Normalizes a Pantheon environment name into the observability contract.
+   */
+  public static function normalizeEnvironment(?string $pantheonEnv): string {
+    $normalized = mb_strtolower(trim((string) $pantheonEnv));
+    if ($normalized === '') {
+      return 'local';
+    }
+
+    return match ($normalized) {
+      'dev' => 'pantheon-dev',
+      'test' => 'pantheon-test',
+      'live' => 'pantheon-live',
+      default => 'pantheon-multidev-' . trim((string) preg_replace('/[^a-z0-9-]+/', '-', $normalized), '-'),
+    };
+  }
+
+  /**
+   * Returns the multidev name when the environment is neither dev/test/live.
+   */
+  public static function multidevName(?string $pantheonEnv): string {
+    $normalized = mb_strtolower(trim((string) $pantheonEnv));
+    if ($normalized === '' || in_array($normalized, ['dev', 'test', 'live'], TRUE)) {
+      return '';
+    }
+
+    return $normalized;
+  }
+
+  /**
    * Determines the runtime context based on PHP SAPI and argv.
    *
    * @return string
@@ -205,6 +292,180 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
     }
 
     return 'cli-other';
+  }
+
+  /**
+   * Applies consistent scrubbing and tagging to a Sentry event.
+   */
+  private static function scrubEvent(\Sentry\Event $sentryEvent, bool $transaction = FALSE): \Sentry\Event {
+    $message = $sentryEvent->getMessage();
+    if ($message !== NULL && $message !== '') {
+      $sentryEvent->setMessage(PiiRedactor::redact($message));
+    }
+
+    if ($transaction) {
+      $transactionName = $sentryEvent->getTransaction();
+      if ($transactionName !== NULL && $transactionName !== '') {
+        $sentryEvent->setTransaction(static::sanitizeTransactionName($transactionName));
+      }
+    }
+
+    $exceptions = $sentryEvent->getExceptions();
+    foreach ($exceptions as $exceptionBag) {
+      $value = $exceptionBag->getValue();
+      if ($value !== '') {
+        $exceptionBag->setValue(PiiRedactor::redact($value));
+      }
+    }
+
+    $extra = static::scrubStructuredValue($sentryEvent->getExtra());
+    $sentryEvent->setExtra(is_array($extra) ? $extra : []);
+
+    $tags = static::mergeObservabilityTags($sentryEvent->getTags(), static::observabilityContext());
+    $extraTags = is_array($extra) ? static::telemetryTagsFromExtra($extra) : [];
+    foreach ($extraTags as $key => $value) {
+      if (!isset($tags[$key])) {
+        $tags[$key] = $value;
+      }
+    }
+    $sentryEvent->setTags($tags);
+
+    return $sentryEvent;
+  }
+
+  /**
+   * Merges observability tags onto an existing tag set.
+   *
+   * @param array<string, mixed> $existing
+   *   Existing tags.
+   * @param array<string, string> $context
+   *   Observability context.
+   *
+   * @return array<string, string>
+   *   Sanitized merged tags.
+   */
+  private static function mergeObservabilityTags(array $existing, array $context): array {
+    $tags = [];
+    foreach ($existing as $key => $value) {
+      if (!is_string($key) || $key === '') {
+        continue;
+      }
+      if (is_scalar($value) && $value !== '') {
+        $tags[$key] = mb_substr(PiiRedactor::redact((string) $value), 0, 255);
+      }
+    }
+
+    foreach ($context as $key => $value) {
+      if ($key === 'server_name' || $value === '') {
+        continue;
+      }
+      $tags[$key] = mb_substr((string) $value, 0, 255);
+    }
+
+    return $tags;
+  }
+
+  /**
+   * Returns recognized telemetry tags from the event extra payload.
+   *
+   * @param array<string, mixed> $extra
+   *   Scrubbed extra payload.
+   *
+   * @return array<string, string>
+   *   Low-cardinality telemetry tags.
+   */
+  private static function telemetryTagsFromExtra(array $extra): array {
+    $tags = [];
+    foreach (TelemetrySchema::REQUIRED_FIELDS as $field) {
+      if (isset($extra[$field]) && is_scalar($extra[$field])) {
+        $tags[$field] = mb_substr((string) $extra[$field], 0, 255);
+      }
+    }
+
+    return $tags;
+  }
+
+  /**
+   * Recursively redacts structured values before they leave the process.
+   *
+   * @param mixed $value
+   *   The value to scrub.
+   *
+   * @return mixed
+   *   The scrubbed value.
+   */
+  private static function scrubStructuredValue(mixed $value): mixed {
+    if (is_string($value)) {
+      return PiiRedactor::redact($value);
+    }
+
+    if (is_array($value)) {
+      $scrubbed = [];
+      foreach ($value as $key => $item) {
+        $normalizedKey = is_string($key) ? $key : (string) $key;
+        if (static::isSensitiveKey($normalizedKey)) {
+          $scrubbed[$normalizedKey] = '[REDACTED]';
+          continue;
+        }
+
+        if (static::isBodyLikeKey($normalizedKey) && is_string($item)) {
+          $scrubbed[$normalizedKey] = PiiRedactor::redact($item);
+          continue;
+        }
+
+        $scrubbed[$normalizedKey] = static::scrubStructuredValue($item);
+      }
+
+      return $scrubbed;
+    }
+
+    if ($value instanceof \Stringable) {
+      return PiiRedactor::redact((string) $value);
+    }
+
+    return $value;
+  }
+
+  /**
+   * Removes high-cardinality identifiers and query strings from transactions.
+   */
+  private static function sanitizeTransactionName(string $transactionName): string {
+    $name = preg_replace('/\?.*$/', '', trim($transactionName));
+    $name = preg_replace('/\b[0-9a-f]{8}-[0-9a-f-]{27}\b/i', ':uuid', (string) $name);
+    $name = preg_replace('/\/\d{2,}(?=\/|$)/', '/:id', (string) $name);
+
+    return PiiRedactor::redact((string) $name);
+  }
+
+  /**
+   * Returns TRUE when a key always carries sensitive data.
+   */
+  private static function isSensitiveKey(string $key): bool {
+    return in_array(mb_strtolower($key), [
+      'authorization',
+      'cookie',
+      'set-cookie',
+      'x-csrf-token',
+      'password',
+      'token',
+      'session',
+      'session_id',
+    ], TRUE);
+  }
+
+  /**
+   * Returns TRUE when a key may contain user/body-like free text.
+   */
+  private static function isBodyLikeKey(string $key): bool {
+    return in_array(mb_strtolower($key), [
+      'data',
+      'body',
+      'message',
+      'prompt',
+      'response',
+      'content',
+      'query_string',
+    ], TRUE);
   }
 
 }

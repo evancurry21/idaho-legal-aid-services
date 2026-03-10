@@ -133,6 +133,168 @@ function _ilas_parse_trusted_proxy_addresses(string|false $raw): array {
 }
 
 /**
+ * Returns the raw Pantheon environment name when available.
+ */
+function _ilas_raw_pantheon_environment(): string|false {
+  if (defined('PANTHEON_ENVIRONMENT') && PANTHEON_ENVIRONMENT !== '') {
+    return PANTHEON_ENVIRONMENT;
+  }
+
+  return getenv('PANTHEON_ENVIRONMENT');
+}
+
+/**
+ * Returns the normalized observability environment name.
+ */
+function _ilas_observability_environment_name(): string {
+  $pantheon_env = _ilas_raw_pantheon_environment();
+  if ($pantheon_env === FALSE || trim($pantheon_env) === '') {
+    return 'local';
+  }
+
+  $normalized = mb_strtolower(trim($pantheon_env));
+  return match ($normalized) {
+    'dev' => 'pantheon-dev',
+    'test' => 'pantheon-test',
+    'live' => 'pantheon-live',
+    default => 'pantheon-multidev-' . trim((string) preg_replace('/[^a-z0-9-]+/', '-', $normalized), '-'),
+  };
+}
+
+/**
+ * Returns the Pantheon multidev name when applicable.
+ */
+function _ilas_observability_multidev_name(): ?string {
+  $pantheon_env = _ilas_raw_pantheon_environment();
+  if ($pantheon_env === FALSE) {
+    return NULL;
+  }
+
+  $normalized = mb_strtolower(trim($pantheon_env));
+  if ($normalized === '' || in_array($normalized, ['dev', 'test', 'live'], TRUE)) {
+    return NULL;
+  }
+
+  return $normalized;
+}
+
+/**
+ * Returns the primary release identifier for observability.
+ */
+function _ilas_observability_release(): ?string {
+  $pantheon_deploy = getenv('PANTHEON_DEPLOYMENT_IDENTIFIER');
+  if ($pantheon_deploy !== FALSE && $pantheon_deploy !== '') {
+    return $pantheon_deploy;
+  }
+
+  foreach (['ILAS_OBSERVABILITY_RELEASE', 'GITHUB_SHA', 'SOURCE_VERSION', 'GIT_COMMIT'] as $candidate) {
+    $value = getenv($candidate);
+    if ($value !== FALSE && $value !== '') {
+      return $value;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Returns a git SHA, when one is explicitly available.
+ */
+function _ilas_observability_git_sha(): ?string {
+  foreach (['GITHUB_SHA', 'SOURCE_VERSION', 'GIT_COMMIT'] as $candidate) {
+    $value = getenv($candidate);
+    if ($value !== FALSE && trim($value) !== '') {
+      return mb_substr(trim($value), 0, 40);
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Returns the normalized Sentry sample rate for the current environment.
+ */
+function _ilas_observability_sentry_sample_rate(string $kind): float {
+  $environment = _ilas_observability_environment_name();
+
+  return match ($kind) {
+    'php_traces' => match ($environment) {
+      'local' => 1.0,
+      'pantheon-dev' => 0.5,
+      'pantheon-test' => 0.25,
+      'pantheon-live' => 0.10,
+      default => 0.25,
+    },
+    'browser_traces' => match ($environment) {
+      'local' => 1.0,
+      'pantheon-dev' => 0.25,
+      'pantheon-test' => 0.10,
+      'pantheon-live' => 0.02,
+      default => 0.05,
+    },
+    'replay_session' => match ($environment) {
+      'local' => 0.0,
+      'pantheon-dev', 'pantheon-test' => 0.05,
+      'pantheon-live' => 0.01,
+      default => 0.02,
+    },
+    'replay_error' => match ($environment) {
+      'pantheon-live' => 0.25,
+      'local' => 0.0,
+      default => 1.0,
+    },
+    default => 0.0,
+  };
+}
+
+/**
+ * Returns the canonical site name tag for observability.
+ */
+function _ilas_observability_site_name(): string {
+  foreach (['PANTHEON_SITE_NAME', 'DDEV_SITENAME'] as $candidate) {
+    $value = getenv($candidate);
+    if ($value !== FALSE && trim($value) !== '') {
+      return trim($value);
+    }
+  }
+
+  return 'local';
+}
+
+/**
+ * Returns the canonical site ID tag for observability.
+ */
+function _ilas_observability_site_id(): ?string {
+  $value = getenv('PANTHEON_SITE_ID');
+  return ($value !== FALSE && trim($value) !== '') ? trim($value) : NULL;
+}
+
+/**
+ * Returns shared observability settings for runtime consumers.
+ */
+function _ilas_observability_settings(string $new_relic_browser_snippet = '', bool $new_relic_browser_enabled = FALSE): array {
+  return [
+    'environment' => _ilas_observability_environment_name(),
+    'pantheon_env' => _ilas_raw_pantheon_environment() ?: '',
+    'multidev_name' => _ilas_observability_multidev_name() ?? '',
+    'release' => _ilas_observability_release() ?? '',
+    'git_sha' => _ilas_observability_git_sha() ?? '',
+    'site_name' => _ilas_observability_site_name(),
+    'site_id' => _ilas_observability_site_id() ?? '',
+    'sentry' => [
+      'browser' => [
+        'replay_session_sample_rate' => _ilas_observability_sentry_sample_rate('replay_session'),
+        'replay_on_error_sample_rate' => _ilas_observability_sentry_sample_rate('replay_error'),
+      ],
+    ],
+    'new_relic' => [
+      'browser_enabled' => $new_relic_browser_enabled,
+      'browser_snippet' => $new_relic_browser_snippet,
+    ],
+  ];
+}
+
+/**
  * Include the Pantheon-specific settings file.
  *
  * n.b. The settings.pantheon.php file makes some changes
@@ -309,10 +471,7 @@ if ($langfuse_pk && $langfuse_sk) {
   $config['ilas_site_assistant.settings']['langfuse']['public_key'] = $langfuse_pk;
   $config['ilas_site_assistant.settings']['langfuse']['secret_key'] = $langfuse_sk;
 }
-// Set environment label from Pantheon environment.
-if (defined('PANTHEON_ENVIRONMENT')) {
-  $config['ilas_site_assistant.settings']['langfuse']['environment'] = PANTHEON_ENVIRONMENT;
-}
+$config['ilas_site_assistant.settings']['langfuse']['environment'] = _ilas_observability_environment_name();
 
 /**
  * Gemini API key for Drupal AI module (Google AI Studio).
@@ -342,11 +501,48 @@ if ($pinecone_key) {
  * On Pantheon: type "runtime", scope "web", key "SENTRY_DSN".
  * Locally (DDEV): add SENTRY_DSN=<value> to .ddev/.env, then ddev restart.
  */
+$observability_environment = _ilas_observability_environment_name();
+$observability_release = _ilas_observability_release();
+$observability_git_sha = _ilas_observability_git_sha();
+$observability_site_name = _ilas_observability_site_name();
+$observability_site_id = _ilas_observability_site_id();
+$observability_pantheon_env = _ilas_raw_pantheon_environment() ?: '';
+$observability_multidev = _ilas_observability_multidev_name() ?? '';
+$public_site_url = getenv('PUBLIC_SITE_URL') ?: '';
+$sentry_browser_dsn = _ilas_get_secret('SENTRY_BROWSER_DSN');
 $sentry_dsn = _ilas_get_secret('SENTRY_DSN');
+$sentry_public_dsn = $sentry_browser_dsn ?: $sentry_dsn;
+$sentry_browser_enabled = $sentry_public_dsn !== FALSE && $sentry_public_dsn !== '';
+$trace_targets_frontend = [
+  '^/assistant(?:/|$)',
+  '^/assistant/api(?:/|$)',
+];
+$trace_targets_backend = [];
+if ($public_site_url !== '') {
+  $site_host = parse_url($public_site_url, PHP_URL_HOST);
+  if (is_string($site_host) && $site_host !== '') {
+    $escaped_host = preg_quote($site_host, '/');
+    $trace_targets_frontend[] = '^https?://' . $escaped_host . '(?:/|$)';
+    $trace_targets_backend[] = '^https?://' . $escaped_host . '(?:/|$)';
+  }
+}
 if ($sentry_dsn) {
   $config['raven.settings']['client_key'] = $sentry_dsn;
-  $config['raven.settings']['environment'] = getenv('PANTHEON_ENVIRONMENT') ?: 'local';
-  $config['raven.settings']['release'] = getenv('PANTHEON_DEPLOYMENT_IDENTIFIER') ?: NULL;
+  $config['raven.settings']['public_dsn'] = $sentry_public_dsn;
+  $config['raven.settings']['environment'] = $observability_environment;
+  $config['raven.settings']['release'] = $observability_release;
+  $config['raven.settings']['request_tracing'] = TRUE;
+  $config['raven.settings']['traces_sample_rate'] = _ilas_observability_sentry_sample_rate('php_traces');
+  $config['raven.settings']['browser_traces_sample_rate'] = $sentry_browser_enabled ? _ilas_observability_sentry_sample_rate('browser_traces') : NULL;
+  $config['raven.settings']['javascript_error_handler'] = $sentry_browser_enabled;
+  $config['raven.settings']['auto_session_tracking'] = $sentry_browser_enabled;
+  $config['raven.settings']['send_client_reports'] = $sentry_browser_enabled;
+  $config['raven.settings']['show_report_dialog'] = $observability_environment !== 'pantheon-live';
+  $config['raven.settings']['drush_error_handler'] = TRUE;
+  $config['raven.settings']['drush_tracing'] = TRUE;
+  $config['raven.settings']['cli_enable_logs'] = TRUE;
+  $config['raven.settings']['trace_propagation_targets_frontend'] = array_values(array_unique($trace_targets_frontend));
+  $config['raven.settings']['trace_propagation_targets_backend'] = array_values(array_unique($trace_targets_backend));
   $config['raven.settings']['log_levels'] = [
     'emergency' => TRUE,
     'alert' => TRUE,
@@ -357,7 +553,28 @@ if ($sentry_dsn) {
     'info' => FALSE,
     'debug' => FALSE,
   ];
+  $config['raven.settings']['logs_log_levels'] = $config['raven.settings']['log_levels'];
 }
+
+$sentry_cron_monitor_id = _ilas_get_secret('SENTRY_CRON_MONITOR_ID');
+if ($sentry_cron_monitor_id) {
+  $config['raven.settings']['cron_monitor_id'] = $sentry_cron_monitor_id;
+}
+
+$new_relic_browser_snippet = _ilas_get_secret('NEW_RELIC_BROWSER_SNIPPET');
+$new_relic_local_enabled = getenv('ILAS_LOCAL_BROWSER_OBSERVABILITY') === '1';
+$new_relic_browser_enabled = $new_relic_browser_snippet && ($observability_environment !== 'local' || $new_relic_local_enabled);
+$settings['ilas_observability'] = _ilas_observability_settings(
+  $new_relic_browser_enabled ? (string) $new_relic_browser_snippet : '',
+  $new_relic_browser_enabled,
+);
+$settings['ilas_observability']['pantheon_site_name'] = $observability_site_name;
+$settings['ilas_observability']['pantheon_site_id'] = $observability_site_id ?? '';
+$settings['ilas_observability']['pantheon_environment'] = $observability_pantheon_env;
+$settings['ilas_observability']['multidev_name'] = $observability_multidev;
+$settings['ilas_observability']['release'] = $observability_release ?? '';
+$settings['ilas_observability']['git_sha'] = $observability_git_sha ?? '';
+$settings['ilas_observability']['public_site_url'] = $public_site_url;
 
 /**
  * Include DDEV settings if present.

@@ -102,7 +102,10 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->assertArrayHasKey('pantheon_env', $tags);
     $this->assertArrayHasKey('php_sapi', $tags);
     $this->assertArrayHasKey('runtime_context', $tags);
+    $this->assertArrayHasKey('site_name', $tags);
+    $this->assertArrayHasKey('assistant_name', $tags);
     $this->assertSame(PHP_SAPI, $tags['php_sapi']);
+    $this->assertSame('aila', $tags['assistant_name']);
   }
 
   /**
@@ -126,6 +129,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->assertArrayHasKey('pantheon_env', $tags);
     $this->assertArrayHasKey('php_sapi', $tags);
     $this->assertArrayHasKey('runtime_context', $tags);
+    $this->assertArrayHasKey('assistant_name', $tags);
   }
 
   /**
@@ -271,6 +275,74 @@ class SentryOptionsSubscriberTest extends TestCase {
     $result = $callback($sentryEvent, NULL);
 
     $this->assertSame($sentryEvent, $result, 'Callback should return the same event instance');
+  }
+
+  /**
+   * Tests that transaction callbacks scrub identifiers and query strings.
+   *
+   * @covers ::beforeSendTransactionCallback
+   */
+  public function testBeforeSendTransactionScrubsTransactionName(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendTransactionCallback();
+    $transaction = \Sentry\Event::createTransaction();
+    $transaction->setTransaction('/assistant/api/message/12345678-1234-4123-8123-123456789abc?message=my email is john@example.com');
+
+    $result = $callback($transaction);
+
+    $this->assertNotNull($result);
+    $this->assertSame('/assistant/api/message/:uuid', $result->getTransaction());
+  }
+
+  /**
+   * Tests that log callbacks scrub body and structured attributes.
+   *
+   * @covers ::beforeSendLogCallback
+   */
+  public function testBeforeSendLogScrubsStructuredAttributes(): void {
+    if (!class_exists('\Sentry\Logs\Log')) {
+      $this->markTestSkipped('Sentry logs API not installed.');
+    }
+
+    $callback = SentryOptionsSubscriber::beforeSendLogCallback();
+    $log = new \Sentry\Logs\Log(
+      microtime(TRUE),
+      'trace-id',
+      \Sentry\Logs\LogLevel::error(),
+      'Assistant failure for john@example.com'
+    );
+    $log->setAttribute('authorization', 'Bearer secret-token');
+    $log->setAttribute('payload', [
+      'prompt' => 'My SSN is 123-45-6789',
+      'request_id' => '12345678-1234-4123-8123-123456789abc',
+    ]);
+
+    $result = $callback($log);
+
+    $this->assertNotNull($result);
+    $this->assertStringContainsString(PiiRedactor::TOKEN_EMAIL, $result->getBody());
+    $attributes = $result->attributes()->toSimpleArray();
+
+    $this->assertSame('[REDACTED]', $attributes['authorization']);
+    $this->assertIsString($attributes['payload']);
+    $this->assertStringContainsString(PiiRedactor::TOKEN_SSN, $attributes['payload']);
+    $this->assertSame('aila', $attributes['assistant_name']);
+  }
+
+  /**
+   * Tests environment normalization for core Pantheon envs and multidev.
+   *
+   * @covers ::normalizeEnvironment
+   * @covers ::multidevName
+   */
+  public function testNormalizeEnvironmentMapsPantheonEnvs(): void {
+    $this->assertSame('local', SentryOptionsSubscriber::normalizeEnvironment(NULL));
+    $this->assertSame('pantheon-dev', SentryOptionsSubscriber::normalizeEnvironment('dev'));
+    $this->assertSame('pantheon-test', SentryOptionsSubscriber::normalizeEnvironment('test'));
+    $this->assertSame('pantheon-live', SentryOptionsSubscriber::normalizeEnvironment('live'));
+    $this->assertSame('pantheon-multidev-feature-a', SentryOptionsSubscriber::normalizeEnvironment('Feature_A'));
+    $this->assertSame('feature_a', SentryOptionsSubscriber::multidevName('Feature_A'));
   }
 
   /**

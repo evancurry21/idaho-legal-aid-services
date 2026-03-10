@@ -816,7 +816,7 @@ window._assistantWidgetTestDone = (async function () {
 
     assert(payloads.length === 1, 'trackEvent sends one tracking payload');
     assert(payloads[0].event_type === 'chat_open', 'trackEvent payload preserves event_type');
-    assert(payloads[0].event_value === '/some/path', 'trackEvent payload preserves event_value');
+    assert(payloads[0].event_value === '', 'trackEvent payload preserves the approved chat_open contract');
     assert(addMessageCalls === 0, 'track failures do not surface message recovery UI');
   });
 

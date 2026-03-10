@@ -90,7 +90,8 @@ class TelemetrySchemaContractTest extends TestCase {
     $this->assertSame('safe', $result[TelemetrySchema::FIELD_SAFETY_CLASS]);
     $this->assertSame('none', $result[TelemetrySchema::FIELD_FALLBACK_PATH]);
     $this->assertSame('unknown', $result[TelemetrySchema::FIELD_REQUEST_ID]);
-    // ENV defaults to PANTHEON_ENVIRONMENT or 'local'.
+    // ENV defaults to the shared observability environment or falls back to
+    // PANTHEON_ENVIRONMENT / local when settings are not initialized.
     $expected_env = getenv('PANTHEON_ENVIRONMENT') ?: 'local';
     $this->assertSame($expected_env, $result[TelemetrySchema::FIELD_ENV]);
   }

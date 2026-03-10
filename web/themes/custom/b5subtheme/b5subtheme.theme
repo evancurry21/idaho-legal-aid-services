@@ -617,6 +617,7 @@ function b5subtheme_preprocess_html(array &$variables): void {
 
   // Expose GA4 ID from settings.php to Twig.
   $variables['google_tag_id'] = Settings::get('google_tag_id');
+  $variables['new_relic_browser_snippet'] = Settings::get('ilas_observability', [])['new_relic']['browser_snippet'] ?? '';
 
   // Add JSON-LD BreadcrumbList schema for SEO.
   _b5subtheme_add_breadcrumb_schema($variables);

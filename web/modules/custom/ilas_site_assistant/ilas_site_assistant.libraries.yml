@@ -1,3 +1,11 @@
+observability:
+  version: 1.0
+  js:
+    js/observability.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+
 widget:
   version: 1.0
   # CSS moved to theme: web/themes/custom/b5subtheme/scss/_assistant-widget.scss

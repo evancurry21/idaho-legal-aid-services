@@ -18,5 +18,7 @@ is_admin: false
 permissions:
   - 'access content'
   - 'access sitemap'
+  - 'send javascript errors to sentry'
+  - 'send performance traces to sentry'
   - 'use search_api_autocomplete for content_autocomplete'
   - 'view media'

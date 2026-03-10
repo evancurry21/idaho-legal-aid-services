@@ -277,6 +277,7 @@ mix.copy('node_modules/@fortawesome/fontawesome-free/webfonts', 'webfonts');
 
 // Version files in production for cache busting
 if (mix.inProduction()) {
+  mix.sourceMaps(true, 'source-map');
   mix.version();
 }
 

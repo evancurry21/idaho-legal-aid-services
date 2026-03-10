@@ -1,3 +1,9 @@
 # Put overrides to your pantheon.upstream.yml file here.
 # For more information, see: https://pantheon.io/docs/pantheon-yml/
 api_version: 1
+workflows:
+  deploy:
+    after:
+      - type: webphp
+        description: 'Send New Relic change-tracking deployment marker'
+        script: scripts/quicksilver/new-relic-change-tracking.php

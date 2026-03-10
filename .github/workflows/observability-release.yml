@@ -1,0 +1,33 @@
+name: Observability Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Pantheon deployment identifier or release name'
+        required: true
+        type: string
+
+jobs:
+  sentry-release:
+    name: Prepare Sentry Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Prepare Sentry release + sourcemaps
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG_SLUG: ${{ vars.SENTRY_ORG_SLUG }}
+          SENTRY_PROJECT_SLUG_BROWSER: ${{ vars.SENTRY_PROJECT_SLUG_BROWSER }}
+          SENTRY_RELEASE: ${{ inputs.release_name }}
+        run: |
+          set -euo pipefail
+          bash scripts/observability/sentry-release.sh --release "${SENTRY_RELEASE}"

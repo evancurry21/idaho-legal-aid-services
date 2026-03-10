@@ -1,0 +1,6 @@
+#!/bin/bash
+## Description: Pull database and files from Pantheon LIVE
+## Usage: pull-live [flags]
+## Example: ddev pull-live\nddev pull-live --no-files\nddev pull-live --env=test --sanitize
+
+exec bash "${DDEV_APPROOT}/scripts/pull-live.sh" "$@"

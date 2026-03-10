@@ -54,6 +54,8 @@ function ilas_site_assistant_theme($existing, $type, $theme, $path) {
  * Implements hook_page_attachments().
  */
 function ilas_site_assistant_page_attachments(array &$attachments) {
+  ilas_site_assistant_attach_observability($attachments);
+
   $config = \Drupal::config('ilas_site_assistant.settings');
 
   // Only attach widget if enabled globally.
@@ -84,6 +86,58 @@ function ilas_site_assistant_page_attachments(array &$attachments) {
     'enableFaq' => $config->get('enable_faq') ?? TRUE,
     'enableResources' => $config->get('enable_resources') ?? TRUE,
     'canonicalUrls' => ilas_site_assistant_get_canonical_urls(),
+  ];
+}
+
+/**
+ * Attaches site-wide browser observability settings and helper library.
+ *
+ * @param array $attachments
+ *   The page attachments array.
+ */
+function ilas_site_assistant_attach_observability(array &$attachments): void {
+  $runtime = \Drupal\Core\Site\Settings::get('ilas_observability', []);
+  $ravenConfig = \Drupal::config('raven.settings');
+  $sentryEnabled = (bool) $ravenConfig->get('client_key');
+  $sentryBrowserDsn = (string) ($ravenConfig->get('public_dsn') ?: '');
+  $sentryBrowserEnabled = !empty($sentryBrowserDsn)
+    && (
+      (bool) $ravenConfig->get('javascript_error_handler')
+      || (float) ($ravenConfig->get('browser_traces_sample_rate') ?? 0) > 0
+    );
+  $newRelicEnabled = !empty($runtime['new_relic']['browser_enabled']);
+
+  if (!$sentryBrowserEnabled && !$newRelicEnabled) {
+    return;
+  }
+
+  $attachments['#attached']['library'][] = 'ilas_site_assistant/observability';
+  $attachments['#attached']['drupalSettings']['ilasObservability'] = [
+    'environment' => $runtime['environment'] ?? 'local',
+    'pantheonEnv' => $runtime['pantheon_environment'] ?? '',
+    'multidevName' => $runtime['multidev_name'] ?? '',
+    'release' => $runtime['release'] ?? '',
+    'gitSha' => $runtime['git_sha'] ?? '',
+    'siteName' => $runtime['pantheon_site_name'] ?? 'local',
+    'siteId' => $runtime['pantheon_site_id'] ?? '',
+    'publicSiteUrl' => $runtime['public_site_url'] ?? '',
+    'routeName' => \Drupal::routeMatch()->getRouteName(),
+    'path' => \Drupal::service('path.current')->getPath(),
+    'assistant' => [
+      'name' => 'aila',
+      'apiBase' => '/assistant/api',
+    ],
+    'sentry' => [
+      'enabled' => $sentryEnabled,
+      'browserEnabled' => $sentryBrowserEnabled,
+      'showReportDialog' => (bool) $ravenConfig->get('show_report_dialog'),
+      'replayEnabled' => !empty(($runtime['sentry']['browser']['replay_session_sample_rate'] ?? 0)) || !empty(($runtime['sentry']['browser']['replay_on_error_sample_rate'] ?? 0)),
+      'replaySessionSampleRate' => (float) ($runtime['sentry']['browser']['replay_session_sample_rate'] ?? 0),
+      'replayOnErrorSampleRate' => (float) ($runtime['sentry']['browser']['replay_on_error_sample_rate'] ?? 0),
+    ],
+    'newRelic' => [
+      'browserEnabled' => $newRelicEnabled,
+    ],
   ];
 }
 

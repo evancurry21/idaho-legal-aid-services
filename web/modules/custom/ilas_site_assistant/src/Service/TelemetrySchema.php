@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\ilas_site_assistant\Service;
 
+use Drupal\Core\Site\Settings;
+
 /**
  * Single source of truth for telemetry field names.
  *
@@ -58,7 +60,7 @@ final class TelemetrySchema {
       self::FIELD_SAFETY_CLASS => $safety_class ?? 'safe',
       self::FIELD_FALLBACK_PATH => $fallback_path ?? 'none',
       self::FIELD_REQUEST_ID => $request_id ?? 'unknown',
-      self::FIELD_ENV => $env ?? (getenv('PANTHEON_ENVIRONMENT') ?: 'local'),
+      self::FIELD_ENV => $env ?? (Settings::get('ilas_observability', [])['environment'] ?? (getenv('PANTHEON_ENVIRONMENT') ?: 'local')),
     ];
   }
 

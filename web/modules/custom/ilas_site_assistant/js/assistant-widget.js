@@ -661,6 +661,7 @@
           self.isSending = false;
           self.setSendingState(false);
           self.hideTyping();
+          self.emitAssistantError(error, 'message_send', error && error.status >= 500);
           if (error.status === 403) {
             self.addRecoveryMessage(error, message);
           } else {
@@ -767,6 +768,7 @@
           self.isSending = false;
           self.setSendingState(false);
           self.hideTyping();
+          self.emitAssistantError(error, 'quick_action', error && error.status >= 500);
           if (error.status === 403) {
             self.addRecoveryMessage(error, message);
           } else {
@@ -1695,6 +1697,7 @@
           self.isSending = false;
           self.setSendingState(false);
           self.hideTyping();
+          self.emitAssistantError(error, 'message_retry', error && error.status >= 500);
           if (error.status === 403) {
             self.addRecoveryMessage(error, messageText);
           } else {
@@ -1784,6 +1787,7 @@
      */
     trackEvent: function (eventType, eventValue) {
       eventValue = this.normalizeTrackValue(eventType, eventValue);
+      this.emitAssistantAction(eventType, eventValue);
       // Push to dataLayer if available.
       if (window.dataLayer) {
         window.dataLayer.push({
@@ -1800,6 +1804,47 @@
         event_value: eventValue,
       }).catch(function () {
         // Silent fail for tracking.
+      });
+    },
+
+    /**
+     * Emit a browser observability event without leaking raw user text.
+     */
+    emitObservabilityEvent: function (name, detail) {
+      if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function' || typeof window.CustomEvent !== 'function') {
+        return;
+      }
+
+      window.dispatchEvent(new window.CustomEvent(name, {
+        detail: detail || {},
+      }));
+    },
+
+    /**
+     * Emit a minimized assistant error payload for browser observability.
+     */
+    emitAssistantError: function (error, feature, promptForFeedback) {
+      this.emitObservabilityEvent('ilas:assistant:error', {
+        feature: feature || 'unknown',
+        surface: this.isPageMode ? 'assistant-page' : 'assistant-widget',
+        pageMode: this.isPageMode,
+        status: error && error.status ? error.status : 0,
+        type: error && error.type ? String(error.type) : '',
+        errorCode: error && error.errorCode ? String(error.errorCode) : '',
+        retryAfter: error && error.retryAfter ? String(error.retryAfter) : '',
+        promptForFeedback: !!promptForFeedback,
+      });
+    },
+
+    /**
+     * Emit a minimized assistant action payload for browser observability.
+     */
+    emitAssistantAction: function (actionType, actionValue) {
+      this.emitObservabilityEvent('ilas:assistant:action', {
+        actionType: this.normalizeTrackToken(actionType),
+        actionValue: this.normalizeTrackValue(actionType, actionValue),
+        surface: this.isPageMode ? 'assistant-page' : 'assistant-widget',
+        pageMode: this.isPageMode,
       });
     },
 
