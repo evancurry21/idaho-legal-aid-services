@@ -861,6 +861,34 @@ This dated addendum records re-audit remediation `RAUD-10` for findings `H1`,
    positive risk remains too high; the finding therefore remains
    `Partially Fixed`.[^CLAIM-170]
 
+### Re-Audit Remediation RAUD-11 Observability Payload Minimization (2026-03-10)
+
+This dated addendum records re-audit remediation `RAUD-11` for findings
+`F-03` and the unresolved observability portion of `N-03`.
+
+1. Observability payload minimization is now centralized in
+   `ObservabilityPayloadMinimizer`: user-derived text becomes a SHA-256
+   fingerprint plus low-cardinality facets (`length_bucket`,
+   `redaction_profile`, and `language_hint` where required) instead of raw or
+   redacted snippets.
+2. Persistence surfaces are metadata-only after `update_10007` runs:
+   `ilas_site_assistant_no_answer` now stores `query_hash`,
+   `language_hint`, `length_bucket`, and `redaction_profile`; opt-in
+   conversation logging now stores `message_hash`,
+   `message_length_bucket`, and `redaction_profile` per turn instead of any
+   message body.
+3. Telemetry and watchdog surfaces no longer emit free-text snippets:
+   Langfuse generation input/output now uses hash/bucket payloads,
+   controller/finder/vector logs use query hashes plus keyword counts, and
+   exception telemetry uses `error_signature` instead of raw exception
+   messages.
+4. Local verification is captured in
+   `docs/aila/runtime/raud-11-log-surface-minimization.txt`. Targeted unit and
+   quality-gate runs passed on March 10, 2026, and targeted kernel verification
+   passed when `SIMPLETEST_DB` was overridden to SQLite for this workspace's
+   local test harness. The repo-side finding is therefore `Fixed`, with only
+   deployment-time legacy backfill/purge work remaining.
+
 ### Phase 1 Exit #1 Non-Live Alert + Dashboard Verification (2026-03-03)
 
 This dated addendum records P1-EXT-01 completion for Phase 1 Exit criterion #1.

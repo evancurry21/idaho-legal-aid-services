@@ -37,7 +37,7 @@ abstract class AssistantKernelTestBase extends KernelTestBase {
   /**
    * Creates the ilas_site_assistant module tables.
    *
-   * Mirrors hook_schema() + update_10002 (request_id column) so tests
+   * Mirrors hook_schema() + update_10002/10007 so tests
    * exercise the exact same schema as production.
    */
   protected function createModuleTables(): void {
@@ -96,10 +96,23 @@ abstract class AssistantKernelTestBase extends KernelTestBase {
           'length' => 64,
           'not null' => TRUE,
         ],
-        'sanitized_query' => [
+        'language_hint' => [
           'type' => 'varchar',
-          'length' => 100,
+          'length' => 16,
           'not null' => TRUE,
+          'default' => 'unknown',
+        ],
+        'length_bucket' => [
+          'type' => 'varchar',
+          'length' => 16,
+          'not null' => TRUE,
+          'default' => 'empty',
+        ],
+        'redaction_profile' => [
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => TRUE,
+          'default' => 'none',
         ],
         'count' => [
           'type' => 'int',
@@ -146,10 +159,23 @@ abstract class AssistantKernelTestBase extends KernelTestBase {
           'length' => 10,
           'not null' => TRUE,
         ],
-        'redacted_message' => [
-          'type' => 'text',
-          'size' => 'medium',
+        'message_hash' => [
+          'type' => 'varchar',
+          'length' => 64,
           'not null' => TRUE,
+          'default' => '',
+        ],
+        'message_length_bucket' => [
+          'type' => 'varchar',
+          'length' => 16,
+          'not null' => TRUE,
+          'default' => 'empty',
+        ],
+        'redaction_profile' => [
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => TRUE,
+          'default' => 'none',
         ],
         'intent' => [
           'type' => 'varchar',

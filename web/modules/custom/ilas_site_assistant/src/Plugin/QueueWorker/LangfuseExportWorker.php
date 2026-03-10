@@ -6,6 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Queue\QueueWorkerBase;
 use Drupal\Core\Queue\SuspendQueueException;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Log\LoggerInterface;
@@ -173,24 +174,27 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
 
       // Client errors (4xx except 429) are not retryable — discard.
       if ($statusCode >= 400 && $statusCode < 500 && $statusCode !== 429) {
-        $this->logger->error('Langfuse export: non-retryable error (HTTP @code), discarding batch: @message', [
+        $this->logger->error('Langfuse export: non-retryable error (HTTP @code), discarding batch: @class @error_signature', [
           '@code' => $statusCode,
-          '@message' => $e->getMessage(),
+          '@class' => get_class($e),
+          '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
         ]);
         $this->recordDrain(1);
         return;
       }
 
       // Server errors (5xx) and 429 — suspend the queue for retry on next cron.
-      $this->logger->error('Langfuse export: retryable error (HTTP @code): @message', [
+      $this->logger->error('Langfuse export: retryable error (HTTP @code): @class @error_signature', [
         '@code' => $statusCode,
-        '@message' => $e->getMessage(),
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
       throw new SuspendQueueException('Langfuse API unavailable, will retry on next cron run.');
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse export: unexpected error: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->error('Langfuse export: unexpected error: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
       throw new SuspendQueueException('Langfuse export failed unexpectedly, will retry.');
     }

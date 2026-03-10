@@ -4,6 +4,7 @@ namespace Drupal\ilas_site_assistant\EventSubscriber;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Queue\QueueFactory;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 use Drupal\ilas_site_assistant\Service\LangfuseTracer;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -115,8 +116,9 @@ class LangfuseTerminateSubscriber implements EventSubscriberInterface {
     }
     catch (\Throwable $e) {
       // Never let queue failures propagate — trace data is best-effort.
-      $this->logger->warning('Langfuse queue enqueue failed: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->warning('Langfuse queue enqueue failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }

@@ -802,10 +802,11 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseThreeExitCriteriaTwoGateTest.php`
 
 ### CLAIM-085
-- Claim: Analytics logger redacts event values and stores no-answer queries as redacted/truncated hash records.
+- Claim: Analytics logger normalizes event values to an approved minimized
+  contract and stores no-answer queries as metadata-only hash records.
 - Evidence:
-  - `web/modules/custom/ilas_site_assistant/src/Service/AnalyticsLogger.php:56-66`
-  - `web/modules/custom/ilas_site_assistant/src/Service/AnalyticsLogger.php:104-152`
+  - `web/modules/custom/ilas_site_assistant/src/Service/AnalyticsLogger.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/ObservabilityPayloadMinimizer.php`
 
 ### CLAIM-086
 - Claim: Promptfoo harness is wired via npm scripts and custom provider that fetches Drupal CSRF token and handles 403/429 retries.
@@ -2463,3 +2464,33 @@ Evidence precedence used in this audit:
   - `docs/aila/roadmap.md`
   - `docs/assistant_audit_backlog.md`
   - `docs/aila/runtime/raud-10-pii-redaction-remediation.txt`
+
+### CLAIM-171
+- Claim: Re-audit remediation `RAUD-11` removes remaining text-bearing
+  observability persistence/telemetry by replacing analytics, no-answer,
+  conversation-log, Langfuse, and finder/vector watchdog payloads with
+  controlled IDs, hashes, length buckets, redaction profiles, and deterministic
+  error signatures.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/ObservabilityPayloadMinimizer.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/AnalyticsLogger.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/ConversationLogger.php`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantReportController.php`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantConversationController.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/FaqIndex.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/ResourceFinder.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/LangfuseTracer.php`
+  - `web/modules/custom/ilas_site_assistant/src/EventSubscriber/LangfuseTerminateSubscriber.php`
+  - `web/modules/custom/ilas_site_assistant/src/Plugin/QueueWorker/LangfuseExportWorker.php`
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.install`
+  - `web/modules/custom/ilas_site_assistant/js/assistant-widget.js`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityPayloadMinimizerTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilitySurfaceContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php`
+  - `docs/aila/runbook.md`
+  - `docs/aila/current-state.md`
+  - `docs/aila/roadmap.md`
+  - `docs/assistant_audit_backlog.md`
+  - `docs/aila/runtime/raud-11-log-surface-minimization.txt`

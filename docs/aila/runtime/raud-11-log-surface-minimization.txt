@@ -1,0 +1,119 @@
+# RAUD-11 Observability Payload Minimization Remediation Report
+
+- Date: 2026-03-10
+- Prompt ID: `RAUD-11`
+- Finding IDs: `F-03`, `N-03` (remaining observability/logging portion)
+- Prior status: Open / verified gap. Analytics, no-answer reporting, opt-in
+  conversation logging, Langfuse generation payloads, and finder/vector
+  watchdog logs still persisted or emitted raw/redacted user text snippets.
+- Post-change status: Fixed
+- Verification level tag: `Verified by execution`
+
+## Evidence
+
+- Shared minimization contract:
+  - `web/modules/custom/ilas_site_assistant/src/Service/ObservabilityPayloadMinimizer.php`
+  - Introduces `text_hash`, `length_bucket`, `redaction_profile`,
+    `language_hint`, `error_signature`, analytics normalization, and assignment
+    serialization helpers used across persistence and telemetry surfaces.
+- Persistence + migration:
+  - `web/modules/custom/ilas_site_assistant/src/Service/AnalyticsLogger.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/ConversationLogger.php`
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.install`
+  - `update_10007` backfills legacy rows, rewrites analytics values through the
+    same minimizer, drops `sanitized_query` / `redacted_message`, and purges
+    queued `ilas_langfuse_export` batches.
+- Telemetry + logging:
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/FaqIndex.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/ResourceFinder.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/LangfuseTracer.php`
+  - `web/modules/custom/ilas_site_assistant/src/EventSubscriber/LangfuseTerminateSubscriber.php`
+  - `web/modules/custom/ilas_site_assistant/src/Plugin/QueueWorker/LangfuseExportWorker.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+  - Langfuse generation input/output, finder/vector logs, and exception events
+    now use hash/bucket metadata and deterministic `error_signature` values.
+- Reporting + client tracking:
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantReportController.php`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantConversationController.php`
+  - `web/modules/custom/ilas_site_assistant/js/assistant-widget.js`
+  - `web/modules/custom/ilas_site_assistant/tests/js/assistant-widget-hardening.test.js`
+  - Admin/report views render topic IDs and message/query fingerprints instead
+    of stored text; widget tracking now emits only normalized topic IDs,
+    safe tokens, and pathname-only click values.
+- Regression coverage:
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityPayloadMinimizerTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilitySurfaceContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php`
+
+## Command summaries
+
+- VC-UNIT:
+  - Command: `vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/TelemetrySchemaContractTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityRedactionContractTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseTracerTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityPayloadMinimizerTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilitySurfaceContractTest.php`
+  - Result: passed (`35` tests, `197` assertions, existing PHPUnit deprecation noise only).
+- VC-KERNEL:
+  - Command: `SIMPLETEST_DB='sqlite://localhost//tmp/ilas-kernel.sqlite?module=sqlite' vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php`
+  - Result: passed (`26` tests, `95` assertions, existing PHPUnit deprecation noise only).
+  - Note: the workspace default `SIMPLETEST_DB=mysql://db:db@db/db` could not resolve the `db` host locally, so SQLite override was used for kernel verification.
+- VC-QUALITY-GATE:
+  - Command: `bash /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh`
+  - Result: passed. Unit gate passed (`1852` tests, `9046` assertions); drupal-unit gate passed (`572` tests, `1490` assertions); golden transcript gate passed (`7` tests, `264` assertions); promptfoo runtime tests passed (`11/11`).
+
+## Changed files
+
+- `docs/assistant_audit_backlog.md`
+- `docs/aila/current-state.md`
+- `docs/aila/evidence-index.md`
+- `docs/aila/roadmap.md`
+- `docs/aila/runbook.md`
+- `docs/aila/risk-register.md`
+- `docs/aila/runtime/raud-11-log-surface-minimization.txt`
+- `web/modules/custom/ilas_site_assistant/HOSTILE_AUDIT_REPORT.md`
+- `web/modules/custom/ilas_site_assistant/PRODUCTION_AUDIT_2026.md`
+- `web/modules/custom/ilas_site_assistant/ilas_site_assistant.install`
+- `web/modules/custom/ilas_site_assistant/js/assistant-widget.js`
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantConversationController.php`
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantReportController.php`
+- `web/modules/custom/ilas_site_assistant/src/EventSubscriber/LangfuseTerminateSubscriber.php`
+- `web/modules/custom/ilas_site_assistant/src/Plugin/QueueWorker/LangfuseExportWorker.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/AnalyticsLogger.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/ConversationLogger.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/FaqIndex.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/LangfuseTracer.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/ObservabilityPayloadMinimizer.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/ResourceFinder.php`
+- `web/modules/custom/ilas_site_assistant/tests/js/assistant-widget-hardening.test.js`
+- `web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Kernel/AssistantKernelTestBase.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityPayloadMinimizerTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilitySurfaceContractTest.php`
+
+## Residual risks / unknowns
+
+- Historical third-party telemetry already exported before deployment cannot be
+  retroactively scrubbed by repo changes; `update_10007` only prevents queued
+  pre-RAUD-11 batches from exporting after deploy.
+- The SQLite override proves kernel behavior in this workspace, but production
+  rollout still needs the real database update hook to execute successfully in
+  deploy pipelines.
+- Widget hardening smoke coverage was updated, but the browser-only JS smoke
+  file was not executed in a DOM harness during this remediation run.
+
+## Rollback notes
+
+- Code rollback: revert the PHP/JS/doc changes listed above.
+- Database rollback: if `update_10007` has already run, restoring the old
+  text-bearing columns would require a custom schema/data rollback because the
+  migration intentionally drops `sanitized_query` and `redacted_message`.
+- Operational rollback: if Langfuse export behavior must be reverted quickly,
+  disable Langfuse before restoring older payload contracts to avoid exporting
+  mixed-schema batches.
+
+## Still-unverified surfaces
+
+- Deploy-time execution of `update_10007` on the live MySQL-backed database.
+- Browser-executed `assistant-widget-hardening.test.js` in a DOM-capable runner.

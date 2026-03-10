@@ -367,8 +367,9 @@ PROMPT,
       }
     }
     catch (\Exception $e) {
-      $this->logger->warning('LLM enhancement failed: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->warning('LLM enhancement failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
       // Re-throw if fallback_on_error is disabled.
       if (!$config->get('llm.fallback_on_error')) {
@@ -423,8 +424,9 @@ PROMPT,
       }
     }
     catch (\Exception $e) {
-      $this->logger->warning('LLM intent classification failed: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->warning('LLM intent classification failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
 

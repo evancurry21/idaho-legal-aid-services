@@ -3,13 +3,13 @@
 namespace Drupal\Tests\ilas_site_assistant\Kernel;
 
 use Drupal\ilas_site_assistant\Service\AnalyticsLogger;
-use Drupal\ilas_site_assistant\Service\PiiRedactor;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 
 /**
  * Kernel tests for AnalyticsLogger service.
  *
- * Tests the count-upsert pattern, no-answer deduplication, and cleanup
- * against a real database.
+ * Tests the count-upsert pattern, metadata-only no-answer storage, and
+ * normalization of analytics event values against a real database.
  *
  * @group ilas_site_assistant
  * @coversDefaultClass \Drupal\ilas_site_assistant\Service\AnalyticsLogger
@@ -34,6 +34,7 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
       ->fetch();
 
     $this->assertEquals('chat_open', $row->event_type);
+    $this->assertSame('', $row->event_value);
     $this->assertEquals(1, $row->count);
     $this->assertEquals(date('Y-m-d'), $row->date);
   }
@@ -46,23 +47,22 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
   public function testLogUpsertsExistingRow(): void {
     $logger = $this->createAnalyticsLogger();
 
-    $logger->log('topic_selected', 'housing');
-    $logger->log('topic_selected', 'housing');
-    $logger->log('topic_selected', 'housing');
+    $logger->log('topic_selected', '42');
+    $logger->log('topic_selected', '42');
+    $logger->log('topic_selected', '42');
 
     $row = $this->database->select('ilas_site_assistant_stats', 's')
       ->fields('s', ['count'])
       ->condition('event_type', 'topic_selected')
-      ->condition('event_value', 'housing')
+      ->condition('event_value', '42')
       ->execute()
       ->fetch();
 
     $this->assertEquals(3, $row->count);
 
-    // Should still be a single row, not three.
     $total_rows = $this->database->select('ilas_site_assistant_stats', 's')
       ->condition('event_type', 'topic_selected')
-      ->condition('event_value', 'housing')
+      ->condition('event_value', '42')
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -71,15 +71,15 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
   }
 
   /**
-   * Tests that different event values get separate rows.
+   * Tests that different normalized event values get separate rows.
    *
    * @covers ::log
    */
   public function testLogSeparatesEventValues(): void {
     $logger = $this->createAnalyticsLogger();
 
-    $logger->log('topic_selected', 'housing');
-    $logger->log('topic_selected', 'family');
+    $logger->log('topic_selected', '42');
+    $logger->log('topic_selected', '99');
 
     $count = $this->database->select('ilas_site_assistant_stats', 's')
       ->condition('event_type', 'topic_selected')
@@ -91,13 +91,13 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
   }
 
   /**
-   * Tests that log() sanitizes email addresses from event values.
+   * Tests that click analytics store only the URL path.
    *
    * @covers ::log
    */
-  public function testLogSanitizesEventValue(): void {
+  public function testLogNormalizesClickEventValueToPath(): void {
     $logger = $this->createAnalyticsLogger();
-    $logger->log('resource_click', 'contact john@example.com for help');
+    $logger->log('resource_click', 'https://www.example.org/contact/offices/boise?foo=bar#section');
 
     $row = $this->database->select('ilas_site_assistant_stats', 's')
       ->fields('s', ['event_value'])
@@ -105,18 +105,17 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
       ->execute()
       ->fetch();
 
-    $this->assertStringNotContainsString('john@example.com', $row->event_value);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_EMAIL, $row->event_value);
+    $this->assertSame('/contact/offices/boise', $row->event_value);
   }
 
   /**
-   * Tests that SSN, DOB, and CC are redacted from event values.
+   * Tests that unexpected free-text values are blanked instead of persisted.
    *
    * @covers ::log
    */
-  public function testLogRedactsSsnDobCcInEventValue(): void {
+  public function testLogDropsUnexpectedFreeTextEventValue(): void {
     $logger = $this->createAnalyticsLogger();
-    $logger->log('search_query', 'SSN 123-45-6789 born on 01/01/1990');
+    $logger->log('search_query', 'Mi nombre es Juan Garcia y necesito ayuda con 123 Main Street');
 
     $row = $this->database->select('ilas_site_assistant_stats', 's')
       ->fields('s', ['event_value'])
@@ -124,31 +123,48 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
       ->execute()
       ->fetch();
 
-    $this->assertStringNotContainsString('123-45-6789', $row->event_value);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_SSN, $row->event_value);
+    $this->assertSame('', $row->event_value);
   }
 
   /**
-   * Tests multilingual/contextual redaction in analytics event values.
+   * Tests that clarify-loop analytics hash the conversation identifier.
    *
    * @covers ::log
    */
-  public function testLogRedactsMultilingualContextualEventValue(): void {
+  public function testLogHashesClarifyLoopBreakIdentifier(): void {
     $logger = $this->createAnalyticsLogger();
-    $logger->log('search_query', 'Me llamo Juan García, mi telefono es +52-208-555-1234, Idaho license is AB123456C');
+    $conversationId = '12345678-1234-4123-8123-123456789abc';
 
-    $row = $this->database->select('ilas_site_assistant_stats', 's')
+    $logger->log('clarify_loop_break', $conversationId);
+
+    $storedValue = $this->database->select('ilas_site_assistant_stats', 's')
       ->fields('s', ['event_value'])
-      ->condition('event_type', 'search_query')
+      ->condition('event_type', 'clarify_loop_break')
       ->execute()
-      ->fetch();
+      ->fetchField();
 
-    $this->assertStringNotContainsString('Juan García', $row->event_value);
-    $this->assertStringNotContainsString('+52-208-555-1234', $row->event_value);
-    $this->assertStringNotContainsString('AB123456C', $row->event_value);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_NAME, $row->event_value);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_PHONE, $row->event_value);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_CASE, $row->event_value);
+    $this->assertSame(
+      ObservabilityPayloadMinimizer::hashIdentifier($conversationId),
+      $storedValue
+    );
+  }
+
+  /**
+   * Tests that A/B assignment analytics serialize to stable tokens only.
+   *
+   * @covers ::log
+   */
+  public function testLogNormalizesAbAssignments(): void {
+    $logger = $this->createAnalyticsLogger();
+    $logger->log('ab_assignment', '{"tone":"friendly","cta":"apply_first"}');
+
+    $storedValue = $this->database->select('ilas_site_assistant_stats', 's')
+      ->fields('s', ['event_value'])
+      ->condition('event_type', 'ab_assignment')
+      ->execute()
+      ->fetchField();
+
+    $this->assertSame('cta=apply_first,tone=friendly', $storedValue);
   }
 
   /**
@@ -180,10 +196,8 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
       ->execute()
       ->fetchField();
 
-    // Same query should deduplicate to 1 row.
     $this->assertEquals(1, $count);
 
-    // Count should be 2.
     $row = $this->database->select('ilas_site_assistant_no_answer', 'n')
       ->fields('n', ['count'])
       ->execute()
@@ -208,23 +222,27 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
   }
 
   /**
-   * Tests multilingual/contextual redaction for no-answer query storage.
+   * Tests that no-answer storage keeps metadata only and no text column.
    *
    * @covers ::logNoAnswer
    */
-  public function testLogNoAnswerRedactsSpanishContextualPii(): void {
+  public function testLogNoAnswerStoresMetadataOnly(): void {
     $logger = $this->createAnalyticsLogger();
-    $logger->logNoAnswer('Mi nombre es Juan García y vivo en 123 Main Street Boise ID 83702');
+    $query = 'Mi nombre es Juan Garcia y vivo en 123 Main Street Boise ID 83702';
+    $expected = ObservabilityPayloadMinimizer::buildTextMetadataWithLanguage($query);
+
+    $logger->logNoAnswer($query);
 
     $row = $this->database->select('ilas_site_assistant_no_answer', 'n')
-      ->fields('n', ['sanitized_query'])
+      ->fields('n', ['query_hash', 'language_hint', 'length_bucket', 'redaction_profile'])
       ->execute()
       ->fetch();
 
-    $this->assertStringNotContainsString('Juan García', $row->sanitized_query);
-    $this->assertStringNotContainsString('123 Main Street Boise ID 83702', $row->sanitized_query);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_NAME, $row->sanitized_query);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_ADDRESS, $row->sanitized_query);
+    $this->assertFalse($this->database->schema()->fieldExists('ilas_site_assistant_no_answer', 'sanitized_query'));
+    $this->assertSame($expected['text_hash'], $row->query_hash);
+    $this->assertSame($expected['language_hint'], $row->language_hint);
+    $this->assertSame($expected['length_bucket'], $row->length_bucket);
+    $this->assertSame($expected['redaction_profile'], $row->redaction_profile);
   }
 
   /**
@@ -233,11 +251,10 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
    * @covers ::getStats
    */
   public function testGetStatsReturnsAggregatedData(): void {
-    // Insert test data.
     $today = date('Y-m-d');
     $this->insertStatsRow('chat_open', '', 5, $today);
-    $this->insertStatsRow('topic_selected', 'housing', 3, $today);
-    $this->insertStatsRow('topic_selected', 'family', 2, $today);
+    $this->insertStatsRow('topic_selected', '42', 3, $today);
+    $this->insertStatsRow('topic_selected', '99', 2, $today);
 
     $logger = $this->createAnalyticsLogger();
     $stats = $logger->getStats('topic_selected', 30);
@@ -257,11 +274,12 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
     $this->insertStatsRow('chat_open', '', 5, $old_date);
     $this->insertStatsRow('chat_open', '', 3, $recent_date);
 
-    // Insert old no-answer row.
     $this->database->insert('ilas_site_assistant_no_answer')
       ->fields([
         'query_hash' => hash('sha256', 'old query'),
-        'sanitized_query' => 'old query',
+        'language_hint' => 'en',
+        'length_bucket' => ObservabilityPayloadMinimizer::LENGTH_BUCKET_SHORT,
+        'redaction_profile' => ObservabilityPayloadMinimizer::PROFILE_NONE,
         'count' => 1,
         'first_seen' => strtotime('-100 days'),
         'last_seen' => strtotime('-100 days'),
@@ -271,11 +289,9 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
     $logger = $this->createAnalyticsLogger(['log_retention_days' => 90]);
     $logger->cleanupOldData();
 
-    // Old stats row should be gone.
     $stats_count = $this->countTableRows('ilas_site_assistant_stats');
     $this->assertEquals(1, $stats_count);
 
-    // Old no-answer row should be gone.
     $no_answer_count = $this->countTableRows('ilas_site_assistant_no_answer');
     $this->assertEquals(0, $no_answer_count);
   }
@@ -286,13 +302,11 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
    * @covers ::cleanupOldData
    */
   public function testBatchedCleanupDeletesAllExpiredRows(): void {
-    // Insert 10 expired stats rows.
     $old_date = date('Y-m-d', strtotime('-100 days'));
     for ($i = 0; $i < 10; $i++) {
       $this->insertStatsRow('test_event', 'value_' . $i, 1, $old_date);
     }
 
-    // Insert 2 recent rows.
     $recent_date = date('Y-m-d', strtotime('-10 days'));
     $this->insertStatsRow('test_event', 'recent_a', 1, $recent_date);
     $this->insertStatsRow('test_event', 'recent_b', 1, $recent_date);
@@ -300,7 +314,6 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
     $logger = $this->createAnalyticsLogger(['log_retention_days' => 90]);
     $logger->cleanupOldData();
 
-    // Only the 2 recent rows should remain.
     $remaining = $this->countTableRows('ilas_site_assistant_stats');
     $this->assertEquals(2, $remaining);
   }

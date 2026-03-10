@@ -3,13 +3,13 @@
 namespace Drupal\Tests\ilas_site_assistant\Kernel;
 
 use Drupal\ilas_site_assistant\Service\ConversationLogger;
-use Drupal\ilas_site_assistant\Service\PiiRedactor;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 
 /**
  * Kernel tests for ConversationLogger service.
  *
- * Tests real database writes, PII redaction, request_id storage,
- * and cleanup behavior with actual SQL.
+ * Tests real database writes, metadata-only message persistence, request_id
+ * storage, and cleanup behavior with actual SQL.
  *
  * @group ilas_site_assistant
  * @coversDefaultClass \Drupal\ilas_site_assistant\Service\ConversationLogger
@@ -42,109 +42,93 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
 
     $this->assertCount(2, $rows);
 
-    // First row: user direction.
     $this->assertEquals('user', $rows[0]->direction);
     $this->assertEquals('apply_for_help', $rows[0]->intent);
     $this->assertNull($rows[0]->response_type);
+    $this->assertNotSame('', $rows[0]->message_hash);
 
-    // Second row: assistant direction.
     $this->assertEquals('assistant', $rows[1]->direction);
     $this->assertEquals('apply_for_help', $rows[1]->intent);
     $this->assertEquals('navigation', $rows[1]->response_type);
+    $this->assertNotSame('', $rows[1]->message_hash);
   }
 
   /**
-   * Tests that PII is redacted from stored messages using unified tokens.
+   * Tests that only metadata is stored for user and assistant messages.
    *
    * @covers ::logExchange
    */
-  public function testLogExchangeRedactsPii(): void {
+  public function testLogExchangeStoresMetadataOnly(): void {
     $logger = $this->createConversationLogger();
     $conv_id = '12345678-1234-4123-8123-123456789abc';
+    $userMessage = 'My email is john@example.com and my phone is 208-555-1234';
+    $assistantMessage = '<p>I can help you find resources.</p>';
 
     $logger->logExchange(
       $conv_id,
-      'My email is john@example.com and my phone is 208-555-1234',
-      'I can help you find resources.',
+      $userMessage,
+      $assistantMessage,
       'faq',
       'faq'
     );
 
-    $user_row = $this->database->select('ilas_site_assistant_conversations', 'c')
-      ->fields('c', ['redacted_message'])
+    $userExpected = ObservabilityPayloadMinimizer::buildTextMetadata($userMessage);
+    $assistantExpected = ObservabilityPayloadMinimizer::buildTextMetadata('I can help you find resources.');
+
+    $userRow = $this->database->select('ilas_site_assistant_conversations', 'c')
+      ->fields('c', ['message_hash', 'message_length_bucket', 'redaction_profile'])
       ->condition('conversation_id', $conv_id)
       ->condition('direction', 'user')
       ->execute()
-      ->fetchField();
+      ->fetch();
 
-    $this->assertStringNotContainsString('john@example.com', $user_row);
-    $this->assertStringNotContainsString('208-555-1234', $user_row);
-    // Verify unified token format.
-    $this->assertStringContainsString(PiiRedactor::TOKEN_EMAIL, $user_row);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_PHONE, $user_row);
-  }
-
-  /**
-   * Tests that PII is always redacted regardless of config setting.
-   *
-   * @covers ::logExchange
-   */
-  public function testPiiAlwaysRedactedRegardlessOfConfig(): void {
-    // Explicitly set redact_pii to FALSE — redaction should still happen.
-    $logger = $this->createConversationLogger([
-      'conversation_logging.redact_pii' => FALSE,
-    ]);
-    $conv_id = '12345678-1234-4123-8123-123456789abc';
-
-    $logger->logExchange(
-      $conv_id,
-      'My SSN is 123-45-6789',
-      'I cannot collect that.',
-      'pii',
-      'escalation'
-    );
-
-    $user_row = $this->database->select('ilas_site_assistant_conversations', 'c')
-      ->fields('c', ['redacted_message'])
+    $assistantRow = $this->database->select('ilas_site_assistant_conversations', 'c')
+      ->fields('c', ['message_hash', 'message_length_bucket', 'redaction_profile'])
       ->condition('conversation_id', $conv_id)
-      ->condition('direction', 'user')
+      ->condition('direction', 'assistant')
       ->execute()
-      ->fetchField();
+      ->fetch();
 
-    $this->assertStringNotContainsString('123-45-6789', $user_row);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_SSN, $user_row);
+    $this->assertFalse($this->database->schema()->fieldExists('ilas_site_assistant_conversations', 'redacted_message'));
+
+    $this->assertSame($userExpected['text_hash'], $userRow->message_hash);
+    $this->assertSame($userExpected['length_bucket'], $userRow->message_length_bucket);
+    $this->assertSame($userExpected['redaction_profile'], $userRow->redaction_profile);
+
+    $this->assertSame($assistantExpected['text_hash'], $assistantRow->message_hash);
+    $this->assertSame($assistantExpected['length_bucket'], $assistantRow->message_length_bucket);
+    $this->assertSame($assistantExpected['redaction_profile'], $assistantRow->redaction_profile);
   }
 
   /**
-   * Tests Spanish/contextual PII redaction in stored conversation rows.
+   * Tests Spanish/contextual PII redaction in stored metadata.
    *
    * @covers ::logExchange
    */
-  public function testLogExchangeRedactsSpanishContextualPii(): void {
+  public function testLogExchangeStoresSpanishContextualMetadata(): void {
     $logger = $this->createConversationLogger();
     $conv_id = '12345678-1234-4123-8123-123456789abc';
+    $userMessage = 'Mi nombre es Juan Garcia y vivo en 123 Main Street Boise ID 83702. Mi licencia es AB123456C.';
 
     $logger->logExchange(
       $conv_id,
-      'Mi nombre es Juan García y vivo en 123 Main Street Boise ID 83702. Mi licencia es AB123456C.',
+      $userMessage,
       'Puedo ayudarle a encontrar recursos.',
       'faq',
       'faq'
     );
 
-    $user_row = $this->database->select('ilas_site_assistant_conversations', 'c')
-      ->fields('c', ['redacted_message'])
+    $expected = ObservabilityPayloadMinimizer::buildTextMetadata($userMessage);
+    $userRow = $this->database->select('ilas_site_assistant_conversations', 'c')
+      ->fields('c', ['message_hash', 'message_length_bucket', 'redaction_profile'])
       ->condition('conversation_id', $conv_id)
       ->condition('direction', 'user')
       ->execute()
-      ->fetchField();
+      ->fetch();
 
-    $this->assertStringNotContainsString('Juan García', $user_row);
-    $this->assertStringNotContainsString('123 Main Street Boise ID 83702', $user_row);
-    $this->assertStringNotContainsString('AB123456C', $user_row);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_NAME, $user_row);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_ADDRESS, $user_row);
-    $this->assertStringContainsString(PiiRedactor::TOKEN_CASE, $user_row);
+    $this->assertSame($expected['text_hash'], $userRow->message_hash);
+    $this->assertSame($expected['length_bucket'], $userRow->message_length_bucket);
+    $this->assertSame($expected['redaction_profile'], $userRow->redaction_profile);
   }
 
   /**
@@ -265,12 +249,13 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
     $retention_hours = 72;
     $old_timestamp = $now - ($retention_hours * 3600) - 1;
 
-    // Insert an old row and a recent row.
     $this->database->insert('ilas_site_assistant_conversations')
       ->fields([
         'conversation_id' => '11111111-1111-4111-8111-111111111111',
         'direction' => 'user',
-        'redacted_message' => 'old message',
+        'message_hash' => hash('sha256', 'old message'),
+        'message_length_bucket' => ObservabilityPayloadMinimizer::LENGTH_BUCKET_SHORT,
+        'redaction_profile' => ObservabilityPayloadMinimizer::PROFILE_NONE,
         'intent' => 'faq',
         'created' => $old_timestamp,
       ])
@@ -280,7 +265,9 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
       ->fields([
         'conversation_id' => '22222222-2222-4222-8222-222222222222',
         'direction' => 'user',
-        'redacted_message' => 'recent message',
+        'message_hash' => hash('sha256', 'recent message'),
+        'message_length_bucket' => ObservabilityPayloadMinimizer::LENGTH_BUCKET_SHORT,
+        'redaction_profile' => ObservabilityPayloadMinimizer::PROFILE_NONE,
         'intent' => 'faq',
         'created' => $now - 3600,
       ])
@@ -292,7 +279,6 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
     $remaining = $this->countTableRows('ilas_site_assistant_conversations');
     $this->assertEquals(1, $remaining);
 
-    // Verify the recent row survived.
     $row = $this->database->select('ilas_site_assistant_conversations', 'c')
       ->fields('c', ['conversation_id'])
       ->execute()
@@ -310,26 +296,28 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
     $retention_hours = 72;
     $old_timestamp = $now - ($retention_hours * 3600) - 1;
 
-    // Insert 10 expired rows.
     for ($i = 0; $i < 10; $i++) {
       $this->database->insert('ilas_site_assistant_conversations')
         ->fields([
           'conversation_id' => sprintf('aaaaaaaa-aaaa-4aaa-8aaa-%012d', $i),
           'direction' => 'user',
-          'redacted_message' => 'old message ' . $i,
+          'message_hash' => hash('sha256', 'old message ' . $i),
+          'message_length_bucket' => ObservabilityPayloadMinimizer::LENGTH_BUCKET_SHORT,
+          'redaction_profile' => ObservabilityPayloadMinimizer::PROFILE_NONE,
           'intent' => 'faq',
           'created' => $old_timestamp - $i,
         ])
         ->execute();
     }
 
-    // Insert 2 recent rows.
     for ($i = 0; $i < 2; $i++) {
       $this->database->insert('ilas_site_assistant_conversations')
         ->fields([
           'conversation_id' => sprintf('bbbbbbbb-bbbb-4bbb-8bbb-%012d', $i),
           'direction' => 'user',
-          'redacted_message' => 'recent message ' . $i,
+          'message_hash' => hash('sha256', 'recent message ' . $i),
+          'message_length_bucket' => ObservabilityPayloadMinimizer::LENGTH_BUCKET_SHORT,
+          'redaction_profile' => ObservabilityPayloadMinimizer::PROFILE_NONE,
           'intent' => 'faq',
           'created' => $now - 3600,
         ])
@@ -339,7 +327,6 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
     $logger = $this->createConversationLogger([], $now);
     $logger->cleanup();
 
-    // Only the 2 recent rows should remain.
     $remaining = $this->countTableRows('ilas_site_assistant_conversations');
     $this->assertEquals(2, $remaining);
   }
@@ -352,12 +339,13 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
   public function testCleanupPreservesRecentRows(): void {
     $now = 1700000000;
 
-    // Insert a row within the retention window.
     $this->database->insert('ilas_site_assistant_conversations')
       ->fields([
         'conversation_id' => '33333333-3333-4333-8333-333333333333',
         'direction' => 'user',
-        'redacted_message' => 'recent message',
+        'message_hash' => hash('sha256', 'recent message'),
+        'message_length_bucket' => ObservabilityPayloadMinimizer::LENGTH_BUCKET_SHORT,
+        'redaction_profile' => ObservabilityPayloadMinimizer::PROFILE_NONE,
         'intent' => 'faq',
         'created' => $now - 3600,
       ])
@@ -371,11 +359,11 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
   }
 
   /**
-   * Tests that long messages are truncated.
+   * Tests that long messages collapse into bucketed metadata.
    *
    * @covers ::logExchange
    */
-  public function testLogExchangeTruncatesLongMessages(): void {
+  public function testLogExchangeBucketsLongMessages(): void {
     $logger = $this->createConversationLogger();
     $conv_id = '12345678-1234-4123-8123-123456789abc';
     $long_message = str_repeat('a', 1000);
@@ -389,24 +377,21 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
     );
 
     $user_row = $this->database->select('ilas_site_assistant_conversations', 'c')
-      ->fields('c', ['redacted_message'])
+      ->fields('c', ['message_length_bucket'])
       ->condition('conversation_id', $conv_id)
       ->condition('direction', 'user')
       ->execute()
       ->fetchField();
 
-    // User messages are truncated to 500 chars.
-    $this->assertLessThanOrEqual(500, mb_strlen($user_row));
-
     $assistant_row = $this->database->select('ilas_site_assistant_conversations', 'c')
-      ->fields('c', ['redacted_message'])
+      ->fields('c', ['message_length_bucket'])
       ->condition('conversation_id', $conv_id)
       ->condition('direction', 'assistant')
       ->execute()
       ->fetchField();
 
-    // Assistant messages are truncated to 1000 chars.
-    $this->assertLessThanOrEqual(1000, mb_strlen($assistant_row));
+    $this->assertSame(ObservabilityPayloadMinimizer::LENGTH_BUCKET_LONG, $user_row);
+    $this->assertSame(ObservabilityPayloadMinimizer::LENGTH_BUCKET_LONG, $assistant_row);
   }
 
   /**
@@ -427,7 +412,6 @@ class ConversationLoggerKernelTest extends AssistantKernelTestBase {
       ->execute()
       ->fetchField();
 
-    // 2 exchanges = 4 rows (user + assistant each).
     $this->assertEquals(4, $count);
   }
 

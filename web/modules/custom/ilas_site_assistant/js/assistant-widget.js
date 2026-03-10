@@ -783,7 +783,7 @@
 
       // Track topic if present.
       if (response.type === 'topic' && response.topic) {
-        this.trackEvent('topic_selected', response.topic.name || '');
+        this.trackEvent('topic_selected', String(response.topic.id || ''));
       }
 
       // Build response message.
@@ -1727,10 +1727,63 @@
     },
 
     /**
+     * Normalize a safe low-cardinality tracking token.
+     */
+    normalizeTrackToken: function (value) {
+      value = String(value || '').trim().toLowerCase();
+      if (!value || !/^[a-z0-9:_-]{1,255}$/.test(value)) {
+        return '';
+      }
+      return value;
+    },
+
+    /**
+     * Normalize a tracking path to pathname-only form.
+     */
+    normalizeTrackPath: function (value) {
+      value = String(value || '').trim();
+      if (!value) {
+        return '';
+      }
+
+      try {
+        var parsed = new URL(value, window.location.origin);
+        return parsed.pathname && parsed.pathname.charAt(0) === '/' ? parsed.pathname : '';
+      } catch (e) {
+        return value.charAt(0) === '/' ? value : '';
+      }
+    },
+
+    /**
+     * Normalize client-side tracking values to the approved contract.
+     */
+    normalizeTrackValue: function (eventType, eventValue) {
+      switch (eventType) {
+        case 'chat_open':
+          return '';
+
+        case 'resource_click':
+        case 'hotline_click':
+        case 'apply_click':
+        case 'apply_cta_click':
+        case 'apply_secondary_click':
+        case 'service_area_click':
+          return this.normalizeTrackPath(eventValue);
+
+        case 'topic_selected':
+          eventValue = String(eventValue || '').trim();
+          return /^[0-9]+$/.test(eventValue) ? eventValue : '';
+
+        default:
+          return this.normalizeTrackToken(eventValue);
+      }
+    },
+
+    /**
      * Track an event.
      */
     trackEvent: function (eventType, eventValue) {
-      eventValue = eventValue || '';
+      eventValue = this.normalizeTrackValue(eventType, eventValue);
       // Push to dataLayer if available.
       if (window.dataLayer) {
         window.dataLayer.push({
@@ -1754,16 +1807,7 @@
      * Track a click event.
      */
     trackClick: function (eventType, url) {
-      // Extract path from URL.
-      var path = url;
-      try {
-        var urlObj = new URL(url, window.location.origin);
-        path = urlObj.pathname;
-      } catch (e) {
-        // Use as-is if URL parsing fails.
-      }
-
-      this.trackEvent(eventType, path);
+      this.trackEvent(eventType, this.normalizeTrackPath(url));
     },
 
     /**

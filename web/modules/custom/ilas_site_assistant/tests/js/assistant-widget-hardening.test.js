@@ -183,6 +183,44 @@ window._assistantWidgetTestDone = (async function () {
       return html;
     },
 
+    normalizeTrackToken: function (value) {
+      value = String(value || '').trim().toLowerCase();
+      if (!value || !/^[a-z0-9:_-]{1,255}$/.test(value)) {
+        return '';
+      }
+      return value;
+    },
+
+    normalizeTrackPath: function (value) {
+      value = String(value || '').trim();
+      if (!value) return '';
+      try {
+        var parsed = new URL(value, window.location.origin);
+        return parsed.pathname && parsed.pathname.charAt(0) === '/' ? parsed.pathname : '';
+      } catch (e) {
+        return value.charAt(0) === '/' ? value : '';
+      }
+    },
+
+    normalizeTrackValue: function (eventType, eventValue) {
+      switch (eventType) {
+        case 'chat_open':
+          return '';
+        case 'resource_click':
+        case 'hotline_click':
+        case 'apply_click':
+        case 'apply_cta_click':
+        case 'apply_secondary_click':
+        case 'service_area_click':
+          return SA.normalizeTrackPath(eventValue);
+        case 'topic_selected':
+          eventValue = String(eventValue || '').trim();
+          return /^[0-9]+$/.test(eventValue) ? eventValue : '';
+        default:
+          return SA.normalizeTrackToken(eventValue);
+      }
+    },
+
     callTrackApi: function (deps, payload, isRetry, csrfToken) {
       var options = {
         method: 'POST',
@@ -212,6 +250,7 @@ window._assistantWidgetTestDone = (async function () {
     },
 
     trackEventSilently: function (deps, eventType, eventValue) {
+      eventValue = SA.normalizeTrackValue(eventType, eventValue);
       return deps.callTrackApi({
         event_type: eventType,
         event_value: eventValue || '',
@@ -245,6 +284,17 @@ window._assistantWidgetTestDone = (async function () {
     assert(SA.sanitizeUrl(undefined) === '#', 'undefined returns #');
     assert(SA.sanitizeUrl('  /trimmed  ') === '/trimmed', 'trims whitespace');
     assert(SA.sanitizeUrl('  javascript:alert(1)  ') === '#', 'trims then blocks javascript:');
+  });
+
+  // ===================================================================
+  // 1b. tracking normalization
+  // ===================================================================
+  suite('tracking normalization', function () {
+    assert(SA.normalizeTrackValue('topic_selected', '42') === '42', 'topic_selected keeps numeric topic IDs');
+    assert(SA.normalizeTrackValue('topic_selected', 'Housing') === '', 'topic_selected drops display labels');
+    assert(SA.normalizeTrackValue('resource_click', 'https://example.org/legal-help/housing?x=1') === '/legal-help/housing', 'resource_click keeps pathname only');
+    assert(SA.normalizeTrackValue('suggestion_click', 'forms') === 'forms', 'safe suggestion token is preserved');
+    assert(SA.normalizeTrackValue('suggestion_click', 'Forms inventory') === '', 'free-form suggestion label is dropped');
   });
 
   // ===================================================================

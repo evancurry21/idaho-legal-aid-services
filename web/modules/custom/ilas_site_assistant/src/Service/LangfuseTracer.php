@@ -145,8 +145,9 @@ class LangfuseTracer {
       }
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse: failed to resolve enabled state: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->error('Langfuse: failed to resolve enabled state: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
       $this->enabled = FALSE;
     }
@@ -200,8 +201,9 @@ class LangfuseTracer {
       ];
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse: startTrace failed: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->error('Langfuse: startTrace failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
       $this->active = FALSE;
     }
@@ -235,9 +237,10 @@ class LangfuseTracer {
       ];
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse: startSpan(@name) failed: @message', [
+      $this->logger->error('Langfuse: startSpan(@name) failed: @class @error_signature', [
         '@name' => $name,
-        '@message' => $e->getMessage(),
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }
@@ -281,8 +284,9 @@ class LangfuseTracer {
       ];
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse: endSpan failed: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->error('Langfuse: endSpan failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }
@@ -321,9 +325,10 @@ class LangfuseTracer {
       ];
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse: startGeneration(@name) failed: @message', [
+      $this->logger->error('Langfuse: startGeneration(@name) failed: @class @error_signature', [
         '@name' => $name,
-        '@message' => $e->getMessage(),
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }
@@ -367,8 +372,9 @@ class LangfuseTracer {
       ];
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse: endGeneration failed: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->error('Langfuse: endGeneration failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }
@@ -409,9 +415,10 @@ class LangfuseTracer {
       ];
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse: addEvent(@name) failed: @message', [
+      $this->logger->error('Langfuse: addEvent(@name) failed: @class @error_signature', [
         '@name' => $name,
-        '@message' => $e->getMessage(),
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }
@@ -458,8 +465,9 @@ class LangfuseTracer {
       ];
     }
     catch (\Throwable $e) {
-      $this->logger->error('Langfuse: endTrace failed: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->error('Langfuse: endTrace failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }

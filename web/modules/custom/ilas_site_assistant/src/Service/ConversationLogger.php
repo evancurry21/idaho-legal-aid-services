@@ -7,11 +7,11 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Component\Datetime\TimeInterface;
 
 /**
- * Opt-in conversation logger with PII redaction for QA/debugging.
+ * Opt-in conversation logger with metadata-only persistence for QA/debugging.
  *
- * Default: OFF. When enabled, stores redacted message pairs with a short
- * retention TTL. Access is gated by the 'view ilas site assistant conversations'
- * permission.
+ * Default: OFF. When enabled, stores hashed/minimized message metadata with a
+ * short retention TTL. Access is gated by the
+ * 'view ilas site assistant conversations' permission.
  */
 class ConversationLogger {
 
@@ -67,9 +67,9 @@ class ConversationLogger {
    * @param string $conversationId
    *   UUID grouping messages in one conversation.
    * @param string $userMessage
-   *   The raw user message (will be redacted before storage).
+   *   The raw user message (minimized before storage).
    * @param string $assistantMessage
-   *   The assistant response text.
+   *   The assistant response text (minimized before storage).
    * @param string $intent
    *   The detected intent type.
    * @param string $responseType
@@ -96,9 +96,8 @@ class ConversationLogger {
 
     $now = $this->time->getRequestTime();
 
-    // PII redaction is always-on — no config gate.
-    $redactedUser = PiiRedactor::redactForStorage($userMessage, 500);
-    $assistantMessage = mb_substr(strip_tags($assistantMessage), 0, 1000);
+    $userMetadata = ObservabilityPayloadMinimizer::buildTextMetadata($userMessage);
+    $assistantMetadata = ObservabilityPayloadMinimizer::buildTextMetadata(strip_tags($assistantMessage));
 
     // Sanitize request_id to valid UUID or NULL.
     $storedRequestId = NULL;
@@ -111,7 +110,9 @@ class ConversationLogger {
       $fields = [
         'conversation_id' => mb_substr($conversationId, 0, 36),
         'direction' => 'user',
-        'redacted_message' => $redactedUser,
+        'message_hash' => $userMetadata['text_hash'],
+        'message_length_bucket' => $userMetadata['length_bucket'],
+        'redaction_profile' => $userMetadata['redaction_profile'],
         'intent' => $intent,
         'response_type' => NULL,
         'created' => $now,
@@ -127,7 +128,9 @@ class ConversationLogger {
       $fields = [
         'conversation_id' => mb_substr($conversationId, 0, 36),
         'direction' => 'assistant',
-        'redacted_message' => $assistantMessage,
+        'message_hash' => $assistantMetadata['text_hash'],
+        'message_length_bucket' => $assistantMetadata['length_bucket'],
+        'redaction_profile' => $assistantMetadata['redaction_profile'],
         'intent' => $intent,
         'response_type' => $responseType,
         'created' => $now,
@@ -141,8 +144,9 @@ class ConversationLogger {
     }
     catch (\Exception $e) {
       \Drupal::logger('ilas_site_assistant')
-        ->error('Conversation logging failed: @message', [
-          '@message' => $e->getMessage(),
+        ->error('Conversation logging failed: @class @error_signature', [
+          '@class' => get_class($e),
+          '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
         ]);
     }
   }
@@ -201,8 +205,9 @@ class ConversationLogger {
     }
     catch (\Exception $e) {
       \Drupal::logger('ilas_site_assistant')
-        ->error('Conversation cleanup failed: @message', [
-          '@message' => $e->getMessage(),
+        ->error('Conversation cleanup failed: @class @error_signature', [
+          '@class' => get_class($e),
+          '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
         ]);
     }
   }

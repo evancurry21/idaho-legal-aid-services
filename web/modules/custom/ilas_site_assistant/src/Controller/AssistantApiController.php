@@ -25,6 +25,7 @@ use Drupal\ilas_site_assistant\Service\TelemetrySchema;
 use Drupal\ilas_site_assistant\Service\TopIntentsPack;
 use Drupal\ilas_site_assistant\Service\TurnClassifier;
 use Drupal\ilas_site_assistant\Service\OfficeLocationResolver;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 use Drupal\ilas_site_assistant\Service\SafetyResponseTemplates;
 use Drupal\ilas_site_assistant\Service\OutOfScopeClassifier;
 use Drupal\ilas_site_assistant\Service\OutOfScopeResponseTemplates;
@@ -631,7 +632,7 @@ class AssistantApiController extends ControllerBase {
     if ($conversation_id && $this->abTesting && $this->abTesting->isEnabled()) {
       $ab_assignments = $this->abTesting->getAssignments($conversation_id);
       if (!empty($ab_assignments)) {
-        $this->analyticsLogger->log('ab_assignment', json_encode($ab_assignments));
+        $this->analyticsLogger->log('ab_assignment', ObservabilityPayloadMinimizer::serializeAssignments($ab_assignments));
       }
     }
 
@@ -1264,7 +1265,7 @@ class AssistantApiController extends ControllerBase {
       $this->langfuseTracer?->startGeneration('llm.classify', $llm_model, [
         'temperature' => $config->get('llm.temperature') ?? 0.3,
         'max_tokens' => $config->get('llm.max_tokens') ?? 150,
-      ], PiiRedactor::redactForStorage($user_message, 200));
+      ], $this->buildLangfuseInputPayload($user_message));
       $llm_intent = $this->llmEnhancer->classifyIntent($user_message, $intent['type']);
       $this->langfuseTracer?->endGeneration($llm_intent, $this->llmEnhancer->getLastUsage() ?? []);
       if ($llm_intent !== 'unknown' && $llm_intent !== $intent['type']) {
@@ -1333,9 +1334,7 @@ class AssistantApiController extends ControllerBase {
         $this->sourceGovernance->recordObservationBatch($response['results']);
       }
       catch (\Throwable $e) {
-        $this->logger->warning('Source governance observation failed: @message', [
-          '@message' => $e->getMessage(),
-        ]);
+        $this->logger->warning('Source governance observation failed: @class @error_signature', $this->buildExceptionContext($e));
       }
     }
 
@@ -1345,11 +1344,11 @@ class AssistantApiController extends ControllerBase {
     $this->langfuseTracer?->startGeneration('llm.enhance', $llm_model, [
       'temperature' => $config->get('llm.temperature') ?? 0.3,
       'max_tokens' => $config->get('llm.max_tokens') ?? 150,
-    ], PiiRedactor::redactForStorage($user_message, 200));
+    ], $this->buildLangfuseInputPayload($user_message));
     $response = $this->llmEnhancer->enhanceResponse($response, $user_message);
     $llm_was_used = ($response['llm_enhanced'] ?? FALSE);
     $this->langfuseTracer?->endGeneration(
-      $llm_was_used ? ($response['message'] ?? NULL) : NULL,
+      $llm_was_used ? $this->buildLangfuseOutputPayload((string) ($response['message'] ?? '')) : NULL,
       $llm_was_used ? ($this->llmEnhancer->getLastUsage() ?? []) : []
     );
 
@@ -1549,13 +1548,10 @@ class AssistantApiController extends ControllerBase {
         request_id: $request_id,
       );
       $this->logger->error(
-        '[@request_id] Unhandled exception in message pipeline: @class @message',
+        '[@request_id] Unhandled exception in message pipeline: @class @error_signature',
         TelemetrySchema::toLogContext(
           $error_telemetry,
-          [
-            '@class' => get_class($e),
-            '@message' => $e->getMessage(),
-          ]
+          $this->buildExceptionContext($e)
         )
       );
 
@@ -1576,7 +1572,7 @@ class AssistantApiController extends ControllerBase {
       // End Langfuse trace on error.
       $this->langfuseTracer?->addEvent('error', [
         'class' => get_class($e),
-        'message' => $e->getMessage(),
+        'error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ], 'ERROR');
       $this->langfuseTracer?->endTrace(
         output: NULL,
@@ -2036,11 +2032,9 @@ class AssistantApiController extends ControllerBase {
     }
     catch (\Throwable $e) {
       // Deterministic fallback: read endpoint should degrade to an empty set.
-      $this->logger->error('[@request_id] suggest endpoint fallback due to @class: @message', [
+      $this->logger->error('[@request_id] suggest endpoint fallback due to @class: @error_signature', [
         '@request_id' => $request_id,
-        '@class' => get_class($e),
-        '@message' => $e->getMessage(),
-      ]);
+      ] + $this->buildExceptionContext($e));
       $response = new CacheableJsonResponse([
         'suggestions' => [],
       ], 200, self::SECURITY_HEADERS);
@@ -2103,11 +2097,9 @@ class AssistantApiController extends ControllerBase {
     }
     catch (\Throwable $e) {
       // Deterministic fallback for FAQ read path failures.
-      $this->logger->error('[@request_id] faq endpoint fallback due to @class: @message', [
+      $this->logger->error('[@request_id] faq endpoint fallback due to @class: @error_signature', [
         '@request_id' => $request_id,
-        '@class' => get_class($e),
-        '@message' => $e->getMessage(),
-      ]);
+      ] + $this->buildExceptionContext($e));
 
       if ($id) {
         $response = new CacheableJsonResponse(['error' => 'FAQ not found'], 404, self::SECURITY_HEADERS);
@@ -2453,10 +2445,10 @@ class AssistantApiController extends ControllerBase {
             'url' => $canonical_urls['forms'],
           ];
           $response['form_finder_mode'] = TRUE;
-          $this->logger->info('[@request_id] Form Finder clarification triggered for bare query: @query', [
-            '@request_id' => $request_id,
-            '@query' => PiiRedactor::redactForLog($message),
-          ]);
+          $this->logger->info(
+            '[@request_id] Form Finder clarification triggered for query_hash=@query_hash length=@query_length_bucket profile=@redaction_profile',
+            $this->buildFinderQueryLogContext($request_id, $message)
+          );
           break;
         }
         $results = $this->resourceFinder->findForms($form_topic_keywords, 6);
@@ -2478,9 +2470,9 @@ class AssistantApiController extends ControllerBase {
               $response['results'] = $broader_results;
               $response['message'] = $this->t('I couldn\'t find exact form matches, but here are related @area resources:', ['@area' => str_replace('_', ' ', $intent_area)]);
               $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
-              $this->logger->info('[@request_id] Forms search broadened: @keywords -> @area, @count results', [
+              $this->logger->info('[@request_id] Forms search broadened: keyword_count=@keyword_count area=@area results=@count', [
                 '@request_id' => $request_id,
-                '@keywords' => $form_topic_keywords,
+                '@keyword_count' => ObservabilityPayloadMinimizer::keywordCount($form_topic_keywords),
                 '@area' => $intent_area,
                 '@count' => count($broader_results),
               ]);
@@ -2503,12 +2495,10 @@ class AssistantApiController extends ControllerBase {
           ];
           $response['caveat'] = $this->t('This is general information, not legal advice. For legal advice, call our Legal Advice Line or apply for help.');
         }
-        $this->logger->info('[@request_id] Form Finder search: query=@query, topic_keywords=@keywords, results=@count', [
-          '@request_id' => $request_id,
-          '@query' => PiiRedactor::redactForLog($message),
-          '@keywords' => $form_topic_keywords,
-          '@count' => count($results),
-        ]);
+        $this->logger->info(
+          '[@request_id] Form Finder search: query_hash=@query_hash length=@query_length_bucket keyword_count=@keyword_count results=@count',
+          $this->buildFinderQueryLogContext($request_id, $message, $form_topic_keywords, count($results))
+        );
         break;
 
       case 'guides':
@@ -2537,10 +2527,10 @@ class AssistantApiController extends ControllerBase {
             'url' => $canonical_urls['guides'],
           ];
           $response['guide_finder_mode'] = TRUE;
-          $this->logger->info('[@request_id] Guide Finder clarification triggered for bare query: @query', [
-            '@request_id' => $request_id,
-            '@query' => PiiRedactor::redactForLog($message),
-          ]);
+          $this->logger->info(
+            '[@request_id] Guide Finder clarification triggered for query_hash=@query_hash length=@query_length_bucket profile=@redaction_profile',
+            $this->buildFinderQueryLogContext($request_id, $message)
+          );
           break;
         }
         $results = $this->resourceFinder->findGuides($guide_topic_keywords, 6);
@@ -2562,9 +2552,9 @@ class AssistantApiController extends ControllerBase {
               $response['results'] = $broader_results;
               $response['message'] = $this->t('I couldn\'t find exact guide matches, but here are related @area resources:', ['@area' => str_replace('_', ' ', $intent_area)]);
               $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
-              $this->logger->info('[@request_id] Guides search broadened: @keywords -> @area, @count results', [
+              $this->logger->info('[@request_id] Guides search broadened: keyword_count=@keyword_count area=@area results=@count', [
                 '@request_id' => $request_id,
-                '@keywords' => $guide_topic_keywords,
+                '@keyword_count' => ObservabilityPayloadMinimizer::keywordCount($guide_topic_keywords),
                 '@area' => $intent_area,
                 '@count' => count($broader_results),
               ]);
@@ -2587,12 +2577,10 @@ class AssistantApiController extends ControllerBase {
           ];
           $response['caveat'] = $this->t('This is general information, not legal advice. For legal advice, call our Legal Advice Line or apply for help.');
         }
-        $this->logger->info('[@request_id] Guide Finder search: query=@query, topic_keywords=@keywords, results=@count', [
-          '@request_id' => $request_id,
-          '@query' => PiiRedactor::redactForLog($message),
-          '@keywords' => $guide_topic_keywords,
-          '@count' => count($results),
-        ]);
+        $this->logger->info(
+          '[@request_id] Guide Finder search: query_hash=@query_hash length=@query_length_bucket keyword_count=@keyword_count results=@count',
+          $this->buildFinderQueryLogContext($request_id, $message, $guide_topic_keywords, count($results))
+        );
         break;
 
       case 'resources':
@@ -3606,6 +3594,59 @@ class AssistantApiController extends ControllerBase {
   }
 
   /**
+   * Builds metadata-only Langfuse input payload fields for user text.
+   */
+  protected function buildLangfuseInputPayload(string $text): array {
+    $metadata = ObservabilityPayloadMinimizer::buildTextMetadata($text);
+    return [
+      'input_hash' => $metadata['text_hash'],
+      'length_bucket' => $metadata['length_bucket'],
+      'redaction_profile' => $metadata['redaction_profile'],
+    ];
+  }
+
+  /**
+   * Builds metadata-only Langfuse output payload fields for assistant text.
+   */
+  protected function buildLangfuseOutputPayload(string $text): array {
+    $metadata = ObservabilityPayloadMinimizer::buildTextMetadata($text);
+    return [
+      'output_hash' => $metadata['text_hash'],
+      'output_length_bucket' => $metadata['length_bucket'],
+    ];
+  }
+
+  /**
+   * Builds metadata-only finder log context for a user query.
+   */
+  protected function buildFinderQueryLogContext(string $request_id, string $query, array|string $keywords = [], ?int $count = NULL): array {
+    $metadata = ObservabilityPayloadMinimizer::buildTextMetadata($query);
+    $context = [
+      '@request_id' => $request_id,
+      '@query_hash' => $metadata['text_hash'],
+      '@query_length_bucket' => $metadata['length_bucket'],
+      '@redaction_profile' => $metadata['redaction_profile'],
+      '@keyword_count' => ObservabilityPayloadMinimizer::keywordCount($keywords),
+    ];
+
+    if ($count !== NULL) {
+      $context['@count'] = $count;
+    }
+
+    return $context;
+  }
+
+  /**
+   * Builds metadata-only exception context for logs and events.
+   */
+  protected function buildExceptionContext(\Throwable $throwable): array {
+    return [
+      '@class' => get_class($throwable),
+      '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($throwable),
+    ];
+  }
+
+  /**
    * Sanitizes user input.
    */
   protected function sanitizeInput(string $input) {
@@ -3753,7 +3794,7 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Log analytics.
-    $this->analyticsLogger->log('office_location_followup', $office['name']);
+    $this->analyticsLogger->log('office_location_followup', (string) ($office['url'] ?? ''));
 
     // Store conversation turn.
     $server_history[] = [
@@ -3840,7 +3881,7 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Log analytics.
-    $this->analyticsLogger->log('office_location_followup_miss', mb_substr($user_message, 0, 50));
+    $this->analyticsLogger->log('office_location_followup_miss', 'unresolved');
 
     // Store conversation turn.
     $server_history[] = [

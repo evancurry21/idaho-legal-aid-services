@@ -56,9 +56,9 @@ function ilas_site_assistant_schema() {
     ],
   ];
 
-  // Sanitized "no_answer" queries for content gap analysis.
+  // Metadata-only "no_answer" fingerprints for content gap analysis.
   $schema['ilas_site_assistant_no_answer'] = [
-    'description' => 'Stores sanitized queries that had no matching results.',
+    'description' => 'Stores metadata-only fingerprints for queries that had no matching results.',
     'fields' => [
       'id' => [
         'type' => 'serial',
@@ -69,13 +69,28 @@ function ilas_site_assistant_schema() {
         'type' => 'varchar',
         'length' => 64,
         'not null' => TRUE,
-        'description' => 'Hash of sanitized query for deduplication.',
+        'description' => 'Hash of the normalized redacted query for deduplication.',
       ],
-      'sanitized_query' => [
+      'language_hint' => [
         'type' => 'varchar',
-        'length' => 100,
+        'length' => 16,
         'not null' => TRUE,
-        'description' => 'Truncated, sanitized query text (no PII).',
+        'default' => 'unknown',
+        'description' => 'Coarse language hint for aggregate reporting.',
+      ],
+      'length_bucket' => [
+        'type' => 'varchar',
+        'length' => 16,
+        'not null' => TRUE,
+        'default' => 'empty',
+        'description' => 'Bucketed query length for observability.',
+      ],
+      'redaction_profile' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => 'none',
+        'description' => 'Sorted token labels describing what redaction classes were present.',
       ],
       'count' => [
         'type' => 'int',
@@ -106,9 +121,9 @@ function ilas_site_assistant_schema() {
     ],
   ];
 
-  // Opt-in conversation log table (PII-redacted, short retention).
+  // Opt-in conversation metadata log table (no message text, short retention).
   $schema['ilas_site_assistant_conversations'] = [
-    'description' => 'Opt-in conversation logs for QA/debugging (PII-redacted).',
+    'description' => 'Opt-in conversation logs for QA/debugging using metadata-only message fingerprints.',
     'fields' => [
       'id' => [
         'type' => 'serial',
@@ -127,11 +142,26 @@ function ilas_site_assistant_schema() {
         'not null' => TRUE,
         'description' => 'Message direction: user or assistant.',
       ],
-      'redacted_message' => [
-        'type' => 'text',
-        'size' => 'medium',
+      'message_hash' => [
+        'type' => 'varchar',
+        'length' => 64,
         'not null' => TRUE,
-        'description' => 'PII-redacted message text.',
+        'default' => '',
+        'description' => 'Hash of the normalized redacted message text.',
+      ],
+      'message_length_bucket' => [
+        'type' => 'varchar',
+        'length' => 16,
+        'not null' => TRUE,
+        'default' => 'empty',
+        'description' => 'Bucketed message length for observability.',
+      ],
+      'redaction_profile' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => 'none',
+        'description' => 'Sorted token labels describing what redaction classes were present.',
       ],
       'intent' => [
         'type' => 'varchar',
@@ -179,7 +209,7 @@ function ilas_site_assistant_update_10001() {
 
   if (!$schema->tableExists('ilas_site_assistant_conversations')) {
     $table = [
-      'description' => 'Opt-in conversation logs for QA/debugging (PII-redacted).',
+      'description' => 'Opt-in conversation logs for QA/debugging using metadata-only message fingerprints.',
       'fields' => [
         'id' => [
           'type' => 'serial',
@@ -198,11 +228,26 @@ function ilas_site_assistant_update_10001() {
           'not null' => TRUE,
           'description' => 'Message direction: user or assistant.',
         ],
-        'redacted_message' => [
-          'type' => 'text',
-          'size' => 'medium',
+        'message_hash' => [
+          'type' => 'varchar',
+          'length' => 64,
           'not null' => TRUE,
-          'description' => 'PII-redacted message text.',
+          'default' => '',
+          'description' => 'Hash of the normalized redacted message text.',
+        ],
+        'message_length_bucket' => [
+          'type' => 'varchar',
+          'length' => 16,
+          'not null' => TRUE,
+          'default' => 'empty',
+          'description' => 'Bucketed message length for observability.',
+        ],
+        'redaction_profile' => [
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => TRUE,
+          'default' => 'none',
+          'description' => 'Sorted token labels describing what redaction classes were present.',
         ],
         'intent' => [
           'type' => 'varchar',
@@ -461,6 +506,248 @@ function ilas_site_assistant_update_10006() {
   }
 
   return implode(' ', $messages);
+}
+
+/**
+ * Minimizes observability payload tables and purges pre-RAUD-11 trace batches.
+ */
+function ilas_site_assistant_update_10007() {
+  $messages = [];
+  $database = \Drupal::database();
+  $schema = $database->schema();
+
+  $topic_lookup = ilas_site_assistant_raud11_topic_lookup();
+  $office_lookup = ilas_site_assistant_raud11_office_lookup();
+
+  if ($schema->tableExists('ilas_site_assistant_no_answer')) {
+    ilas_site_assistant_raud11_add_field_if_missing($schema, 'ilas_site_assistant_no_answer', 'language_hint', [
+      'type' => 'varchar',
+      'length' => 16,
+      'not null' => TRUE,
+      'default' => 'unknown',
+      'description' => 'Coarse language hint for aggregate reporting.',
+    ]);
+    ilas_site_assistant_raud11_add_field_if_missing($schema, 'ilas_site_assistant_no_answer', 'length_bucket', [
+      'type' => 'varchar',
+      'length' => 16,
+      'not null' => TRUE,
+      'default' => 'empty',
+      'description' => 'Bucketed query length for observability.',
+    ]);
+    ilas_site_assistant_raud11_add_field_if_missing($schema, 'ilas_site_assistant_no_answer', 'redaction_profile', [
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => 'none',
+      'description' => 'Sorted token labels describing what redaction classes were present.',
+    ]);
+
+    if ($schema->fieldExists('ilas_site_assistant_no_answer', 'sanitized_query')) {
+      $rows = $database->select('ilas_site_assistant_no_answer', 'n')
+        ->fields('n', ['sanitized_query', 'count', 'first_seen', 'last_seen'])
+        ->execute()
+        ->fetchAll();
+
+      $aggregates = [];
+      foreach ($rows as $row) {
+        $metadata = \Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer::buildTextMetadataWithLanguage((string) $row->sanitized_query);
+        $hash = $metadata['text_hash'];
+        if (!isset($aggregates[$hash])) {
+          $aggregates[$hash] = [
+            'query_hash' => $hash,
+            'language_hint' => $metadata['language_hint'],
+            'length_bucket' => $metadata['length_bucket'],
+            'redaction_profile' => $metadata['redaction_profile'],
+            'count' => 0,
+            'first_seen' => (int) $row->first_seen,
+            'last_seen' => (int) $row->last_seen,
+          ];
+        }
+
+        $aggregates[$hash]['count'] += (int) $row->count;
+        $aggregates[$hash]['first_seen'] = min($aggregates[$hash]['first_seen'], (int) $row->first_seen);
+        $aggregates[$hash]['last_seen'] = max($aggregates[$hash]['last_seen'], (int) $row->last_seen);
+      }
+
+      ilas_site_assistant_raud11_drop_field_if_exists($schema, 'ilas_site_assistant_no_answer', 'sanitized_query');
+
+      $database->truncate('ilas_site_assistant_no_answer')->execute();
+      foreach ($aggregates as $aggregate) {
+        $database->insert('ilas_site_assistant_no_answer')
+          ->fields($aggregate)
+          ->execute();
+      }
+      $messages[] = t('Backfilled no-answer metadata and removed sanitized_query storage.');
+    }
+  }
+
+  if ($schema->tableExists('ilas_site_assistant_conversations')) {
+    ilas_site_assistant_raud11_add_field_if_missing($schema, 'ilas_site_assistant_conversations', 'message_hash', [
+      'type' => 'varchar',
+      'length' => 64,
+      'not null' => TRUE,
+      'default' => '',
+      'description' => 'Hash of the normalized redacted message text.',
+    ]);
+    ilas_site_assistant_raud11_add_field_if_missing($schema, 'ilas_site_assistant_conversations', 'message_length_bucket', [
+      'type' => 'varchar',
+      'length' => 16,
+      'not null' => TRUE,
+      'default' => 'empty',
+      'description' => 'Bucketed message length for observability.',
+    ]);
+    ilas_site_assistant_raud11_add_field_if_missing($schema, 'ilas_site_assistant_conversations', 'redaction_profile', [
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => 'none',
+      'description' => 'Sorted token labels describing what redaction classes were present.',
+    ]);
+
+    if ($schema->fieldExists('ilas_site_assistant_conversations', 'redacted_message')) {
+      $rows = $database->select('ilas_site_assistant_conversations', 'c')
+        ->fields('c', ['id', 'redacted_message'])
+        ->execute()
+        ->fetchAll();
+
+      foreach ($rows as $row) {
+        $metadata = \Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer::buildTextMetadata((string) $row->redacted_message);
+        $database->update('ilas_site_assistant_conversations')
+          ->fields([
+            'message_hash' => $metadata['text_hash'],
+            'message_length_bucket' => $metadata['length_bucket'],
+            'redaction_profile' => $metadata['redaction_profile'],
+          ])
+          ->condition('id', $row->id)
+          ->execute();
+      }
+
+      ilas_site_assistant_raud11_drop_field_if_exists($schema, 'ilas_site_assistant_conversations', 'redacted_message');
+      $messages[] = t('Backfilled conversation metadata and removed redacted_message storage.');
+    }
+  }
+
+  if ($schema->tableExists('ilas_site_assistant_stats')) {
+    $rows = $database->select('ilas_site_assistant_stats', 's')
+      ->fields('s', ['event_type', 'event_value', 'count', 'date'])
+      ->execute()
+      ->fetchAll();
+
+    $aggregates = [];
+    foreach ($rows as $row) {
+      $normalized = ilas_site_assistant_raud11_normalize_analytics_value(
+        (string) $row->event_type,
+        (string) ($row->event_value ?? ''),
+        $topic_lookup,
+        $office_lookup
+      );
+      $key = implode('|', [
+        (string) $row->event_type,
+        $normalized,
+        (string) $row->date,
+      ]);
+      if (!isset($aggregates[$key])) {
+        $aggregates[$key] = [
+          'event_type' => (string) $row->event_type,
+          'event_value' => $normalized,
+          'count' => 0,
+          'date' => (string) $row->date,
+        ];
+      }
+      $aggregates[$key]['count'] += (int) $row->count;
+    }
+
+    $database->truncate('ilas_site_assistant_stats')->execute();
+    foreach ($aggregates as $aggregate) {
+      $database->insert('ilas_site_assistant_stats')
+        ->fields($aggregate)
+        ->execute();
+    }
+
+    $messages[] = t('Normalized legacy analytics event values to the RAUD-11 contract.');
+  }
+
+  try {
+    \Drupal::queue('ilas_langfuse_export')->deleteQueue();
+    $messages[] = t('Purged queued Langfuse export batches created before the RAUD-11 payload contract.');
+  }
+  catch (\Throwable $e) {
+    $messages[] = t('Failed to purge queued Langfuse export batches.');
+  }
+
+  return $messages ? implode(' ', $messages) : t('RAUD-11 observability minimization update already applied.');
+}
+
+/**
+ * Adds a field only when it is missing.
+ */
+function ilas_site_assistant_raud11_add_field_if_missing($schema, string $table, string $field, array $spec): void {
+  if (!$schema->fieldExists($table, $field)) {
+    $schema->addField($table, $field, $spec);
+  }
+}
+
+/**
+ * Drops a field when it is still present.
+ */
+function ilas_site_assistant_raud11_drop_field_if_exists($schema, string $table, string $field): void {
+  if ($schema->fieldExists($table, $field)) {
+    $schema->dropField($table, $field);
+  }
+}
+
+/**
+ * Returns a lookup of legacy topic labels to topic IDs.
+ */
+function ilas_site_assistant_raud11_topic_lookup(): array {
+  if (!\Drupal::hasService('ilas_site_assistant.topic_resolver')) {
+    return [];
+  }
+
+  try {
+    $topics = \Drupal::service('ilas_site_assistant.topic_resolver')->getAllTopics();
+  }
+  catch (\Throwable $e) {
+    return [];
+  }
+
+  $lookup = [];
+  foreach ($topics as $topic) {
+    $name = mb_strtolower(trim((string) ($topic['name'] ?? '')));
+    $id = $topic['id'] ?? NULL;
+    if ($name !== '' && $id !== NULL) {
+      $lookup[$name] = (string) $id;
+    }
+  }
+
+  return $lookup;
+}
+
+/**
+ * Returns a lookup of office names to canonical office paths.
+ */
+function ilas_site_assistant_raud11_office_lookup(): array {
+  $lookup = [];
+
+  foreach (\Drupal\ilas_site_assistant\Service\OfficeLocationResolver::OFFICES as $office) {
+    $name = mb_strtolower(trim((string) ($office['name'] ?? '')));
+    $url = (string) ($office['url'] ?? '');
+    if ($name !== '' && $url !== '') {
+      $lookup[$name] = $url;
+    }
+  }
+
+  return $lookup;
+}
+
+/**
+ * Normalizes analytics values through the shared RAUD-11 minimizer.
+ */
+function ilas_site_assistant_raud11_normalize_analytics_value(string $event_type, string $event_value, array $topic_lookup, array $office_lookup): string {
+  return \Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer::normalizeAnalyticsValue($event_type, $event_value, [
+    'topic_lookup' => $topic_lookup,
+    'office_lookup' => $office_lookup,
+  ]);
 }
 
 /**

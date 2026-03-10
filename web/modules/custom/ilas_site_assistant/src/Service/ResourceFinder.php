@@ -558,8 +558,9 @@ class ResourceFinder {
       return $items;
     }
     catch (\Exception $e) {
-      \Drupal::logger('ilas_site_assistant')->warning('Search API query failed: @message', [
-        '@message' => $e->getMessage(),
+      \Drupal::logger('ilas_site_assistant')->warning('Search API query failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
       return $this->findByTypeLegacy($query, $type, $limit);
     }
@@ -709,8 +710,11 @@ class ResourceFinder {
     }
     catch (\Exception $e) {
       \Drupal::logger('ilas_site_assistant')->warning(
-        'Could not validate vector search metric: @message',
-        ['@message' => $e->getMessage()]
+        'Could not validate vector search metric: @class @error_signature',
+        [
+          '@class' => get_class($e),
+          '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
+        ]
       );
       return FALSE;
     }
@@ -890,10 +894,13 @@ class ResourceFinder {
       }
 
       if (!empty($items)) {
-        \Drupal::logger('ilas_site_assistant')->info('Vector resource search returned @count results (@ms ms) for query "@query"', [
+        $query_metadata = ObservabilityPayloadMinimizer::buildTextMetadata($query);
+        \Drupal::logger('ilas_site_assistant')->info('Vector resource search returned @count results (@ms ms) for query_hash=@query_hash length=@length_bucket profile=@redaction_profile', [
           '@count' => count($items),
           '@ms' => $elapsed_ms,
-          '@query' => PiiRedactor::redactForLog($query),
+          '@query_hash' => $query_metadata['text_hash'],
+          '@length_bucket' => $query_metadata['length_bucket'],
+          '@redaction_profile' => $query_metadata['redaction_profile'],
         ]);
       }
 
@@ -918,10 +925,10 @@ class ResourceFinder {
 
       static::$vectorBackoffUntil = time() + self::VECTOR_BACKOFF_SECONDS;
       \Drupal::logger('ilas_site_assistant')->log($level,
-        'Vector resource search failed [@category]: @class - @message (backing off @seconds s)', [
+        'Vector resource search failed [@category]: @class @error_signature (backing off @seconds s)', [
           '@category' => $category,
           '@class' => $exception_class,
-          '@message' => $e->getMessage(),
+          '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
           '@seconds' => self::VECTOR_BACKOFF_SECONDS,
         ]
       );

@@ -7,7 +7,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Component\Datetime\TimeInterface;
 
 /**
- * Service for logging non-PII analytics data.
+ * Service for logging minimized analytics data.
  */
 class AnalyticsLogger {
 
@@ -51,7 +51,7 @@ class AnalyticsLogger {
    * @param string $event_type
    *   The event type (chat_open, topic_selected, resource_click, etc.).
    * @param string $event_value
-   *   The event value (topic name, URL path, etc.) - must be non-PII.
+   *   The event value (path, ID, reason code, etc.).
    */
   public function log(string $event_type, string $event_value = '') {
     $config = $this->configFactory->get('ilas_site_assistant.settings');
@@ -60,8 +60,7 @@ class AnalyticsLogger {
       return;
     }
 
-    // Sanitize event value to ensure no PII.
-    $event_value = PiiRedactor::redactForLog($event_value, 255);
+    $event_value = ObservabilityPayloadMinimizer::normalizeAnalyticsValue($event_type, $event_value);
 
     // Get today's date.
     $date = date('Y-m-d');
@@ -89,8 +88,9 @@ class AnalyticsLogger {
     }
     catch (\Exception $e) {
       // Log error but don't break the user experience.
-      \Drupal::logger('ilas_site_assistant')->error('Analytics logging failed: @message', [
-        '@message' => $e->getMessage(),
+      \Drupal::logger('ilas_site_assistant')->error('Analytics logging failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }
@@ -108,16 +108,14 @@ class AnalyticsLogger {
       return;
     }
 
-    // Sanitize the query to remove any PII.
-    $sanitized = PiiRedactor::redactForStorage($query, 100);
+    $metadata = ObservabilityPayloadMinimizer::buildTextMetadataWithLanguage($query);
 
-    // Skip if sanitized query is too short or empty.
-    if (strlen($sanitized) < 3) {
+    // Skip empty normalized queries.
+    if ($metadata['length_bucket'] === ObservabilityPayloadMinimizer::LENGTH_BUCKET_EMPTY) {
       return;
     }
 
-    // Create a hash for deduplication.
-    $hash = hash('sha256', $sanitized);
+    $hash = $metadata['text_hash'];
     $now = $this->time->getRequestTime();
 
     try {
@@ -133,7 +131,9 @@ class AnalyticsLogger {
         $this->database->insert('ilas_site_assistant_no_answer')
           ->fields([
             'query_hash' => $hash,
-            'sanitized_query' => $sanitized,
+            'language_hint' => $metadata['language_hint'],
+            'length_bucket' => $metadata['length_bucket'],
+            'redaction_profile' => $metadata['redaction_profile'],
             'count' => 1,
             'first_seen' => $now,
             'last_seen' => $now,
@@ -142,8 +142,9 @@ class AnalyticsLogger {
       }
     }
     catch (\Exception $e) {
-      \Drupal::logger('ilas_site_assistant')->error('No-answer logging failed: @message', [
-        '@message' => $e->getMessage(),
+      \Drupal::logger('ilas_site_assistant')->error('No-answer logging failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
 
@@ -213,8 +214,9 @@ class AnalyticsLogger {
       }
     }
     catch (\Exception $e) {
-      \Drupal::logger('ilas_site_assistant')->error('Analytics cleanup failed: @message', [
-        '@message' => $e->getMessage(),
+      \Drupal::logger('ilas_site_assistant')->error('Analytics cleanup failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
     }
   }

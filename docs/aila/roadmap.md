@@ -52,6 +52,15 @@ Planning defaults applied:
     unsupported to avoid deterministic false positives, so the finding remains
     `Partially Fixed` until the project accepts a higher-risk heuristic or a
     different name-detection approach.
+12. `RAUD-11` closes the remaining observability minimization gap behind
+    `F-03` / `N-03`: analytics event values are normalized to approved
+    IDs/paths/hashes only, no-answer storage is metadata-only, and opt-in
+    conversation logging now persists per-turn fingerprints rather than
+    message text.
+13. `RAUD-11` also rewires Langfuse/watchdog surfaces to metadata-only
+    telemetry (`input_hash`, `output_hash`, `query_hash`, `keyword_count`,
+    `error_signature`) and adds schema/update-hook coverage so legacy rows and
+    queued trace batches are rewritten or discarded on deploy.
 
 ## Phase-to-sprint mapping
 | Phase | Scope | Sprint mapping |

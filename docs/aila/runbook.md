@@ -2037,6 +2037,39 @@ Expected verification result:
 - Archive the executed command summaries and final classification in
   `docs/aila/runtime/raud-10-pii-redaction-remediation.txt`.
 
+### RAUD-11 observability payload minimization verification
+
+- Baseline before the remediation:
+  - Analytics tables still accepted user-derived `event_value` strings outside
+    a controlled contract.
+  - `ilas_site_assistant_no_answer` persisted `sanitized_query`, and
+    `ilas_site_assistant_conversations` persisted `redacted_message`.
+  - Langfuse controller spans/events and finder/vector watchdog logs still
+    carried redacted query snippets or raw exception messages.
+- Required verification commands for the remediation report:
+  - `VC-UNIT`
+  - `VC-KERNEL`
+  - `VC-QUALITY-GATE`
+- Targeted local checks:
+  - `vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/TelemetrySchemaContractTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityRedactionContractTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseTracerTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityPayloadMinimizerTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilitySurfaceContractTest.php`
+  - `SIMPLETEST_DB='sqlite://localhost//tmp/ilas-kernel.sqlite?module=sqlite' vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php`
+  - `bash /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh`
+- Expected contract after the remediation:
+  - No raw or redacted user/assistant snippets are persisted in analytics,
+    no-answer rows, conversation logs, Langfuse queue payloads, or finder/vector
+    watchdog logs.
+  - Analytics `event_value` retains only approved minimized values:
+    topic IDs, same-origin URL paths, reason-code tokens, assignment tokens,
+    request IDs where explicitly allowed, and hashed opaque identifiers such as
+    clarify-loop conversation IDs.
+  - Admin reports resolve stored IDs/hashes back into operator-safe displays
+    without requiring message text persistence.
+  - Deploying the change must run `update_10007` so legacy rows are backfilled
+    to metadata-only schema and pre-RAUD-11 `ilas_langfuse_export` queue items
+    are purged.
+- Archive the executed command summaries and final classification in
+  `docs/aila/runtime/raud-11-log-surface-minimization.txt`.
+
 ### GitHub mirror onboarding (WSL2)
 
 ```bash

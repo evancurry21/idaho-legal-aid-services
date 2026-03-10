@@ -6,14 +6,15 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Url;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Controller for viewing PII-redacted conversation logs.
+ * Controller for viewing metadata-only conversation logs.
  *
- * All data displayed is pre-redacted at write time by ConversationLogger.
- * This controller never accesses raw user messages.
+ * All data displayed is minimized at write time by ConversationLogger.
+ * This controller never accesses raw or redacted message bodies.
  */
 class AssistantConversationController extends ControllerBase {
 
@@ -197,7 +198,7 @@ class AssistantConversationController extends ControllerBase {
 
     // Fetch all messages for this conversation.
     $query = $this->database->select('ilas_site_assistant_conversations', 'c')
-      ->fields('c', ['direction', 'redacted_message', 'intent', 'response_type', 'created', 'request_id'])
+      ->fields('c', ['direction', 'message_hash', 'message_length_bucket', 'redaction_profile', 'intent', 'response_type', 'created', 'request_id'])
       ->condition('c.conversation_id', $conversation_id)
       ->orderBy('c.created', 'ASC')
       ->orderBy('c.id', 'ASC');
@@ -219,14 +220,16 @@ class AssistantConversationController extends ControllerBase {
     ];
 
     $build['info'] = [
-      '#markup' => '<h3>' . $this->t('Conversation: @id', ['@id' => $conversation_id]) . '</h3>',
+      '#markup' => '<h3>' . $this->t('Conversation: @id', ['@id' => $conversation_id]) . '</h3><p>' . $this->t('Message bodies are intentionally not stored. This view shows only per-turn fingerprints and low-cardinality metadata.') . '</p>',
     ];
 
     // Build the message table.
     $header = [
       $this->t('Time'),
       $this->t('Direction'),
-      $this->t('Message (redacted)'),
+      $this->t('Message Fingerprint'),
+      $this->t('Length'),
+      $this->t('Redaction Profile'),
       $this->t('Intent'),
       $this->t('Response Type'),
       $this->t('Request ID'),
@@ -237,11 +240,9 @@ class AssistantConversationController extends ControllerBase {
       $rows[] = [
         $this->dateFormatter->format($msg->created, 'medium'),
         $msg->direction === 'user' ? $this->t('User') : $this->t('Assistant'),
-        [
-          'data' => [
-            '#markup' => '<div class="conversation-message conversation-message--' . $msg->direction . '">' . htmlspecialchars($msg->redacted_message, ENT_QUOTES, 'UTF-8') . '</div>',
-          ],
-        ],
+        ObservabilityPayloadMinimizer::hashPrefix((string) $msg->message_hash) . '...',
+        $msg->message_length_bucket,
+        $msg->redaction_profile,
         $msg->intent ?? '-',
         $msg->response_type ?? '-',
         $msg->request_id ? substr($msg->request_id, 0, 8) . '...' : '-',

@@ -5,6 +5,8 @@ namespace Drupal\ilas_site_assistant\Controller;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Datetime\DateFormatterInterface;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
+use Drupal\ilas_site_assistant\Service\TopicResolver;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -27,11 +29,19 @@ class AssistantReportController extends ControllerBase {
   protected $dateFormatter;
 
   /**
+   * The topic resolver.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\TopicResolver
+   */
+  protected $topicResolver;
+
+  /**
    * Constructs an AssistantReportController object.
    */
-  public function __construct(Connection $database, DateFormatterInterface $date_formatter) {
+  public function __construct(Connection $database, DateFormatterInterface $date_formatter, TopicResolver $topic_resolver) {
     $this->database = $database;
     $this->dateFormatter = $date_formatter;
+    $this->topicResolver = $topic_resolver;
   }
 
   /**
@@ -40,7 +50,8 @@ class AssistantReportController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('database'),
-      $container->get('date.formatter')
+      $container->get('date.formatter'),
+      $container->get('ilas_site_assistant.topic_resolver')
     );
   }
 
@@ -88,7 +99,7 @@ class AssistantReportController extends ControllerBase {
     ];
 
     $build['no_answer']['description'] = [
-      '#markup' => '<p>' . $this->t('Queries that did not find matching content. Consider creating content to address these topics.') . '</p>',
+      '#markup' => '<p>' . $this->t('Queries that did not find matching content. Raw query text is intentionally not stored; this report uses hashes and low-cardinality metadata so content gaps can be analyzed without persisting user text.') . '</p>',
     ];
 
     $build['no_answer']['table'] = $this->buildNoAnswerTable();
@@ -189,11 +200,20 @@ class AssistantReportController extends ControllerBase {
     $query->addExpression('SUM(count)', 'total');
 
     $results = $query->execute()->fetchAll();
+    $topics = $this->topicResolver->getAllTopics();
 
     $rows = [];
     foreach ($results as $row) {
+      $label = $this->t('(unknown)');
+      if ($row->event_value !== '' && isset($topics[(int) $row->event_value]['name'])) {
+        $label = $topics[(int) $row->event_value]['name'] . ' (' . $row->event_value . ')';
+      }
+      elseif ($row->event_value !== '') {
+        $label = $row->event_value;
+      }
+
       $rows[] = [
-        $row->event_value ?: $this->t('(unknown)'),
+        $label,
         $row->total,
       ];
     }
@@ -252,13 +272,16 @@ class AssistantReportController extends ControllerBase {
    */
   protected function buildNoAnswerTable() {
     $header = [
-      $this->t('Query (Sanitized)'),
+      $this->t('Query Fingerprint'),
+      $this->t('Language'),
+      $this->t('Length'),
+      $this->t('Redaction Profile'),
       $this->t('Count'),
       $this->t('Last Seen'),
     ];
 
     $query = $this->database->select('ilas_site_assistant_no_answer', 'n')
-      ->fields('n', ['sanitized_query', 'count', 'last_seen'])
+      ->fields('n', ['query_hash', 'language_hint', 'length_bucket', 'redaction_profile', 'count', 'last_seen'])
       ->orderBy('count', 'DESC')
       ->range(0, 20);
 
@@ -267,7 +290,10 @@ class AssistantReportController extends ControllerBase {
     $rows = [];
     foreach ($results as $row) {
       $rows[] = [
-        $row->sanitized_query,
+        ObservabilityPayloadMinimizer::hashPrefix($row->query_hash) . '...',
+        $row->language_hint,
+        $row->length_bucket,
+        $row->redaction_profile,
         $row->count,
         $this->dateFormatter->format($row->last_seen, 'short'),
       ];
