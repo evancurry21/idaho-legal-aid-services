@@ -83,6 +83,16 @@ Planning defaults applied:
 18. `RAUD-13` preserves the existing analytics/conversation log payload
     contract while adding dedicated unit and kernel regression coverage for
     swallowed exception paths and conversation cleanup info logging.
+19. `RAUD-16` closes the repo-side bypass corpus gap behind `F-08`, `F-11`,
+    and the unresolved portion of `N-08`: normalization now strips zero-width
+    plus slash/comma/apostrophe/spaced-letter obfuscation, and request-path
+    tests prove `PreRoutingDecisionEngine` exits on the reconstructed cases.
+20. Live promptfoo abuse coverage on March 10, 2026 expanded to zero-width
+    ignores, spaced-dot ignores, obfuscated `system prompt` leakage,
+    obfuscated legal-advice asks, English guardrail/latest-directive
+    paraphrases, and Spanish override/leak paraphrases; the abuse suite passed
+    `105/105`, while the blocking deep suite still had two unrelated failures
+    outside `RAUD-16`.
 
 ## Phase-to-sprint mapping
 | Phase | Scope | Sprint mapping |

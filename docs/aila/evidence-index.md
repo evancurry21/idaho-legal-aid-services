@@ -393,11 +393,13 @@ Evidence precedence used in this audit:
 ## Safety / Compliance / Privacy Controls
 
 ### CLAIM-052
-- Claim: Input normalization strips punctuation/spacing obfuscation before classification.
+- Claim: Input normalization strips zero-width formatting plus space/punctuation-
+  separated single-letter obfuscation before classification while preserving
+  ordinary non-evasive text.
 - Evidence:
-  - `web/modules/custom/ilas_site_assistant/src/Service/InputNormalizer.php:35-42`
-  - `web/modules/custom/ilas_site_assistant/src/Service/InputNormalizer.php:88-101`
-  - `web/modules/custom/ilas_site_assistant/src/Service/InputNormalizer.php:123-134`
+  - `web/modules/custom/ilas_site_assistant/src/Service/InputNormalizer.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/InputNormalizerTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/NormalizationRegressionTest.php`
 
 ### CLAIM-053
 - Claim: PII redaction uses deterministic token replacement for email/phone/SSN/CC/address/name/etc. and storage/log truncation helpers.
@@ -428,6 +430,19 @@ Evidence precedence used in this audit:
   - `docs/aila/current-state.md` (P2-DEL-04 dataset expansion addendum)
   - `docs/aila/runbook.md` (P2-DEL-04 verification subsection in §4)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PhaseTwoDeliverableFourGateTest.php`
+
+- Addendum (2026-03-10): `RAUD-16` expands deterministic prompt-injection
+  coverage beyond literal regex restatements. Request-path and live abuse proof
+  now include zero-width and mixed-separator obfuscation, guardrail/latest-
+  directive paraphrases, hidden/internal prompt leakage requests, unrestricted-
+  lawyer roleplay phrasing, and Spanish ignore/roleplay/jailbreak/leak
+  variants.
+- Addendum evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/SafetyClassifier.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/SafetyBypassTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/fixtures/abuse_test_cases.json`
+  - `promptfoo-evals/tests/abuse-safety.yaml`
+  - `docs/aila/runtime/raud-16-safety-bypass-corpus-hardening.txt`
 
 ### CLAIM-056
 - Claim: OutOfScopeClassifier is deterministic with category-specific pattern rules and dampening for informational queries.
@@ -2588,3 +2603,77 @@ Evidence precedence used in this audit:
   - `docs/observability.md` (Operational Ownership section)
   - `docs/incident-runbook.md` (Named Responders section)
 - Status: Pending — requires Track B operational execution.
+
+### CLAIM-178
+- Claim: PHARD-02 adds `ilas:langfuse-probe` Drush command for synthetic
+  trace verification with both direct POST and queue modes.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Commands/LangfuseProbeCommands.php` (command class)
+  - `web/modules/custom/ilas_site_assistant/drush.services.yml` (service registration)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseProbeCommandTest.php` (contract tests)
+- Status: Implemented — pending post-deploy live probe execution.
+
+### CLAIM-179
+- Claim: PHARD-02 evidence artifact documents all required operationalization
+  sections (pre-edit state, synthetic probe, payload shape, redaction, queue
+  health, sampling, alerts, review cadence, residual risks, closure).
+- Evidence:
+  - `docs/aila/runtime/phard-02-langfuse-operationalization.txt` (all 10 sections)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/Phard02LangfuseLiveAcceptanceTest.php` (section existence assertions)
+- Status: Implemented — pending post-deploy evidence population.
+
+### CLAIM-180
+- Claim: Approved Langfuse payload shape locked by `LangfusePayloadContract`
+  constants and validated by contract tests proving full lifecycle trace
+  produces all 5 approved event types with no PII.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/LangfusePayloadContract.php` (constants class)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseProbeCommandTest.php` (payload format tests)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/Phard02LangfuseLiveAcceptanceTest.php` (lifecycle + PII assertions)
+- Status: Implemented.
+
+### CLAIM-181
+- Claim: Langfuse sampling policy justified with quarterly review cadence —
+  install default 1.0, live override 0.1, documented in evidence artifact
+  and runtime gates.
+- Evidence:
+  - `docs/aila/runtime/phard-02-langfuse-operationalization.txt` (section 6: Sampling Policy)
+  - `docs/aila/runtime/phase1-observability-gates.txt` (langfuse_sample_rate=0.1)
+  - `web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml` (sample_rate: 1.0)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/Phard02LangfuseLiveAcceptanceTest.php` (policy assertions)
+- Status: Implemented.
+
+### CLAIM-182
+- Claim: Queue SLO alert route verified — SloAlertService::checkQueueSlo()
+  fires Drupal logger warning on unhealthy queue, routed to Sentry via
+  Raven integration.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/SloAlertService.php` (checkQueueSlo method)
+  - `docs/aila/runtime/phard-02-langfuse-operationalization.txt` (section 7: Alert Routing)
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/Phard02LangfuseLiveAcceptanceTest.php` (SLO alert assertion)
+- Status: Implemented.
+
+### CLAIM-183
+- Claim: Re-audit remediation `RAUD-16` hardens the request path against
+  zero-width, mixed-separator, guardrail/latest-directive, hidden-prompt, and
+  Spanish bypass variants; the added cases fail pre-change, pass post-change,
+  and the paced promptfoo abuse suite passes 105/105 against the DDEV endpoint
+  while two unrelated deep-suite failures remain open outside the remediation
+  surface.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/InputNormalizer.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/SafetyClassifier.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/InputNormalizerTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/SafetyBypassTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AbuseResilienceTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerLegalAdviceDetectorTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/fixtures/abuse_test_cases.json`
+  - `promptfoo-evals/tests/abuse-safety.yaml`
+  - `promptfoo-evals/output/gate-summary.txt`
+  - `promptfoo-evals/output/results.json`
+  - `promptfoo-evals/output/results-deep.json`
+  - `docs/aila/current-state.md`
+  - `docs/aila/roadmap.md`
+  - `docs/aila/runbook.md`
+  - `docs/assistant_audit_backlog.md`
+  - `docs/aila/runtime/raud-16-safety-bypass-corpus-hardening.txt`

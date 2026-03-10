@@ -59,6 +59,11 @@ ddev drush queue:list
 ddev drush watchdog:show --type=cron --count=30
 ```
 
+If the target change touched any `*.services.yml` file, treat `ddev drush cr`
+as mandatory before route/controller verification. Drupal keeps a compiled
+service container, so stale local caches can surface `ServiceNotFoundException`
+or "controller is not callable" failures against otherwise-correct code.
+
 If `router:debug` is unavailable, capture the error and run fallback route checks:
 
 ```bash
@@ -2144,6 +2149,42 @@ Expected verification result:
 - Archive the executed command summaries and final classification in
   `docs/aila/runtime/raud-13-logger-di-hardening.txt`.
 
+### RAUD-16 safety bypass corpus verification
+
+- Baseline before the remediation:
+  - Existing safety suites were green, but direct request-path probes still
+    missed slash/comma/zero-width/spaced-letter prompt-injection variants,
+    obfuscated legal-advice asks, and English/Spanish paraphrase overrides
+    such as `set aside your guardrails` and `haz caso omiso`.
+- Required verification commands for the remediation report:
+  - `VC-UNIT`
+  - `VC-PROMPTFOO-PACED`
+- Targeted local checks:
+  - `vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/InputNormalizerTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/SafetyBypassTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/AbuseResilienceTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerLegalAdviceDetectorTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/NormalizationRegressionTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/UrgencyDetectionTest.php`
+  - `ILAS_ASSISTANT_URL=https://ilas-pantheon.ddev.site/assistant/api/message ILAS_REQUEST_DELAY_MS=1000 CI_BRANCH=master /home/evancurry/idaho-legal-aid-services/scripts/ci/run-promptfoo-gate.sh --env dev --mode auto`
+- Expected contract after the remediation:
+  - Input normalization strips zero-width/control formatting and joins 4+
+    single-letter obfuscation chains across spaces or mixed separators before
+    safety/policy checks.
+  - `PreRoutingDecisionEngine` returns `safety_exit` for obfuscated
+    prompt-injection cases and `policy_exit` for obfuscated legal-advice
+    requests instead of `continue`.
+  - The actual `LlmEnhancer::containsLegalAdvice()` method catches obfuscated
+    post-generation outputs rather than relying only on mirrored regex tests.
+  - `promptfooconfig.abuse.yaml` must pass the newly added zero-width,
+    spaced-dot, obfuscated prompt-leak, obfuscated legal-advice, English
+    guardrail/latest-directive, and Spanish `haz caso omiso` cases on the real
+    endpoint.
+  - If the abuse suite passes but the blocking command still returns non-zero
+    because of unrelated deep-suite failures, classify `RAUD-16` by the
+    added-case evidence and document the unrelated failures separately rather
+    than marking the bypass remediation incomplete.
+  - If the newly added corpus does not fail pre-change or only mirrors the
+    implementation without request-path coverage, classify `RAUD-16` as
+    `Partially Fixed`.
+- Archive the executed command summaries and final classification in
+  `docs/aila/runtime/raud-16-safety-bypass-corpus-hardening.txt`.
+
 ### GitHub mirror onboarding (WSL2)
 
 ```bash
@@ -3333,6 +3374,40 @@ sed -E \
   - `docs/aila/runtime/phase3-exit2-cost-performance-owner-acceptance.txt`[^CLAIM-154]
 - Phase 3 Exit #3 final release packet known-unknown disposition + residual risk signoff proof is captured in:
   - `docs/aila/runtime/phase3-exit3-release-packet-known-unknown-risk-signoff.txt`[^CLAIM-155]
+
+### PHARD-02 Langfuse live operationalization verification
+
+- VC-LANGFUSE-LIVE commands (config + queue depth per env):
+  ```bash
+  for ENV in dev test live; do
+    terminus remote:drush "idaho-legal-aid-services.${ENV}" -- \
+      config:get ilas_site_assistant.settings langfuse
+    terminus remote:drush "idaho-legal-aid-services.${ENV}" -- \
+      php:eval "echo 'queue_depth=' . \Drupal::queue('ilas_langfuse_export')->numberOfItems() . PHP_EOL;"
+  done
+  ```
+- Synthetic probe commands (direct mode per env):
+  ```bash
+  for ENV in dev test live; do
+    terminus remote:drush "idaho-legal-aid-services.${ENV}" -- ilas:langfuse-probe --direct
+  done
+  ```
+- Synthetic probe commands (queue mode per env):
+  ```bash
+  for ENV in dev test live; do
+    terminus remote:drush "idaho-legal-aid-services.${ENV}" -- ilas:langfuse-probe
+  done
+  ```
+- Contract test execution:
+  ```bash
+  vendor/bin/phpunit --configuration phpunit.xml \
+    web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseProbeCommandTest.php \
+    web/modules/custom/ilas_site_assistant/tests/src/Unit/Phard02LangfuseLiveAcceptanceTest.php
+  ```
+- Expected verification result: All probe commands return exit 0 with trace IDs;
+  trace IDs visible in Langfuse UI; contract tests pass; queue depth unchanged
+  or incremented by 1 in queue mode.
+- Evidence artifact: `docs/aila/runtime/phard-02-langfuse-operationalization.txt`
 
 ## 7) Retrospective regression checklist (mandatory)
 

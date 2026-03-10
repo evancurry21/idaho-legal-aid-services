@@ -20,11 +20,12 @@ class InputNormalizer {
   /**
    * Applies the full normalization pipeline.
    *
-   * Pipeline order:
-   * 1. Unicode NFKC normalization
-   * 2. Strip interstitial punctuation (l.e.g.a.l → legal)
-   * 3. Collapse evasion spacing (l e g a l → legal)
-   * 4. Normalize whitespace (collapse + trim)
+ * Pipeline order:
+ * 1. Unicode NFKC normalization
+ * 2. Strip invisible formatting (zero-width / soft hyphen)
+ * 3. Strip interstitial punctuation (l.e.g.a.l → legal)
+ * 4. Collapse evasion spacing (l e g a l → legal)
+ * 5. Normalize whitespace (collapse + trim)
    *
    * @param string $input
    *   Raw user input (already HTML-sanitized).
@@ -34,6 +35,7 @@ class InputNormalizer {
    */
   public static function normalize(string $input): string {
     $input = self::unicodeNfkc($input);
+    $input = self::stripInvisibleFormatting($input);
     $input = self::stripInterstitialPunctuation($input);
     $input = self::collapseEvasionSpacing($input);
     $input = self::normalizeWhitespace($input);
@@ -63,21 +65,41 @@ class InputNormalizer {
   }
 
   /**
+   * Removes invisible formatting characters used for obfuscation.
+   *
+   * Examples:
+   *   - "i​g​n​o​r​e" → "ignore"
+   *   - "le­gal" → "legal"
+   *
+   * @param string $input
+   *   The input string.
+   *
+   * @return string
+   *   String with zero-width and format characters removed.
+   */
+  public static function stripInvisibleFormatting(string $input): string {
+    return preg_replace('/\p{Cf}+/u', '', $input);
+  }
+
+  /**
    * Strips interstitial punctuation used to obfuscate words.
    *
-   * Detects chains of 3+ single letters separated by dots, hyphens,
-   * or underscores and joins them into words.
+   * Detects chains of 4+ single letters separated by punctuation-like
+   * delimiters and joins them into words. Optional spaces around the
+   * punctuation are treated as part of the obfuscation.
    *
    * Examples:
    *   - "l.e.g.a.l" → "legal"
+   *   - "l/e/g/a/l" → "legal"
+   *   - "l , e , g , a , l" → "legal"
    *   - "s-h-o-u-l-d" → "should"
    *   - "a_d_v_i_c_e" → "advice"
    *
    * Preserves:
-   *   - "U.S." (only 2 segments — below threshold)
-   *   - "self-help" (multi-char segments)
-   *   - "3-day" (multi-char segments)
-   *   - "A.M." / "P.M." (only 2 segments)
+   *   - "U.S." / "A.M." (below threshold)
+   *   - "self-help", "3-day" (multi-char segments)
+   *   - "tenant/landlord" (multi-char segments)
+   *   - contractions and possessives (not single-letter chains)
    *
    * @param string $input
    *   The input string.
@@ -86,15 +108,10 @@ class InputNormalizer {
    *   String with interstitial punctuation removed.
    */
   public static function stripInterstitialPunctuation(string $input): string {
-    // Match chains of 3+ single letters separated by dots, hyphens, or
-    // underscores. The pattern: single-letter, then (separator + single-letter)
-    // repeated 2+ times (total 3+ letters).
     return preg_replace_callback(
-      '/\b([a-zA-Z])[.\-_]([a-zA-Z])((?:[.\-_][a-zA-Z]){1,})\b/',
+      '/(?<!\p{L})(?:\p{L}(?:\s*[.\-_\/\\\\,\'":;|]\s*\p{L}){3,})(?!\p{L})/u',
       function ($matches) {
-        // $matches[0] is the full match like "l.e.g.a.l"
-        // Strip all dots, hyphens, and underscores from the match.
-        return preg_replace('/[.\-_]/', '', $matches[0]);
+        return preg_replace('/[^\p{L}]+/u', '', $matches[0]);
       },
       $input
     );
@@ -103,9 +120,9 @@ class InputNormalizer {
   /**
    * Collapses evasion spacing (single letters separated by spaces).
    *
-   * Detects chains of 3+ single letters separated by spaces and joins
+   * Detects chains of 4+ single letters separated by spaces and joins
    * them. Does not affect normal single-letter words like "I" or "a"
-   * in sentences (they don't form chains of 3+).
+   * in sentences (they don't form chains of 4+).
    *
    * Examples:
    *   - "l e g a l" → "legal"
@@ -121,13 +138,10 @@ class InputNormalizer {
    *   String with evasion spacing collapsed.
    */
   public static function collapseEvasionSpacing(string $input): string {
-    // Match chains of 3+ single letters separated by single spaces.
-    // Use word boundary at start and end to avoid matching mid-word.
     return preg_replace_callback(
-      '/(?<![a-zA-Z])([a-zA-Z]) ([a-zA-Z])((?:\s[a-zA-Z]){1,})(?![a-zA-Z])/',
+      '/(?<!\p{L})(?:\p{L}(?:\s+\p{L}){3,})(?!\p{L})/u',
       function ($matches) {
-        // Strip all spaces from the match.
-        return preg_replace('/\s/', '', $matches[0]);
+        return preg_replace('/\s+/u', '', $matches[0]);
       },
       $input
     );

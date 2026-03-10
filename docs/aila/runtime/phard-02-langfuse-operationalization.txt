@@ -1,0 +1,212 @@
+PHARD-02: Langfuse Live Operationalization Evidence
+====================================================
+
+Finding IDs: OBS-1, OBS-2, OBS-3, R-OBS-02, PHG-OBS-02
+Risk Register: R-OBS-02
+Created: 2026-03-10
+Last updated: 2026-03-10
+
+────────────────────────────────────────────────────
+1. Pre-Edit State (VC-LANGFUSE-LIVE)
+────────────────────────────────────────────────────
+
+dev:
+  langfuse_enabled=true
+  langfuse_public_key=present
+  langfuse_secret_key=present
+  langfuse_sample_rate=1.0
+  queue_depth=0
+
+test:
+  langfuse_enabled=true
+  langfuse_public_key=present
+  langfuse_secret_key=present
+  langfuse_sample_rate=1.0
+  queue_depth=0
+
+live:
+  langfuse_enabled=true
+  langfuse_public_key=present
+  langfuse_secret_key=present
+  langfuse_sample_rate=0.1
+  queue_depth=0
+
+────────────────────────────────────────────────────
+2. Synthetic Probe Evidence (per environment)
+────────────────────────────────────────────────────
+
+dev:
+  command: terminus remote:drush idaho-legal-aid-services.dev -- ilas:langfuse-probe --direct
+  trace_id: <FILL after probe execution>
+  http_status: <FILL>
+  langfuse_url: <verify in Langfuse UI — search by trace ID>
+  timestamp: <FILL>
+
+test:
+  command: terminus remote:drush idaho-legal-aid-services.test -- ilas:langfuse-probe --direct
+  trace_id: <FILL after probe execution>
+  http_status: <FILL>
+  langfuse_url: <verify in Langfuse UI — search by trace ID>
+  timestamp: <FILL>
+
+live:
+  command: terminus remote:drush idaho-legal-aid-services.live -- ilas:langfuse-probe --direct
+  trace_id: <FILL after probe execution>
+  http_status: <FILL>
+  langfuse_url: <verify in Langfuse UI — search by trace ID>
+  timestamp: <FILL>
+
+────────────────────────────────────────────────────
+3. Approved Payload Shape
+────────────────────────────────────────────────────
+
+Required event types (LangfusePayloadContract::APPROVED_EVENT_TYPES):
+  - trace-create
+  - span-create
+  - generation-create
+  - event-create
+  - trace-update
+
+Required payload metadata (LangfusePayloadContract::REQUIRED_METADATA_KEYS):
+  - batch_size
+  - sdk_name (= ilas-langfuse-tracer)
+  - sdk_version (= 1.0.0)
+
+Prohibited fields in any batch event body:
+  - No raw user text (messages, queries, prompts)
+  - No email addresses
+  - No phone numbers
+  - No SSN/CC numbers
+  - No PII of any kind
+
+────────────────────────────────────────────────────
+4. Redaction Verification
+────────────────────────────────────────────────────
+
+For each probe trace, verify in Langfuse UI:
+  [ ] Trace name is 'phard-02.synthetic_probe' (no PII)
+  [ ] Span name is 'probe.synthetic_span' (no PII)
+  [ ] Event name is 'probe.verification_marker' (no PII)
+  [ ] Output is 'PHARD-02 synthetic probe complete' (no PII)
+  [ ] Metadata contains only environment + probe_timestamp (no PII)
+  [ ] No email, phone, SSN, CC, or raw user text in any field
+
+Screenshot/URL references:
+  dev: <FILL>
+  test: <FILL>
+  live: <FILL>
+
+────────────────────────────────────────────────────
+5. Queue Health Evidence
+────────────────────────────────────────────────────
+
+dev:
+  depth: <FILL>
+  health_status: <FILL>
+  max_queue_depth: <from SloDefinitions>
+  max_item_age: <from SloDefinitions>
+
+test:
+  depth: <FILL>
+  health_status: <FILL>
+  max_queue_depth: <from SloDefinitions>
+  max_item_age: <from SloDefinitions>
+
+live:
+  depth: <FILL>
+  health_status: <FILL>
+  max_queue_depth: <from SloDefinitions>
+  max_item_age: <from SloDefinitions>
+
+────────────────────────────────────────────────────
+6. Sampling Policy
+────────────────────────────────────────────────────
+
+Install default sample_rate: 1.0
+  Source: config/install/ilas_site_assistant.settings.yml
+
+Live override sample_rate: 0.1
+  Source: Pantheon live environment config override
+
+Justification: 10% sampling on live balances observability coverage
+  against Langfuse ingestion costs and queue throughput. Full sampling
+  on dev/test ensures complete trace visibility during development.
+
+Review cadence: Quarterly — review sampling rate against trace volume,
+  cost trends, and queue health metrics. Adjust if queue backlog or
+  cost growth exceeds thresholds.
+
+────────────────────────────────────────────────────
+7. Alert Routing Evidence
+────────────────────────────────────────────────────
+
+Alert route: SloAlertService -> Drupal logger (warning) -> Sentry capture
+
+SloAlertService::checkQueueSlo() fires warning when queue status != healthy:
+  - Backlogged: depth > 80% of max_queue_depth
+  - Stale: oldest item age > max_item_age_seconds
+  - Backlogged_stale: both conditions
+
+Alert rule checklist:
+  [ ] Queue backlog warning appears in Drupal watchdog
+  [ ] Queue backlog warning captured by Sentry (via Raven integration)
+  [ ] Sentry alert rule configured for queue SLO violations
+  [ ] Alert delivery tested (email/Slack)
+
+────────────────────────────────────────────────────
+8. Review Cadence and Ownership
+────────────────────────────────────────────────────
+
+Review cadence: Weekly
+Named owner role: SRE/Platform Engineer
+Review scope:
+  - Trace volume and error trends in Langfuse UI
+  - Queue depth and health status across environments
+  - Sampling rate adequacy (quarterly deep review)
+  - Cost trends (monthly)
+
+Escalation path: SRE/Platform Engineer -> Drupal Lead -> Product Owner
+Artifact location: docs/aila/runtime/phard-02-langfuse-operationalization.txt
+Runbook reference: docs/aila/runbook.md (PHARD-02 section)
+
+────────────────────────────────────────────────────
+9. Residual Risks
+────────────────────────────────────────────────────
+
+1. Langfuse SaaS availability: If Langfuse cloud is unreachable, direct
+   probe and queue export will fail. Mitigated by queue buffering and
+   retry in the export worker.
+
+2. Sampling blind spots: At 0.1 live sample rate, 90% of traces are
+   dropped. Low-frequency issues may not be captured. Mitigated by
+   full sampling on dev/test for pre-deploy validation.
+
+3. Cost growth: Trace volume scales with traffic. Quarterly review of
+   sampling rate and Langfuse plan usage prevents surprise costs.
+
+4. Queue backlog: Sustained high traffic could fill the queue faster
+   than the worker drains it. Mitigated by max_queue_depth guard in
+   terminate subscriber and SLO alert on backlog status.
+
+────────────────────────────────────────────────────
+10. Closure Determination
+────────────────────────────────────────────────────
+
+Status: Partially Fixed
+
+Criteria:
+  [x] Probe command implemented and tested (ilas:langfuse-probe)
+  [x] Payload contract locked (LangfusePayloadContract + contract tests)
+  [x] Evidence artifact created with required sections
+  [x] Sampling policy documented with quarterly review cadence
+  [x] Alert route documented (SloAlertService -> logger -> Sentry)
+  [x] Review cadence established (weekly, SRE/Platform Engineer)
+  [ ] Probe events captured on all 3 environments (post-deploy)
+  [ ] Redaction verified in Langfuse UI
+  [ ] Queue health evidence recorded
+  [ ] Alert delivery tested
+
+Determination date: <FILL — pending post-deploy verification of sections 2, 4-5, 7>
+Determined by: <FILL>
+Notes: Code-verifiable sections (1, 3, 6, 8-9) complete. Sections 2, 4-5, 7
+       require post-deploy probe execution and Langfuse/Sentry UI verification.

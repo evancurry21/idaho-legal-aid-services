@@ -4,23 +4,28 @@ PHARD-01: Sentry Live Operationalization Evidence
 Finding IDs: OBS-4, R-OBS-01, PHG-OBS-01
 Risk Register: R-OBS-01
 Created: 2026-03-10
-Last updated: <FILL>
+Last updated: 2026-03-10
 
 ────────────────────────────────────────────────────
 1. Pre-Edit State (VC-PANTHEON-READONLY)
 ────────────────────────────────────────────────────
 
+NOTE: raven.settings is applied via $config override in settings.php (from
+SENTRY_DSN env var), not stored in config database. drush config:get returns
+"Config raven.settings does not exist" on all envs — this is expected.
+Runtime presence verified via php:eval instead.
+
 dev:
-  raven_client_key=<present|absent>
-  terminus output: <PASTE>
+  raven_client_key=present
+  terminus output: php:eval confirms client_key present at runtime [Exit: 0]
 
 test:
-  raven_client_key=<present|absent>
-  terminus output: <PASTE>
+  raven_client_key=present
+  terminus output: php:eval confirms client_key present at runtime [Exit: 0]
 
 live:
-  raven_client_key=<present|absent>
-  terminus output: <PASTE>
+  raven_client_key=present
+  terminus output: php:eval confirms client_key present at runtime [Exit: 0]
 
 ────────────────────────────────────────────────────
 2. Synthetic Probe Evidence (per environment)
@@ -28,21 +33,27 @@ live:
 
 dev:
   command: terminus remote:drush idaho-legal-aid-services.dev -- ilas:sentry-probe
-  event_id: <FILL>
-  sentry_url: <FILL>
-  timestamp: <FILL>
+  event_id: 8b6a8edfd40d4094a3e0e0e67dd4401c
+  environment: pantheon-dev
+  release: 99968c7
+  sentry_url: <verify in Sentry UI — search by event ID>
+  timestamp: 2026-03-10T19:09:14+00:00
 
 test:
   command: terminus remote:drush idaho-legal-aid-services.test -- ilas:sentry-probe
-  event_id: <FILL>
-  sentry_url: <FILL>
-  timestamp: <FILL>
+  event_id: 051548b6400941af80147374416bfe9a
+  environment: pantheon-test
+  release: test_146
+  sentry_url: <verify in Sentry UI — search by event ID>
+  timestamp: 2026-03-10T19:09:24+00:00
 
 live:
   command: terminus remote:drush idaho-legal-aid-services.live -- ilas:sentry-probe
-  event_id: <FILL>
-  sentry_url: <FILL>
-  timestamp: <FILL>
+  event_id: 34616d715c884365befdf6e7ae3b5ed5
+  environment: pantheon-live
+  release: live_136
+  sentry_url: <verify in Sentry UI — search by event ID>
+  timestamp: 2026-03-10T19:09:34+00:00
 
 ────────────────────────────────────────────────────
 3. Redaction Verification
@@ -107,15 +118,16 @@ Runbook reference: docs/incident-runbook.md
 7. Closure Determination
 ────────────────────────────────────────────────────
 
-Status: <Fixed | Partially Fixed | Unverified>
+Status: Partially Fixed
 
 Criteria:
-  [ ] Probe events captured on all 3 environments
+  [x] Probe events captured on all 3 environments
   [ ] Tags and redaction verified in Sentry UI
   [ ] Alert rules created and delivery tested
   [ ] Dashboard ownership assigned
   [ ] Review cadence established
 
-Determination date: <FILL>
+Determination date: <FILL — pending manual verification of sections 3-6>
 Determined by: <FILL>
-Notes: <FILL>
+Notes: CLI-verifiable sections (1-2) complete. Sections 3-6 require manual
+       Sentry UI verification and administrative setup.

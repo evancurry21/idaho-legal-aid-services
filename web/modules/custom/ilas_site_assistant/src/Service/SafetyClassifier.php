@@ -224,10 +224,13 @@ class SafetyClassifier {
         'patterns' => [
           // Instruction override patterns.
           // Handles: "ignore previous instructions", "forget your previous instructions", "disregard the above rules"
+          '/\b(ignore|disregard|forget)[\s,\/]+(all[\s,\/]+)?(the[\s,\/]+)?(your[\s,\/]+)?(previous|prior|above)?[\s,\/]*(instructions?|rules?|guidelines?|programming|prompt|constraints?)\b/i' => 'injection_ignore_instructions',
           '/\b(ignore|disregard|forget)\s+(all\s+)?(the\s+)?(your\s+)?(previous|prior|above)?\s*(instructions?|rules?|guidelines?|programming|prompt|constraints?)\b/i' => 'injection_ignore_instructions',
           '/\b(ignore|disregard|forget)\s+(all\s+)?your\s+(previous\s+)?(instructions?|rules?|guidelines?|programming|constraints?)\b/i' => 'injection_ignore_your_instructions',
           '/\b(new\s+instructions?|updated?\s+instructions?|override\s+instructions?)\b/i' => 'injection_new_instructions',
+          '/\b(follow|obey)\s+(the\s+)?(latest|new|updated)\s+(directive|instruction|instructions?|rules?)\b/i' => 'injection_new_instructions',
           '/\b(system\s*prompt|admin\s*prompt|initial\s*prompt|hidden\s*prompt)\b/i' => 'injection_system_prompt',
+          '/\b(hidden|internal|secret)\s+(prompt|setup|configuration|config|message)\b/i' => 'injection_system_prompt',
           // Format exploit patterns (LLM prompt markers).
           '/\[\s*INST\s*\]/i' => 'injection_format_inst',
           '/\[\s*\/INST\s*\]/i' => 'injection_format_inst_close',
@@ -240,13 +243,16 @@ class SafetyClassifier {
           '/\b(you\s+are\s+now|from\s+now\s+on\s+you\s+are|pretend\s+(you\s+are|to\s+be)|act\s+as\s+(a|an|if))\b/i' => 'injection_roleplay',
           '/\b(pretend\s+(you\'?re|you\s+are)\s+(a\s+)?(real\s+)?(lawyer|attorney))\b/i' => 'injection_roleplay_lawyer',
           '/\b(you\s+are\s+(now\s+)?(a\s+)?helpful\s+assistant\s+with\s+no\s+(restrictions?|limits?|rules?))\b/i' => 'injection_roleplay_unrestricted',
+          '/\b(answer|respond)\s+as\s+(an?\s+)?(unrestricted|unconstrained|no-guardrails?)\s+(lawyer|attorney|assistant)\b/i' => 'injection_roleplay_unrestricted',
           // Override and bypass patterns (with optional articles).
           '/\b(override\s+(the\s+)?(safety|your|all)|bypass\s+(the\s+)?(safety|filter|your))\b/i' => 'injection_override_safety',
           '/\b(disable\s+(the\s+)?(safety|filter|restrictions?))\b/i' => 'injection_disable_safety',
+          '/\b(set\s+aside|drop|remove)\s+(your\s+)?(guardrails?|constraints?|safeguards?)\b/i' => 'injection_disable_safety',
           '/\b(without\s+(any\s+)?(restrictions?|limits?|rules?|safety))\b/i' => 'injection_no_restrictions',
           // Command injection patterns.
           '/\b(STOP|HALT|END)\s*\.\s*(NEW\s+)?(TASK|INSTRUCTION|COMMAND)/i' => 'injection_command_override',
           '/\b(output|print|show|reveal|display)\s+(your\s+)?(full\s+)?(instructions?|prompt|rules?|system\s*prompt)\b/i' => 'injection_leak_instructions',
+          '/\b(output|print|show|reveal|display)\s+(the\s+)?(hidden|internal|secret)\s+(prompt|setup|configuration|config|message)\b/i' => 'injection_leak_instructions',
           '/\b(what\s+(are|is)\s+your\s+(system\s+)?prompt|tell\s+me\s+your\s+(hidden\s+)?instructions?)\b/i' => 'injection_extract_prompt',
           // AI/LLM manipulation patterns.
           '/\b(as\s+an?\s+(ai|artificial\s+intelligence|language\s+model|llm|chatbot))\b/i' => 'injection_ai_reference',
@@ -260,11 +266,12 @@ class SafetyClassifier {
           '/\b(list\s+(all\s+)?user\s*data|show\s+(all\s+)?users?|dump\s+(the\s+)?database)\b/i' => 'injection_data_dump',
           '/\b(admin\s*passwords?|root\s*access|sudo|administrator\s*credentials?)\b/i' => 'injection_admin_access',
           // Spanish prompt injection patterns.
-          '/\b(ignora\s*(las\s*)?instrucciones|olvida\s*tus\s*reglas)\b/i' => 'injection_ignore_instructions_es',
-          '/\b(ahora\s*eres|finge\s*ser)\b/i' => 'injection_roleplay_es',
-          '/\b(desactiva\s*las\s*restricciones)\b/i' => 'injection_disable_safety_es',
-          '/\b(muestra\s*tus\s*instrucciones)\b/i' => 'injection_leak_instructions_es',
-          '/\b(modo\s*desarrollador|sin\s*restricciones)\b/i' => 'injection_jailbreak_mode_es',
+          '/\b(ignora\s*(las\s*)?instrucciones|olvida\s*tus\s*reglas|haz\s+caso\s+omiso\s+de\s+(las\s+)?(reglas|instrucciones|normas)|deja\s+de\s+seguir\s+(tus\s+)?(reglas|instrucciones|normas))\b/i' => 'injection_ignore_instructions_es',
+          '/\b(ahora\s*eres|finge\s*ser|act[uú]a\s*como)\b/i' => 'injection_roleplay_es',
+          '/\b(desactiva\s*las\s*restricciones|deja\s*sin\s*(protecciones|guardas|barandillas))\b/i' => 'injection_disable_safety_es',
+          '/\b(muestra|revela)\s+(tus\s+)?(instrucciones|mensaje|prompt|configuraci[oó]n)\s*(intern(a|o)s?|ocult(a|o)s?|del\s*sistema)?\b/i' => 'injection_leak_instructions_es',
+          '/\b(muestra|revela)\s+(el\s+)?(mensaje|prompt|configuraci[oó]n)\s+(intern(a|o)|ocult(a|o))(\s+del\s+sistema)?\b/i' => 'injection_leak_instructions_es',
+          '/\b(modo\s*desarrollador|sin\s*(restricciones|limites|limitaciones)|sin\s+barandillas)\b/i' => 'injection_jailbreak_mode_es',
         ],
       ],
 

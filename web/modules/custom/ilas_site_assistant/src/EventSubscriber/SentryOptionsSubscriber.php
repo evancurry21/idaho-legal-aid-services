@@ -398,7 +398,18 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
         $tags[$key] = $value;
       }
     }
+
+    // Filter to APPROVED_TAGS only — strip SDK-auto-added tags (os, runtime,
+    // url, user, server_name, etc.) that are not in the approved set.
+    $approved = array_flip(self::APPROVED_TAGS);
+    $tags = array_intersect_key($tags, $approved);
     $sentryEvent->setTags($tags);
+
+    // Strip user context to prevent uid/IP leakage.
+    $sentryEvent->setUser(NULL);
+
+    // Strip request data (synthetic HTTP headers in CLI, real headers in web).
+    $sentryEvent->setRequest([]);
 
     return $sentryEvent;
   }

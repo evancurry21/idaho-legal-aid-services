@@ -155,6 +155,92 @@ class SentryPayloadContractTest extends TestCase {
   }
 
   /**
+   * Non-approved tags are stripped from events by before_send.
+   */
+  public function testNonApprovedTagsAreStripped(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+    $event->setTags([
+      'environment' => 'test',
+      'os' => 'Linux',
+      'os.name' => 'Linux',
+      'runtime' => 'php 8.3',
+      'runtime.name' => 'php',
+      'server_name' => 'test.local',
+      'url' => 'http://localhost/',
+      'user' => 'id:0',
+      'level' => 'error',
+      'bogus_tag' => 'should-be-stripped',
+    ]);
+
+    $result = $callback($event, NULL);
+    $this->assertNotNull($result);
+
+    $tags = $result->getTags();
+    $approved = SentryOptionsSubscriber::APPROVED_TAGS;
+
+    foreach ($tags as $key => $value) {
+      $this->assertContains(
+        $key,
+        $approved,
+        "Tag '{$key}' must be in APPROVED_TAGS but was not stripped",
+      );
+    }
+
+    // Approved tags should survive.
+    $this->assertArrayHasKey('environment', $tags);
+
+    // Non-approved tags must be gone.
+    $this->assertArrayNotHasKey('os', $tags);
+    $this->assertArrayNotHasKey('os.name', $tags);
+    $this->assertArrayNotHasKey('runtime', $tags);
+    $this->assertArrayNotHasKey('server_name', $tags);
+    $this->assertArrayNotHasKey('url', $tags);
+    $this->assertArrayNotHasKey('user', $tags);
+    $this->assertArrayNotHasKey('level', $tags);
+    $this->assertArrayNotHasKey('bogus_tag', $tags);
+  }
+
+  /**
+   * User context is cleared by before_send.
+   */
+  public function testUserContextIsCleared(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+    $event->setUser(\Sentry\UserDataBag::createFromArray(['id' => '0']));
+
+    $result = $callback($event, NULL);
+    $this->assertNotNull($result);
+    $this->assertNull($result->getUser());
+  }
+
+  /**
+   * Request data is cleared by before_send.
+   */
+  public function testRequestDataIsCleared(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+    $event->setRequest([
+      'url' => 'http://localhost/',
+      'method' => 'GET',
+      'headers' => ['User-Agent' => 'Symfony'],
+    ]);
+
+    $result = $callback($event, NULL);
+    $this->assertNotNull($result);
+    $this->assertEmpty($result->getRequest());
+  }
+
+  /**
    * Skips the test if Sentry SDK is not installed.
    */
   protected function requireSentry(): void {

@@ -8,3 +8,8 @@ services:
     class: \Drupal\ilas_site_assistant\Commands\SentryProbeCommands
     tags:
       - { name: drush.command }
+  ilas_site_assistant.langfuse_probe_commands:
+    class: \Drupal\ilas_site_assistant\Commands\LangfuseProbeCommands
+    arguments: ['@config.factory', '@queue', '@http_client']
+    tags:
+      - { name: drush.command }

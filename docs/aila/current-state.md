@@ -186,7 +186,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Refusal/escalation behavior | Safety and OOS classes return templated early exits with reason codes and action links.[^CLAIM-039][^CLAIM-040] |
 | Rate limiting/abuse controls | Per-IP Flood API minute/hour checks plus repeated-message abuse short-circuit behavior.[^CLAIM-033][^CLAIM-037] |
 | CSRF protections | Message endpoint enforces strict CSRF (`_csrf_request_header_token` + `_ilas_strict_csrf_token`) while track endpoint uses approved hybrid mitigation: same-origin `Origin`/`Referer` first, recovery-only bootstrap token when both headers are missing, and flood limits throughout.[^CLAIM-012][^CLAIM-123] |
-| Prompt-injection defenses | Safety classifier includes prompt-injection/jailbreak patterns; LLM system prompt instructs model to ignore instructions in retrieved content.[^CLAIM-055][^CLAIM-070] |
+| Prompt-injection defenses | Input normalization strips zero-width and mixed-separator obfuscation before classification, SafetyClassifier includes prompt-injection/jailbreak patterns, and the LLM system prompt instructs the model to ignore instructions in retrieved content.[^CLAIM-052][^CLAIM-055][^CLAIM-070][^CLAIM-183] |
 | Failure/observability | Policy violations and safety exits are logged/analytics-tracked with reason codes; violations can feed safety alert logic.[^CLAIM-039][^CLAIM-047][^CLAIM-089][^CLAIM-090] |
 
 ### D) Retrieval
@@ -295,7 +295,7 @@ Values below are taken from install defaults, exported active config, and settin
 - Deterministic pre-LLM safety and scope classifiers enforce early exits with reason-coded templates.[^CLAIM-038][^CLAIM-039][^CLAIM-040][^CLAIM-054][^CLAIM-056]
 - PII redaction utilities are used for storage/logging paths and Sentry payloads are scrubbed with default PII send disabled.[^CLAIM-053][^CLAIM-083][^CLAIM-085]
 - CSP and Permissions-Policy controls are present in exported config/settings.[^CLAIM-100][^CLAIM-101]
-- Prompt-injection defenses exist both in deterministic classifier patterns and LLM prompt constraints.[^CLAIM-055][^CLAIM-070]
+- Prompt-injection defenses exist in normalization, deterministic classifier patterns, and LLM prompt constraints.[^CLAIM-052][^CLAIM-055][^CLAIM-070][^CLAIM-183]
 
 ### Data storage locations and retention
 
@@ -947,6 +947,39 @@ and `N-28`.
    so the repo-side finding is `Fixed` with no remaining schema or payload-
    contract work.[^CLAIM-173]
 
+### Re-Audit Remediation RAUD-16 Safety Bypass Corpus Hardening (2026-03-10)
+
+This dated addendum records re-audit remediation `RAUD-16` for findings `F-08`,
+`F-11`, and the unresolved bypass-coverage portion of `N-08`.
+
+1. `InputNormalizer` now strips zero-width/control formatting and collapses 4+
+   single-letter obfuscation chains across spaces or mixed separators before
+   safety/policy evaluation, while preserving ordinary tokens such as `U.S.`,
+   `A.M.`, `3-day`, `self-help`, contractions, and ordinary slash/comma text.
+2. `SafetyClassifier` prompt-injection coverage now includes
+   guardrail/constraint override paraphrases, "follow the latest/new
+   directive" variants, hidden/internal prompt or config leakage requests,
+   unrestricted-lawyer roleplay, and Spanish ignore/roleplay/jailbreak/leak
+   variants such as `haz caso omiso`, `actua como`, and
+   `muestra el mensaje oculto del sistema`.
+3. Regression coverage now proves the real request path instead of only
+   mirroring regexes: `SafetyBypassTest` normalizes input through
+   `PreRoutingDecisionEngine`, the abuse corpus adds advanced obfuscation
+   families, and `LlmEnhancerLegalAdviceDetectorTest` exercises the actual
+   protected `containsLegalAdvice()` method against obfuscated post-generation
+   outputs.
+4. Local verification is captured in
+   `docs/aila/runtime/raud-16-safety-bypass-corpus-hardening.txt`. The added
+   cases failed pre-change, the targeted post-fix matrix passed (`227` tests /
+   `389` assertions), and `VC-PROMPTFOO-PACED` hit the DDEV endpoint with
+   `105/105` abuse cases passing, including zero-width, spaced-punctuation,
+   slash-obfuscated prompt leakage, legal-advice obfuscation, English
+   guardrail overrides, and Spanish ignore variants.
+5. The remediation is therefore `Fixed` for the audited bypass corpus, but the
+   March 10, 2026 blocking promptfoo run still returned non-zero because the
+   unrelated deep-suite cases `oos-immigration` and `oos-out-of-state`
+   remained open outside the `RAUD-16` surface.[^CLAIM-183]
+
 ### Phase 1 Exit #1 Non-Live Alert + Dashboard Verification (2026-03-03)
 
 This dated addendum records P1-EXT-01 completion for Phase 1 Exit criterion #1.
@@ -1526,6 +1559,34 @@ This dated addendum records `P3-NDO-02` closure for the Phase 3 scope boundary:
    third-party model expansion beyond audited providers, and no platform-wide
    refactor of unrelated Drupal subsystems.[^CLAIM-010][^CLAIM-073][^CLAIM-074][^CLAIM-159]
 
+### PHARD-02 Langfuse Live Operationalization Disposition (2026-03-10)
+
+This dated addendum records `PHARD-02` completion for Langfuse live
+operationalization proof infrastructure.
+
+1. `ilas:langfuse-probe` Drush command implemented with both `--direct` POST
+   and queue-enqueue modes, producing deterministic PII-free synthetic traces
+   matching the `LangfuseTracer::getTracePayload()` format.[^CLAIM-178]
+2. `LangfusePayloadContract` constants class locks the approved Langfuse
+   payload shape: 5 approved event types, required body keys per event type,
+   SDK name/version, and required metadata keys.[^CLAIM-180]
+3. Evidence artifact created at
+   `docs/aila/runtime/phard-02-langfuse-operationalization.txt` with all 10
+   required sections (pre-edit state, synthetic probe, payload shape,
+   redaction, queue health, sampling, alerts, review cadence, residual risks,
+   closure determination).[^CLAIM-179]
+4. `LangfuseProbeCommandTest` validates probe command existence, PII-free
+   output, payload format against contract constants, and Drush service
+   registration.[^CLAIM-178]
+5. `Phard02LangfuseLiveAcceptanceTest` validates evidence artifact sections,
+   review cadence, owner role, full lifecycle event types, PII absence,
+   sampling policy, queue SLO alert route, and Drush registration.[^CLAIM-179][^CLAIM-180][^CLAIM-181][^CLAIM-182]
+6. Runbook PHARD-02 verification section added with VC-LANGFUSE-LIVE commands,
+   probe commands, and contract test execution instructions.
+7. Scope boundaries remain unchanged: no changes to core LangfuseTracer,
+   LangfuseTerminateSubscriber, or LangfuseExportWorker; live sampling stays
+   at 0.1; `llm.enabled=false` on all environments.
+
 ---
 
 ### Evidence footnotes
@@ -1685,3 +1746,9 @@ This dated addendum records `P3-NDO-02` closure for the Phase 3 scope boundary:
 [^CLAIM-170]: [CLAIM-170](evidence-index.md#claim-170)
 [^CLAIM-172]: [CLAIM-172](evidence-index.md#claim-172)
 [^CLAIM-173]: [CLAIM-173](evidence-index.md#claim-173)
+[^CLAIM-178]: [CLAIM-178](evidence-index.md#claim-178)
+[^CLAIM-179]: [CLAIM-179](evidence-index.md#claim-179)
+[^CLAIM-180]: [CLAIM-180](evidence-index.md#claim-180)
+[^CLAIM-181]: [CLAIM-181](evidence-index.md#claim-181)
+[^CLAIM-182]: [CLAIM-182](evidence-index.md#claim-182)
+[^CLAIM-183]: [CLAIM-183](evidence-index.md#claim-183)
