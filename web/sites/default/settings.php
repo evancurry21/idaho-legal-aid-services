@@ -191,6 +191,9 @@ if (isset($_ENV['PANTHEON_ENVIRONMENT']) && $_ENV['PANTHEON_ENVIRONMENT'] === 'l
 
   // Governance guardrail: live LLM must remain disabled through Phase 2.
   $config['ilas_site_assistant.settings']['llm.enabled'] = FALSE;
+
+  // Hard live guard: never allow assistant response debug metadata on live.
+  $settings['ilas_site_assistant_debug_metadata_force_disable'] = TRUE;
 }
 
 /**

@@ -40,6 +40,8 @@ use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
+use Drupal\Core\Site\Settings;
+use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -256,6 +258,13 @@ class AssistantApiController extends ControllerBase {
   protected $csrfTokenGenerator;
 
   /**
+   * The shared environment detector.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\EnvironmentDetector
+   */
+  protected EnvironmentDetector $environmentDetector;
+
+  /**
    * Constructs an AssistantApiController object.
    */
   public function __construct(
@@ -284,7 +293,8 @@ class AssistantApiController extends ControllerBase {
     SourceGovernanceService $source_governance = NULL,
     VectorIndexHygieneService $vector_index_hygiene = NULL,
     RequestTrustInspector $request_trust_inspector = NULL,
-    CsrfTokenGenerator $csrf_token_generator = NULL
+    CsrfTokenGenerator $csrf_token_generator = NULL,
+    EnvironmentDetector $environment_detector = NULL,
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -312,6 +322,7 @@ class AssistantApiController extends ControllerBase {
     $this->vectorIndexHygiene = $vector_index_hygiene;
     $this->requestTrustInspector = $request_trust_inspector;
     $this->csrfTokenGenerator = $csrf_token_generator;
+    $this->environmentDetector = $environment_detector ?? new EnvironmentDetector();
   }
 
   /**
@@ -344,7 +355,8 @@ class AssistantApiController extends ControllerBase {
       $container->has('ilas_site_assistant.source_governance') ? $container->get('ilas_site_assistant.source_governance') : NULL,
       $container->has('ilas_site_assistant.vector_index_hygiene') ? $container->get('ilas_site_assistant.vector_index_hygiene') : NULL,
       $container->has('ilas_site_assistant.request_trust_inspector') ? $container->get('ilas_site_assistant.request_trust_inspector') : NULL,
-      $container->has('csrf_token') ? $container->get('csrf_token') : NULL
+      $container->has('csrf_token') ? $container->get('csrf_token') : NULL,
+      $container->has('ilas_site_assistant.environment_detector') ? $container->get('ilas_site_assistant.environment_detector') : NULL,
     );
   }
 
@@ -1707,7 +1719,22 @@ class AssistantApiController extends ControllerBase {
    *   TRUE if debug mode is enabled.
    */
   protected function isDebugMode(Request $request): bool {
+    if (Settings::get('ilas_site_assistant_debug_metadata_force_disable', FALSE)) {
+      return FALSE;
+    }
+
+    if ($this->isLiveEnvironment()) {
+      return FALSE;
+    }
+
     return getenv('ILAS_CHATBOT_DEBUG') === '1';
+  }
+
+  /**
+   * Returns TRUE when running in Pantheon live environment.
+   */
+  protected function isLiveEnvironment(): bool {
+    return $this->environmentDetector->isLiveEnvironment();
   }
 
   /**

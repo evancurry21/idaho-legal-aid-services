@@ -59,6 +59,9 @@ services:
     class: Drupal\ilas_site_assistant\Service\PolicyFilter
     arguments: ['@config.factory']
 
+  ilas_site_assistant.environment_detector:
+    class: Drupal\ilas_site_assistant\Service\EnvironmentDetector
+
   ilas_site_assistant.llm_admission_coordinator:
     class: Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator
     arguments: ['@state', '@config.factory', '@logger.channel.ilas_site_assistant', '@lock']
@@ -83,11 +86,11 @@ services:
 
   ilas_site_assistant.llm_enhancer:
     class: Drupal\ilas_site_assistant\Service\LlmEnhancer
-    arguments: ['@config.factory', '@http_client', '@logger.factory', '@ilas_site_assistant.policy_filter', '@cache.ilas_site_assistant', '@ilas_site_assistant.llm_circuit_breaker', '@ilas_site_assistant.llm_rate_limiter', '@ilas_site_assistant.cost_control_policy']
+    arguments: ['@config.factory', '@http_client', '@logger.factory', '@ilas_site_assistant.policy_filter', '@cache.ilas_site_assistant', '@ilas_site_assistant.llm_circuit_breaker', '@ilas_site_assistant.llm_rate_limiter', '@ilas_site_assistant.cost_control_policy', '@ilas_site_assistant.environment_detector']
 
   ilas_site_assistant.fallback_gate:
     class: Drupal\ilas_site_assistant\Service\FallbackGate
-    arguments: ['@config.factory']
+    arguments: ['@config.factory', '@ilas_site_assistant.environment_detector']
 
   ilas_site_assistant.request_trust_inspector:
     class: Drupal\ilas_site_assistant\Service\RequestTrustInspector

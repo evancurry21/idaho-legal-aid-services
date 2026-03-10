@@ -84,6 +84,13 @@ class LlmEnhancer {
   protected ?CostControlPolicy $costControlPolicy;
 
   /**
+   * The shared environment detector.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\EnvironmentDetector
+   */
+  protected EnvironmentDetector $environmentDetector;
+
+  /**
    * Token usage from the most recent LLM API call.
    *
    * @var array|null
@@ -239,6 +246,7 @@ PROMPT,
     LlmCircuitBreaker $circuit_breaker = NULL,
     LlmRateLimiter $rate_limiter = NULL,
     ?CostControlPolicy $cost_control_policy = NULL,
+    ?EnvironmentDetector $environment_detector = NULL,
   ) {
     $this->configFactory = $config_factory;
     $this->httpClient = $http_client;
@@ -248,19 +256,14 @@ PROMPT,
     $this->circuitBreaker = $circuit_breaker;
     $this->rateLimiter = $rate_limiter;
     $this->costControlPolicy = $cost_control_policy;
+    $this->environmentDetector = $environment_detector ?? new EnvironmentDetector();
   }
 
   /**
    * Returns TRUE when running in Pantheon live environment.
    */
   protected function isLiveEnvironment(): bool {
-    $pantheon_env = getenv('PANTHEON_ENVIRONMENT');
-    if (is_string($pantheon_env) && strtolower($pantheon_env) === 'live') {
-      return TRUE;
-    }
-
-    $pantheon_env = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
-    return is_string($pantheon_env) && strtolower($pantheon_env) === 'live';
+    return $this->environmentDetector->isLiveEnvironment();
   }
 
   /**

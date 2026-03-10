@@ -30,6 +30,15 @@ Planning defaults applied:
 6. Remaining `RAUD-08` closure work is environment-bound: Pantheon `dev`,
    `test`, and `live` must set the runtime proxy allowlist and be rechecked
    read-only before the finding can move from `Partially Fixed` to `Fixed`.
+7. `RAUD-09` closes the repo-side live debug exposure gap behind findings `H3`
+   and `N-25`: live-environment detection is now centralized in
+   `EnvironmentDetector`, `AssistantApiController::isDebugMode()` fails closed
+   on live, and `settings.php` adds a runtime-only
+   `ilas_site_assistant_debug_metadata_force_disable` flag in the Pantheon live
+   branch.
+8. Remaining `RAUD-09` closure work is deployment-bound: Pantheon `dev`,
+   `test`, and `live` must be rechecked read-only after deployment to prove the
+   new service is present and `effective_debug_mode=false` on `live`.
 
 ## Phase-to-sprint mapping
 | Phase | Scope | Sprint mapping |

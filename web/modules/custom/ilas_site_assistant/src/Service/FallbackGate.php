@@ -55,6 +55,13 @@ class FallbackGate {
   protected $configFactory;
 
   /**
+   * The shared environment detector.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\EnvironmentDetector
+   */
+  protected EnvironmentDetector $environmentDetector;
+
+  /**
    * Default thresholds.
    *
    * These can be overridden in config.
@@ -171,21 +178,19 @@ class FallbackGate {
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
    */
-  public function __construct(ConfigFactoryInterface $config_factory) {
+  public function __construct(
+    ConfigFactoryInterface $config_factory,
+    ?EnvironmentDetector $environment_detector = NULL,
+  ) {
     $this->configFactory = $config_factory;
+    $this->environmentDetector = $environment_detector ?? new EnvironmentDetector();
   }
 
   /**
    * Returns TRUE when running in Pantheon live environment.
    */
   protected function isLiveEnvironment(): bool {
-    $pantheon_env = getenv('PANTHEON_ENVIRONMENT');
-    if (is_string($pantheon_env) && strtolower($pantheon_env) === 'live') {
-      return TRUE;
-    }
-
-    $pantheon_env = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
-    return is_string($pantheon_env) && strtolower($pantheon_env) === 'live';
+    return $this->environmentDetector->isLiveEnvironment();
   }
 
   /**

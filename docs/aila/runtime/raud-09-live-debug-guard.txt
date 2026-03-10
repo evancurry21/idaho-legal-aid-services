@@ -1,0 +1,70 @@
+# RAUD-09 Live Debug Metadata Guard Remediation Report
+
+- Date: 2026-03-10
+- Prompt ID: `RAUD-09`
+- Finding IDs: `H3`, `N-25`
+- Prior status: Open / partially verified. Response debug metadata was controlled only by `AssistantApiController::isDebugMode()` via `getenv('ILAS_CHATBOT_DEBUG') === '1'`, so a live environment with that variable set could expose routing/debug internals to any client.
+- Post-change status: Partially Fixed
+- Verification level tag: `Partially Fixed`
+
+## Evidence
+
+- Pre-edit enablement inventory:
+  - Command summary: `rg -n "ILAS_CHATBOT_DEBUG|_debug|isDebugMode|debug metadata" web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php web/sites/default/settings.php web/sites/default/settings.pantheon.php web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php scripts/chatbot-eval/README.md`
+  - Result: the only response-debug enablement path was `AssistantApiController::isDebugMode()` reading `ILAS_CHATBOT_DEBUG`; every `_debug` attachment site in the controller depended on that boolean; `settings.php` and `SentryOptionsSubscriber.php` did not provide any live deny path.
+- Post-edit repo guard check:
+  - Command summary: `rg -n "EnvironmentDetector|ilas_site_assistant_debug_metadata_force_disable|isDebugMode|isLiveEnvironment" web/modules/custom/ilas_site_assistant/src web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml web/sites/default/settings.php`
+  - Result: live detection is now centralized in `EnvironmentDetector`; `settings.php` adds a live-only `ilas_site_assistant_debug_metadata_force_disable` flag; `AssistantApiController::isDebugMode()` now fails closed on the settings flag and on `live`.
+- Local targeted guard verification:
+  - Command summary: `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml --group ilas_site_assistant /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/EnvironmentDetectorTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiControllerDebugGuardTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/FallbackGateTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/VertexRuntimeCredentialGuardTest.php`
+  - Result: `67` tests passed. The new controller/debug guard assertions proved `_debug` is emitted on non-live when explicitly enabled, but suppressed on live and when the force-disable setting is present.
+- Focused new-suite smoke check:
+  - Command summary: `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml --group ilas_site_assistant /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/EnvironmentDetectorTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiControllerDebugGuardTest.php`
+  - Result: `7` tests passed; PHPUnit reported warning/deprecation noise, but the new debug-guard coverage passed.
+- VC-UNIT:
+  - Command summary: `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml --group ilas_site_assistant /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit`
+  - Result: `1828` tests passed. Existing suite-wide warnings/deprecations remained (`Warnings: 2`, `Deprecations: 1`, `PHPUnit Deprecations: 173`, `Skipped: 1`), but there were no RAUD-09 failures.
+- VC-PANTHEON-READONLY:
+  - Command summary: `for ENV in dev test live; do terminus env:view ...; terminus remote:drush ... status; ... config:get llm.enabled; ... rate_limit_per_hour; ... telemetry; done`
+  - Result: `dev`, `test`, and `live` all responded read-only as expected; live continues to report `llm.enabled=false`, `rate_limit_per_hour=120`, and `telemetry=null`.
+- Pantheon debug-specific read-only eval:
+  - Command summary: `for ENV in dev test live; do terminus remote:drush ... php:eval "... Drupal::service('ilas_site_assistant.environment_detector') ... ReflectionMethod(AssistantApiController::class, 'isDebugMode') ..."; done`
+  - Result: failed on `dev`, `test`, and `live` with `You have requested a non-existent service "ilas_site_assistant.environment_detector"`, which confirms the new guard path is not yet deployed on Pantheon and cannot be verified there in this session.
+
+## Changed files
+
+- `web/modules/custom/ilas_site_assistant/src/Service/EnvironmentDetector.php`
+- `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml`
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+- `web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php`
+- `web/sites/default/settings.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/EnvironmentDetectorTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiControllerDebugGuardTest.php`
+- `scripts/chatbot-eval/README.md`
+- `docs/aila/runbook.md`
+- `docs/aila/current-state.md`
+- `docs/aila/evidence-index.md`
+- `docs/aila/roadmap.md`
+- `docs/assistant_audit_backlog.md`
+
+## Residual risks / unknowns
+
+- Pantheon has not yet deployed the RAUD-09 code, so live runtime proof still reflects pre-remediation behavior.
+- The actual `ILAS_CHATBOT_DEBUG` state on Pantheon `live` after deployment has not yet been inspected; that surface remains environment-level and deployment-bound.
+- The new `settings.php` force-disable flag and controller live guard are verified locally only in this session.
+- `scripts/chatbot-eval/README.md` now documents the correct non-live-only behavior, but any external operational runbooks not stored in this repo may still carry stale assumptions until updated.
+
+## Rollback notes
+
+- Code rollback: revert the RAUD-09 code/doc changes listed above.
+- Runtime rollback after deploy: remove the new `EnvironmentDetector` wiring and the `ilas_site_assistant_debug_metadata_force_disable` setting from `settings.php`, then rebuild caches.
+- No `settings.pantheon.php` rollback is needed because that file was intentionally left unchanged.
+
+## Still-unverified surfaces
+
+- Pantheon deployment of the RAUD-09 code and service container changes.
+- Pantheon `live` runtime value/state for `ILAS_CHATBOT_DEBUG` after deployment.
+- Pantheon `live` proof that `Settings::get('ilas_site_assistant_debug_metadata_force_disable')` is `true`.
+- Pantheon `live` proof that `AssistantApiController::isDebugMode()` returns `false`.

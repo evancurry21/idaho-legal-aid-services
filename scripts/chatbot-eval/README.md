@@ -87,27 +87,15 @@ The chatbot API now supports a DEBUG mode that returns structured metadata along
 
 ### Enabling DEBUG Mode
 
-Three ways to enable:
+The only supported runtime toggle is the server-side environment variable:
 
-1. **Environment variable:**
-   ```bash
-   export ILAS_CHATBOT_DEBUG=1
-   ```
+```bash
+export ILAS_CHATBOT_DEBUG=1
+```
 
-2. **Request header:**
-   ```bash
-   curl -X POST https://site.com/assistant/api/message \
-     -H "Content-Type: application/json" \
-     -H "X-Debug-Mode: 1" \
-     -d '{"message": "how do i apply"}'
-   ```
-
-3. **Request body:**
-   ```bash
-   curl -X POST https://site.com/assistant/api/message \
-     -H "Content-Type: application/json" \
-     -d '{"message": "how do i apply", "debug": true}'
-   ```
+This toggle only has effect outside Pantheon `live`. The application now
+hard-disables response debug metadata on `live` even if `ILAS_CHATBOT_DEBUG=1`
+is present at runtime.
 
 ### Debug Metadata Structure
 

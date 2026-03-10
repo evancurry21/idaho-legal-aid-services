@@ -2,14 +2,48 @@
 
 namespace Drupal\ilas_site_assistant\Form;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Site\Settings;
+use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Configuration form for ILAS Site Assistant.
  */
 class AssistantSettingsForm extends ConfigFormBase {
+
+  /**
+   * The shared environment detector.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\EnvironmentDetector
+   */
+  protected EnvironmentDetector $environmentDetector;
+
+  /**
+   * Constructs the assistant settings form.
+   */
+  public function __construct(
+    ConfigFactoryInterface $config_factory,
+    TypedConfigManagerInterface $typed_config_manager,
+    ?EnvironmentDetector $environment_detector = NULL,
+  ) {
+    parent::__construct($config_factory, $typed_config_manager);
+    $this->environmentDetector = $environment_detector ?? new EnvironmentDetector();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.factory'),
+      $container->get('config.typed'),
+      $container->get('ilas_site_assistant.environment_detector'),
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -29,13 +63,7 @@ class AssistantSettingsForm extends ConfigFormBase {
    * Returns TRUE when running in Pantheon live environment.
    */
   protected function isLiveEnvironment(): bool {
-    $pantheon_env = getenv('PANTHEON_ENVIRONMENT');
-    if (is_string($pantheon_env) && strtolower($pantheon_env) === 'live') {
-      return TRUE;
-    }
-
-    $pantheon_env = $_ENV['PANTHEON_ENVIRONMENT'] ?? NULL;
-    return is_string($pantheon_env) && strtolower($pantheon_env) === 'live';
+    return $this->environmentDetector->isLiveEnvironment();
   }
 
   /**

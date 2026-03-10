@@ -2415,3 +2415,31 @@ Evidence precedence used in this audit:
   - `docs/aila/roadmap.md`
   - `docs/assistant_audit_backlog.md`
   - `docs/aila/runtime/raud-08-reverse-proxy-client-ip-trust.txt`
+
+### CLAIM-169
+- Claim: Re-audit remediation `RAUD-09` centralizes Pantheon live-environment
+  detection in a shared `EnvironmentDetector` service and hard-disables
+  assistant response debug metadata on `live` through both a controller
+  fail-closed guard and a runtime-only `settings.php` force-disable flag.
+  Pantheon post-deploy proof remains pending because the March 10, 2026
+  read-only `php:eval` checks hit pre-deploy environments that do not yet
+  expose the new service.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/EnvironmentDetector.php`
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+  - `web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/FallbackGate.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/EnvironmentDetectorTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiControllerDebugGuardTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/FallbackGateTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/VertexRuntimeCredentialGuardTest.php`
+  - `web/sites/default/settings.php`
+  - `scripts/chatbot-eval/README.md`
+  - `docs/aila/runbook.md`
+  - `docs/aila/current-state.md`
+  - `docs/aila/roadmap.md`
+  - `docs/assistant_audit_backlog.md`
+  - `docs/aila/runtime/raud-09-live-debug-guard.txt`

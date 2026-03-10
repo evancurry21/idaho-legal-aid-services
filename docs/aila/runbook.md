@@ -1969,6 +1969,40 @@ Expected verification result:
 - Archive the executed command summaries and final classification in
   `docs/aila/runtime/raud-08-reverse-proxy-client-ip-trust.txt`.
 
+### RAUD-09 live debug metadata guard verification
+
+- Baseline before the remediation:
+  - Repo scan showed only one response-debug enablement path:
+    `AssistantApiController::isDebugMode()` returned
+    `getenv('ILAS_CHATBOT_DEBUG') === '1'`.
+  - Every `_debug` attachment site in `AssistantApiController::message()` and
+    the office follow-up handlers depended on that single boolean.
+  - `settings.php` and `SentryOptionsSubscriber.php` did not provide a live
+    deny path for response debug metadata.
+- Required verification commands for the remediation report:
+  - `VC-UNIT`
+  - `VC-PANTHEON-READONLY`
+- Targeted local checks:
+  - `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml --group ilas_site_assistant /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/EnvironmentDetectorTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiControllerDebugGuardTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/FallbackGateTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit/VertexRuntimeCredentialGuardTest.php`
+- Debug-specific Pantheon read-only checks after deployment:
+  - `for ENV in dev test live; do terminus remote:drush "idaho-legal-aid-services.${ENV}" -- php:eval "use Drupal\\Core\\Site\\Settings; use Drupal\\ilas_site_assistant\\Controller\\AssistantApiController; use Symfony\\Component\\HttpFoundation\\Request; \$controller = Drupal::service('class_resolver')->getInstanceFromDefinition(AssistantApiController::class); \$request = Request::create('/assistant/api/message', 'POST'); echo 'env=' . (Drupal::service('ilas_site_assistant.environment_detector')->getPantheonEnvironment() ?? 'unset') . PHP_EOL; \$debug = getenv('ILAS_CHATBOT_DEBUG'); if (\$debug === FALSE) { echo 'ilas_chatbot_debug=unset' . PHP_EOL; } elseif (\$debug === '1') { echo 'ilas_chatbot_debug=1' . PHP_EOL; } else { echo 'ilas_chatbot_debug=non1' . PHP_EOL; } echo 'debug_force_disable=' . (Settings::get('ilas_site_assistant_debug_metadata_force_disable', FALSE) ? 'true' : 'false') . PHP_EOL; \$ref = new ReflectionMethod(AssistantApiController::class, 'isDebugMode'); \$ref->setAccessible(TRUE); echo 'effective_debug_mode=' . (\$ref->invoke(\$controller, \$request) ? 'true' : 'false') . PHP_EOL;"; done`
+- Expected contract after the remediation:
+  - `EnvironmentDetector` is the single source of truth for Pantheon live
+    detection across the controller, form, and LLM guard services.
+  - `settings.php` sets
+    `$settings['ilas_site_assistant_debug_metadata_force_disable'] = TRUE;`
+    on Pantheon `live`.
+  - `AssistantApiController::isDebugMode()` returns `FALSE` on live even when
+    `ILAS_CHATBOT_DEBUG=1` is present.
+  - Non-live environments can still opt into `_debug` with
+    `ILAS_CHATBOT_DEBUG=1`.
+  - If Pantheon read-only checks cannot evaluate the new service/guard path
+    because the environments are still serving pre-deploy code, classify the
+    finding as `Partially Fixed` and keep the live runtime surface
+    `Unverified`.
+- Archive the executed command summaries and final classification in
+  `docs/aila/runtime/raud-09-live-debug-guard.txt`.
+
 ### GitHub mirror onboarding (WSL2)
 
 ```bash

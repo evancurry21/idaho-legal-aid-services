@@ -805,6 +805,38 @@ and `N-05`.
    `Partially Fixed` until deployment-time proxy configuration and authenticated
    request-context proof are rechecked.[^CLAIM-168]
 
+### Re-Audit Remediation RAUD-09 Live Debug Metadata Guard (2026-03-10)
+
+This dated addendum records re-audit remediation `RAUD-09` for findings `H3`
+and `N-25`.
+
+1. Response debug metadata is now guarded by a centralized
+   `EnvironmentDetector` service that normalizes `PANTHEON_ENVIRONMENT` lookups
+   across `AssistantApiController`, `AssistantSettingsForm`, `LlmEnhancer`, and
+   `FallbackGate`.
+2. `AssistantApiController::isDebugMode()` is now fail-closed: it returns
+   `FALSE` when the runtime setting
+   `ilas_site_assistant_debug_metadata_force_disable` is enabled or when the
+   effective Pantheon environment is `live`, and only falls back to
+   `ILAS_CHATBOT_DEBUG=1` outside live.
+3. `settings.php` now sets
+   `$settings['ilas_site_assistant_debug_metadata_force_disable'] = TRUE;`
+   inside the Pantheon `live` branch, creating an authoritative runtime deny
+   path in addition to the controller-level live guard.
+4. Regression coverage now includes a dedicated `EnvironmentDetectorTest.php`
+   suite plus controller-level assertions that `_debug` is emitted on non-live
+   when explicitly enabled, but never on live or when the force-disable setting
+   is present.
+5. Local verification is captured in
+   `docs/aila/runtime/raud-09-live-debug-guard.txt`. Pantheon read-only alias
+   checks ran on March 10, 2026, but the targeted live-debug `php:eval` proof
+   could not run against `dev`, `test`, or `live` because those environments
+   are still serving pre-deploy code and do not yet expose the new
+   `ilas_site_assistant.environment_detector` service. The repo-side fix is
+   therefore implemented, but the live runtime surface remains `Unverified`
+   until deployment-time rechecks confirm `effective_debug_mode=false` on
+   `live`.[^CLAIM-169]
+
 ### Phase 1 Exit #1 Non-Live Alert + Dashboard Verification (2026-03-03)
 
 This dated addendum records P1-EXT-01 completion for Phase 1 Exit criterion #1.
