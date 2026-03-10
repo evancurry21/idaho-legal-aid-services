@@ -533,10 +533,10 @@ apply_ddev_rate_limit_override() {
 
   # Local DDEV verification commonly reruns the full gate back-to-back; use a
   # generous local-only ceiling so residual flood counters do not force 429s.
-  local override_minute=240
-  local override_hour=$((PLANNED_CASE_COUNT * 5))
-  if [[ "$override_hour" -lt 2000 ]]; then
-    override_hour=2000
+  local override_minute=1000
+  local override_hour=$((PLANNED_CASE_COUNT * 15))
+  if [[ "$override_hour" -lt 6000 ]]; then
+    override_hour=6000
   fi
 
   # Clear residual flood counters so previous runs don't eat into the budget.
