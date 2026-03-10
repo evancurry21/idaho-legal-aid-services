@@ -241,6 +241,100 @@ class SentryPayloadContractTest extends TestCase {
   }
 
   /**
+   * OS and Runtime contexts are cleared by before_send.
+   */
+  public function testOsAndRuntimeContextsAreCleared(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+    $event->setOsContext(new \Sentry\Context\OsContext(
+      'Linux',
+      '5.15.0',
+      '5.15.0-generic',
+      'x86_64',
+    ));
+    $event->setRuntimeContext(new \Sentry\Context\RuntimeContext(
+      'php',
+      '8.3.0',
+    ));
+
+    $result = $callback($event, NULL);
+    $this->assertNotNull($result);
+    $this->assertNull($result->getOsContext(), 'OS context must be cleared');
+    $this->assertNull($result->getRuntimeContext(), 'Runtime context must be cleared');
+  }
+
+  /**
+   * Breadcrumbs are scrubbed: PII in messages redacted, sensitive keys cleared.
+   */
+  public function testBreadcrumbsAreScrubbed(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+
+    // Breadcrumb with PII in message.
+    $bc1 = new \Sentry\Breadcrumb(
+      \Sentry\Breadcrumb::LEVEL_INFO,
+      \Sentry\Breadcrumb::TYPE_DEFAULT,
+      'test',
+      'User email is john@example.com',
+    );
+
+    // Breadcrumb with sensitive key in metadata.
+    $bc2 = new \Sentry\Breadcrumb(
+      \Sentry\Breadcrumb::LEVEL_INFO,
+      \Sentry\Breadcrumb::TYPE_HTTP,
+      'http',
+      'GET /api/data',
+      ['authorization' => 'Bearer secret-token-123'],
+    );
+
+    // Breadcrumb with PII in metadata string value.
+    $bc3 = new \Sentry\Breadcrumb(
+      \Sentry\Breadcrumb::LEVEL_INFO,
+      \Sentry\Breadcrumb::TYPE_DEFAULT,
+      'app',
+      'Form submitted',
+      ['detail' => 'Contact jane@example.com for info'],
+    );
+
+    $event->setBreadcrumb([$bc1, $bc2, $bc3]);
+
+    $result = $callback($event, NULL);
+    $this->assertNotNull($result);
+
+    $breadcrumbs = $result->getBreadcrumbs();
+    $this->assertCount(3, $breadcrumbs);
+
+    // BC1: PII in message must be redacted.
+    $this->assertStringNotContainsString(
+      'john@example.com',
+      $breadcrumbs[0]->getMessage() ?? '',
+      'PII in breadcrumb message must be redacted',
+    );
+
+    // BC2: Sensitive key must be fully redacted.
+    $meta2 = $breadcrumbs[1]->getMetadata();
+    $this->assertSame(
+      '[REDACTED]',
+      $meta2['authorization'] ?? NULL,
+      'Sensitive metadata key must be [REDACTED]',
+    );
+
+    // BC3: PII in metadata string value must be scrubbed.
+    $meta3 = $breadcrumbs[2]->getMetadata();
+    $this->assertStringNotContainsString(
+      'jane@example.com',
+      $meta3['detail'] ?? '',
+      'PII in breadcrumb metadata must be redacted',
+    );
+  }
+
+  /**
    * Skips the test if Sentry SDK is not installed.
    */
   protected function requireSentry(): void {

@@ -411,6 +411,29 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
     // Strip request data (synthetic HTTP headers in CLI, real headers in web).
     $sentryEvent->setRequest([]);
 
+    // Clear SDK-auto-added OS/Runtime contexts (infrastructure detail).
+    $sentryEvent->setOsContext(NULL);
+    $sentryEvent->setRuntimeContext(NULL);
+
+    // Scrub breadcrumbs — PII-redact messages, strip sensitive metadata.
+    $scrubbed = [];
+    foreach ($sentryEvent->getBreadcrumbs() as $breadcrumb) {
+      $msg = $breadcrumb->getMessage();
+      if ($msg !== NULL) {
+        $breadcrumb = $breadcrumb->withMessage(PiiRedactor::redact($msg));
+      }
+      foreach ($breadcrumb->getMetadata() as $key => $value) {
+        if (static::isSensitiveKey($key)) {
+          $breadcrumb = $breadcrumb->withMetadata($key, '[REDACTED]');
+        }
+        elseif (is_string($value)) {
+          $breadcrumb = $breadcrumb->withMetadata($key, PiiRedactor::redact($value));
+        }
+      }
+      $scrubbed[] = $breadcrumb;
+    }
+    $sentryEvent->setBreadcrumb($scrubbed);
+
     return $sentryEvent;
   }
 
