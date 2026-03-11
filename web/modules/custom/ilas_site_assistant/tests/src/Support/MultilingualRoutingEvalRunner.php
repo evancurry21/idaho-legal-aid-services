@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Support;
 
+require_once __DIR__ . '/CanonicalUrlFixtures.php';
+
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\StringTranslation\TranslationInterface;
@@ -73,7 +75,7 @@ final class MultilingualRoutingEvalRunner {
     );
     $this->router->setStringTranslation($translation);
 
-    $this->responseBuilder = new ResponseBuilder([], $topIntentsPack);
+    $this->responseBuilder = new ResponseBuilder(CanonicalUrlFixtures::defaults(), $topIntentsPack);
     $this->fixtures = $fixtures ?? self::loadFixtures();
   }
 
@@ -587,7 +589,7 @@ final class MultilingualRoutingEvalPolicyFilter extends PolicyFilter {
    * {@inheritdoc}
    */
   protected function getCanonicalUrls() {
-    return ResponseBuilder::getDefaultCanonicalUrls();
+    return CanonicalUrlFixtures::defaults();
   }
 
 }
