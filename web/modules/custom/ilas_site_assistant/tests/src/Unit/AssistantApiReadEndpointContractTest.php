@@ -1,0 +1,342 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\Tests\ilas_site_assistant\Unit;
+
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Flood\FloodInterface;
+use Drupal\ilas_site_assistant\Controller\AssistantApiController;
+use Drupal\ilas_site_assistant\Service\AnalyticsLogger;
+use Drupal\ilas_site_assistant\Service\AssistantReadEndpointGuard;
+use Drupal\ilas_site_assistant\Service\FallbackGate;
+use Drupal\ilas_site_assistant\Service\FaqIndex;
+use Drupal\ilas_site_assistant\Service\IntentRouter;
+use Drupal\ilas_site_assistant\Service\LlmEnhancer;
+use Drupal\ilas_site_assistant\Service\PolicyFilter;
+use Drupal\ilas_site_assistant\Service\ResourceFinder;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Request;
+
+/**
+ * Covers read-endpoint controller contracts for ordinary, throttled, and
+ * degraded behavior.
+ */
+#[Group('ilas_site_assistant')]
+final class AssistantApiReadEndpointContractTest extends TestCase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    require_once __DIR__ . '/controller_test_bootstrap.php';
+  }
+
+  /**
+   * Short suggest queries bypass the read guard and return the cheap empty set.
+   */
+  public function testSuggestShortQueriesBypassReadGuard(): void {
+    $flood = $this->createMock(FloodInterface::class);
+    $flood->expects($this->never())->method('isAllowed');
+    $flood->expects($this->never())->method('register');
+
+    $controller = $this->buildController(
+      readEndpointGuard: $this->buildReadGuard(
+        ['suggest' => ['rate_limit_per_minute' => 1, 'rate_limit_per_hour' => 10]],
+        $flood,
+      ),
+    );
+
+    $response = $controller->suggest(Request::create('/assistant/api/suggest?q=h', 'GET'));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertSame(['suggestions' => []], json_decode($response->getContent(), TRUE));
+  }
+
+  /**
+   * Ordinary suggest queries still return 200 with suggestions.
+   */
+  public function testSuggestNormalQueryReturnsSuggestions(): void {
+    $intentRouter = $this->createStub(IntentRouter::class);
+    $intentRouter->method('suggestTopics')->willReturn([
+      ['name' => 'Housing', 'id' => '75'],
+    ]);
+
+    $faqIndex = $this->createStub(FaqIndex::class);
+    $faqIndex->method('search')->willReturn([
+      ['question' => 'What do I do about eviction?', 'id' => 'faq_45'],
+    ]);
+
+    $controller = $this->buildController(
+      intentRouter: $intentRouter,
+      faqIndex: $faqIndex,
+      readEndpointGuard: $this->buildReadGuard(),
+    );
+
+    $response = $controller->suggest(Request::create('/assistant/api/suggest?q=housing&type=all', 'GET'));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $body = json_decode($response->getContent(), TRUE);
+    $this->assertCount(2, $body['suggestions']);
+    $this->assertSame('topic', $body['suggestions'][0]['type']);
+    $this->assertSame('faq', $body['suggestions'][1]['type']);
+  }
+
+  /**
+   * Suggest throttling returns 429 with a stable response shape.
+   */
+  public function testSuggestThrottleReturns429WithRequestId(): void {
+    $controller = $this->buildController(
+      readEndpointGuard: $this->buildReadGuard(
+        ['suggest' => ['rate_limit_per_minute' => 1, 'rate_limit_per_hour' => 10]],
+        $this->denyingFlood(FALSE),
+      ),
+    );
+
+    $response = $controller->suggest(Request::create('/assistant/api/suggest?q=housing&type=all', 'GET'));
+
+    $this->assertSame(429, $response->getStatusCode());
+    $this->assertSame('60', $response->headers->get('Retry-After'));
+    $body = json_decode($response->getContent(), TRUE);
+    $this->assertSame([], $body['suggestions']);
+    $this->assertSame('rate_limit', $body['type']);
+    $this->assertSame($body['request_id'], $response->headers->get('X-Correlation-ID'));
+  }
+
+  /**
+   * FAQ throttling returns stable bodies for each read mode.
+   */
+  #[DataProvider('faqThrottleProvider')]
+  public function testFaqThrottleReturnsEndpointShapedBody(
+    string $path,
+    array $expectedBody,
+  ): void {
+    $controller = $this->buildController(
+      readEndpointGuard: $this->buildReadGuard(
+        ['faq' => ['rate_limit_per_minute' => 1, 'rate_limit_per_hour' => 10]],
+        $this->denyingFlood(FALSE),
+      ),
+    );
+
+    $response = $controller->faq(Request::create($path, 'GET'));
+
+    $this->assertSame(429, $response->getStatusCode());
+    $this->assertSame('60', $response->headers->get('Retry-After'));
+    $body = json_decode($response->getContent(), TRUE);
+    foreach ($expectedBody as $key => $value) {
+      $this->assertSame($value, $body[$key]);
+    }
+    $this->assertSame('rate_limit', $body['type']);
+    $this->assertSame($body['request_id'], $response->headers->get('X-Correlation-ID'));
+  }
+
+  /**
+   * Provider for FAQ throttle-body contracts.
+   */
+  public static function faqThrottleProvider(): array {
+    return [
+      'id mode' => [
+        '/assistant/api/faq?id=faq_12',
+        ['faq' => NULL],
+      ],
+      'query mode' => [
+        '/assistant/api/faq?q=eviction',
+        ['results' => [], 'count' => 0],
+      ],
+      'category mode' => [
+        '/assistant/api/faq',
+        ['categories' => []],
+      ],
+    ];
+  }
+
+  /**
+   * Suggest exceptions still degrade to the deterministic empty suggestion set.
+   */
+  public function testSuggestExceptionFallsBackToEmptySuggestions(): void {
+    $intentRouter = $this->createMock(IntentRouter::class);
+    $intentRouter->expects($this->once())
+      ->method('suggestTopics')
+      ->willThrowException(new \RuntimeException('Simulated topic failure'));
+
+    $controller = $this->buildController(
+      intentRouter: $intentRouter,
+      readEndpointGuard: $this->buildReadGuard(),
+    );
+
+    $response = $controller->suggest(Request::create('/assistant/api/suggest?q=housing&type=topics', 'GET'));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertSame(['suggestions' => []], json_decode($response->getContent(), TRUE));
+  }
+
+  /**
+   * FAQ ID exceptions still degrade to the existing 404 not-found response.
+   */
+  public function testFaqIdExceptionFallsBackToNotFound(): void {
+    $faqIndex = $this->createMock(FaqIndex::class);
+    $faqIndex->expects($this->once())
+      ->method('getById')
+      ->willThrowException(new \RuntimeException('Simulated FAQ lookup failure'));
+
+    $controller = $this->buildController(
+      faqIndex: $faqIndex,
+      readEndpointGuard: $this->buildReadGuard(),
+    );
+
+    $response = $controller->faq(Request::create('/assistant/api/faq?id=faq_55', 'GET'));
+
+    $this->assertSame(404, $response->getStatusCode());
+    $this->assertSame(['error' => 'FAQ not found'], json_decode($response->getContent(), TRUE));
+  }
+
+  /**
+   * FAQ query exceptions still degrade to empty search results.
+   */
+  public function testFaqQueryExceptionFallsBackToEmptyResults(): void {
+    $faqIndex = $this->createMock(FaqIndex::class);
+    $faqIndex->expects($this->once())
+      ->method('search')
+      ->willThrowException(new \RuntimeException('Simulated FAQ search failure'));
+
+    $controller = $this->buildController(
+      faqIndex: $faqIndex,
+      readEndpointGuard: $this->buildReadGuard(),
+    );
+
+    $response = $controller->faq(Request::create('/assistant/api/faq?q=eviction', 'GET'));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertSame([
+      'results' => [],
+      'count' => 0,
+    ], json_decode($response->getContent(), TRUE));
+  }
+
+  /**
+   * FAQ category exceptions still degrade to the empty category list.
+   */
+  public function testFaqCategoryExceptionFallsBackToEmptyCategories(): void {
+    $faqIndex = $this->createMock(FaqIndex::class);
+    $faqIndex->expects($this->once())
+      ->method('getCategories')
+      ->willThrowException(new \RuntimeException('Simulated category failure'));
+
+    $controller = $this->buildController(
+      faqIndex: $faqIndex,
+      readEndpointGuard: $this->buildReadGuard(),
+    );
+
+    $response = $controller->faq(Request::create('/assistant/api/faq', 'GET'));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertSame(['categories' => []], json_decode($response->getContent(), TRUE));
+  }
+
+  /**
+   * Builds a controller with stubs sufficient for read-endpoint testing.
+   */
+  private function buildController(
+    ?IntentRouter $intentRouter = NULL,
+    ?FaqIndex $faqIndex = NULL,
+    ?AssistantReadEndpointGuard $readEndpointGuard = NULL,
+    ?LoggerInterface $logger = NULL,
+  ): AssistantApiController {
+    $config = $this->createStub(ImmutableConfig::class);
+    $config->method('get')->willReturnCallback(static function (string $key) {
+      return match ($key) {
+        'enable_faq' => TRUE,
+        'read_endpoint_rate_limits' => [
+          'suggest' => ['rate_limit_per_minute' => 120, 'rate_limit_per_hour' => 1200],
+          'faq' => ['rate_limit_per_minute' => 60, 'rate_limit_per_hour' => 600],
+        ],
+        default => NULL,
+      };
+    });
+
+    $configFactory = $this->createStub(ConfigFactoryInterface::class);
+    $configFactory->method('get')->willReturn($config);
+
+    $intentRouter ??= $this->createStub(IntentRouter::class);
+    $faqIndex ??= $this->createStub(FaqIndex::class);
+    $resourceFinder = $this->createStub(ResourceFinder::class);
+    $policyFilter = $this->createStub(PolicyFilter::class);
+    $analyticsLogger = $this->createStub(AnalyticsLogger::class);
+    $llmEnhancer = $this->createStub(LlmEnhancer::class);
+    $fallbackGate = $this->createStub(FallbackGate::class);
+    $flood = $this->createStub(FloodInterface::class);
+    $cache = $this->createStub(CacheBackendInterface::class);
+    $logger ??= $this->createStub(LoggerInterface::class);
+
+    return new AssistantApiController(
+      $configFactory,
+      $intentRouter,
+      $faqIndex,
+      $resourceFinder,
+      $policyFilter,
+      $analyticsLogger,
+      $llmEnhancer,
+      $fallbackGate,
+      $flood,
+      $cache,
+      $logger,
+      read_endpoint_guard: $readEndpointGuard,
+    );
+  }
+
+  /**
+   * Builds a real read guard backed by stubbed config and flood behavior.
+   */
+  private function buildReadGuard(
+    ?array $limits = NULL,
+    ?FloodInterface $flood = NULL,
+    ?LoggerInterface $logger = NULL,
+  ): AssistantReadEndpointGuard {
+    $config = $this->createStub(ImmutableConfig::class);
+    $config->method('get')->willReturnCallback(static function (string $key) use ($limits) {
+      return $key === 'read_endpoint_rate_limits' ? $limits : NULL;
+    });
+
+    $configFactory = $this->createStub(ConfigFactoryInterface::class);
+    $configFactory->method('get')->willReturn($config);
+
+    if ($flood === NULL) {
+      $flood = $this->createStub(FloodInterface::class);
+      $flood->method('isAllowed')->willReturn(TRUE);
+    }
+    $logger ??= $this->createStub(LoggerInterface::class);
+
+    return new AssistantReadEndpointGuard(
+      $configFactory,
+      $flood,
+      new \Drupal\ilas_site_assistant\Service\RequestTrustInspector(),
+      $logger,
+    );
+  }
+
+  /**
+   * Returns a flood mock that denies on minute or hour checks.
+   */
+  private function denyingFlood(bool $denyOnHour): FloodInterface {
+    $calls = 0;
+    $flood = $this->createMock(FloodInterface::class);
+    $flood->expects($denyOnHour ? $this->exactly(2) : $this->once())
+      ->method('isAllowed')
+      ->willReturnCallback(function () use (&$calls, $denyOnHour): bool {
+        $calls++;
+        if ($denyOnHour) {
+          return $calls === 1;
+        }
+        return FALSE;
+      });
+    $flood->expects($this->never())->method('register');
+    return $flood;
+  }
+
+}

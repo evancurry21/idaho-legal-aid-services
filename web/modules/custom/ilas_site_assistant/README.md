@@ -302,6 +302,10 @@ Send a chat message.
 
 Get autocomplete suggestions.
 
+May return `429 Too Many Requests` with a `Retry-After` header under the
+endpoint's per-IP abuse controls. Throttled responses keep the `suggestions`
+key and include `error`, `type = "rate_limit"`, and `request_id`.
+
 **Response:**
 ```json
 {
@@ -315,6 +319,11 @@ Get autocomplete suggestions.
 ### GET `/assistant/api/faq?q=eviction`
 
 Search FAQs.
+
+May return `429 Too Many Requests` with a `Retry-After` header under the
+endpoint's per-IP abuse controls. Throttled responses preserve the active body
+shape (`results` / `count`, `categories`, or `faq: null`) and include `error`,
+`type = "rate_limit"`, and `request_id`.
 
 **Response:**
 ```json

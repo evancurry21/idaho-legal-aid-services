@@ -161,6 +161,8 @@ final class SourceGovernanceServiceTest extends TestCase {
       'malformed' => ['not a valid url'],
       'protocol-relative' => ['//attacker.example.com/phish'],
       'fragment' => ['#faq'],
+      'http ilas' => ['http://idaholegalaid.org/page'],
+      'http www ilas' => ['http://www.idaholegalaid.org/page'],
     ];
   }
 

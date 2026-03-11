@@ -127,6 +127,7 @@ class NormalizationRegressionTest extends TestCase {
       ['eviciton notice', 'eviction', 'eviction typo'],
       ['bankrupcy help', 'bankruptcy', 'bankruptcy typo'],
       ['lanldord problems', 'landlord', 'landlord typo'],
+      ['custdy forms', 'custody', 'custody typo in forms query'],
     ];
   }
 
@@ -165,6 +166,10 @@ class NormalizationRegressionTest extends TestCase {
       ['child custody', 'correct legal terms'],
       ['forms please', 'correct words'],
       ['help me', 'common words'],
+      ['custody forms', 'custody forms should not be corrected'],
+      ['do you have custody forms', 'interrogative custody forms should not be corrected'],
+      ['guides please', 'correct words'],
+      ['eviction guides', 'guide with topic should not be corrected'],
     ];
   }
 

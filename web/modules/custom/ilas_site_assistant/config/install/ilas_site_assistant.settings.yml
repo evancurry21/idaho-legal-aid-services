@@ -88,6 +88,13 @@ session_bootstrap:
   rate_limit_per_minute: 60
   rate_limit_per_hour: 600
   observation_window_hours: 24
+read_endpoint_rate_limits:
+  suggest:
+    rate_limit_per_minute: 120
+    rate_limit_per_hour: 1200
+  faq:
+    rate_limit_per_minute: 60
+    rate_limit_per_hour: 600
 
 # Conversation logging (opt-in, default OFF)
 # When enabled, stores PII-redacted message pairs for QA/debugging.
@@ -284,6 +291,18 @@ audit_governance:
   signoff_required_permission: 'approve ilas site assistant audit'
   report_retention_days: 365
   signoff_deadline_days: 14
+
+review_loop:
+  owner_role: 'Content Manager + SRE/Platform Engineer'
+  cadence: 'Weekly'
+  scope:
+    - 'No-answer and generic-answer trends'
+    - 'User feedback satisfaction rate and volume'
+    - 'Safety violation counts and post-generation outcomes'
+    - 'Top content gaps from no-answer fingerprints'
+    - 'Grounding refusal frequency'
+  escalation_path: 'Content Manager -> Drupal Lead -> Product Owner'
+  artifact_location: 'docs/aila/runtime/phard-05-search-quality-review.txt'
 
 cost_control:
   daily_call_limit: 5000

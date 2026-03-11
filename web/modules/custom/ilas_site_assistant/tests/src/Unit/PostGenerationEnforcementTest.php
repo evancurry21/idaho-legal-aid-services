@@ -1,167 +1,445 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
-use Drupal\ilas_site_assistant\Service\InputNormalizer;
-use PHPUnit\Framework\TestCase;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Flood\FloodInterface;
+use Drupal\Core\State\StateInterface;
+use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\ilas_site_assistant\Controller\AssistantApiController;
+use Drupal\ilas_site_assistant\Service\AnalyticsLogger;
+use Drupal\ilas_site_assistant\Service\FallbackGate;
+use Drupal\ilas_site_assistant\Service\FaqIndex;
+use Drupal\ilas_site_assistant\Service\IntentRouter;
+use Drupal\ilas_site_assistant\Service\LlmEnhancer;
+use Drupal\ilas_site_assistant\Service\PolicyFilter;
+use Drupal\ilas_site_assistant\Service\ResourceFinder;
+use Drupal\ilas_site_assistant\Service\ResponseGrounder;
+use Drupal\ilas_site_assistant\Service\SourceGovernanceService;
 use PHPUnit\Framework\Attributes\Group;
-use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
- * Tests for post-generation safety enforcement logic.
- *
- * Tests the enforcement patterns that run AFTER LLM enhancement, covering:
- * - _requires_review flag enforcement (F-13)
- * - Legal advice detection in LLM output
- * - Internal flag stripping before client response
- *
- * These tests validate the regex patterns used by
- * AssistantApiController::enforcePostGenerationSafety() and
- * AssistantApiController::containsLegalAdviceInOutput().
+ * Controller-path contract tests for post-generation safety enforcement.
  */
 #[Group('ilas_site_assistant')]
-class PostGenerationEnforcementTest extends TestCase {
+final class PostGenerationEnforcementTest extends TestCase {
 
   /**
-   * Legal advice patterns (mirrors AssistantApiController::containsLegalAdviceInOutput).
-   *
-   * @var array
+   * Safe fallback text used by the real controller path.
    */
-  protected array $legalAdvicePatterns = [
-    '/you\s+should\s+(file|sue|appeal|claim|motion)/i',
-    '/i\s+(would\s+)?(advise|recommend|suggest)\s+(you|that\s+you)/i',
-    '/my\s+(legal\s+)?advice\s+is/i',
-    '/the\s+best\s+(legal\s+)?(strategy|approach)\s+is/i',
-    '/you\s+need\s+to\s+(file|submit|send)/i',
-    '/you\s+(will|would)\s+(likely|probably)\s+(win|lose|succeed|fail)/i',
-    '/the\s+court\s+will\s+(likely|probably)/i',
-    '/you\s+should\s+(stop\s+paying|withhold|break\s+your)/i',
-    '/don\'t\s+(pay|respond|go\s+to\s+court)/i',
-    '/ignore\s+the\s+(notice|summons|order)/i',
-    '/idaho\s+code\s*(§|section)/i',
-    '/(statute|code)\s+(says|states|requires)/i',
-  ];
+  private const SAFE_FALLBACK = 'I found some information that may help. For guidance specific to your situation, please contact our Legal Advice Line or apply for help.';
 
   /**
-   * Checks if text contains legal advice.
+   * {@inheritdoc}
    */
-  protected function containsLegalAdvice(string $text): bool {
-    $text = InputNormalizer::normalize($text);
-    foreach ($this->legalAdvicePatterns as $pattern) {
-      if (preg_match($pattern, $text)) {
-        return TRUE;
+  protected function setUp(): void {
+    parent::setUp();
+
+    require_once __DIR__ . '/controller_test_bootstrap.php';
+
+    $container = new ContainerBuilder();
+    $container->set('logger.factory', new class {
+
+      public function get(string $channel): NullLogger {
+        return new NullLogger();
       }
-    }
-    return FALSE;
+
+    });
+    $container->set('string_translation', $this->translationStub());
+    $container->set('config.factory', $this->buildConfigFactory());
+
+    \Drupal::setContainer($container);
   }
 
   /**
-   * Tests that LLM output containing legal advice is caught.
+   * {@inheritdoc}
    */
-  #[DataProvider('legalAdviceOutputProvider')]
-  public function testLegalAdviceDetectionInOutput(string $llm_output): void {
-    $this->assertTrue(
-      $this->containsLegalAdvice($llm_output),
-      "Should detect legal advice in: '$llm_output'"
+  protected function tearDown(): void {
+    \Drupal::unsetContainer();
+    parent::tearDown();
+  }
+
+  /**
+   * Unsafe grounded messages must be replaced on the final controller path.
+   */
+  public function testRequiresReviewReplacesFinalMessageAndSummary(): void {
+    [$controller, $analytics] = $this->buildController('This summary looks harmless but must be replaced.');
+    $controller->processIntentResponse = $this->buildResponse(
+      'You should file a complaint with the court.',
+      'faq'
     );
+
+    $response = $controller->message($this->buildRequest());
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertSame(self::SAFE_FALLBACK, $body['message'] ?? NULL);
+    $this->assertSame(self::SAFE_FALLBACK, $body['llm_summary'] ?? NULL);
+    $this->assertSame('faq', $body['type'] ?? NULL);
+    $this->assertContains('post_gen_safety_review_flag', $analytics->eventTypes());
+    $this->assertInternalFieldsAreHidden($body);
   }
 
   /**
-   * Data provider for LLM outputs that contain legal advice.
+   * Unsafe LLM summaries must be replaced on the controller response path.
    */
-  public static function legalAdviceOutputProvider(): array {
-    return [
-      'you should file' => ['Based on your situation, you should file a motion to dismiss.'],
-      'you should sue' => ['You should sue your landlord for damages.'],
-      'I would advise you' => ['I would advise you to seek representation immediately.'],
-      'I recommend you' => ['I recommend you appeal the decision.'],
-      'best strategy' => ['The best legal strategy is to file an answer within 20 days.'],
-      'you need to file' => ['You need to file a response before the deadline.'],
-      'you will likely win' => ['You will likely win this case based on the facts.'],
-      'court will likely' => ['The court will likely rule in your favor.'],
-      'you should stop paying' => ['You should stop paying rent until repairs are made.'],
-      'ignore the notice' => ['You can safely ignore the notice from your landlord.'],
-      'idaho code section' => ['Idaho Code section 6-303 provides that tenants have rights.'],
-      'statute says' => ['The statute says you have 20 days to respond.'],
-      'don\'t go to court' => ["Don't go to court without a lawyer."],
-    ];
-  }
-
-  /**
-   * Tests that safe LLM output is NOT flagged.
-   */
-  #[DataProvider('safeLlmOutputProvider')]
-  public function testSafeLlmOutputNotFlagged(string $llm_output): void {
-    $this->assertFalse(
-      $this->containsLegalAdvice($llm_output),
-      "Should NOT flag safe output: '$llm_output'"
+  public function testUnsafeLlmSummaryIsReplacedOnControllerPath(): void {
+    [$controller, $analytics] = $this->buildController('You should file a motion to dismiss right away.');
+    $controller->processIntentResponse = $this->buildResponse(
+      'Idaho Legal Aid Services may have housing resources that can help.',
+      'faq'
     );
+
+    $response = $controller->message($this->buildRequest());
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertSame('Idaho Legal Aid Services may have housing resources that can help.', $body['message'] ?? NULL);
+    $this->assertSame(self::SAFE_FALLBACK, $body['llm_summary'] ?? NULL);
+    $this->assertContains('post_gen_safety_legal_advice', $analytics->eventTypes());
+    $this->assertInternalFieldsAreHidden($body);
   }
 
   /**
-   * Data provider for safe LLM outputs.
+   * Safe public responses must pass through unchanged.
    */
-  public static function safeLlmOutputProvider(): array {
-    return [
-      'general info' => ['Idaho Legal Aid Services can help with housing issues.'],
-      'contact info' => ['You can call our Legal Advice Line at (208) 746-7541.'],
-      'resource pointer' => ['Here are some guides that explain the eviction process.'],
-      'apply suggestion' => ['To get help with your situation, please apply for services.'],
-      'caveat response' => ['This is general information only. For advice about your case, please contact us.'],
-      'faq summary' => ['Tenants generally have the right to receive notice before eviction.'],
-    ];
+  public function testSafeResponsePassesThroughUnchanged(): void {
+    $safe_summary = 'Here are some housing resources that may help, and you can contact the Legal Advice Line for case-specific guidance.';
+    [$controller, $analytics] = $this->buildController($safe_summary);
+    $controller->processIntentResponse = $this->buildResponse(
+      'Idaho Legal Aid Services provides general information about housing issues.',
+      'faq'
+    );
+
+    $response = $controller->message($this->buildRequest());
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertSame('Idaho Legal Aid Services provides general information about housing issues.', $body['message'] ?? NULL);
+    $this->assertSame($safe_summary, $body['llm_summary'] ?? NULL);
+    $this->assertNotContains('post_gen_safety_review_flag', $analytics->eventTypes());
+    $this->assertNotContains('post_gen_safety_legal_advice', $analytics->eventTypes());
+    $this->assertInternalFieldsAreHidden($body);
   }
 
   /**
-   * Tests _requires_review flag stripping.
+   * Builds a controller with a real ResponseGrounder and stubbed LLM.
+   *
+   * @return array{0: PostGenerationTestableController, 1: RecordingAnalyticsLogger}
+   *   The controller and analytics recorder.
    */
-  public function testRequiresReviewFlagStripping(): void {
-    $response = [
+  private function buildController(?string $llm_summary): array {
+    $configFactory = $this->buildConfigFactory();
+
+    $flood = $this->createStub(FloodInterface::class);
+    $flood->method('isAllowed')->willReturn(TRUE);
+
+    $intentRouter = $this->createStub(IntentRouter::class);
+    $intentRouter->method('route')->willReturn([
       'type' => 'faq',
-      'message' => 'Here is some info.',
-      'llm_summary' => 'A helpful summary.',
-      '_requires_review' => TRUE,
-      '_validation_warnings' => ['Phone number not in list'],
-      '_grounding_version' => '1.0',
+      'confidence' => 0.95,
+    ]);
+
+    $faqIndex = $this->createStub(FaqIndex::class);
+    $faqIndex->method('search')->willReturn([]);
+    $resourceFinder = $this->createStub(ResourceFinder::class);
+
+    $policyFilter = $this->createStub(PolicyFilter::class);
+    $policyFilter->method('check')->willReturn([
+      'passed' => TRUE,
+      'violation' => FALSE,
+    ]);
+
+    $analyticsLogger = new RecordingAnalyticsLogger();
+    $llmEnhancer = new PostGenerationTestableLlmEnhancer($llm_summary);
+    $state = $this->createStub(StateInterface::class);
+    $state->method('get')->willReturnCallback(static function (string $key, $default = NULL) {
+      return $default;
+    });
+    $sourceGovernance = new SourceGovernanceService($configFactory, $state, new NullLogger());
+
+    $fallbackGate = $this->createStub(FallbackGate::class);
+    $fallbackGate->method('evaluate')->willReturn([
+      'decision' => 'allow',
+      'reason_code' => 'test',
+      'confidence' => 1.0,
+    ]);
+
+    $cache = $this->createStub(CacheBackendInterface::class);
+    $cache->method('get')->willReturn(FALSE);
+
+    $controller = new PostGenerationTestableController(
+      config_factory: $configFactory,
+      intent_router: $intentRouter,
+      faq_index: $faqIndex,
+      resource_finder: $resourceFinder,
+      policy_filter: $policyFilter,
+      analytics_logger: $analyticsLogger,
+      llm_enhancer: $llmEnhancer,
+      fallback_gate: $fallbackGate,
+      flood: $flood,
+      conversation_cache: $cache,
+      logger: new NullLogger(),
+      response_grounder: new ResponseGrounder($sourceGovernance),
+      source_governance: $sourceGovernance,
+    );
+
+    return [$controller, $analyticsLogger];
+  }
+
+  /**
+   * Builds a deterministic JSON request for the controller path.
+   */
+  private function buildRequest(): Request {
+    return Request::create(
+      '/assistant/api/message',
+      'POST',
+      [],
+      [],
+      [],
+      ['CONTENT_TYPE' => 'application/json'],
+      json_encode(['message' => 'help me'])
+    );
+  }
+
+  /**
+   * Builds a deterministic processIntent response shape.
+   */
+  private function buildResponse(string $message, string $type): array {
+    return [
+      'type' => $type,
+      'message' => $message,
+      'response_mode' => 'answer',
+      'primary_action' => [],
+      'secondary_actions' => [],
+      'reason_code' => 'test',
+      'results' => [
+        [
+          'question' => 'Housing help',
+          'answer' => 'Read the guide for more information.',
+          'url' => '/faq/housing-help',
+        ],
+      ],
     ];
+  }
 
-    // Simulate the strip behavior.
-    unset($response['_requires_review']);
-    unset($response['_validation_warnings']);
-    unset($response['_grounding_version']);
+  // -----------------------------------------------------------------------
+  // PHARD-03: Weak grounding flag stripping
+  // -----------------------------------------------------------------------
 
-    $this->assertArrayNotHasKey('_requires_review', $response);
-    $this->assertArrayNotHasKey('_validation_warnings', $response);
-    $this->assertArrayNotHasKey('_grounding_version', $response);
-    // Public fields are preserved.
-    $this->assertArrayHasKey('type', $response);
-    $this->assertArrayHasKey('message', $response);
-    $this->assertArrayHasKey('llm_summary', $response);
+  /**
+   * Tests that PHARD-03 internal flags are stripped from client response.
+   */
+  public function testWeakGroundingFlagStripping(): void {
+    [$controller, $analytics] = $this->buildController('Summary text.');
+    $controller->processIntentResponse = $this->buildResponse(
+      'Some safe information about housing.',
+      'faq'
+    );
+    $controller->processIntentResponse['_grounding_weak'] = TRUE;
+    $controller->processIntentResponse['_grounding_weak_reason'] = 'citation_required_type_without_citations';
+    $controller->processIntentResponse['_all_citations_stale'] = TRUE;
+    $controller->processIntentResponse['_stale_citation_count'] = 2;
+
+    $response = $controller->message($this->buildRequest());
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertArrayNotHasKey('_grounding_weak', $body);
+    $this->assertArrayNotHasKey('_grounding_weak_reason', $body);
+    $this->assertArrayNotHasKey('_all_citations_stale', $body);
+    $this->assertArrayNotHasKey('_stale_citation_count', $body);
+    $this->assertInternalFieldsAreHidden($body);
   }
 
   /**
-   * Tests that obfuscated legal advice in LLM output is caught after normalization.
+   * Tests that weak grounding replaces llm_summary on the controller path.
    */
-  public function testObfuscatedLegalAdviceInOutput(): void {
-    // "you s.h.o.u.l.d file a motion" — after normalization: "you should file a motion"
-    $obfuscated = 'you s.h.o.u.l.d file a motion';
-    $this->assertTrue(
-      $this->containsLegalAdvice($obfuscated),
-      'Obfuscated legal advice should be caught after normalization'
+  public function testWeakGroundingReplacesLlmSummary(): void {
+    [$controller, $analytics] = $this->buildController('Original LLM summary with claims.');
+    $controller->processIntentResponse = $this->buildResponse(
+      'Some safe information.',
+      'faq'
     );
+    $controller->processIntentResponse['_grounding_weak'] = TRUE;
+    $controller->processIntentResponse['_grounding_weak_reason'] = 'citation_required_type_without_citations';
+
+    $response = $controller->message($this->buildRequest());
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertStringContainsString('could not verify specific sources', $body['llm_summary'] ?? '');
+    $this->assertContains('post_gen_safety_weak_grounding', $analytics->eventTypes());
+    $this->assertInternalFieldsAreHidden($body);
   }
 
   /**
-   * Tests that _requires_review replacement uses safe fallback.
+   * Ensures internal post-generation flags are never serialized to clients.
    */
-  public function testRequiresReviewReplacementText(): void {
-    $safe_fallback = 'I found some information that may help. For guidance specific to your situation, please contact our Legal Advice Line or apply for help.';
+  private function assertInternalFieldsAreHidden(array $body): void {
+    $this->assertArrayNotHasKey('_requires_review', $body);
+    $this->assertArrayNotHasKey('_validation_warnings', $body);
+    $this->assertArrayNotHasKey('_grounding_version', $body);
+    $this->assertArrayNotHasKey('_grounding_weak', $body);
+    $this->assertArrayNotHasKey('_grounding_weak_reason', $body);
+    $this->assertArrayNotHasKey('_all_citations_stale', $body);
+    $this->assertArrayNotHasKey('_stale_citation_count', $body);
+    $this->assertArrayNotHasKey('review_flag_triggered', $body);
+    $this->assertArrayNotHasKey('unsafe_llm_summary_detected', $body);
+    $this->assertArrayNotHasKey('message_replaced', $body);
+    $this->assertArrayNotHasKey('llm_summary_replaced', $body);
+  }
 
-    // This is what the controller does — just verify the text is safe.
-    $this->assertFalse(
-      $this->containsLegalAdvice($safe_fallback),
-      'The safe fallback text itself should not trigger legal advice detection'
-    );
+  /**
+   * Builds the config factory used by the controller under test.
+   */
+  private function buildConfigFactory(): ConfigFactoryInterface {
+    $configStub = $this->createStub(ImmutableConfig::class);
+    $configStub->method('get')->willReturnCallback(static function (string $key) {
+      $values = [
+        'rate_limit_per_minute' => 15,
+        'rate_limit_per_hour' => 120,
+        'enable_faq' => TRUE,
+        'enable_logging' => FALSE,
+        'langfuse.environment' => 'test',
+        'langfuse.enabled' => FALSE,
+      ];
+
+      return $values[$key] ?? NULL;
+    });
+
+    $configFactory = $this->createStub(ConfigFactoryInterface::class);
+    $configFactory->method('get')->willReturn($configStub);
+
+    return $configFactory;
+  }
+
+  /**
+   * Builds a translation stub that behaves like a pass-through translator.
+   */
+  private function translationStub(): TranslationInterface {
+    return new class implements TranslationInterface {
+
+      public function translate($string, array $args = [], array $options = []) {
+        return strtr($string, $args);
+      }
+
+      public function translateString(\Drupal\Core\StringTranslation\TranslatableMarkup $translated_string) {
+        return strtr($translated_string->getUntranslatedString(), $translated_string->getArguments());
+      }
+
+      public function formatPlural($count, $singular, $plural, array $args = [], array $options = []) {
+        return strtr($count == 1 ? $singular : $plural, $args);
+      }
+
+    };
+  }
+
+}
+
+/**
+ * Analytics recorder for controller contract tests.
+ */
+final class RecordingAnalyticsLogger extends AnalyticsLogger {
+
+  /**
+   * Recorded analytics events.
+   *
+   * @var array<int, array{type: string, value: string}>
+   */
+  public array $events = [];
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct() {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public function log(string $event_type, string $event_value = '') {
+    $this->events[] = [
+      'type' => $event_type,
+      'value' => $event_value,
+    ];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function logNoAnswer(string $query) {}
+
+  /**
+   * Returns the recorded event types.
+   *
+   * @return string[]
+   *   Event type list.
+   */
+  public function eventTypes(): array {
+    return array_column($this->events, 'type');
+  }
+
+}
+
+/**
+ * LLM enhancer test double that returns a deterministic summary.
+ */
+final class PostGenerationTestableLlmEnhancer extends LlmEnhancer {
+
+  /**
+   * Constructs the LLM enhancer test double.
+   */
+  public function __construct(
+    private readonly ?string $llmSummary,
+  ) {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public function enhanceResponse(array $response, string $userQuery): array {
+    if ($this->llmSummary === NULL) {
+      return $response;
+    }
+
+    $response['llm_summary'] = $this->llmSummary;
+    $response['llm_enhanced'] = TRUE;
+    return $response;
+  }
+
+}
+
+/**
+ * Controller test double exposing the real message() response path.
+ */
+final class PostGenerationTestableController extends AssistantApiController {
+
+  /**
+   * The deterministic response returned by processIntent().
+   *
+   * @var array<string, mixed>
+   */
+  public array $processIntentResponse = [];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+    return $this->processIntentResponse;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getEscalationActions() {
+    return [];
   }
 
 }

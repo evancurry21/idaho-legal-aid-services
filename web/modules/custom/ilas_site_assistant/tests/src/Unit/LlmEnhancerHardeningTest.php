@@ -648,6 +648,61 @@ class LlmEnhancerHardeningTest extends TestCase {
   }
 
   /**
+   * Tests Spanish intent classification prompts add a language instruction.
+   */
+  public function testSpanishClassifyIntentPromptUsesSpanishInstruction(): void {
+    $this->control->apiResponse = 'apply';
+    $enhancer = $this->buildEnhancer();
+
+    $result = $enhancer->classifyIntent('Como aplico para ayuda legal', 'unknown');
+
+    $this->assertSame('apply', $result);
+    $this->assertNotNull($this->control->capturedPrompt);
+    $this->assertStringContainsString(
+      'The user wrote in Spanish',
+      $this->control->capturedPrompt
+    );
+    $this->assertStringContainsString(
+      'respond with ONLY one canonical English category name',
+      $this->control->capturedPrompt
+    );
+  }
+
+  /**
+   * Tests mixed-language intent classification prompts preserve English labels.
+   */
+  public function testMixedLanguageClassifyIntentPromptUsesMixedInstruction(): void {
+    $this->control->apiResponse = 'offices';
+    $enhancer = $this->buildEnhancer();
+
+    $result = $enhancer->classifyIntent('Where is the oficina in Boise', 'unknown');
+
+    $this->assertSame('offices', $result);
+    $this->assertNotNull($this->control->capturedPrompt);
+    $this->assertStringContainsString(
+      'The user mixed English and Spanish',
+      $this->control->capturedPrompt
+    );
+    $this->assertStringContainsString(
+      'canonical English category name',
+      $this->control->capturedPrompt
+    );
+  }
+
+  /**
+   * Tests Spanish labels are rejected so classifyIntent stays canonical.
+   */
+  public function testSpanishClassifyIntentRejectsNonCanonicalLabel(): void {
+    $this->control->apiResponse = 'aplicar';
+    $enhancer = $this->buildEnhancer();
+
+    $result = $enhancer->classifyIntent('Como aplico para ayuda legal', 'unknown');
+
+    $this->assertSame('unknown', $result);
+    $this->assertSame(1, $this->control->apiCallCount);
+  }
+
+  /**
    * Tests that an open circuit breaker skips the API call.
    */
   public function testCircuitBreakerOpenSkipsApiCall(): void {
@@ -805,6 +860,33 @@ class LlmEnhancerHardeningTest extends TestCase {
   }
 
   /**
+   * Tests Spanish summary prompts ask the LLM to reply in Spanish.
+   */
+  public function testSpanishFaqSummaryPromptUsesSameLanguageInstruction(): void {
+    $this->control->apiResponse = 'Resumen de prueba';
+    $enhancer = $this->buildEnhancer();
+
+    $response = [
+      'type' => 'faq',
+      'results' => [
+        [
+          'question' => 'Como aplico para ayuda?',
+          'full_answer' => 'Puede aplicar en linea o llamar a la linea de ayuda.',
+        ],
+      ],
+    ];
+
+    $result = $enhancer->enhanceResponse($response, 'Como aplico para ayuda legal');
+
+    $this->assertSame('Resumen de prueba', $result['llm_summary'] ?? NULL);
+    $this->assertNotNull($this->control->capturedPrompt);
+    $this->assertStringContainsString(
+      "Reply in Spanish because the user's question is in Spanish",
+      $this->control->capturedPrompt
+    );
+  }
+
+  /**
    * Tests that resource content is wrapped in <retrieved_content> fencing tags.
    */
   public function testContentFencingInResourcePrompt(): void {
@@ -830,6 +912,34 @@ class LlmEnhancerHardeningTest extends TestCase {
       'Prompt must contain closing </retrieved_content> tag');
     $this->assertStringContainsString('Tenant Rights Guide', $this->control->capturedPrompt,
       'Resource title must appear in the prompt');
+  }
+
+  /**
+   * Tests mixed-language summary prompts ask for the same language mix.
+   */
+  public function testMixedLanguageResourceSummaryPromptUsesSameLanguageMix(): void {
+    $this->control->apiResponse = 'Mixed summary';
+    $enhancer = $this->buildEnhancer();
+
+    $response = [
+      'type' => 'resources',
+      'results' => [
+        [
+          'title' => 'Housing Guide',
+          'type' => 'guide',
+          'description' => 'A guide for eviction and tenant issues.',
+        ],
+      ],
+    ];
+
+    $result = $enhancer->enhanceResponse($response, 'Need ayuda con eviction forms');
+
+    $this->assertSame('Mixed summary', $result['llm_summary'] ?? NULL);
+    $this->assertNotNull($this->control->capturedPrompt);
+    $this->assertStringContainsString(
+      "Reply in the same English/Spanish mix used by the user's question",
+      $this->control->capturedPrompt
+    );
   }
 
   /**

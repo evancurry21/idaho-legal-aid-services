@@ -93,6 +93,20 @@ Planning defaults applied:
     paraphrases, and Spanish override/leak paraphrases; the abuse suite passed
     `105/105`, while the blocking deep suite still had two unrelated failures
     outside `RAUD-16`.
+21. `RAUD-19` closes the repo-side multilingual routing/eval gap behind
+    `I18N-1`, `EVAL-1`, and `N-35`: `LlmEnhancer` now adds Spanish/mixed
+    prompt-language instructions while preserving canonical English intent
+    labels, and `Disambiguator` now catches short English/Spanish
+    "help with X" topic phrasing such as `Necesito ayuda con custodia` and
+    `I need help with desalojo`.
+22. `RAUD-19` also adds an authoritative offline multilingual routing evaluator
+    (`MultilingualRoutingEvalRunner`, shared JSON fixtures, PHPUnit lock, and
+    CLI report entrypoint) so Spanish and mixed routing/helpfulness coverage is
+    executable without depending on live promptfoo traffic.
+23. Live proof stays additive only: `promptfooconfig.deep.yaml` now includes a
+    focused multilingual routing slice for paced endpoint verification, while
+    unsupported non-Spanish languages remain outside scope and stay tracked as
+    residual risk rather than implicit product expansion.
 
 ## Phase-to-sprint mapping
 | Phase | Scope | Sprint mapping |

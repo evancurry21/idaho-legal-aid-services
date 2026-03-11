@@ -1,0 +1,131 @@
+# RAUD-19 Multilingual Routing + Offline Eval Closure
+
+- Prior status: Not Fixed. Deterministic multilingual coverage was fragmented across scattered unit and golden tests, `LlmEnhancer` prompt shaping stayed English-only, and there was no authoritative offline evaluator for Spanish or mixed English/Spanish routing through the production routing stack. Promptfoo live coverage existed, but it was not the primary executable proof for multilingual routing/helpfulness.
+- Post-change status: Fixed
+- Verification level tag: VC-PURE + VC-UNIT + VC-QUALITY-GATE + VC-PROMPTFOO-PACED
+
+## Evidence
+
+### Pre-change gap summary
+
+Untested or doc-claimed before editing:
+
+- No authoritative offline multilingual routing harness covering Spanish or mixed-language `apply`, hotline, offices, forms/services inventory, topic disambiguation, or urgent deadline routing.
+- No dedicated Spanish or mixed-language unit coverage for `LlmEnhancer::classifyIntent()` prompt composition.
+- No dedicated Spanish or mixed-language unit coverage for summary prompt language shaping.
+- Live promptfoo did not carry a focused multilingual routing/helpfulness slice in the blocking deep suite.
+
+Primary evidence surfaces:
+
+- `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/Disambiguator.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/DisambiguatorTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/MultilingualRoutingEvalTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Support/MultilingualRoutingEvalRunner.php`
+- `web/modules/custom/ilas_site_assistant/tests/fixtures/multilingual-routing-eval-cases.json`
+- `promptfoo-evals/tests/multilingual-routing-live.yaml`
+- `promptfoo-evals/promptfooconfig.deep.yaml`
+
+### Post-change implementation proof
+
+Implemented:
+
+- `LlmEnhancer` now detects prompt language as `en`, `es`, or `mixed`, adds Spanish/mixed instructions for intent classification while preserving canonical English intent labels, and adds same-language summary instructions for Spanish and mixed queries.
+- `Disambiguator` now extracts topic-only intent from short English/Spanish generic-help scaffolding such as `I need help with desalojo` and `Necesito ayuda con custodia`.
+- Added a curated offline multilingual routing evaluator shared by PHPUnit and CLI, driven through the real routing stack rather than the legacy regex simulator.
+- Added a focused multilingual live promptfoo suite and wired it into `promptfooconfig.deep.yaml`, so paced blocking live verification now includes the multilingual slice.
+
+### Verification commands
+
+`VC-PURE`
+
+```bash
+php web/modules/custom/ilas_site_assistant/tests/run-multilingual-routing-eval.php \
+  --report=docs/aila/runtime/raud-19-multilingual-routing-report.json
+```
+
+Result summary:
+
+- Passed: `11/11` curated multilingual cases (`100.00%`)
+- Cases covered: Spanish apply/help, hotline, offices, forms inventory, services inventory, family-topic disambiguation, mixed housing-topic disambiguation, mixed apply, mixed offices navigation, Spanish deadline override, Spanish follow-up via history fallback
+- Report written to `docs/aila/runtime/raud-19-multilingual-routing-report.json`
+
+`VC-UNIT`
+
+```bash
+vendor/bin/phpunit --configuration phpunit.xml --group ilas_site_assistant \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit
+```
+
+Result summary:
+
+- Passed: `1989 tests`, `9756 assertions`
+- Includes the new multilingual unit coverage in `LlmEnhancerHardeningTest`, `DisambiguatorTest`, and `MultilingualRoutingEvalTest`
+
+`VC-QUALITY-GATE`
+
+```bash
+bash web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+```
+
+Result summary:
+
+- Passed
+- Confirmed the repo quality gate still clears with the new multilingual offline harness and promptfoo wiring in place
+
+`VC-PROMPTFOO-PACED`
+
+```bash
+ILAS_ASSISTANT_URL=https://ilas-pantheon.ddev.site/assistant/api/message \
+ILAS_REQUEST_DELAY_MS=1000 \
+CI_BRANCH=master \
+/home/evancurry/idaho-legal-aid-services/scripts/ci/run-promptfoo-gate.sh \
+  --env dev --mode auto
+```
+
+Result summary:
+
+- Passed
+- Smoke: `5/5`
+- Blocking primary suite: `105/105`
+- Deep suite: `299/299`
+- `promptfoo-evals/output/gate-summary.txt` recorded `deep_eval_exit=0`, `deep_pass_rate=100.0`, and `Promptfoo gate PASSED`
+
+## Changed files
+
+- `docs/assistant_audit_backlog.md`
+- `docs/aila/current-state.md`
+- `docs/aila/evidence-index.md`
+- `docs/aila/roadmap.md`
+- `docs/aila/runbook.md`
+- `docs/aila/risk-register.md`
+- `docs/aila/runtime/raud-19-multilingual-routing-offline-eval.txt`
+- `docs/aila/runtime/raud-19-multilingual-routing-report.json`
+- `promptfoo-evals/promptfooconfig.deep.yaml`
+- `promptfoo-evals/tests/multilingual-routing-live.yaml`
+- `web/modules/custom/ilas_site_assistant/src/Service/Disambiguator.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+- `web/modules/custom/ilas_site_assistant/tests/fixtures/multilingual-routing-eval-cases.json`
+- `web/modules/custom/ilas_site_assistant/tests/run-multilingual-routing-eval.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Support/MultilingualRoutingEvalRunner.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/DisambiguatorTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/MultilingualRoutingEvalTest.php`
+
+## Residual risks / unknowns
+
+- Scope remains intentionally limited to Spanish and mixed English/Spanish routing/helpfulness behavior. This remediation does not establish broad multilingual support for other languages.
+- The offline corpus is curated rather than exhaustive. Additional Spanish phrasing variants or code-switched constructions may still require future fixture expansion.
+- The live proof was executed against the documented dev endpoint, not every deployment tier simultaneously.
+
+## Rollback notes
+
+- Roll back the LLM prompt-shaping changes, the disambiguation helper changes, the offline evaluator, the promptfoo multilingual suite, and the documentation updates as one unit.
+- No public API/schema changes, storage migrations, or content rewrites were introduced by RAUD-19.
+
+## Still-unverified surfaces
+
+- Non-Spanish multilingual behavior outside the supported Spanish + mixed scope
+- Long-tail Spanish or code-switched phrasings not represented in `multilingual-routing-eval-cases.json`
+- Environment-specific drift outside the verified paced dev promptfoo target

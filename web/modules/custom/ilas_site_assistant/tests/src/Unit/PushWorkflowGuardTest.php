@@ -59,6 +59,8 @@ final class PushWorkflowGuardTest extends TestCase {
     $strictHook = self::readFile('scripts/ci/pre-push-strict.sh');
     $installer = self::readFile('scripts/ci/install-pre-push-strict-hook.sh');
 
+    $this->assertStringContainsString('scripts/git/common.sh', $strictHook);
+    $this->assertStringContainsString('scripts/git/sync-check.sh', $strictHook);
     $this->assertStringContainsString('run-quality-gate.sh', $strictHook);
     $this->assertStringContainsString(
       'CI_BRANCH="$CURRENT_BRANCH" bash scripts/ci/run-promptfoo-gate.sh --env dev --mode auto',

@@ -24,3 +24,4 @@ defaultTest:
 
 tests:
   - file://tests/conversations-deep.yaml
+  - file://tests/multilingual-routing-live.yaml

@@ -3,6 +3,8 @@
   "name": "idaho-legal-aid-services",
   "description": "Tooling scripts for the Idaho Legal Aid Services Drupal site",
   "scripts": {
+    "git:publish": "bash scripts/git/publish.sh",
+    "git:sync-check": "bash scripts/git/sync-check.sh",
     "eval:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh eval",
     "eval:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action eval",
     "eval:promptfoo:live": "ILAS_ASSISTANT_URL=https://idaholegalaid.org/assistant/api/message bash promptfoo-evals/scripts/run-promptfoo.sh eval",
@@ -11,6 +13,7 @@
     "view:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action view"
   },
   "devDependencies": {
+    "jest-environment-jsdom": "^30.3.0",
     "promptfoo": "^0.120.24"
   }
 }

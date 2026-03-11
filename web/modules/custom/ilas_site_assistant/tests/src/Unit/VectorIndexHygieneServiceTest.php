@@ -407,7 +407,7 @@ final class VectorIndexHygieneServiceTest extends TestCase {
   public function testDegradedAlertUsesCooldown(): void {
     $logger = $this->createMock(LoggerInterface::class);
     $logger->expects($this->once())
-      ->method('warning')
+      ->method('notice')
       ->with(
         $this->stringContains('Vector index hygiene degraded'),
         $this->isType('array')

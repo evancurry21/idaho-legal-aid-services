@@ -549,7 +549,7 @@ if ($sentry_dsn) {
     'alert' => TRUE,
     'critical' => TRUE,
     'error' => TRUE,
-    'warning' => FALSE,
+    'warning' => TRUE,
     'notice' => FALSE,
     'info' => FALSE,
     'debug' => FALSE,

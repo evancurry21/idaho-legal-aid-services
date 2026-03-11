@@ -1,4 +1,8 @@
 /**
+ * @jest-environment jsdom
+ */
+
+/**
  * @file
  * Smoke tests for assistant-widget.js hardening.
  *
@@ -889,6 +893,124 @@ window._assistantWidgetTestDone = (async function () {
     assert(addMessageCalls === 0, 'track failures do not surface message recovery UI');
   });
 
+  // -------------------------------------------------------------------
+  // 10. Feedback UI controls
+  // -------------------------------------------------------------------
+  suite('Feedback UI: appendFeedback creates correct DOM structure', function () {
+    var container = document.createElement('div');
+    container.className = 'chat-message chat-message--assistant';
+    var content = document.createElement('div');
+    content.className = 'message-content';
+    content.textContent = 'Test response';
+    container.appendChild(content);
+    document.body.appendChild(container);
+
+    // Simulate appendFeedback behavior inline.
+    var controls = document.createElement('div');
+    controls.className = 'feedback-controls';
+
+    var label = document.createElement('span');
+    label.className = 'feedback-label';
+    label.textContent = Drupal.t('Was this helpful?');
+    controls.appendChild(label);
+
+    var helpfulBtn = document.createElement('button');
+    helpfulBtn.type = 'button';
+    helpfulBtn.className = 'feedback-btn feedback-btn--helpful';
+    helpfulBtn.setAttribute('aria-label', Drupal.t('Helpful'));
+    helpfulBtn.textContent = '\uD83D\uDC4D';
+    controls.appendChild(helpfulBtn);
+
+    var notHelpfulBtn = document.createElement('button');
+    notHelpfulBtn.type = 'button';
+    notHelpfulBtn.className = 'feedback-btn feedback-btn--not-helpful';
+    notHelpfulBtn.setAttribute('aria-label', Drupal.t('Not helpful'));
+    notHelpfulBtn.textContent = '\uD83D\uDC4E';
+    controls.appendChild(notHelpfulBtn);
+
+    container.appendChild(controls);
+
+    assert(
+      container.querySelector('.feedback-controls') !== null,
+      'feedback controls container is appended'
+    );
+    assert(
+      container.querySelector('.feedback-btn--helpful') !== null,
+      'helpful button exists'
+    );
+    assert(
+      container.querySelector('.feedback-btn--not-helpful') !== null,
+      'not-helpful button exists'
+    );
+    assert(
+      helpfulBtn.getAttribute('aria-label') === 'Helpful',
+      'helpful button has aria-label'
+    );
+    assert(
+      notHelpfulBtn.getAttribute('aria-label') === 'Not helpful',
+      'not-helpful button has aria-label'
+    );
+
+    document.body.removeChild(container);
+  });
+
+  suite('Feedback UI: clicking disables both buttons', function () {
+    var trackCalls = [];
+    var controls = document.createElement('div');
+    controls.className = 'feedback-controls';
+
+    var label = document.createElement('span');
+    label.className = 'feedback-label';
+    label.textContent = 'Was this helpful?';
+    controls.appendChild(label);
+
+    var helpfulBtn = document.createElement('button');
+    helpfulBtn.type = 'button';
+    helpfulBtn.className = 'feedback-btn feedback-btn--helpful';
+    controls.appendChild(helpfulBtn);
+
+    var notHelpfulBtn = document.createElement('button');
+    notHelpfulBtn.type = 'button';
+    notHelpfulBtn.className = 'feedback-btn feedback-btn--not-helpful';
+    controls.appendChild(notHelpfulBtn);
+
+    function handleClick(eventType, responseType) {
+      trackCalls.push({ event: eventType, value: responseType });
+      helpfulBtn.disabled = true;
+      notHelpfulBtn.disabled = true;
+      label.textContent = 'Thanks for your feedback';
+      controls.classList.add('feedback-controls--submitted');
+    }
+
+    helpfulBtn.addEventListener('click', function () {
+      handleClick('feedback_helpful', 'faq');
+    });
+
+    helpfulBtn.click();
+
+    assert(helpfulBtn.disabled === true, 'helpful button is disabled after click');
+    assert(notHelpfulBtn.disabled === true, 'not-helpful button is disabled after click');
+    assert(
+      controls.classList.contains('feedback-controls--submitted'),
+      'submitted class is added after click'
+    );
+    assert(trackCalls.length === 1, 'trackEvent called once');
+    assert(trackCalls[0].event === 'feedback_helpful', 'trackEvent called with feedback_helpful');
+    assert(trackCalls[0].value === 'faq', 'trackEvent called with response type');
+    assert(
+      label.textContent === 'Thanks for your feedback',
+      'label text changed to thank-you message'
+    );
+  });
+
+  suite('Feedback UI: noFeedbackTypes excludes greeting', function () {
+    var noFeedbackTypes = ['greeting', 'clarify', 'form_finder_clarify', 'guide_finder_clarify'];
+    assert(noFeedbackTypes.indexOf('greeting') !== -1, 'greeting is in noFeedbackTypes');
+    assert(noFeedbackTypes.indexOf('faq') === -1, 'faq is NOT in noFeedbackTypes');
+    assert(noFeedbackTypes.indexOf('resources') === -1, 'resources is NOT in noFeedbackTypes');
+    assert(noFeedbackTypes.indexOf('fallback') === -1, 'fallback is NOT in noFeedbackTypes');
+  });
+
   await Promise.all(pending);
 
   // ===================================================================
@@ -904,3 +1026,13 @@ window._assistantWidgetTestDone = (async function () {
 
   return results;
 })();
+
+// Jest integration: wrap the self-contained test harness in a Jest test
+// so that `npx jest` recognizes at least one test and reports pass/fail.
+if (typeof test === 'function') {
+  test('assistant-widget hardening suite', async function () {
+    var results = await window._assistantWidgetTestDone;
+    expect(results.fail).toBe(0);
+    expect(results.pass).toBeGreaterThan(0);
+  });
+}

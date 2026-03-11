@@ -164,6 +164,14 @@ curl -k -sS "${BASE_URL}/assistant/api/suggest?q=housing&type=all"
 curl -k -sS "${BASE_URL}/assistant/api/faq?q=eviction"
 curl -k -sS "${BASE_URL}/assistant/api/health"
 curl -k -sS "${BASE_URL}/assistant/api/metrics"
+
+# RAUD-20 read-endpoint abuse-control proof. Use varied queries so Drupal does
+# not satisfy the second request from a cached 200 before the controller-level
+# flood guard executes.
+ddev exec bash -lc "vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php \
+  --filter 'test(SuggestEndpointAccessible|FaqEndpointAccessible|SuggestEndpointRateLimitAppliesToRepeatedGetRequests|FaqEndpointRateLimitAppliesToRepeatedGetRequests)'"
 ```
 
 Store status/headers/schema-key output (no secrets, synthetic payloads only) in `docs/aila/runtime/local-endpoints.txt`.[^CLAIM-112][^CLAIM-113]
@@ -2185,6 +2193,44 @@ Expected verification result:
 - Archive the executed command summaries and final classification in
   `docs/aila/runtime/raud-16-safety-bypass-corpus-hardening.txt`.
 
+### RAUD-19 multilingual routing + offline eval verification
+
+- Baseline before the remediation:
+  - Spanish and mixed-language routing proof was fragmented across isolated
+    unit tests (`TopicRouterTest`, `TopIntentsPackTest`, `TurnClassifierTest`,
+    `GoldenTranscriptTest`) and prompt-language handling in `LlmEnhancer` was
+    still English-only.
+  - There was no authoritative offline evaluator that ran multilingual routing
+    cases through the real pure-PHP stack and produced a reusable report.
+- Required verification commands for the remediation report:
+  - `VC-UNIT`
+  - `VC-QUALITY-GATE`
+  - `VC-PROMPTFOO-PACED`
+- Targeted local checks:
+  - `vendor/bin/phpunit --no-configuration --bootstrap /home/evancurry/idaho-legal-aid-services/vendor/autoload.php --group ilas_site_assistant --filter 'DisambiguatorTest|LlmEnhancerHardeningTest|MultilingualRoutingEvalTest' /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit`
+  - `php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/run-multilingual-routing-eval.php --report=/tmp/raud19-multilingual-routing-report.json`
+  - `ILAS_ASSISTANT_URL=https://ilas-pantheon.ddev.site/assistant/api/message ILAS_REQUEST_DELAY_MS=1000 CI_BRANCH=master /home/evancurry/idaho-legal-aid-services/scripts/ci/run-promptfoo-gate.sh --env dev --mode auto`
+- Expected contract after the remediation:
+  - `LlmEnhancer::classifyIntent()` adds Spanish/mixed prompt-language
+    instructions but still accepts only canonical English intent labels.
+  - FAQ/resource summary prompts explicitly request Spanish or same-language-mix
+    output when the user query is Spanish or mixed.
+  - `Disambiguator` turns short English/Spanish "help with X" topic phrasing
+    into deterministic `disambiguation` instead of silently drifting to
+    `apply_for_help`.
+  - The shared offline evaluator passes every curated Spanish and mixed routing
+    case, emits a JSON report file, and fails closed on any mismatch.
+  - `promptfooconfig.deep.yaml` exercises the additive multilingual live suite
+    without replacing the offline harness.
+- Classification rule:
+  - If the offline evaluator, `VC-UNIT`, `VC-QUALITY-GATE`, and the paced live
+    promptfoo command all pass, classify `RAUD-19` as `Fixed`.
+  - If only the offline path passes and live promptfoo proof is still missing
+    or failing for unrelated reasons, classify `RAUD-19` as `Partially Fixed`
+    and document the remaining live-only gap explicitly.
+- Archive the executed command summaries and final classification in
+  `docs/aila/runtime/raud-19-multilingual-routing-offline-eval.txt`.
+
 ### GitHub mirror onboarding (WSL2)
 
 ```bash
@@ -2227,8 +2273,11 @@ git push origin master
 ```
 
 Notes:
-- The strict hook runs `run-quality-gate.sh` plus branch-aware Promptfoo gate
-  checks on every push attempt.
+- The strict hook first runs `scripts/git/sync-check.sh` to block
+  `remote-ahead`/`diverged` pushes, then runs `run-quality-gate.sh` plus
+  branch-aware Promptfoo gate checks on every push attempt.
+- If you push only one remote and the other is merely behind local, the hook
+  warns and prints the follow-up `git push <other-remote> master` command.
 - If `ILAS_ASSISTANT_URL` is unset, `scripts/ci/run-promptfoo-gate.sh` will
   attempt Pantheon URL derivation (`derive-assistant-url.sh`) for `--env dev`.
 - Bypass once (not recommended): `git push --no-verify`.

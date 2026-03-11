@@ -1,0 +1,146 @@
+# RAUD-20 Read-Endpoint Abuse Controls
+
+- Prior status: Not Fixed. `GET /assistant/api/suggest` and `GET /assistant/api/faq` were public read paths with deterministic success/degrade behavior but no explicit abuse bounds. Local pre-change probes on March 10, 2026 showed ordinary `200` JSON responses for both endpoints and repeated same-query probes still returning `25 x 200`, confirming there was no read-path throttling in place.
+- Post-change status: Fixed
+- Verification level tag: VC-UNIT + VC-PURE + targeted functional + local runtime
+
+## Evidence
+
+### Pre-change baseline
+
+Before editing:
+
+- `curl -k -sS -D '<headers>' -o '<body>' "https://ilas-pantheon.ddev.site/assistant/api/suggest?q=housing&type=all"` returned `HTTP/2 200` with top-level key `suggestions`.
+- `curl -k -sS -D '<headers>' -o '<body>' "https://ilas-pantheon.ddev.site/assistant/api/faq?q=eviction"` returned `HTTP/2 200` with top-level keys `results`, `count`.
+- Repeated same-query probes to each endpoint still returned `25 x 200`, so there was no explicit bounded abuse behavior on either GET read path before the remediation.
+- Existing targeted functional baseline also passed before editing:
+  - `testSuggestEndpointAccessible`: `1 test`, `10 assertions`
+  - `testFaqEndpointAccessible`: `1 test`, `10 assertions`
+
+### Post-change implementation proof
+
+Implemented:
+
+- `web/modules/custom/ilas_site_assistant/src/Service/AssistantReadEndpointGuard.php` adds endpoint-specific per-IP Flood API protection for `suggest` and `faq`, keyed by `RequestTrustInspector`-resolved client IP rather than raw `Request::getClientIp()`.
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php` now invokes the guard on controller-executed read requests, returns deterministic `429` JSON with `Retry-After` and endpoint-shaped empty payloads on throttle, and preserves existing `200`/`404` degraded behavior for dependency failures.
+- `web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml`, `config/ilas_site_assistant.settings.yml`, and `web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml` now define explicit `read_endpoint_rate_limits` defaults for `suggest` (`120/min`, `1200/hour`) and `faq` (`60/min`, `600/hour`).
+- The runtime/test documentation now records the new public contract: normal `200` read responses are unchanged, while throttled responses are explicit `429` with `Retry-After`, `type = rate_limit`, `request_id`, and endpoint-shaped bodies.
+
+## Verification
+
+### Targeted unit coverage
+
+Command summary:
+
+```bash
+vendor/bin/phpunit --configuration phpunit.xml \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantReadEndpointGuardTest.php \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiReadEndpointContractTest.php \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/SafetyConfigGovernanceTest.php
+```
+
+Result summary:
+
+- Passed: `29 tests`, `148 assertions`
+- Confirms default/read-config threshold loading, minute/hour denial behavior, trusted forwarded-IP flood identity, endpoint-shaped `429` bodies, short-query suggest bypass, and unchanged deterministic degrade paths.
+
+### Targeted functional coverage
+
+Command summary:
+
+```bash
+ddev exec bash -lc 'vendor/bin/phpunit --configuration /var/www/html/phpunit.xml \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php \
+  --filter "test(SuggestEndpointAccessible|FaqEndpointAccessible|SuggestEndpointRateLimitAppliesToRepeatedGetRequests|FaqEndpointRateLimitAppliesToRepeatedGetRequests)"'
+```
+
+Result summary:
+
+- Passed: `4 tests`, `48 assertions`
+- Confirms ordinary anonymous `200` access for `suggest` and `faq`
+- Confirms explicit `429` throttling for repeated GETs when low thresholds are configured in-test
+- Confirms throttled bodies preserve `suggestions` or `results`/`count` shape and include `Retry-After` plus `X-Correlation-ID`
+- The throttling tests intentionally vary the query between requests so Drupal does not satisfy the second request from a cached `200` before the controller guard executes
+
+### Local runtime ordinary-read check
+
+Command summary:
+
+```bash
+curl -k -sS -D '<headers>' -o '<body>' \
+  "https://ilas-pantheon.ddev.site/assistant/api/suggest?q=housing&type=all"
+
+curl -k -sS -D '<headers>' -o '<body>' \
+  "https://ilas-pantheon.ddev.site/assistant/api/faq?q=eviction"
+```
+
+Result summary:
+
+- Post-change ordinary `suggest` remained `HTTP/2 200` with `suggestions`
+- Post-change ordinary `faq` remained `HTTP/2 200` with `results`, `count`
+- `Cache-Control: no-store, private` remained unchanged on ordinary responses
+
+### VC-UNIT
+
+Command summary:
+
+```bash
+vendor/bin/phpunit --configuration phpunit.xml --group ilas_site_assistant \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit
+```
+
+Result summary:
+
+- Passed: `2004 tests`, `9840 assertions`
+- PHPUnit reported `2` warnings, `1` deprecation, `199` PHPUnit deprecations, and `1` skipped test, but the suite passed
+
+### VC-PURE
+
+Command summary:
+
+```bash
+vendor/bin/phpunit --configuration phpunit.pure.xml
+```
+
+Result summary:
+
+- Passed: `2004 tests`, `9840 assertions`
+- PHPUnit reported `2` warnings, `1` deprecation, `198` PHPUnit deprecations, and `1` skipped test, but the suite passed
+
+## Changed files
+
+- `config/ilas_site_assistant.settings.yml`
+- `docs/assistant_audit_backlog.md`
+- `docs/aila/current-state.md`
+- `docs/aila/evidence-index.md`
+- `docs/aila/runbook.md`
+- `docs/aila/runtime/raud-20-read-endpoint-abuse-controls.txt`
+- `web/modules/custom/ilas_site_assistant/README.md`
+- `web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml`
+- `web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml`
+- `web/modules/custom/ilas_site_assistant/ilas_site_assistant.module`
+- `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml`
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/AssistantReadEndpointGuard.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiReadEndpointContractTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantReadEndpointGuardTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/SafetyConfigGovernanceTest.php`
+
+## Residual risks / unknowns
+
+- Identical cache-hit GETs can still be served by Drupal’s existing read cache before the controller-level throttle executes. The remediation preserves that cache behavior intentionally, and the functional throttle proof uses varied queries to exercise the controller path directly.
+- This change does not add edge/CDN/WAF controls, anomaly dashboards, CAPTCHA/challenge flows, or admin metrics for read throttles.
+- Pantheon/runtime proof is still local-only until the updated module code and config are deployed to `dev`/`test`/`live`.
+
+## Rollback notes
+
+- Roll back the new read-endpoint guard service, controller/config wiring, targeted tests, doc updates, and this runtime artifact as one code-only bundle.
+- No schema migration, content rewrite, or database rollback is required.
+- The `function_exists()` guard added around `ilas_site_assistant_get_canonical_urls()` in `ilas_site_assistant.module` should be rolled back with the test/bootstrap changes only if the wider suite no longer needs controller-level function stubbing.
+
+## Still-unverified surfaces
+
+- Pantheon `dev`/`test`/`live` runtime proof for the new read-endpoint `429` contract
+- Upstream cache/CDN interaction outside the local DDEV/runtime path
+- Long-duration distributed abuse patterns beyond the per-IP controller-level bounds added here

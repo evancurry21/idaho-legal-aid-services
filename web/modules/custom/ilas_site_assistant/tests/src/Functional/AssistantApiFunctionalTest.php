@@ -378,15 +378,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * Tests that the suggest endpoint is accessible to anonymous users.
    */
   public function testSuggestEndpointAccessible(): void {
-    // Use the authenticated session cookie jar for deterministic access context.
-    $this->drupalLogin($this->regularUser);
-    $cookies = $this->getSessionCookies();
-
-    $url = $this->buildUrl('/assistant/api/suggest');
-    $response = $this->getHttpClient()->get($url . '?q=housing', [
-      'http_errors' => FALSE,
-      'cookies' => $cookies,
-    ]);
+    $response = $this->getJson('/assistant/api/suggest?q=housing&type=all');
 
     $this->assertEquals(200, $response->getStatusCode());
 
@@ -398,19 +390,60 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * Tests that the FAQ endpoint is accessible.
    */
   public function testFaqEndpointAccessible(): void {
-    $this->drupalLogin($this->regularUser);
-    $cookies = $this->getSessionCookies();
-
-    $url = $this->buildUrl('/assistant/api/faq');
-    $response = $this->getHttpClient()->get($url, [
-      'http_errors' => FALSE,
-      'cookies' => $cookies,
-    ]);
+    $response = $this->getJson('/assistant/api/faq?q=eviction');
 
     $this->assertEquals(200, $response->getStatusCode());
 
     $data = json_decode($response->getBody(), TRUE);
-    $this->assertNotEmpty($data);
+    $this->assertArrayHasKey('results', $data);
+    $this->assertArrayHasKey('count', $data);
+  }
+
+  /**
+   * Repeated suggest requests are bounded by explicit read-endpoint throttling.
+   */
+  public function testSuggestEndpointRateLimitAppliesToRepeatedGetRequests(): void {
+    $this->setReadEndpointThresholds(1, 10, 60, 600);
+    $this->clearReadEndpointFloodEvents();
+
+    $allowed = $this->getJson('/assistant/api/suggest?q=housing&type=all');
+    $this->assertEquals(200, $allowed->getStatusCode(), 'Initial suggest request must succeed');
+
+    // Vary the query to avoid Drupal serving a cached 200 before the controller
+    // and flood guard can execute.
+    $limited = $this->getJson('/assistant/api/suggest?q=tenant&type=all');
+
+    $this->assertEquals(429, $limited->getStatusCode(), 'Second suggest request must be rate limited with a 1/min threshold');
+    $this->assertSame('60', $limited->getHeader('Retry-After')[0] ?? NULL);
+    $body = json_decode($limited->getBody(), TRUE);
+    $this->assertSame([], $body['suggestions'] ?? NULL);
+    $this->assertSame('rate_limit', $body['type'] ?? NULL);
+    $this->assertArrayHasKey('request_id', $body);
+    $this->assertSame($body['request_id'], $limited->getHeader('X-Correlation-ID')[0] ?? NULL);
+  }
+
+  /**
+   * Repeated FAQ requests are bounded by explicit read-endpoint throttling.
+   */
+  public function testFaqEndpointRateLimitAppliesToRepeatedGetRequests(): void {
+    $this->setReadEndpointThresholds(120, 1200, 1, 10);
+    $this->clearReadEndpointFloodEvents();
+
+    $allowed = $this->getJson('/assistant/api/faq?q=eviction');
+    $this->assertEquals(200, $allowed->getStatusCode(), 'Initial FAQ request must succeed');
+
+    // Vary the query to avoid Drupal serving a cached 200 before the controller
+    // and flood guard can execute.
+    $limited = $this->getJson('/assistant/api/faq?q=tenant');
+
+    $this->assertEquals(429, $limited->getStatusCode(), 'Second FAQ request must be rate limited with a 1/min threshold');
+    $this->assertSame('60', $limited->getHeader('Retry-After')[0] ?? NULL);
+    $body = json_decode($limited->getBody(), TRUE);
+    $this->assertSame([], $body['results'] ?? NULL);
+    $this->assertSame(0, $body['count'] ?? NULL);
+    $this->assertSame('rate_limit', $body['type'] ?? NULL);
+    $this->assertArrayHasKey('request_id', $body);
+    $this->assertSame($body['request_id'], $limited->getHeader('X-Correlation-ID')[0] ?? NULL);
   }
 
   /**
@@ -1139,6 +1172,29 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
+   * Sends a GET request with optional cookies and headers.
+   */
+  protected function getJson(string $path, ?CookieJarInterface $cookies = NULL, array $headers = []) {
+    $query = '';
+    if (str_contains($path, '?')) {
+      [$path, $query] = explode('?', $path, 2);
+      $query = '?' . $query;
+    }
+
+    $options = [
+      'http_errors' => FALSE,
+    ];
+    if ($cookies !== NULL) {
+      $options['cookies'] = $cookies;
+    }
+    if ($headers !== []) {
+      $options['headers'] = $headers;
+    }
+
+    return $this->getHttpClient()->get($this->buildUrl($path) . $query, $options);
+  }
+
+  /**
    * Returns the Drupal session cookie stored in a cookie jar, if present.
    */
   protected function findDrupalSessionCookie(CookieJarInterface $cookies): ?array {
@@ -1166,6 +1222,24 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
+   * Applies read-endpoint thresholds for the active test site.
+   */
+  protected function setReadEndpointThresholds(int $suggestPerMinute, int $suggestPerHour, int $faqPerMinute, int $faqPerHour): void {
+    \Drupal::configFactory()->getEditable('ilas_site_assistant.settings')
+      ->set('read_endpoint_rate_limits', [
+        'suggest' => [
+          'rate_limit_per_minute' => $suggestPerMinute,
+          'rate_limit_per_hour' => $suggestPerHour,
+        ],
+        'faq' => [
+          'rate_limit_per_minute' => $faqPerMinute,
+          'rate_limit_per_hour' => $faqPerHour,
+        ],
+      ])
+      ->save();
+  }
+
+  /**
    * Clears bootstrap flood rows to keep assertions deterministic.
    */
   protected function clearBootstrapFloodEvents(): void {
@@ -1178,6 +1252,25 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
       ->condition('event', [
         'ilas_assistant_session_bootstrap_min',
         'ilas_assistant_session_bootstrap_hour',
+      ], 'IN')
+      ->execute();
+  }
+
+  /**
+   * Clears read-endpoint flood rows to keep assertions deterministic.
+   */
+  protected function clearReadEndpointFloodEvents(): void {
+    $database = \Drupal::database();
+    if (!$database->schema()->tableExists('flood')) {
+      return;
+    }
+
+    $database->delete('flood')
+      ->condition('event', [
+        'ilas_assistant_suggest_min',
+        'ilas_assistant_suggest_hour',
+        'ilas_assistant_faq_min',
+        'ilas_assistant_faq_hour',
       ], 'IN')
       ->execute();
   }

@@ -111,7 +111,7 @@ class SourceGovernanceService {
     }
 
     $scheme = strtolower((string) $parts['scheme']);
-    if (!in_array($scheme, ['http', 'https'], TRUE)) {
+    if ($scheme !== 'https') {
       return NULL;
     }
 

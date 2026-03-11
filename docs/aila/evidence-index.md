@@ -378,10 +378,11 @@ Evidence precedence used in this audit:
   - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php:1231-1267`
 
 ### CLAIM-050
-- Claim: `/assistant/api/suggest` and `/assistant/api/faq` are cacheable JSON responses with query-arg cache contexts.
+- Claim: Successful `/assistant/api/suggest` and `/assistant/api/faq` responses are cacheable JSON read paths with query-arg cache contexts, while throttled read responses are explicit `429` JSON bodies with `Retry-After` and endpoint-shaped empty payloads.
 - Evidence:
-  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php:1484-1528`
-  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php:1539-1575`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/AssistantReadEndpointGuard.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiReadEndpointContractTest.php`
 
 ### CLAIM-051
 - Claim: `/assistant/api/health` and `/assistant/api/metrics` expose alert-ready SLO status/threshold contracts for availability, latency, errors, cron freshness, and queue health.
@@ -2677,3 +2678,49 @@ Evidence precedence used in this audit:
   - `docs/aila/runbook.md`
   - `docs/assistant_audit_backlog.md`
   - `docs/aila/runtime/raud-16-safety-bypass-corpus-hardening.txt`
+
+### CLAIM-184
+- Claim: Re-audit remediation `RAUD-19` closes the repo-side multilingual
+  routing/eval gap by adding internal `en` / `es` / `mixed` prompt-language
+  shaping in `LlmEnhancer`, deterministic Spanish + mixed routing/actionability
+  coverage through a shared offline evaluator, and an additive multilingual
+  live promptfoo slice in the deep gate config.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/Disambiguator.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/DisambiguatorTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Support/MultilingualRoutingEvalRunner.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/MultilingualRoutingEvalTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/run-multilingual-routing-eval.php`
+  - `web/modules/custom/ilas_site_assistant/tests/fixtures/multilingual-routing-eval-cases.json`
+  - `promptfoo-evals/tests/multilingual-routing-live.yaml`
+  - `promptfoo-evals/promptfooconfig.deep.yaml`
+  - `docs/assistant_audit_backlog.md`
+  - `docs/aila/current-state.md`
+  - `docs/aila/roadmap.md`
+  - `docs/aila/runbook.md`
+  - `docs/aila/risk-register.md`
+  - `docs/aila/runtime/raud-19-multilingual-routing-offline-eval.txt`
+- Status: Implemented.
+
+### CLAIM-185
+- Claim: Re-audit remediation `RAUD-20` adds explicit per-IP abuse controls to
+  public GET reads: `/assistant/api/suggest` and `/assistant/api/faq` now use
+  endpoint-specific flood thresholds resolved through `RequestTrustInspector`,
+  preserve existing success/degrade contracts, and return deterministic `429`
+  JSON with `Retry-After` when throttled. Identical cache-hit reads may still
+  be satisfied by Drupal’s existing read cache before controller throttling,
+  so the runtime artifact documents that cache tradeoff explicitly.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Service/AssistantReadEndpointGuard.php`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+  - `web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantReadEndpointGuardTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiReadEndpointContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php`
+  - `docs/assistant_audit_backlog.md`
+  - `docs/aila/current-state.md`
+  - `docs/aila/runbook.md`
+  - `docs/aila/runtime/raud-20-read-endpoint-abuse-controls.txt`
+- Status: Implemented.

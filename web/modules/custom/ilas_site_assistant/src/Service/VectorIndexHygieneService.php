@@ -598,7 +598,7 @@ final class VectorIndexHygieneService {
     }
 
     $totals = is_array($snapshot['totals'] ?? NULL) ? $snapshot['totals'] : [];
-    $this->logger->warning(
+    $this->logger->notice(
       'Vector index hygiene degraded: managed=@managed healthy=@healthy degraded=@degraded drift=@drift overdue=@overdue remaining=@remaining.',
       [
         '@managed' => (int) ($totals['managed_indexes'] ?? 0),
