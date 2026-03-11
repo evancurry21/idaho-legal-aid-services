@@ -16,11 +16,11 @@ Aila is a Drupal custom-module assistant exposed as `/assistant` and `/assistant
 
 | Field | Current value | Evidence |
 |---|---|---|
-| Audit timestamp (UTC) | `2026-02-27T20:15:50Z` | [^CLAIM-001] |
+| Audit timestamp (UTC) | `2026-03-11T18:08:57Z` | [^CLAIM-001] |
 | Runtime addendum capture window (UTC) | `2026-02-26T19:19:30Z` to `2026-02-27T20:15:50Z` | [^CLAIM-108][^CLAIM-122][^CLAIM-123] |
 | Git branch | `master` | [^CLAIM-001] |
-| Git commit | `4cc709269a3cc8ad1073c3c4e6411d2004dc9860` | [^CLAIM-001] |
-| Worktree note | `docs/aila/` was uncommitted at capture | [^CLAIM-002] |
+| Git commit | `002acff8c2a5908bf99db199eb2358f2bc85cb90` | [^CLAIM-001] |
+| Worktree note | `Clean worktree at capture` | [^CLAIM-002] |
 | Local runtime status | Verified in DDEV: stack started, Drupal bootstrap succeeded, drush/runtime endpoint checks captured | [^CLAIM-108][^CLAIM-109][^CLAIM-111][^CLAIM-112] |
 | Environment context used | Local = code/config + runtime verification; Pantheon = direct Terminus `remote:drush` verification on dev/test/live + code/config | [^CLAIM-109][^CLAIM-115][^CLAIM-116][^CLAIM-117] |
 | Audit generation method | `rg`/file inspection + sanitized runtime artifacts under `docs/aila/runtime/` and `docs/aila/artifacts/`; no secret values captured | [^CLAIM-001][^CLAIM-108][^CLAIM-115][^CLAIM-122] |
@@ -72,9 +72,10 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | `ilas_site_assistant.topic_router` | `Drupal\ilas_site_assistant\Service\TopicRouter` | Rule-based topic matcher | `'@cache.default'` | [^CLAIM-020] |
 | `ilas_site_assistant.navigation_intent` | `Drupal\ilas_site_assistant\Service\NavigationIntent` | Navigation intent shortcuts | `-` | [^CLAIM-020] |
 | `ilas_site_assistant.intent_router` | `Drupal\ilas_site_assistant\Service\IntentRouter` | Primary deterministic intent router | `'@config.factory', '@ilas_site_assistant.topic_resolver', '@ilas_site_assistant.keyword_extractor', '@ilas_site_assistant.topic_router', '@ilas_site_assistant.navigation_intent', '@ilas_site_assistant.disambiguator', '@ilas_site_assistant.top_intents_pack'` | [^CLAIM-020] |
-| `ilas_site_assistant.topic_resolver` | `Drupal\ilas_site_assistant\Service\TopicResolver` | Maps topic IDs to metadata/URLs | `'@entity_type.manager', '@cache.default'` | [^CLAIM-020] |
-| `ilas_site_assistant.faq_index` | `Drupal\ilas_site_assistant\Service\FaqIndex` | FAQ retrieval adapter | `'@entity_type.manager', '@cache.default', '@config.factory', '@language_manager', '@ilas_site_assistant.ranking_enhancer'` | [^CLAIM-020] |
-| `ilas_site_assistant.resource_finder` | `Drupal\ilas_site_assistant\Service\ResourceFinder` | Resource/form/guide retrieval adapter | `'@entity_type.manager', '@ilas_site_assistant.topic_resolver', '@cache.default', '@language_manager', '@ilas_site_assistant.ranking_enhancer', '@config.factory'` | [^CLAIM-020] |
+| `ilas_site_assistant.retrieval_configuration` | `Drupal\ilas_site_assistant\Service\RetrievalConfigurationService` | Runtime resolver for governed retrieval IDs, canonical URLs, and retrieval-config health snapshots | `'@config.factory', '@entity_type.manager'` | [^CLAIM-020] |
+| `ilas_site_assistant.topic_resolver` | `Drupal\ilas_site_assistant\Service\TopicResolver` | Maps topic IDs to metadata/URLs | `'@entity_type.manager', '@cache.default', '@ilas_site_assistant.retrieval_configuration'` | [^CLAIM-020] |
+| `ilas_site_assistant.faq_index` | `Drupal\ilas_site_assistant\Service\FaqIndex` | FAQ retrieval adapter | `'@entity_type.manager', '@cache.default', '@config.factory', '@language_manager', '@ilas_site_assistant.retrieval_configuration', '@ilas_site_assistant.ranking_enhancer'` | [^CLAIM-020] |
+| `ilas_site_assistant.resource_finder` | `Drupal\ilas_site_assistant\Service\ResourceFinder` | Resource/form/guide retrieval adapter | `'@entity_type.manager', '@ilas_site_assistant.topic_resolver', '@cache.default', '@language_manager', '@ilas_site_assistant.ranking_enhancer', '@config.factory', '@ilas_site_assistant.retrieval_configuration'` | [^CLAIM-020] |
 | `ilas_site_assistant.analytics_logger` | `Drupal\ilas_site_assistant\Service\AnalyticsLogger` | Writes analytics and no-answer records | `'@database', '@config.factory', '@datetime.time', '@logger.channel.ilas_site_assistant'` | [^CLAIM-020] |
 | `ilas_site_assistant.policy_filter` | `Drupal\ilas_site_assistant\Service\PolicyFilter` | Fallback safety/policy checks | `'@config.factory'` | [^CLAIM-020] |
 | `ilas_site_assistant.pre_routing_decision_engine` | `Drupal\ilas_site_assistant\Service\PreRoutingDecisionEngine` | Authoritative pre-routing precedence contract across safety, out-of-scope, policy, and urgency overrides | `'@ilas_site_assistant.policy_filter', '@ilas_site_assistant.safety_classifier', '@ilas_site_assistant.out_of_scope_classifier'` | [^CLAIM-020] |
@@ -109,8 +110,8 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 |---|---|---|---|---|---|---|
 | `ilas_site_assistant.page` | `/assistant` | `ANY` | `access content`; No CSRF header requirement | `\Drupal\ilas_site_assistant\Controller\AssistantPageController::page` | Dedicated assistant page | [^CLAIM-011] |
 | `ilas_site_assistant.api.message` | `/assistant/api/message` | `POST` | `access content`; CSRF header required | `\Drupal\ilas_site_assistant\Controller\AssistantApiController::message` | Primary chat pipeline endpoint | [^CLAIM-012] |
-| `ilas_site_assistant.api.suggest` | `/assistant/api/suggest` | `GET` | `access content`; No CSRF header requirement | `\Drupal\ilas_site_assistant\Controller\AssistantApiController::suggest` | Suggestion API endpoint | [^CLAIM-011] |
-| `ilas_site_assistant.api.faq` | `/assistant/api/faq` | `GET` | `access content`; No CSRF header requirement | `\Drupal\ilas_site_assistant\Controller\AssistantApiController::faq` | FAQ API endpoint | [^CLAIM-011] |
+| `ilas_site_assistant.api.suggest` | `/assistant/api/suggest` | `GET` | `access content`; No CSRF header requirement; controller-level per-IP read throttling on cache-miss/controller-executed requests | `\Drupal\ilas_site_assistant\Controller\AssistantApiController::suggest` | Suggestion API endpoint | [^CLAIM-011][^CLAIM-185] |
+| `ilas_site_assistant.api.faq` | `/assistant/api/faq` | `GET` | `access content`; No CSRF header requirement; controller-level per-IP read throttling on cache-miss/controller-executed requests | `\Drupal\ilas_site_assistant\Controller\AssistantApiController::faq` | FAQ API endpoint | [^CLAIM-011][^CLAIM-185] |
 | `ilas_site_assistant.admin.settings` | `/admin/config/ilas/site-assistant` | `ANY` | `administer ilas site assistant`; No CSRF header requirement | `\Drupal\ilas_site_assistant\Form\AssistantSettingsForm` | Admin settings form | [^CLAIM-011] |
 | `ilas_site_assistant.admin.report` | `/admin/reports/ilas-assistant` | `ANY` | `view ilas site assistant reports`; No CSRF header requirement | `\Drupal\ilas_site_assistant\Controller\AssistantReportController::report` | Admin report dashboard | [^CLAIM-011] |
 | `ilas_site_assistant.admin.conversations` | `/admin/reports/ilas-assistant/conversations` | `ANY` | `view ilas site assistant conversations`; No CSRF header requirement | `\Drupal\ilas_site_assistant\Controller\AssistantConversationController::list` | Conversation log list | [^CLAIM-011] |
@@ -137,7 +138,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Event subscriber | `LangfuseTerminateSubscriber` | Queues Langfuse payload on `kernel.terminate` with depth guard | [^CLAIM-081] |
 | Queue worker | `ilas_langfuse_export` | Cron queue worker exports Langfuse batches; retries transient failures via queue suspension | [^CLAIM-082] |
 | Drush commands | `KbImportCommands` | Provides `ilas:kb-import` and `ilas:kb-list` CLI commands | [^CLAIM-018][^CLAIM-019] |
-| Admin form endpoint | `AssistantSettingsForm` | Persists settings, including vector-search keys | [^CLAIM-011][^CLAIM-096] |
+| Admin form endpoint | `AssistantSettingsForm` | Persists canonical URL + retrieval settings, while LegalServer intake URL remains runtime-only and non-exportable | [^CLAIM-011][^CLAIM-096] |
 
 ## 4) Feature specs
 
@@ -184,7 +185,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Deterministic classifier logic | Priority contract is explicit and enforced by `PreRoutingDecisionEngine`: safety exit -> OOS exit -> policy fallback exit -> continue, with urgency overrides only on continue; detector rules remain pattern-based with first-match behavior.[^CLAIM-038][^CLAIM-054][^CLAIM-056][^CLAIM-057] |
 | Classifier test artifacts | Unit tests exist for SafetyClassifier and OutOfScopeClassifier behavior suites (file-level evidence only; not executed in this audit run).[^CLAIM-105] |
 | Refusal/escalation behavior | Safety and OOS classes return templated early exits with reason codes and action links.[^CLAIM-039][^CLAIM-040] |
-| Rate limiting/abuse controls | Per-IP Flood API minute/hour checks plus repeated-message abuse short-circuit behavior.[^CLAIM-033][^CLAIM-037] |
+| Rate limiting/abuse controls | Per-IP Flood API minute/hour checks on `/assistant/api/message`, endpoint-specific per-IP read throttles on `/assistant/api/suggest` and `/assistant/api/faq`, anonymous bootstrap guardrails, and repeated-message abuse short-circuit behavior. Identical cache-hit read requests can still be served by Drupal’s existing read cache before controller throttling executes, preserving the read-path cache tradeoff while bounding cache-miss/varying-query abuse.[^CLAIM-033][^CLAIM-037][^CLAIM-185] |
 | CSRF protections | Message endpoint enforces strict CSRF (`_csrf_request_header_token` + `_ilas_strict_csrf_token`) while track endpoint uses approved hybrid mitigation: same-origin `Origin`/`Referer` first, recovery-only bootstrap token when both headers are missing, and flood limits throughout.[^CLAIM-012][^CLAIM-123] |
 | Prompt-injection defenses | Input normalization strips zero-width and mixed-separator obfuscation before classification, SafetyClassifier includes prompt-injection/jailbreak patterns, and the LLM system prompt instructs the model to ignore instructions in retrieved content.[^CLAIM-052][^CLAIM-055][^CLAIM-070][^CLAIM-183] |
 | Failure/observability | Policy violations and safety exits are logged/analytics-tracked with reason codes; violations can feed safety alert logic.[^CLAIM-039][^CLAIM-047][^CLAIM-089][^CLAIM-090] |
@@ -230,7 +231,7 @@ Primary request flow diagram: `docs/aila/system-map.mmd`.[^CLAIM-038][^CLAIM-043
 | Langfuse status | Langfuse requires config + credentials; traces capture spans/events/generations and export via terminate subscriber + queue worker.[^CLAIM-079][^CLAIM-080][^CLAIM-081][^CLAIM-082] |
 | Runtime monitoring | `PerformanceMonitor` records rolling latency/error metrics and exposes p95/p99/error/availability values with SLO-backed thresholds via `/assistant/api/health` and `/assistant/api/metrics`.[^CLAIM-084][^CLAIM-051] |
 | SLO policy + alerts | `SloDefinitions` + `SloAlertService` define/enforce availability, latency, error-rate, cron freshness, and queue depth/age SLOs with cooldowned structured warning alerts from cron.[^CLAIM-084][^CLAIM-121] |
-| Promptfoo + quality gate harness | Existing test assets are enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `master`/`main`/`release/*` and advisory behavior elsewhere. Blocking mode retains deep multi-turn coverage (`promptfooconfig.deep.yaml`) and advisory mode retains abuse/safety coverage (`promptfooconfig.abuse.yaml`), while dataset assertions cover RAG/response-correctness families including topical coherence, caveat/escalation behavior, injection-resistance checks, retrieval confidence/refusal threshold metrics (`rag-contract-meta-present`, `rag-citation-coverage`, `rag-low-confidence-refusal`), and calibrated weak-grounding/escalation/safety-boundary scenario coverage (`p2del04-contract-meta-present`, `p2del04-weak-grounding-handling`, `p2del04-escalation-routing`, `p2del04-escalation-actionability`, `p2del04-safety-boundary-routing`, `p2del04-boundary-dampening`, `p2del04-boundary-urgent-routing`) across 60 Sprint 5 scenarios (20 per family). Harness integrity controls now additionally enforce multiline JS assertion return linting, deterministic per-run eval conversation salting via `ILAS_EVAL_RUN_ID`, and failure adjudication artifact generation without relaxing the 90% blocking threshold. [^CLAIM-086][^CLAIM-105][^CLAIM-122][^CLAIM-132][^CLAIM-135][^CLAIM-137][^CLAIM-144][^CLAIM-150] |
+| Promptfoo + quality gate harness | Existing test assets are enforced via repo scripts: `tests/run-quality-gate.sh` (unit + deterministic classifier Drupal-unit + golden transcript) and external runner gates (`scripts/ci/run-external-quality-gate.sh`, `scripts/ci/run-promptfoo-gate.sh`) with branch-aware blocking for `master`/`main`/`release/*` and advisory behavior elsewhere. Blocking mode retains deep multi-turn coverage (`promptfooconfig.deep.yaml`) and advisory mode retains abuse/safety coverage (`promptfooconfig.abuse.yaml`), while dataset assertions cover RAG/response-correctness families including topical coherence, caveat/escalation behavior, injection-resistance checks, retrieval confidence/refusal threshold metrics (`rag-contract-meta-present`, `rag-citation-coverage`, `rag-low-confidence-refusal`), calibrated weak-grounding/escalation/safety-boundary scenario coverage (`p2del04-contract-meta-present`, `p2del04-weak-grounding-handling`, `p2del04-escalation-routing`, `p2del04-escalation-actionability`, `p2del04-safety-boundary-routing`, `p2del04-boundary-dampening`, `p2del04-boundary-urgent-routing`) across 60 Sprint 5 scenarios (20 per family), and a focused multilingual live routing slice in the deep suite. Offline multilingual routing/helpfulness proof is now authoritative through `MultilingualRoutingEvalRunner` + `MultilingualRoutingEvalTest`, so promptfoo complements rather than replaces deterministic coverage. Harness integrity controls now additionally enforce multiline JS assertion return linting, deterministic per-run eval conversation salting via `ILAS_EVAL_RUN_ID`, and failure adjudication artifact generation without relaxing the 90% blocking threshold. [^CLAIM-086][^CLAIM-105][^CLAIM-122][^CLAIM-132][^CLAIM-135][^CLAIM-137][^CLAIM-144][^CLAIM-150] |
 | Redaction posture | Sentry subscriber and analytics/conversation log codepaths apply redaction/truncation before persistence/export.[^CLAIM-053][^CLAIM-083][^CLAIM-085] |
 
 ### G) Cron/queues/background processes
@@ -979,6 +980,69 @@ This dated addendum records re-audit remediation `RAUD-16` for findings `F-08`,
    March 10, 2026 blocking promptfoo run still returned non-zero because the
    unrelated deep-suite cases `oos-immigration` and `oos-out-of-state`
    remained open outside the `RAUD-16` surface.[^CLAIM-183]
+
+### Re-Audit Remediation RAUD-19 Multilingual Routing + Offline Eval Closure (2026-03-10)
+
+This dated addendum records re-audit remediation `RAUD-19` for findings
+`I18N-1`, `EVAL-1`, and `N-35`.
+
+1. `LlmEnhancer` now detects prompt language as `en`, `es`, or `mixed` for
+   internal prompt shaping. Spanish and mixed queries add explicit language
+   instructions, but `classifyIntent()` still requires one of the existing
+   canonical English labels so downstream routing contracts stay unchanged.
+2. Deterministic multilingual routing coverage is now centralized in
+   `MultilingualRoutingEvalRunner`: a shared JSON fixture pack drives the real
+   pure-PHP stack (`TurnClassifier`, `HistoryIntentResolver`,
+   `PreRoutingDecisionEngine`, production-like `IntentRouter`,
+   `Disambiguator`, `NavigationIntent`, `TopicRouter`, `TopIntentsPack`, and
+   `ResponseBuilder`) across curated Spanish and mixed navigation scenarios.
+3. The offline evaluator is exposed both as PHPUnit
+   (`MultilingualRoutingEvalTest.php`) and as a CLI harness
+   (`tests/run-multilingual-routing-eval.php --report=...`), so RAUD-19
+   routing/helpfulness checks no longer depend on live promptfoo traffic to be
+   executable.
+4. `Disambiguator` now treats short English/Spanish "help with X" scaffolding
+   as topic-only clarification when the residual topic is a supported bare
+   topic such as `custodia` or `desalojo`, preventing silent drift into
+   `apply_for_help` for those scoped multilingual routing cases.
+5. Live promptfoo coverage now includes a focused multilingual routing slice in
+   `promptfoo-evals/tests/multilingual-routing-live.yaml`, wired into
+   `promptfooconfig.deep.yaml`, so `VC-PROMPTFOO-PACED` still proves the live
+   endpoint path for Spanish apply/help, hotline, offices, forms, mixed office
+   navigation, mixed `desalojo`, and Spanish deadline urgency cases.
+6. Local verification is captured in
+   `docs/aila/runtime/raud-19-multilingual-routing-offline-eval.txt`. The
+   remediation remains intentionally scoped to Spanish plus mixed
+   English/Spanish, so unsupported non-Spanish languages remain a residual
+   risk instead of implicit product expansion.
+
+### Re-Audit Remediation RAUD-21 Retrieval Config Governance + Drift Guard (2026-03-11)
+
+This dated addendum records re-audit remediation `RAUD-21` for findings
+`F-18`, `M4`, and `N-16`.
+
+1. Governed retrieval identifiers are no longer embedded in runtime services:
+   `FaqIndex`, `ResourceFinder`, `TopicResolver`, and
+   `VectorIndexHygieneService` now resolve their Search API IDs through
+   `RetrievalConfigurationService`, with the source of truth moved to the
+   `retrieval.*` config block.
+2. The LegalServer intake URL is no longer part of exported Drupal config.
+   `settings.php` now reads `ILAS_LEGALSERVER_ONLINE_APPLICATION_URL` into the
+   runtime-only site setting
+   `$settings['ilas_site_assistant_legalserver_online_application_url']`, and
+   canonical URL resolution injects that value at runtime only.
+3. `/assistant/api/health` now exposes `checks.retrieval_configuration`,
+   covering lexical/vector index existence + enablement, required service-area
+   URL completeness, and LegalServer URL validation (`https`, absolute URL,
+   required `pid` + `h` query keys). Pure-PHP response helpers no longer carry
+   embedded canonical URL defaults; callers pass canonical URLs explicitly.
+4. Local verification is captured in
+   `docs/aila/runtime/raud-21-retrieval-config-governance.txt`. The repo-side
+   remediation is classified `Partially Fixed` because Pantheon `dev` still
+   reports pre-change drift (`retrieval: null`,
+   `canonical_urls.online_application` exported, missing retrieval health
+   service, runtime LegalServer setting absent) and no live LegalServer probe
+   was executed post-deploy.
 
 ### Phase 1 Exit #1 Non-Live Alert + Dashboard Verification (2026-03-03)
 
@@ -1752,3 +1816,4 @@ operationalization proof infrastructure.
 [^CLAIM-181]: [CLAIM-181](evidence-index.md#claim-181)
 [^CLAIM-182]: [CLAIM-182](evidence-index.md#claim-182)
 [^CLAIM-183]: [CLAIM-183](evidence-index.md#claim-183)
+[^CLAIM-185]: [CLAIM-185](evidence-index.md#claim-185)

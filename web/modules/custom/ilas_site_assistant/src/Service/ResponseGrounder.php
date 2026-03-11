@@ -59,6 +59,11 @@ class ResponseGrounder {
   ];
 
   /**
+   * Response types that require citations to be considered grounded.
+   */
+  const CITATION_REQUIRED_TYPES = ['faq', 'resources', 'topic', 'eligibility', 'services_overview', 'search_results'];
+
+  /**
    * Patterns that indicate potentially invented information.
    */
   const INVENTION_PATTERNS = [
@@ -108,6 +113,13 @@ class ResponseGrounder {
     // Add citations from retrieved results.
     if ($options['add_citations'] && !empty($retrieved_results)) {
       $response = $this->addCitations($response, $retrieved_results);
+      // Flag citation-required types that have no valid citations.
+      $type = $response['type'] ?? 'unknown';
+      if (in_array($type, self::CITATION_REQUIRED_TYPES, TRUE)
+          && empty($response['sources'])) {
+        $response['_grounding_weak'] = TRUE;
+        $response['_grounding_weak_reason'] = 'citation_required_type_without_citations';
+      }
     }
 
     // Check for and remove potentially invented information.
@@ -149,13 +161,24 @@ class ResponseGrounder {
       $title = $result['title'] ?? $result['question'] ?? 'Untitled';
       $raw_url = $result['url'] ?? $result['source_url'] ?? NULL;
       $url = $this->sourceGovernance?->sanitizeCitationUrl(is_string($raw_url) ? $raw_url : NULL);
+      $freshness = $result['freshness']['status'] ?? 'unknown';
 
       if ($url) {
         $sources[] = [
           'title' => $this->truncateTitle($title, 60),
           'url' => $url,
           'type' => $result['type'] ?? 'resource',
+          'freshness' => $freshness,
         ];
+      }
+    }
+
+    // Aggregate freshness metadata for downstream enforcement.
+    $stale_count = count(array_filter($sources, fn($s) => ($s['freshness'] ?? '') === 'stale'));
+    if ($stale_count > 0) {
+      $response['_stale_citation_count'] = $stale_count;
+      if ($stale_count === count($sources)) {
+        $response['_all_citations_stale'] = TRUE;
       }
     }
 

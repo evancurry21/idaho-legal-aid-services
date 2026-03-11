@@ -122,6 +122,18 @@ class SafetyConfigGovernanceTest extends TestCase {
   }
 
   /**
+   * Public read-endpoint rate limits must be explicit and bounded.
+   */
+  public function testReadEndpointRateLimitDefaults(): void {
+    $install = self::installConfig();
+    $this->assertArrayHasKey('read_endpoint_rate_limits', $install);
+    $this->assertSame(120, $install['read_endpoint_rate_limits']['suggest']['rate_limit_per_minute']);
+    $this->assertSame(1200, $install['read_endpoint_rate_limits']['suggest']['rate_limit_per_hour']);
+    $this->assertSame(60, $install['read_endpoint_rate_limits']['faq']['rate_limit_per_minute']);
+    $this->assertSame(600, $install['read_endpoint_rate_limits']['faq']['rate_limit_per_hour']);
+  }
+
+  /**
    * Conversation logging must redact PII by default.
    */
   public function testConversationLoggingRedactionDefault(): void {
@@ -173,6 +185,7 @@ class SafetyConfigGovernanceTest extends TestCase {
       'vector_search',
       'audit_governance',
       'session_bootstrap',
+      'read_endpoint_rate_limits',
     ];
 
     foreach ($requiredBlocks as $block) {
@@ -234,6 +247,26 @@ class SafetyConfigGovernanceTest extends TestCase {
       $install['session_bootstrap']['observation_window_hours'],
       $active['session_bootstrap']['observation_window_hours'],
       'Active session_bootstrap.observation_window_hours has drifted from install default',
+    );
+    $this->assertSame(
+      $install['read_endpoint_rate_limits']['suggest']['rate_limit_per_minute'],
+      $active['read_endpoint_rate_limits']['suggest']['rate_limit_per_minute'],
+      'Active read_endpoint_rate_limits.suggest.rate_limit_per_minute has drifted from install default',
+    );
+    $this->assertSame(
+      $install['read_endpoint_rate_limits']['suggest']['rate_limit_per_hour'],
+      $active['read_endpoint_rate_limits']['suggest']['rate_limit_per_hour'],
+      'Active read_endpoint_rate_limits.suggest.rate_limit_per_hour has drifted from install default',
+    );
+    $this->assertSame(
+      $install['read_endpoint_rate_limits']['faq']['rate_limit_per_minute'],
+      $active['read_endpoint_rate_limits']['faq']['rate_limit_per_minute'],
+      'Active read_endpoint_rate_limits.faq.rate_limit_per_minute has drifted from install default',
+    );
+    $this->assertSame(
+      $install['read_endpoint_rate_limits']['faq']['rate_limit_per_hour'],
+      $active['read_endpoint_rate_limits']['faq']['rate_limit_per_hour'],
+      'Active read_endpoint_rate_limits.faq.rate_limit_per_hour has drifted from install default',
     );
 
     // LLM safety keys.

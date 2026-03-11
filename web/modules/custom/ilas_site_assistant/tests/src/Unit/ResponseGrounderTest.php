@@ -226,6 +226,8 @@ class ResponseGrounderTest extends TestCase {
       'off-domain' => ['https://attacker.example.com/phish'],
       'malformed' => ['not a valid url'],
       'protocol-relative' => ['//attacker.example.com/phish'],
+      'http ilas' => ['http://idaholegalaid.org/faq/housing'],
+      'http www ilas' => ['http://www.idaholegalaid.org/faq/housing'],
     ];
   }
 
@@ -698,6 +700,141 @@ class ResponseGrounderTest extends TestCase {
 
     $this->assertTrue($result['_grounded']);
     $this->assertEquals('1.0', $result['_grounding_version']);
+  }
+
+  // -----------------------------------------------------------------------
+  // PHARD-03: Weak grounding flag tests
+  // -----------------------------------------------------------------------
+
+  /**
+   * Tests answerable response with off-domain-only URLs gets weak grounding flag.
+   *
+   * @covers ::groundResponse
+   */
+  public function testAnswerableResponseWithoutCitationsGetsWeakGroundingFlag(): void {
+    $results = [
+      ['title' => 'Off Domain', 'url' => 'https://attacker.example.com/page'],
+      ['title' => 'Also Off Domain', 'url' => 'https://other.example.com/info'],
+    ];
+
+    $response = ['message' => 'Some info', 'type' => 'faq'];
+    $result = $this->grounder->groundResponse($response, $results);
+
+    $this->assertTrue($result['_grounding_weak'] ?? FALSE);
+    $this->assertSame('citation_required_type_without_citations', $result['_grounding_weak_reason']);
+    $this->assertArrayNotHasKey('sources', $result);
+  }
+
+  /**
+   * Tests navigation response without citations is NOT flagged.
+   *
+   * @covers ::groundResponse
+   */
+  public function testNavigationResponseWithoutCitationsNotFlagged(): void {
+    $response = ['message' => 'Navigate here', 'type' => 'navigation'];
+    $result = $this->grounder->groundResponse($response, []);
+
+    $this->assertArrayNotHasKey('_grounding_weak', $result);
+  }
+
+  /**
+   * Tests answerable response with valid citations is NOT flagged.
+   *
+   * @covers ::groundResponse
+   */
+  public function testAnswerableResponseWithValidCitationsNotFlagged(): void {
+    $results = [
+      ['title' => 'FAQ', 'url' => 'https://idaholegalaid.org/faq/housing'],
+    ];
+
+    $response = ['message' => 'Some info', 'type' => 'faq'];
+    $result = $this->grounder->groundResponse($response, $results);
+
+    $this->assertArrayNotHasKey('_grounding_weak', $result);
+    $this->assertArrayHasKey('sources', $result);
+  }
+
+  // -----------------------------------------------------------------------
+  // PHARD-03: Citation freshness propagation tests
+  // -----------------------------------------------------------------------
+
+  /**
+   * Tests that freshness status is propagated to citation sources.
+   *
+   * @covers ::groundResponse
+   */
+  public function testCitationsFreshnessStatusPropagated(): void {
+    $results = [
+      [
+        'title' => 'Fresh FAQ',
+        'url' => '/faq/housing',
+        'freshness' => ['status' => 'fresh', 'age_days' => 10],
+      ],
+      [
+        'title' => 'Stale Resource',
+        'url' => '/resources/old-guide',
+        'freshness' => ['status' => 'stale', 'age_days' => 200],
+      ],
+    ];
+
+    $response = ['message' => 'Info', 'type' => 'resources'];
+    $result = $this->grounder->groundResponse($response, $results);
+
+    $this->assertArrayHasKey('sources', $result);
+    $this->assertSame('fresh', $result['sources'][0]['freshness']);
+    $this->assertSame('stale', $result['sources'][1]['freshness']);
+  }
+
+  /**
+   * Tests that all-stale citations set _all_citations_stale flag.
+   *
+   * @covers ::groundResponse
+   */
+  public function testAllStaleCitationsFlag(): void {
+    $results = [
+      [
+        'title' => 'Stale 1',
+        'url' => '/faq/old1',
+        'freshness' => ['status' => 'stale'],
+      ],
+      [
+        'title' => 'Stale 2',
+        'url' => '/faq/old2',
+        'freshness' => ['status' => 'stale'],
+      ],
+    ];
+
+    $response = ['message' => 'Info', 'type' => 'resources'];
+    $result = $this->grounder->groundResponse($response, $results);
+
+    $this->assertTrue($result['_all_citations_stale'] ?? FALSE);
+    $this->assertSame(2, $result['_stale_citation_count']);
+  }
+
+  /**
+   * Tests that mixed freshness does NOT set _all_citations_stale flag.
+   *
+   * @covers ::groundResponse
+   */
+  public function testMixedFreshnessNoAllStaleFlag(): void {
+    $results = [
+      [
+        'title' => 'Fresh',
+        'url' => '/faq/new',
+        'freshness' => ['status' => 'fresh'],
+      ],
+      [
+        'title' => 'Stale',
+        'url' => '/faq/old',
+        'freshness' => ['status' => 'stale'],
+      ],
+    ];
+
+    $response = ['message' => 'Info', 'type' => 'resources'];
+    $result = $this->grounder->groundResponse($response, $results);
+
+    $this->assertArrayNotHasKey('_all_citations_stale', $result);
+    $this->assertSame(1, $result['_stale_citation_count']);
   }
 
 }

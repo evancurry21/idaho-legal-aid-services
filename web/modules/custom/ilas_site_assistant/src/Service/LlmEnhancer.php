@@ -103,7 +103,7 @@ class LlmEnhancer {
    * Bump this when system prompts, safety patterns, or response policy change.
    * All cached LLM responses are invalidated when this version changes.
    */
-  const POLICY_VERSION = '1.1';
+  const POLICY_VERSION = '1.2';
 
   /**
    * Gemini API endpoints.
@@ -114,6 +114,17 @@ class LlmEnhancer {
   const VERTEX_ACCESS_TOKEN_TTL_SECONDS = 3500;
   const VERTEX_ACCESS_TOKEN_EXPIRY_BUFFER_SECONDS = 100;
   const MAX_SYNC_RETRY_DELAY_MS = 250;
+  const SPANISH_PROMPT_MARKERS = [
+    'ayuda', 'ayuda legal', 'necesito', 'quiero', 'como', 'donde',
+    'oficina', 'oficinas', 'telefono', 'abogado', 'formularios',
+    'formulario', 'guia', 'guias', 'servicios', 'desalojo', 'custodia',
+    'divorcio', 'hablar', 'aplicar',
+  ];
+  const ENGLISH_PROMPT_MARKERS = [
+    'help', 'legal help', 'need', 'want', 'where', 'how', 'office',
+    'offices', 'phone', 'lawyer', 'forms', 'guides', 'services',
+    'eviction', 'custody', 'divorce', 'speak', 'apply',
+  ];
 
   /**
    * System prompts for different contexts.
@@ -403,7 +414,13 @@ PROMPT,
 
     try {
       $sanitizedQuery = $this->policyFilter->sanitizeForLlmPrompt($userQuery);
-      $prompt = self::SYSTEM_PROMPTS['intent_classification'] . "\n\nUser query: " . $sanitizedQuery;
+      $promptLanguage = $this->detectPromptLanguage($userQuery);
+      $prompt = self::SYSTEM_PROMPTS['intent_classification'];
+      $languageInstruction = $this->buildIntentClassificationLanguageInstruction($promptLanguage);
+      if ($languageInstruction !== '') {
+        $prompt .= "\n\n" . $languageInstruction;
+      }
+      $prompt .= "\n\nUser query: " . $sanitizedQuery;
 
       $result = $this->callLlm($prompt, [
         'max_tokens' => 20,
@@ -412,9 +429,10 @@ PROMPT,
 
       // Validate the response is a known intent.
       $validIntents = [
-        'faq', 'forms', 'guides', 'resources', 'apply', 'hotline', 'donate',
-        'housing', 'family', 'consumer', 'health', 'seniors', 'civil_rights',
-        'greeting', 'unknown',
+        'eligibility', 'faq', 'forms', 'guides', 'resources', 'apply',
+        'hotline', 'offices', 'services', 'risk_detector', 'donate',
+        'feedback', 'housing', 'family', 'consumer', 'benefits', 'health',
+        'seniors', 'civil_rights', 'greeting', 'unknown',
       ];
 
       $classified = strtolower(trim($result));
@@ -466,7 +484,12 @@ PROMPT,
     $sanitizedQuery = $this->policyFilter->sanitizeForLlmPrompt($userQuery);
 
     // Build the full prompt.
+    $promptLanguage = $this->detectPromptLanguage($userQuery);
     $prompt = $systemPrompt . "\n\n";
+    $languageInstruction = $this->buildSummaryLanguageInstruction($promptLanguage);
+    if ($languageInstruction !== '') {
+      $prompt .= $languageInstruction . "\n\n";
+    }
     $prompt .= "User's question: " . $sanitizedQuery . "\n\n";
     $prompt .= "Information to summarize:\n" . $context;
 
@@ -533,6 +556,79 @@ PROMPT,
 
     // Truncate to prevent excessive token usage.
     return mb_substr($context, 0, 2000);
+  }
+
+  /**
+   * Detects the prompt language used by the current query.
+   *
+   * This stays internal to prompt shaping so analytics language-hint storage
+   * can keep its existing `en` / `es` / `other` contract.
+   */
+  protected function detectPromptLanguage(string $text): string {
+    $normalized = mb_strtolower(trim($text));
+    if ($normalized === '') {
+      return 'en';
+    }
+
+    $baseline = ObservabilityPayloadMinimizer::detectLanguageHint($text);
+    $spanishScore = $baseline === 'es' ? 1 : 0;
+    $englishScore = $baseline === 'en' ? 1 : 0;
+
+    if (preg_match('/[áéíóúñü¿¡]/u', $normalized)) {
+      $spanishScore++;
+    }
+
+    $spanishScore += $this->countLanguageMarkers($normalized, self::SPANISH_PROMPT_MARKERS);
+    $englishScore += $this->countLanguageMarkers($normalized, self::ENGLISH_PROMPT_MARKERS);
+
+    if ($spanishScore > 0 && $englishScore > 0) {
+      return 'mixed';
+    }
+
+    if ($spanishScore > 0) {
+      return 'es';
+    }
+
+    return 'en';
+  }
+
+  /**
+   * Counts whole-word or phrase marker hits in a normalized query.
+   */
+  protected function countLanguageMarkers(string $normalized, array $markers): int {
+    $count = 0;
+
+    foreach ($markers as $marker) {
+      $escaped = preg_quote($marker, '/');
+      $escaped = str_replace('\ ', '\s+', $escaped);
+      if (preg_match('/(?<![\p{L}\p{N}_])' . $escaped . '(?![\p{L}\p{N}_])/u', $normalized)) {
+        $count++;
+      }
+    }
+
+    return $count;
+  }
+
+  /**
+   * Adds language instructions for multilingual intent classification.
+   */
+  protected function buildIntentClassificationLanguageInstruction(string $promptLanguage): string {
+    return match ($promptLanguage) {
+      'es' => 'LANGUAGE: The user wrote in Spanish. Understand the request in Spanish, but respond with ONLY one canonical English category name from the list above.',
+      'mixed' => 'LANGUAGE: The user mixed English and Spanish. Interpret both languages together, but respond with ONLY one canonical English category name from the list above.',
+      default => '',
+    };
+  }
+
+  /**
+   * Adds a same-language instruction for multilingual summaries.
+   */
+  protected function buildSummaryLanguageInstruction(string $promptLanguage): string {
+    return match ($promptLanguage) {
+      'es' => "LANGUAGE: Reply in Spanish because the user's question is in Spanish.",
+      'mixed' => "LANGUAGE: Reply in the same English/Spanish mix used by the user's question when natural.",
+      default => '',
+    };
   }
 
   /**
@@ -1097,48 +1193,7 @@ PROMPT,
    *   TRUE if legal advice detected.
    */
   protected function containsLegalAdvice(string $text): bool {
-    // Normalize input to defeat evasion techniques (e.g., "y.o.u s.h.o.u.l.d").
-    $text = InputNormalizer::normalize($text);
-
-    $patterns = [
-      // Interpreting laws or citing statutes.
-      '/idaho\s+code\s*(§|section)/i',
-      '/i\.c\.\s*§/i',
-      '/under\s+(the\s+)?(law|statute|code)/i',
-      '/according\s+to\s+(the\s+)?(law|statute)/i',
-      '/(statute|code)\s+(says|states|requires)/i',
-
-      // Predicting legal outcomes.
-      '/you\s+(will|would)\s+(likely|probably)\s+(win|lose|succeed|fail)/i',
-      '/your\s+chances\s+(of|are)/i',
-      '/the\s+court\s+will\s+(likely|probably)/i',
-      '/you\s+(are|\'re)\s+(likely|probably)\s+to\s+(win|lose)/i',
-
-      // Advising on legal strategy.
-      '/you\s+should\s+(file|sue|appeal|claim|motion)/i',
-      '/i\s+(would\s+)?(advise|recommend|suggest)\s+(you|that\s+you)/i',
-      '/my\s+(legal\s+)?advice\s+is/i',
-      '/the\s+best\s+(legal\s+)?(strategy|approach)\s+is/i',
-      '/you\s+need\s+to\s+(file|submit|send)/i',
-
-      // Recommending specific actions with legal consequence.
-      '/you\s+should\s+(stop\s+paying|withhold|break\s+your)/i',
-      '/don\'t\s+(pay|respond|go\s+to\s+court)/i',
-      '/ignore\s+the\s+(notice|summons|order)/i',
-      '/you\s+have\s+the\s+right\s+to/i',
-
-      // Definitive eligibility statements.
-      '/you\s+(definitely|clearly|certainly)\s+qualify/i',
-      '/you\s+(do|don\'t)\s+qualify\s+for/i',
-    ];
-
-    foreach ($patterns as $pattern) {
-      if (preg_match($pattern, $text)) {
-        return TRUE;
-      }
-    }
-
-    return FALSE;
+    return PostGenerationLegalAdviceDetector::containsLegalAdvice($text);
   }
 
   /**

@@ -133,6 +133,40 @@ class KeywordExtractionRegressionTest extends UnitTestCase {
   }
 
   /**
+   * Tests custody+forms keyword extraction (PHARD-04).
+   *
+   * @covers ::extract
+   * @dataProvider custodyFormsProvider
+   */
+  public function testCustodyFormsExtraction(string $query, string $expectedKeyword): void {
+    $result = $this->keywordExtractor->extract($query);
+
+    $keywords = $result['keywords'] ?? [];
+    $phrases = $result['phrases_found'] ?? [];
+    $synonyms_applied = $result['synonyms_applied'] ?? [];
+
+    $haystack = strtolower(implode(' ', array_merge($keywords, $phrases)));
+
+    $this->assertTrue(
+      str_contains($haystack, $expectedKeyword)
+      || !empty($synonyms_applied),
+      "Expected '$expectedKeyword' in keywords for: $query (got keywords: " . implode(', ', $keywords) . ")"
+    );
+  }
+
+  /**
+   * Data provider for custody+forms extraction tests.
+   */
+  public static function custodyFormsProvider(): array {
+    return [
+      'custody forms' => ['custody forms', 'custody'],
+      'do you have custody forms' => ['do you have custody forms', 'custody'],
+      // Note: "custdy" typo correction is tested in NormalizationRegressionTest
+      // (TypoCorrector runs before KeywordExtractor in the routing pipeline).
+    ];
+  }
+
+  /**
    * Tests phrase detection for legal-aid terms.
    *
    * @covers ::extract

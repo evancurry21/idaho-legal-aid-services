@@ -85,6 +85,33 @@ class DisambiguatorTest extends TestCase {
   }
 
   /**
+   * Tests that short generic-help scaffolding still clarifies bare topics.
+   */
+  #[DataProvider('genericHelpTopicProvider')]
+  public function testGenericHelpScaffoldingStillClarifiesTopics(string $input, string $expected_area): void {
+    $result = $this->disambiguator->check($input, []);
+    $this->assertNotNull($result, "Expected disambiguation for '$input'");
+    $this->assertEquals('disambiguation', $result['type']);
+    $this->assertEquals('topic_without_action', $result['reason']);
+    $this->assertEquals($expected_area, $result['topic']);
+    $option_intents = array_values(array_filter(array_map(
+      static fn(array $option): string => (string) ($option['intent'] ?? ''),
+      $result['options']
+    )));
+    $this->assertContains('forms_finder', $option_intents);
+    $this->assertContains('guides_finder', $option_intents);
+  }
+
+  public static function genericHelpTopicProvider(): array {
+    return [
+      ['I need help with desalojo', 'housing'],
+      ['Need help with custody', 'family'],
+      ['Necesito ayuda con custodia', 'family'],
+      ['Necesito ayuda con desalojo urgente', 'housing'],
+    ];
+  }
+
+  /**
    * Tests that vague queries are correctly detected.
    */
   #[DataProvider('vagueQueryProvider')]
@@ -105,6 +132,9 @@ class DisambiguatorTest extends TestCase {
       ['i need some help'],
       ['ayuda'],
       ['formularios'],
+      ['guide'],
+      ['guides'],
+      ['guias'],
     ];
   }
 

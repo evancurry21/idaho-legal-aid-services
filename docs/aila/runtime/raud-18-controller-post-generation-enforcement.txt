@@ -1,0 +1,141 @@
+# RAUD-18 Controller-Owned Post-Generation Enforcement
+
+- Prior status: Not Fixed
+- Post-change status: Partially Fixed
+- Verification level tag: VC-UNIT + VC-PURE + VC-QUALITY-GATE
+
+## Evidence
+
+### Pre-change controller-path gap
+
+Code inventory before editing showed the controller consumed `_requires_review`
+too narrowly:
+
+- `web/modules/custom/ilas_site_assistant/src/Service/ResponseGrounder.php`
+  set `_requires_review = TRUE` from unsafe `response['message']` content.
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+  consumed that flag by replacing only `llm_summary`, leaving the public
+  `message` field unchanged on the real response path.
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/PostGenerationEnforcementTest.php`
+  mirrored regex lists and `unset()` behavior instead of executing
+  `AssistantApiController::message()`.
+
+That meant controller-path enforcement could be removed or narrowed without the
+existing tests failing, and a grounded unsafe `message` could still survive to
+the final JSON response.
+
+### Post-change controller ownership
+
+The controller now owns the final block/replace decision:
+
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+  now replaces the final public `message` when `_requires_review` is present,
+  replaces `llm_summary` when present, strips internal enforcement flags before
+  serialization, and returns enforcement metadata separately for tracing rather
+  than leaking sentinel fields through the response payload.
+- `web/modules/custom/ilas_site_assistant/src/Service/PostGenerationLegalAdviceDetector.php`
+  is the shared deterministic detector used by both the controller and
+  `LlmEnhancer`, removing duplicated post-generation pattern lists.
+- `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+  still performs defense-in-depth filtering, but the controller remains the
+  authoritative final-response enforcer.
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/PostGenerationEnforcementTest.php`
+  now drives the real `message()` path with a real `ResponseGrounder`, stubbed
+  `LlmEnhancer`, and assertions against the final JSON response contract.
+
+## Verification
+
+### Targeted controller-path and detector suites
+
+Command summary:
+
+```bash
+vendor/bin/phpunit --configuration phpunit.xml \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/PostGenerationEnforcementTest.php \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/ResponseGrounderTest.php \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerLegalAdviceDetectorTest.php
+```
+
+Result summary:
+
+- Passed: `66 tests`, `158 assertions`
+- Confirms `_requires_review` from the real `ResponseGrounder` replaces the
+  final controller `message`
+- Confirms unsafe `llm_summary` is replaced on the real controller path even
+  without `_requires_review`
+- Confirms internal safety flags are absent from the serialized client payload
+
+### VC-UNIT
+
+Command summary:
+
+```bash
+vendor/bin/phpunit --configuration phpunit.xml \
+  --group ilas_site_assistant \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit
+```
+
+Result summary:
+
+- Passed: `1960 tests`, `9637 assertions`
+- PHPUnit reported `2` warnings, `1` deprecation, `199` PHPUnit deprecations,
+  and `1` skipped test, but the suite passed
+
+### VC-PURE
+
+Command summary:
+
+```bash
+vendor/bin/phpunit --configuration phpunit.pure.xml
+```
+
+Result summary:
+
+- Passed: `1960 tests`, `9637 assertions`
+- PHPUnit reported `2` warnings, `1` deprecation, `198` PHPUnit deprecations,
+  and `1` skipped test, but the suite passed
+
+### VC-QUALITY-GATE
+
+Command summary:
+
+```bash
+bash web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+```
+
+Result summary:
+
+- Passed end-to-end
+- Phase 1 unit suite: pass
+- Phase 1b drupal-unit suite: pass (`560 tests`, `1483 assertions`)
+- Phase 1c golden transcript suite: pass (`7 tests`, `264 assertions`)
+- Phase 1d promptfoo runtime tests: pass (`11` node subtests)
+
+## Changed files
+
+- `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/PostGenerationLegalAdviceDetector.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/PostGenerationEnforcementTest.php`
+- `docs/aila/runtime/raud-18-controller-post-generation-enforcement.txt`
+
+## Residual risks / unknowns
+
+- This remains `Partially Fixed` because post-generation detection is still
+  heuristic pattern matching, even though controller enforcement is now real.
+- Live LLM-generated output with `llm.enabled=true` was not exercised here; the
+  controller-path proof used deterministic test doubles around the actual
+  response-building path.
+- Additional paraphrase families may still evade the shared detector until
+  future corpus expansions add them.
+
+## Rollback notes
+
+- Roll back the controller enforcement changes, shared detector, controller-path
+  test rewrite, and this artifact as one code-only bundle.
+- No schema, config-shape, or database rollback is required.
+
+## Still-unverified surfaces
+
+- Real Pantheon/runtime behavior with a live model provider enabled
+- Detector coverage for unaudited paraphrases beyond the current heuristic set

@@ -103,6 +103,9 @@ final class ObservabilityPayloadMinimizer {
       'post_gen_safety_review_flag',
       'post_gen_safety_legal_advice' => self::normalizeUuidLikeValue($value),
       'ab_assignment' => self::normalizeAssignments($value),
+      'generic_answer',
+      'feedback_helpful',
+      'feedback_not_helpful' => self::normalizeApprovedTokenValue($value),
       default => self::normalizeApprovedTokenValue($value),
     };
   }

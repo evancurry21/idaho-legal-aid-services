@@ -113,6 +113,15 @@ class FormFinderTest extends TestCase {
       ['guardianship paperwork', 'guardianship'],
       ['small claims court form', 'small'],
       ['power of attorney form', 'power'],
+      // Plain-language interrogative queries (PHARD-04).
+      ['do you have custody forms', 'custody'],
+      ['custody forms', 'custody'],
+      ['can i get custody forms', 'custody'],
+      ['custody paperwork', 'custody'],
+      ['custody papers', 'custody'],
+      ['custody form', 'custody'],
+      ['child custody forms', 'custody'],
+      ['where are your custody forms', 'custody'],
     ];
   }
 

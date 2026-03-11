@@ -33,9 +33,6 @@ ilas_site_assistant.settings:
         apply:
           type: string
           label: 'Apply for Help URL'
-        online_application:
-          type: string
-          label: 'Online Application URL (LegalServer intake form)'
         hotline:
           type: string
           label: 'Hotline URL'
@@ -132,6 +129,30 @@ ilas_site_assistant.settings:
         observation_window_hours:
           type: integer
           label: 'Bootstrap observability window in hours'
+    read_endpoint_rate_limits:
+      type: mapping
+      label: 'Read endpoint abuse-control settings'
+      mapping:
+        suggest:
+          type: mapping
+          label: 'Suggest endpoint rate limits'
+          mapping:
+            rate_limit_per_minute:
+              type: integer
+              label: 'Suggest rate limit per minute per IP'
+            rate_limit_per_hour:
+              type: integer
+              label: 'Suggest rate limit per hour per IP'
+        faq:
+          type: mapping
+          label: 'FAQ endpoint rate limits'
+          mapping:
+            rate_limit_per_minute:
+              type: integer
+              label: 'FAQ rate limit per minute per IP'
+            rate_limit_per_hour:
+              type: integer
+              label: 'FAQ rate limit per hour per IP'
     conversation_logging:
       type: mapping
       label: 'Conversation logging settings'
@@ -267,6 +288,59 @@ ilas_site_assistant.settings:
             ambiguous_message_words:
               type: integer
               label: 'Ambiguous message word count threshold (default: 2)'
+    retrieval:
+      type: mapping
+      label: 'Retrieval index settings'
+      mapping:
+        faq_index_id:
+          type: string
+          label: 'FAQ lexical Search API index ID'
+        resource_index_id:
+          type: string
+          label: 'Resource lexical Search API index ID'
+        resource_fallback_index_id:
+          type: string
+          label: 'Resource lexical fallback Search API index ID'
+        faq_vector_index_id:
+          type: string
+          label: 'FAQ vector Search API index ID'
+        resource_vector_index_id:
+          type: string
+          label: 'Resource vector Search API index ID'
+    retrieval_contract:
+      type: mapping
+      label: 'Drupal-primary retrieval contract settings (PHARD-06)'
+      mapping:
+        policy_version:
+          type: string
+          label: 'Retrieval contract policy version identifier'
+        enforcement_mode:
+          type: string
+          label: 'Enforcement mode (advisory or strict)'
+        lexical_priority_boost:
+          type: integer
+          label: 'Tie-break boost for lexical items during duplicate comparison'
+        min_lexical_preserved:
+          type: integer
+          label: 'Minimum lexical results preserved in merge output'
+        approved_source_classes:
+          type: sequence
+          label: 'Exhaustive list of approved source classes'
+          sequence:
+            type: string
+            label: 'Source class'
+        primary_source_classes:
+          type: sequence
+          label: 'Primary (Drupal-authoritative) source classes'
+          sequence:
+            type: string
+            label: 'Source class'
+        supplement_source_classes:
+          type: sequence
+          label: 'Supplement-only (vector enrichment) source classes'
+          sequence:
+            type: string
+            label: 'Source class'
     vector_search:
       type: mapping
       label: 'Vector search enhancement settings'
@@ -274,12 +348,6 @@ ilas_site_assistant.settings:
         enabled:
           type: boolean
           label: 'Enable vector search fallback'
-        faq_index_id:
-          type: string
-          label: 'FAQ vector index ID'
-        resource_index_id:
-          type: string
-          label: 'Resource vector index ID'
         fallback_threshold:
           type: integer
           label: 'Minimum lexical results before vector search fires'
@@ -519,9 +587,6 @@ ilas_site_assistant.settings:
               type: mapping
               label: 'FAQ vector index hygiene policy'
               mapping:
-                index_id:
-                  type: string
-                  label: 'FAQ vector Search API index id'
                 owner_role:
                   type: string
                   label: 'Owner role for FAQ vector index hygiene'
@@ -538,9 +603,6 @@ ilas_site_assistant.settings:
               type: mapping
               label: 'Resource vector index hygiene policy'
               mapping:
-                index_id:
-                  type: string
-                  label: 'Resource vector Search API index id'
                 owner_role:
                   type: string
                   label: 'Owner role for resource vector index hygiene'
@@ -653,3 +715,25 @@ ilas_site_assistant.settings:
         max_item_age_seconds:
           type: integer
           label: 'Maximum item age in seconds before discarding'
+    review_loop:
+      type: mapping
+      label: 'Review loop configuration'
+      mapping:
+        owner_role:
+          type: string
+          label: 'Owner role'
+        cadence:
+          type: string
+          label: 'Review cadence'
+        scope:
+          type: sequence
+          label: 'Review scope items'
+          sequence:
+            type: string
+            label: 'Scope item'
+        escalation_path:
+          type: string
+          label: 'Escalation path'
+        artifact_location:
+          type: string
+          label: 'Artifact location'

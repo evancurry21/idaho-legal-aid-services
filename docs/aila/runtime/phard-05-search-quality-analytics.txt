@@ -1,0 +1,106 @@
+PHARD-05  Search Quality Analytics Dashboard & User Feedback Loop
+=================================================================
+Date: 2026-03-10
+Findings: PHG-ANL-01, EVAL-1, F-03 follow-on
+
+PRIOR STATUS
+------------
+- Admin report (/admin/reports/ilas-assistant) showed only volume metrics:
+  chat_open, topic_selected, resource_click, apply_click, hotline_click,
+  no_answer (counts over 7/30/all-time), top topics, top destinations,
+  content gap fingerprints.
+- No user-facing feedback mechanism (helpful/not-helpful).
+- No quality signal breakdown (safety, grounding, generic-answer events
+  were logged but not surfaced in the report).
+- No review-loop ownership: no documented owner, cadence, scope,
+  escalation path, or follow-up artifact location.
+
+POST-CHANGE STATUS
+------------------
+1. Analytics Event Contract Extended:
+   - generic_answer: logged when fallback tree fires (value = level 1-4)
+   - feedback_helpful: client-side via /track (value = response_type)
+   - feedback_not_helpful: client-side via /track (value = response_type)
+   All three events normalized via ObservabilityPayloadMinimizer to
+   approved token values (no raw text stored).
+
+2. Widget Feedback UI:
+   - Thumbs up/down buttons appended to each assistant message
+   - Excluded for non-substantive types: greeting, clarify,
+     form_finder_clarify, guide_finder_clarify
+   - One-time interaction: buttons disabled after click
+   - Accessible: aria-label on each button
+
+3. Admin Report Enhanced with Three New Sections:
+   a) Quality Signals: no_answer, generic_answer, grounding_refusal,
+      safety_violation, out_of_scope, policy_violation,
+      post_gen_safety_legal_advice, post_gen_safety_weak_grounding,
+      post_gen_stale_citations (7d/30d/all-time counts)
+   b) User Feedback: helpful/not-helpful counts, satisfaction rate,
+      breakdown by response type (top 10)
+   c) Review Loop: owner role, cadence, scope, escalation path,
+      artifact location — all config-driven
+
+4. Review Loop Ownership Documented:
+   - Owner: Content Manager + SRE/Platform Engineer
+   - Cadence: Weekly
+   - Scope: no-answer trends, feedback satisfaction, safety counts,
+     content gaps, grounding refusals
+   - Escalation: Content Manager -> Drupal Lead -> Product Owner
+   - Artifact: docs/aila/runtime/phard-05-search-quality-review.txt
+
+VERIFICATION LEVEL
+------------------
+Tag: Fixed
+
+Evidence:
+- VC-KERNEL: SearchAnalyticsKernelTest + AnalyticsLoggerKernelTest
+- VC-FUNCTIONAL: AssistantApiFunctionalTest (track endpoint)
+- VC-WIDGET-HARDENING: assistant-widget-hardening.test.js (feedback suite)
+- VC-SEARCH-ANALYTICS: SearchAnalyticsReportContractTest
+- VC-FEEDBACK-UI: FeedbackUiContractTest
+- ReviewLoopOwnershipDocsTest: config parity + schema coverage
+
+CHANGED FILES
+-------------
+web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+web/modules/custom/ilas_site_assistant/src/Service/ObservabilityPayloadMinimizer.php
+web/modules/custom/ilas_site_assistant/js/assistant-widget.js
+web/modules/custom/ilas_site_assistant/css/assistant-widget.css
+web/modules/custom/ilas_site_assistant/src/Controller/AssistantReportController.php
+web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml
+web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml
+config/ilas_site_assistant.settings.yml
+web/modules/custom/ilas_site_assistant/tests/src/Kernel/SearchAnalyticsKernelTest.php
+web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+web/modules/custom/ilas_site_assistant/tests/src/Unit/FeedbackUiContractTest.php
+web/modules/custom/ilas_site_assistant/tests/src/Unit/SearchAnalyticsReportContractTest.php
+web/modules/custom/ilas_site_assistant/tests/src/Unit/ReviewLoopOwnershipDocsTest.php
+web/modules/custom/ilas_site_assistant/tests/js/assistant-widget-hardening.test.js
+docs/aila/runtime/phard-05-search-quality-analytics.txt
+
+RESIDUAL RISKS
+--------------
+- Low feedback volume on small-traffic sites may produce noisy satisfaction
+  rates. Mitigated by aggregate-by-response-type pattern.
+- review_loop.owner_role defaults to placeholder ("Content Manager +
+  SRE/Platform Engineer"). Must be confirmed by team.
+- No per-response feedback correlation: aggregate feedback cannot identify
+  which specific response was poor. Accepted trade-off given metadata-only
+  constraint and traffic level.
+
+ROLLBACK NOTES
+--------------
+- Feedback events are additive to the stats table (no schema change).
+  To disable: remove feedback_helpful/feedback_not_helpful from
+  $allowed_types in AssistantApiController::track().
+- Widget feedback UI can be hidden via CSS (.feedback-controls { display: none; })
+  without code deployment.
+- Report sections are additive; removing them requires reverting
+  AssistantReportController changes only.
+
+STILL-UNVERIFIED SURFACES
+--------------------------
+- Langfuse integration of feedback signals (depends on PHARD-02).
+- Automated alerting on satisfaction rate drops (future scope).
+- Closed-loop from eval harness (EVAL-1) results into review artifacts.

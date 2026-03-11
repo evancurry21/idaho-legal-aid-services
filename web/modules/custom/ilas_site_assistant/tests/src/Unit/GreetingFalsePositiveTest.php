@@ -189,6 +189,8 @@ class GreetingFalsePositiveTest extends TestCase {
       ['custody forms', 'not_greeting', 'custody forms must not be greeting'],
       ['child support', 'not_greeting', 'child support must not be greeting'],
       ['divorce forms', 'not_greeting', 'divorce forms must not be greeting'],
+      // PHARD-04: interrogative form-seeking queries must not be greetings.
+      ['do you have custody forms', 'not_greeting', 'do you have custody forms must not be greeting'],
 
       // Actual greetings should still work.
       ['hi', 'greeting', 'hi is a greeting'],

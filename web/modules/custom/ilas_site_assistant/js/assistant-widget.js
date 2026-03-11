@@ -914,7 +914,13 @@
         html += this.renderSuggestions(response.suggestions);
       }
 
-      this.addMessage('assistant', html, true);
+      var msgEl = this.addMessage('assistant', html, true);
+
+      // Append feedback controls for substantive response types.
+      var noFeedbackTypes = ['greeting', 'clarify', 'form_finder_clarify', 'guide_finder_clarify'];
+      if (msgEl && noFeedbackTypes.indexOf(response.type) === -1) {
+        this.appendFeedback(msgEl, response.type || '');
+      }
     },
 
     /**
@@ -1341,6 +1347,56 @@
           self.trackClick(trackType, e.currentTarget.href);
         });
       });
+
+      return messageEl;
+    },
+
+    /**
+     * Append helpful/not-helpful feedback controls to an assistant message.
+     *
+     * @param {HTMLElement} messageEl - The chat message element.
+     * @param {string} responseType - The response type token (e.g. 'faq', 'resources').
+     */
+    appendFeedback: function (messageEl, responseType) {
+      var self = this;
+      var controls = document.createElement('div');
+      controls.className = 'feedback-controls';
+
+      var label = document.createElement('span');
+      label.className = 'feedback-label';
+      label.textContent = Drupal.t('Was this helpful?');
+      controls.appendChild(label);
+
+      var helpfulBtn = document.createElement('button');
+      helpfulBtn.type = 'button';
+      helpfulBtn.className = 'feedback-btn feedback-btn--helpful';
+      helpfulBtn.setAttribute('aria-label', Drupal.t('Helpful'));
+      helpfulBtn.textContent = '\uD83D\uDC4D';
+      controls.appendChild(helpfulBtn);
+
+      var notHelpfulBtn = document.createElement('button');
+      notHelpfulBtn.type = 'button';
+      notHelpfulBtn.className = 'feedback-btn feedback-btn--not-helpful';
+      notHelpfulBtn.setAttribute('aria-label', Drupal.t('Not helpful'));
+      notHelpfulBtn.textContent = '\uD83D\uDC4E';
+      controls.appendChild(notHelpfulBtn);
+
+      function handleFeedback(eventType) {
+        self.trackEvent(eventType, responseType);
+        helpfulBtn.disabled = true;
+        notHelpfulBtn.disabled = true;
+        label.textContent = Drupal.t('Thanks for your feedback');
+        controls.classList.add('feedback-controls--submitted');
+      }
+
+      helpfulBtn.addEventListener('click', function () {
+        handleFeedback('feedback_helpful');
+      });
+      notHelpfulBtn.addEventListener('click', function () {
+        handleFeedback('feedback_not_helpful');
+      });
+
+      messageEl.appendChild(controls);
     },
 
     /**

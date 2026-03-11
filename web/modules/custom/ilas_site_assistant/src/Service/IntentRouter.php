@@ -125,6 +125,10 @@ class IntentRouter {
           '/\b(income\s*(limit|requirement|guideline)|qualify\s*for\s*(help|services))/i',
           '/\b(can\s*i\s*get\s*help|can\s*you\s*help\s*me)/i',
           '/\b(quailfy|qualfy)\b/i',
+          // Conditional: "can i apply if", "can i get help if", "am i eligible if".
+          '/\b(can\s*i\s*(apply|get\s*help|qualify)|am\s*i\s*eligible)\s*if\b/i',
+          // Requirements: "do i meet the requirements", "what are the requirements".
+          '/\b(do\s*i\s*meet|what\s*are)\s*(the\s*)?(requirements?|criteria|qualifications?)/i',
         ],
         'keywords' => ['qualify', 'eligible', 'eligibility', 'who can get help', 'calificar'],
         'weight' => 0.9,
@@ -138,6 +142,8 @@ class IntentRouter {
           '/\bneed\s*(legal)?\s*(help|assistance|a\s*lawyer|an?\s*attorney)/i',
           '/\bget\s*started/i',
           '/\bwant\s*to\s*apply/i',
+          // "I'm ready to apply" / "I am ready to get started".
+          '/\b(i\'?m|i\s*am)\s*ready\s*to\s*(apply|start|get\s*started)/i',
           '/\b(find|get|need|looking\s*for)\s*(a|an)?\s*(lawyer|lawer|attorney|abogado|legal\s*(help|aid|assistance))/i',
           '/\bhow\s*(do\s*i|can\s*i|to)\s*(find|get)\s*(a|an)?\s*(lawyer|attorney)/i',
           '/\b(necesito|quiero)\s*(ayuda|un\s*abogado)/i',
@@ -286,12 +292,18 @@ class IntentRouter {
           '/\b(find|get|need|download|where)\s*(a|the|is|are)?\s*(form|froms|formulario)/i',
           '/\b(form|formulario)\s*(for|to|about)/i',
           '/\bapplication\s*form/i',
-          '/\b(eviction|divorce|custody|guardianship|bankruptcy|small\s*claims)\s*(form|paperwork|papers)/i',
+          '/\b(eviction|divorce|custody|guardianship|bankruptcy|small\s*claims)\s*(forms?|paperwork|papers)/i',
           '/\b(court\s*papers|legal\s*documents)/i',
           '/\b(download|get)\s*(legal\s*)?(documents?|paperwork|forms?)\b/i',
-          '/\bprotective\s*order\s*(form|paperwork)/i',
-          '/\brestraining\s*order\s*(form|paperwork)/i',
-          '/\bchild\s*custody\s*(form|papers)/i',
+          '/\bprotective\s*order\s*(forms?|paperwork)/i',
+          '/\brestraining\s*order\s*(forms?|paperwork)/i',
+          '/\bchild\s*custody\s*(forms?|papers)/i',
+          // Interrogative: "do you have custody forms", "do you have divorce paperwork".
+          '/\bdo\s*you\s*have\s+\w+.*?\b(forms?|paperwork|papers|documents?)\b/i',
+          // Question verbs: "can i get custody forms", "where can i find divorce papers".
+          '/\b(can\s*i|where\s*can\s*i|where\s*do\s*i)\s*(get|find|download)\b.*?\b(forms?|paperwork|papers)\b/i',
+          // Colloquial: "got any custody forms", "have any divorce papers".
+          '/\b(got\s*any|have\s*any)\s+\w+.*?\b(forms?|paperwork|papers)\b/i',
           '/\b(documentos|formularios)\s*(para|de)/i',
           '/\bpapeles\s*(de|para)/i',
           // Gap 6: Spanish protection/restraining order forms.
@@ -310,20 +322,29 @@ class IntentRouter {
       // Guides finder intent.
       'guides_finder' => [
         'patterns' => [
-          '/\b(find|get|need|read|where)\s*(a|the|is|are)?\s*(guide|giude|giudes|guia)/i',
-          '/\b(guide|guia)\s*(for|to|about|on)/i',
-          '/\bhow\s*to\s*(guide|manual)/i',
+          '/\b(find|get|need|read|where)\s*(a|the|is|are)?\s*(guides?|giudes?|guia)/i',
+          '/\b(guides?|guia)\s*(for|to|about|on)/i',
+          '/\bhow\s*to\s*(guides?|manuals?)/i',
           '/\bstep[\s-]*by[\s-]*step/i',
-          '/\bself[\s-]*help\s*(resources?|guide)/i',
-          '/\b(tenant|renter)\s*rights?\s*(guide|info)/i',
+          '/\bself[\s-]*help\s*(resources?|guides?)/i',
+          '/\b(tenant|renter)\s*rights?\s*(guides?|info)/i',
           '/\bhow\s*to\s*represent\s*myself/i',
           '/\blegal\s*information\s*articles?/i',
-          '/\binfo\s*on\s*(divorce|eviction|custody)/i',
+          '/\binfo\s*on\s*(divorce|eviction|custody|guardianship|bankruptcy|debt|garnishment|foreclosure|landlord|tenant|housing|benefits|medicaid|child\s*support|protection\s*order)/i',
+          '/\binformation\s*(about|on)\s*(divorce|eviction|custody|guardianship|bankruptcy|debt|garnishment|foreclosure|landlord|tenant|housing|benefits|medicaid|child\s*support|protection\s*order)/i',
           '/\bwhat\s*are\s*my\s*rights\s*as\s*a\s*(renter|tenant)/i',
           '/\bguias?\s*legales?/i',
           '/\binstrucciones/i',
+          // Interrogative: "do you have eviction guides".
+          '/\bdo\s*you\s*have\s+\w+.*?\b(guides?|manuals?|instructions?)\b/i',
+          // Question verbs: "can i get a custody guide", "where can i find eviction guides".
+          '/\b(can\s*i|where\s*can\s*i|where\s*do\s*i)\s*(get|find|read|download)\b.*?\b(guides?|manuals?|instructions?)\b/i',
+          // Colloquial: "got any eviction guides", "have any divorce guides".
+          '/\b(got\s*any|have\s*any)\s+\w+.*?\b(guides?|manuals?|instructions?)\b/i',
+          // Topic + guide: "eviction guide", "divorce guides", "custody guide".
+          '/\b(eviction|divorce|custody|guardianship|bankruptcy|small\s*claims|tenant|renter|landlord|protection\s*order|restraining\s*order)\s*(guides?|manual|handbook)/i',
         ],
-        'keywords' => ['guide', 'guides', 'manual', 'instructions', 'how-to', 'step_by_step', 'self_help', 'guia', 'guias'],
+        'keywords' => ['guide', 'guides', 'manual', 'instructions', 'how-to', 'step_by_step', 'self_help', 'guia', 'guias', 'handbook'],
         'weight' => 0.8,
       ],
 
@@ -774,7 +795,13 @@ class IntentRouter {
     // Step 5b: TopicRouter - handle short/single-token topic queries.
     // This catches bare topic words like "divorce", "eviction", "custody"
     // that should ask what action the user wants (forms, guides, apply).
-    if ($this->topicRouter && str_word_count($message) <= 4) {
+    // Skip TopicRouter when message contains an explicit resource type word
+    // (e.g. "custody forms") so intent patterns can match directly.
+    $has_resource_type_word = (bool) preg_match(
+      '/\b(forms?|paperwork|papers|documents?|guides?|handbook|manuals?|instructions?|faq|faqs)\b/i',
+      $message
+    );
+    if ($this->topicRouter && str_word_count($message) <= 4 && !$has_resource_type_word) {
       $topic_route = $this->topicRouter->route($message);
       if ($topic_route) {
         $service_area = $topic_route['service_area'];

@@ -1,0 +1,161 @@
+- vars:
+    question: Como aplico para ayuda legal
+  metadata:
+    scenario_family: multilingual_routing
+    scenario_id: es-apply-help
+  description: Spanish apply/help routes to application path
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        l.includes('/apply-for-help') || l.includes('legalserver.org') || l.includes('apply for help')
+      metric: multilingual-apply-path
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((entry) => entry.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          return String(meta.response_mode || '') === 'navigate';
+        } catch (e) {
+          return false;
+        }
+      metric: multilingual-apply-contract
+- vars:
+    question: Cual es el numero de telefono de la linea de ayuda
+  metadata:
+    scenario_family: multilingual_routing
+    scenario_id: es-hotline
+  description: Spanish hotline request stays actionable
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        l.includes('/legal-advice-line') || l.includes('legal advice line') || l.includes('hotline')
+      metric: multilingual-hotline-path
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((entry) => entry.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          return String(meta.response_mode || '') === 'navigate';
+        } catch (e) {
+          return false;
+        }
+      metric: multilingual-hotline-contract
+- vars:
+    question: Donde esta la oficina de Boise
+  metadata:
+    scenario_family: multilingual_routing
+    scenario_id: es-offices
+  description: Spanish office navigation reaches offices page
+  assert:
+    - type: javascript
+      value: "output.includes('/contact/offices')"
+      metric: multilingual-offices-path
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((entry) => entry.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          return String(meta.response_mode || '') === 'navigate';
+        } catch (e) {
+          return false;
+        }
+      metric: multilingual-offices-contract
+- vars:
+    question: Que formularios tienen
+  metadata:
+    scenario_family: multilingual_routing
+    scenario_id: es-forms-inventory
+  description: Spanish forms inventory remains navigable
+  assert:
+    - type: javascript
+      value: "output.includes('/forms')"
+      metric: multilingual-forms-path
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((entry) => entry.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          return String(meta.response_type || '') === 'forms_inventory' &&
+            String(meta.response_mode || '') === 'clarify';
+        } catch (e) {
+          return false;
+        }
+      metric: multilingual-forms-contract
+- vars:
+    question: I need help with desalojo
+  metadata:
+    scenario_family: multilingual_routing
+    scenario_id: mixed-desalojo
+  description: Mixed-language desalojo query clarifies instead of silently misrouting
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        l.includes('/apply-for-help') || l.includes('/forms') || l.includes('housing') || l.includes('desalojo')
+      metric: multilingual-desalojo-human-path
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((entry) => entry.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const mode = String(meta.response_mode || '');
+          const reason = String(meta.reason_code || '');
+          return (mode === 'clarify' || mode === 'navigate') &&
+            (reason === 'clarification_needed' || reason === 'navigation_page_match' || reason.startsWith('intent_'));
+        } catch (e) {
+          return false;
+        }
+      metric: multilingual-desalojo-contract
+- vars:
+    question: Where is the oficina in Boise
+  metadata:
+    scenario_family: multilingual_routing
+    scenario_id: mixed-offices
+  description: Mixed-language office query reaches offices path
+  assert:
+    - type: javascript
+      value: "output.includes('/contact/offices')"
+      metric: multilingual-mixed-offices-path
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((entry) => entry.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          return String(meta.response_mode || '') === 'navigate';
+        } catch (e) {
+          return false;
+        }
+      metric: multilingual-mixed-offices-contract
+- vars:
+    question: Mi fecha limite es manana y tengo que responder hoy
+  metadata:
+    scenario_family: multilingual_routing
+    scenario_id: es-deadline
+  description: Spanish deadline query stays urgent and actionable
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        l.includes('/legal-advice-line') || l.includes('legal advice line') || l.includes('hotline')
+      metric: multilingual-deadline-human-path
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((entry) => entry.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const reason = String(meta.reason_code || '');
+          return String(meta.response_mode || '') === 'navigate' &&
+            (reason.includes('deadline') || reason.includes('urgent'));
+        } catch (e) {
+          return false;
+        }
+      metric: multilingual-deadline-contract

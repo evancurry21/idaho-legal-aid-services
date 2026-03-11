@@ -66,6 +66,35 @@ class Disambiguator {
   ];
 
   /**
+   * Lead-in scaffolding that wraps a pure topic without naming an action.
+   *
+   * These are intentionally anchored to the start of the message so longer
+   * narrative descriptions do not collapse into topic-only clarifications.
+   *
+   * @var string[]
+   */
+  protected static $topicLeadPatterns = [
+    '/^(?:i\s+need\s+(?:some\s+)?help\s+(?:with|about|on)\s+)/u',
+    '/^(?:need\s+help\s+(?:with|about|on)\s+)/u',
+    '/^(?:help\s+(?:with|about|on)\s+)/u',
+    '/^(?:necesito\s+ayuda\s+(?:con|sobre|para)\s+)/u',
+    '/^(?:quiero\s+ayuda\s+(?:con|sobre|para)\s+)/u',
+    '/^(?:ayuda\s+(?:con|sobre|para)\s+)/u',
+  ];
+
+  /**
+   * Generic filler words that can trail a bare topic mention.
+   *
+   * @var string[]
+   */
+  protected static $topicFillerWords = [
+    'case', 'cases', 'issue', 'issues', 'problem', 'problems',
+    'matter', 'matters', 'tema', 'caso', 'casos', 'problema',
+    'problemas', 'asunto', 'asuntos', 'legal', 'information',
+    'informacion', 'info',
+  ];
+
+  /**
    * Constructs a Disambiguator.
    */
   public function __construct() {
@@ -239,6 +268,22 @@ class Disambiguator {
           ['label' => 'Other forms', 'intent' => 'forms_finder'],
         ],
       ],
+      'guide' => [
+        'question' => 'What type of guide are you looking for?',
+        'options' => [
+          ['label' => 'Family/Divorce guides', 'intent' => 'guides_finder', 'topic' => 'family'],
+          ['label' => 'Housing/Eviction guides', 'intent' => 'guides_finder', 'topic' => 'housing'],
+          ['label' => 'Other guides', 'intent' => 'guides_finder'],
+        ],
+      ],
+      'guides' => [
+        'question' => 'What type of guides are you looking for?',
+        'options' => [
+          ['label' => 'Family/Divorce guides', 'intent' => 'guides_finder', 'topic' => 'family'],
+          ['label' => 'Housing/Eviction guides', 'intent' => 'guides_finder', 'topic' => 'housing'],
+          ['label' => 'Other guides', 'intent' => 'guides_finder'],
+        ],
+      ],
       'phone' => [
         'question' => 'What phone number do you need?',
         'options' => [
@@ -316,6 +361,14 @@ class Disambiguator {
           ['label' => 'Formularios de familia/divorcio', 'intent' => 'forms_finder', 'topic' => 'family'],
           ['label' => 'Formularios de vivienda/desalojo', 'intent' => 'forms_finder', 'topic' => 'housing'],
           ['label' => 'Otros formularios', 'intent' => 'forms_finder'],
+        ],
+      ],
+      'guias' => [
+        'question' => 'Que tipo de guias necesita?',
+        'options' => [
+          ['label' => 'Guias de familia/divorcio', 'intent' => 'guides_finder', 'topic' => 'family'],
+          ['label' => 'Guias de vivienda/desalojo', 'intent' => 'guides_finder', 'topic' => 'housing'],
+          ['label' => 'Otras guias', 'intent' => 'guides_finder'],
         ],
       ],
     ];
@@ -456,6 +509,11 @@ class Disambiguator {
    */
   protected function checkTopicOnly(string $message): ?array {
     $normalized = $this->normalizeForLookup($message);
+    $generic_help_topic = $this->extractTopicFromGenericHelp($normalized);
+    if ($generic_help_topic !== NULL && isset($this->topicOnlyTriggers[$generic_help_topic])) {
+      return $this->buildTopicOnlyResult($generic_help_topic);
+    }
+
     $word_count = str_word_count($normalized);
 
     // Only check messages with 1-3 words (increased from 2 to handle
@@ -518,7 +576,53 @@ class Disambiguator {
   protected function stripTopicModifiers(string $normalized): string {
     $words = preg_split('/\s+/', $normalized, -1, PREG_SPLIT_NO_EMPTY);
     $filtered = array_filter($words, function ($word) {
-      return !in_array($word, self::$topicModifiers);
+      return !in_array($word, self::$topicModifiers, TRUE);
+    });
+    return implode(' ', $filtered);
+  }
+
+  /**
+   * Extracts a bare topic from short "help with X" phrasing.
+   *
+   * Returns NULL when the message looks like a longer narrative rather than a
+   * simple actionless topic request.
+   */
+  protected function extractTopicFromGenericHelp(string $normalized): ?string {
+    foreach (self::$topicLeadPatterns as $pattern) {
+      if (!preg_match($pattern, $normalized)) {
+        continue;
+      }
+
+      $candidate = preg_replace($pattern, '', $normalized, 1);
+      $candidate = is_string($candidate) ? $candidate : '';
+      if ($candidate === '') {
+        return NULL;
+      }
+
+      $candidate_words = preg_split('/\s+/', $candidate, -1, PREG_SPLIT_NO_EMPTY);
+      if (!is_array($candidate_words) || count($candidate_words) > 4) {
+        return NULL;
+      }
+
+      $candidate = $this->stripTopicModifiers($candidate);
+      $candidate = $this->stripTopicFillerWords($candidate);
+      if ($candidate === '') {
+        return NULL;
+      }
+
+      return $candidate;
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Removes generic filler nouns after a topic mention.
+   */
+  protected function stripTopicFillerWords(string $normalized): string {
+    $words = preg_split('/\s+/', $normalized, -1, PREG_SPLIT_NO_EMPTY);
+    $filtered = array_filter($words, function ($word) {
+      return !in_array($word, self::$topicFillerWords, TRUE);
     });
     return implode(' ', $filtered);
   }

@@ -164,6 +164,14 @@ curl -k -sS "${BASE_URL}/assistant/api/suggest?q=housing&type=all"
 curl -k -sS "${BASE_URL}/assistant/api/faq?q=eviction"
 curl -k -sS "${BASE_URL}/assistant/api/health"
 curl -k -sS "${BASE_URL}/assistant/api/metrics"
+
+# RAUD-20 read-endpoint abuse-control proof. Use varied queries so Drupal does
+# not satisfy the second request from a cached 200 before the controller-level
+# flood guard executes.
+ddev exec bash -lc "vendor/bin/phpunit \
+  --configuration /var/www/html/phpunit.xml \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php \
+  --filter 'test(SuggestEndpointAccessible|FaqEndpointAccessible|SuggestEndpointRateLimitAppliesToRepeatedGetRequests|FaqEndpointRateLimitAppliesToRepeatedGetRequests)'"
 ```
 
 Store status/headers/schema-key output (no secrets, synthetic payloads only) in `docs/aila/runtime/local-endpoints.txt`.[^CLAIM-112][^CLAIM-113]
@@ -2185,6 +2193,44 @@ Expected verification result:
 - Archive the executed command summaries and final classification in
   `docs/aila/runtime/raud-16-safety-bypass-corpus-hardening.txt`.
 
+### RAUD-19 multilingual routing + offline eval verification
+
+- Baseline before the remediation:
+  - Spanish and mixed-language routing proof was fragmented across isolated
+    unit tests (`TopicRouterTest`, `TopIntentsPackTest`, `TurnClassifierTest`,
+    `GoldenTranscriptTest`) and prompt-language handling in `LlmEnhancer` was
+    still English-only.
+  - There was no authoritative offline evaluator that ran multilingual routing
+    cases through the real pure-PHP stack and produced a reusable report.
+- Required verification commands for the remediation report:
+  - `VC-UNIT`
+  - `VC-QUALITY-GATE`
+  - `VC-PROMPTFOO-PACED`
+- Targeted local checks:
+  - `vendor/bin/phpunit --no-configuration --bootstrap /home/evancurry/idaho-legal-aid-services/vendor/autoload.php --group ilas_site_assistant --filter 'DisambiguatorTest|LlmEnhancerHardeningTest|MultilingualRoutingEvalTest' /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit`
+  - `php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/run-multilingual-routing-eval.php --report=/tmp/raud19-multilingual-routing-report.json`
+  - `ILAS_ASSISTANT_URL=https://ilas-pantheon.ddev.site/assistant/api/message ILAS_REQUEST_DELAY_MS=1000 CI_BRANCH=master /home/evancurry/idaho-legal-aid-services/scripts/ci/run-promptfoo-gate.sh --env dev --mode auto`
+- Expected contract after the remediation:
+  - `LlmEnhancer::classifyIntent()` adds Spanish/mixed prompt-language
+    instructions but still accepts only canonical English intent labels.
+  - FAQ/resource summary prompts explicitly request Spanish or same-language-mix
+    output when the user query is Spanish or mixed.
+  - `Disambiguator` turns short English/Spanish "help with X" topic phrasing
+    into deterministic `disambiguation` instead of silently drifting to
+    `apply_for_help`.
+  - The shared offline evaluator passes every curated Spanish and mixed routing
+    case, emits a JSON report file, and fails closed on any mismatch.
+  - `promptfooconfig.deep.yaml` exercises the additive multilingual live suite
+    without replacing the offline harness.
+- Classification rule:
+  - If the offline evaluator, `VC-UNIT`, `VC-QUALITY-GATE`, and the paced live
+    promptfoo command all pass, classify `RAUD-19` as `Fixed`.
+  - If only the offline path passes and live promptfoo proof is still missing
+    or failing for unrelated reasons, classify `RAUD-19` as `Partially Fixed`
+    and document the remaining live-only gap explicitly.
+- Archive the executed command summaries and final classification in
+  `docs/aila/runtime/raud-19-multilingual-routing-offline-eval.txt`.
+
 ### GitHub mirror onboarding (WSL2)
 
 ```bash
@@ -2207,31 +2253,42 @@ Install strict pre-push enforcement (runs for every push, any remote):
 bash scripts/ci/install-pre-push-strict-hook.sh
 ```
 
-Canonical strict push sequence (GitHub first, then Pantheon):
+Canonical protected-master sequence:
 
 ```bash
-ddev exec bash /var/www/html/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh \
-&& CI_BRANCH=master scripts/ci/run-promptfoo-gate.sh --env dev --mode auto \
-&& git push github master \
-&& git push origin master
+npm run git:publish
 ```
 
-Single-remote commands:
+After the PR is merged on GitHub:
 
 ```bash
-# GitHub only
-git push github master
+# Sync local master from GitHub.
+npm run git:sync-master
 
-# Pantheon only
-git push origin master
+# Deploy Pantheon from the merged master commit.
+npm run git:publish -- --origin-only
 ```
 
 Notes:
-- The strict hook runs `run-quality-gate.sh` plus branch-aware Promptfoo gate
-  checks on every push attempt.
+- The strict hook first runs `scripts/git/sync-check.sh` to block
+  `remote-ahead`/`diverged` pushes, then runs `run-quality-gate.sh` plus
+  branch-aware Promptfoo gate checks keyed to the pushed target branch.
+- Post-merge local sync is reduced to one command: `npm run git:sync-master`.
+- Direct `git push github master` is intentionally blocked on protected
+  `master`; use `npm run git:publish` so local `master` is pushed to
+  `github/publish/master-<shortsha>` and opened as a PR into `master`.
+- PR-branch publishes from local `master` are advisory locally because the
+  hook classifies `github/publish/master-<shortsha>` as a non-protected target;
+  the blocking `Promptfoo Gate` still runs on GitHub for the PR/merge path.
+- Direct `git push origin master` is blocked while `github/master` does not yet
+  match local `master`, which enforces GitHub-first ordering.
+- Once local `master` is fast-forwarded to the merged `github/master` commit,
+  `npm run git:publish -- --origin-only` still runs sync-check plus the local
+  module quality gate, but skips local promptfoo and trusts the already-passed GitHub `Promptfoo Gate` for that commit.
 - If `ILAS_ASSISTANT_URL` is unset, `scripts/ci/run-promptfoo-gate.sh` will
   attempt Pantheon URL derivation (`derive-assistant-url.sh`) for `--env dev`.
-- Bypass once (not recommended): `git push --no-verify`.
+- Bypass once (not recommended): `git push --no-verify`. This bypasses both the
+  drift checks and the protected-master PR-first policy.
 
 ### External CI promptfoo gate (Pantheon-derived URL)
 
@@ -3408,6 +3465,82 @@ sed -E \
   trace IDs visible in Langfuse UI; contract tests pass; queue depth unchanged
   or incremented by 1 in queue mode.
 - Evidence artifact: `docs/aila/runtime/phard-02-langfuse-operationalization.txt`
+
+### PHARD-06 retrieval contract verification
+
+The Drupal-primary retrieval contract is enforced by `RetrievalContract.php` and tested by:
+- `RetrievalContractTest.php` — contract constants validity
+- `VectorSearchMergeTest.php` — merge behavior with lexical priority
+- `SourceGovernanceServiceTest.php` — source class validation
+- `RetrievalContractGuardTest.php` — architectural invariants
+- `ConfigCompletenessDriftTest.php` — config parity
+
+Verification commands:
+
+```bash
+# VC-UNIT: Contract + merge + governance tests
+ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml \
+  --group=ilas_site_assistant \
+  --filter="RetrievalContract|VectorSearchMerge|SourceGovernance"
+
+# VC-RETRIEVAL-LOCAL: Architectural guard tests
+ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml \
+  web/modules/custom/ilas_site_assistant/tests/src/Unit/RetrievalContractGuardTest.php
+```
+
+Expected PHARD-06 verification result:
+- `RetrievalContractTest` passes: 4 approved classes, disjoint primary/supplement,
+  priority ordering, unapproved class rejection, parametric isPrimary/isSupplement.
+- `VectorSearchMergeTest` passes: lexical priority boost wins for close scores,
+  vector still wins for large gaps, minimum lexical preservation enforced.
+- `SourceGovernanceServiceTest` passes: unapproved source class rejected,
+  all approved accepted, provenance includes contract version + enforcement mode.
+- `RetrievalContractGuardTest` passes: imports present in FaqIndex/ResourceFinder/
+  SourceGovernanceService, lexical search precedes vector supplement, config contains
+  retrieval_contract block.
+- `ConfigCompletenessDriftTest` passes: retrieval_contract block present in both
+  install and active config.
+
+### RAUD-21 retrieval configuration governance verification
+
+Use this bundle to verify retrieval-ID ownership, runtime-only LegalServer URL
+resolution, and admin health drift checks after deploying `RAUD-21`.
+
+```bash
+# VC-UNIT
+ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml \
+  --group ilas_site_assistant \
+  /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
+
+# Local contract spot-checks
+vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml \
+  /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/RetrievalConfigurationServiceTest.php \
+  /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/LegalServerRuntimeUrlGuardTest.php \
+  /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorSearchConfigSchemaTest.php
+
+# VC-PANTHEON-READONLY
+terminus remote:drush idaho-legal-aid-services.dev -- \
+  config:get ilas_site_assistant.settings retrieval --format=yaml
+terminus remote:drush idaho-legal-aid-services.dev -- \
+  config:get ilas_site_assistant.settings canonical_urls --format=yaml
+terminus remote:drush idaho-legal-aid-services.dev -- \
+  php:eval '$service = \Drupal::hasService("ilas_site_assistant.retrieval_configuration") ? \Drupal::service("ilas_site_assistant.retrieval_configuration") : NULL; if (!$service) { echo "retrieval_configuration_service=missing" . PHP_EOL; } else { echo json_encode($service->getHealthSnapshot(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL; } echo "legalserver_setting_present=" . ((string) \Drupal\Core\Site\Settings::get("ilas_site_assistant_legalserver_online_application_url", "") !== "" ? "true" : "false") . PHP_EOL;'
+```
+
+Expected `RAUD-21` verification result:
+- Local/unit proof shows `retrieval.*` present in install/active/schema,
+  `vector_search` no longer owns index IDs, and runtime-only LegalServer guard
+  tests pass.
+- `/assistant/api/health` exposes `checks.retrieval_configuration` with
+  lexical/vector index status, service-area completeness, and LegalServer URL
+  diagnostics.
+- Pantheon pre-deploy environments may still show `retrieval: null`,
+  exported `canonical_urls.online_application`, missing
+  `ilas_site_assistant.retrieval_configuration`, or absent runtime LegalServer
+  setting; treat that as deployment drift evidence, not repo-side failure.
+- Final classification remains `Partially Fixed` until post-deploy read-only
+  checks show the new service/config contract in a live environment. A live
+  LegalServer reachability probe is optional and environment-bound.
 
 ## 7) Retrospective regression checklist (mandatory)
 

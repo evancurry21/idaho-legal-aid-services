@@ -298,6 +298,78 @@ class AnalyticsLoggerKernelTest extends AssistantKernelTestBase {
   }
 
   /**
+   * Tests that feedback_helpful events normalize the response type token.
+   *
+   * @covers ::log
+   */
+  public function testLogFeedbackHelpfulNormalizesResponseType(): void {
+    $logger = $this->createAnalyticsLogger();
+    $logger->log('feedback_helpful', 'faq');
+
+    $row = $this->database->select('ilas_site_assistant_stats', 's')
+      ->fields('s', ['event_value'])
+      ->condition('event_type', 'feedback_helpful')
+      ->execute()
+      ->fetch();
+
+    $this->assertSame('faq', $row->event_value);
+  }
+
+  /**
+   * Tests that feedback_not_helpful events normalize the response type token.
+   *
+   * @covers ::log
+   */
+  public function testLogFeedbackNotHelpfulNormalizesResponseType(): void {
+    $logger = $this->createAnalyticsLogger();
+    $logger->log('feedback_not_helpful', 'resources');
+
+    $row = $this->database->select('ilas_site_assistant_stats', 's')
+      ->fields('s', ['event_value'])
+      ->condition('event_type', 'feedback_not_helpful')
+      ->execute()
+      ->fetch();
+
+    $this->assertSame('resources', $row->event_value);
+  }
+
+  /**
+   * Tests that generic_answer events normalize the fallback level.
+   *
+   * @covers ::log
+   */
+  public function testLogGenericAnswerNormalizesFallbackLevel(): void {
+    $logger = $this->createAnalyticsLogger();
+    $logger->log('generic_answer', '3');
+
+    $row = $this->database->select('ilas_site_assistant_stats', 's')
+      ->fields('s', ['event_value'])
+      ->condition('event_type', 'generic_answer')
+      ->execute()
+      ->fetch();
+
+    $this->assertSame('3', $row->event_value);
+  }
+
+  /**
+   * Tests that feedback events with free text are blanked.
+   *
+   * @covers ::log
+   */
+  public function testLogFeedbackRejectsUserText(): void {
+    $logger = $this->createAnalyticsLogger();
+    $logger->log('feedback_helpful', 'This answer helped me find eviction info at 123 Main St');
+
+    $row = $this->database->select('ilas_site_assistant_stats', 's')
+      ->fields('s', ['event_value'])
+      ->condition('event_type', 'feedback_helpful')
+      ->execute()
+      ->fetch();
+
+    $this->assertSame('', $row->event_value);
+  }
+
+  /**
    * Tests that batched cleanup deletes all expired rows across batches.
    *
    * @covers ::cleanupOldData

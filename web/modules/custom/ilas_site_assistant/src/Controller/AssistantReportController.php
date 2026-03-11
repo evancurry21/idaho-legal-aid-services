@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_site_assistant\Controller;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Datetime\DateFormatterInterface;
@@ -36,12 +37,20 @@ class AssistantReportController extends ControllerBase {
   protected $topicResolver;
 
   /**
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
    * Constructs an AssistantReportController object.
    */
-  public function __construct(Connection $database, DateFormatterInterface $date_formatter, TopicResolver $topic_resolver) {
+  public function __construct(Connection $database, DateFormatterInterface $date_formatter, TopicResolver $topic_resolver, ConfigFactoryInterface $config_factory) {
     $this->database = $database;
     $this->dateFormatter = $date_formatter;
     $this->topicResolver = $topic_resolver;
+    $this->configFactory = $config_factory;
   }
 
   /**
@@ -51,7 +60,8 @@ class AssistantReportController extends ControllerBase {
     return new static(
       $container->get('database'),
       $container->get('date.formatter'),
-      $container->get('ilas_site_assistant.topic_resolver')
+      $container->get('ilas_site_assistant.topic_resolver'),
+      $container->get('config.factory')
     );
   }
 
@@ -103,6 +113,38 @@ class AssistantReportController extends ControllerBase {
     ];
 
     $build['no_answer']['table'] = $this->buildNoAnswerTable();
+
+    // Quality signals.
+    $build['quality'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Quality Signals'),
+      '#open' => TRUE,
+    ];
+
+    $build['quality']['description'] = [
+      '#markup' => '<p>' . $this->t('Failure-mode event counts. Rising trends indicate retrieval, safety, or grounding degradation.') . '</p>',
+    ];
+
+    $build['quality']['table'] = $this->buildQualitySignalsTable();
+
+    // User feedback.
+    $build['feedback'] = [
+      '#type' => 'details',
+      '#title' => $this->t('User Feedback'),
+      '#open' => TRUE,
+    ];
+
+    $build['feedback']['summary'] = $this->buildFeedbackSummaryTable();
+    $build['feedback']['breakdown'] = $this->buildFeedbackBreakdownTable();
+
+    // Review loop.
+    $build['review_loop'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Review Loop'),
+      '#open' => TRUE,
+    ];
+
+    $build['review_loop']['content'] = $this->buildReviewLoopSection();
 
     return $build;
   }
@@ -330,6 +372,217 @@ class AssistantReportController extends ControllerBase {
 
     $result = $query->execute()->fetchField();
     return (int) $result;
+  }
+
+  /**
+   * Builds the quality signals table.
+   *
+   * @return array
+   *   Render array for the table.
+   */
+  protected function buildQualitySignalsTable() {
+    $header = [
+      $this->t('Signal'),
+      $this->t('Last 7 Days'),
+      $this->t('Last 30 Days'),
+      $this->t('All Time'),
+    ];
+
+    $signals = [
+      'no_answer' => $this->t('No-Answer Queries'),
+      'generic_answer' => $this->t('Generic Answers'),
+      'grounding_refusal' => $this->t('Grounding Refusals'),
+      'safety_violation' => $this->t('Safety Violations'),
+      'out_of_scope' => $this->t('Out-of-Scope'),
+      'policy_violation' => $this->t('Policy Violations'),
+      'post_gen_safety_legal_advice' => $this->t('Post-Gen: Legal Advice'),
+      'post_gen_safety_weak_grounding' => $this->t('Post-Gen: Weak Grounding'),
+      'post_gen_stale_citations' => $this->t('Post-Gen: Stale Citations'),
+    ];
+
+    $rows = [];
+    foreach ($signals as $event_type => $label) {
+      $rows[] = [
+        $label,
+        $this->getEventCount($event_type, 7),
+        $this->getEventCount($event_type, 30),
+        $this->getEventCount($event_type, NULL),
+      ];
+    }
+
+    return [
+      '#type' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#empty' => $this->t('No quality signal data available yet.'),
+    ];
+  }
+
+  /**
+   * Builds the feedback summary table.
+   *
+   * @return array
+   *   Render array for the table.
+   */
+  protected function buildFeedbackSummaryTable() {
+    $header = [
+      $this->t('Metric'),
+      $this->t('Last 7 Days'),
+      $this->t('Last 30 Days'),
+      $this->t('All Time'),
+    ];
+
+    $rows = [];
+
+    $rows[] = [
+      $this->t('Helpful'),
+      $this->getEventCount('feedback_helpful', 7),
+      $this->getEventCount('feedback_helpful', 30),
+      $this->getEventCount('feedback_helpful', NULL),
+    ];
+
+    $rows[] = [
+      $this->t('Not Helpful'),
+      $this->getEventCount('feedback_not_helpful', 7),
+      $this->getEventCount('feedback_not_helpful', 30),
+      $this->getEventCount('feedback_not_helpful', NULL),
+    ];
+
+    // Satisfaction rate.
+    $helpful_all = $this->getEventCount('feedback_helpful', NULL);
+    $not_helpful_all = $this->getEventCount('feedback_not_helpful', NULL);
+    $total_all = $helpful_all + $not_helpful_all;
+
+    $helpful_7 = $this->getEventCount('feedback_helpful', 7);
+    $not_helpful_7 = $this->getEventCount('feedback_not_helpful', 7);
+    $total_7 = $helpful_7 + $not_helpful_7;
+
+    $helpful_30 = $this->getEventCount('feedback_helpful', 30);
+    $not_helpful_30 = $this->getEventCount('feedback_not_helpful', 30);
+    $total_30 = $helpful_30 + $not_helpful_30;
+
+    $rows[] = [
+      $this->t('Satisfaction Rate'),
+      $total_7 > 0 ? round($helpful_7 / $total_7 * 100) . '%' : $this->t('N/A'),
+      $total_30 > 0 ? round($helpful_30 / $total_30 * 100) . '%' : $this->t('N/A'),
+      $total_all > 0 ? round($helpful_all / $total_all * 100) . '%' : $this->t('N/A'),
+    ];
+
+    return [
+      '#type' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#empty' => $this->t('No feedback data available yet.'),
+    ];
+  }
+
+  /**
+   * Builds a feedback breakdown table by response type.
+   *
+   * @return array
+   *   Render array for the table.
+   */
+  protected function buildFeedbackBreakdownTable() {
+    $header = [
+      $this->t('Response Type'),
+      $this->t('Helpful'),
+      $this->t('Not Helpful'),
+      $this->t('Satisfaction'),
+    ];
+
+    // Gather helpful counts by response type.
+    $helpful_query = $this->database->select('ilas_site_assistant_stats', 's')
+      ->fields('s', ['event_value'])
+      ->condition('event_type', 'feedback_helpful')
+      ->groupBy('event_value');
+    $helpful_query->addExpression('SUM(count)', 'total');
+    $helpful_results = $helpful_query->execute()->fetchAllKeyed();
+
+    // Gather not-helpful counts by response type.
+    $not_helpful_query = $this->database->select('ilas_site_assistant_stats', 's')
+      ->fields('s', ['event_value'])
+      ->condition('event_type', 'feedback_not_helpful')
+      ->groupBy('event_value');
+    $not_helpful_query->addExpression('SUM(count)', 'total');
+    $not_helpful_results = $not_helpful_query->execute()->fetchAllKeyed();
+
+    // Merge and sort by total feedback volume.
+    $response_types = array_unique(array_merge(array_keys($helpful_results), array_keys($not_helpful_results)));
+    $merged = [];
+    foreach ($response_types as $type) {
+      $h = (int) ($helpful_results[$type] ?? 0);
+      $nh = (int) ($not_helpful_results[$type] ?? 0);
+      $merged[$type] = ['helpful' => $h, 'not_helpful' => $nh, 'total' => $h + $nh];
+    }
+    uasort($merged, function ($a, $b) {
+      return $b['total'] - $a['total'];
+    });
+
+    $rows = [];
+    $count = 0;
+    foreach ($merged as $type => $data) {
+      if ($count >= 10) {
+        break;
+      }
+      $satisfaction = $data['total'] > 0 ? round($data['helpful'] / $data['total'] * 100) . '%' : $this->t('N/A');
+      $rows[] = [
+        $type ?: $this->t('(unknown)'),
+        $data['helpful'],
+        $data['not_helpful'],
+        $satisfaction,
+      ];
+      $count++;
+    }
+
+    return [
+      '#type' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#empty' => $this->t('No per-type feedback data available yet.'),
+    ];
+  }
+
+  /**
+   * Builds the review loop ownership section.
+   *
+   * @return array
+   *   Render array with review loop info.
+   */
+  protected function buildReviewLoopSection() {
+    $config = $this->configFactory->get('ilas_site_assistant.settings');
+    $review = $config->get('review_loop') ?? [];
+
+    $owner = $review['owner_role'] ?? $this->t('Not assigned');
+    $cadence = $review['cadence'] ?? $this->t('Not defined');
+    $scope = $review['scope'] ?? [];
+    $escalation = $review['escalation_path'] ?? $this->t('Not defined');
+    $artifact = $review['artifact_location'] ?? $this->t('Not defined');
+
+    $scope_html = '';
+    if (!empty($scope)) {
+      $scope_html = '<ul>';
+      foreach ($scope as $item) {
+        $scope_html .= '<li>' . htmlspecialchars($item, ENT_QUOTES, 'UTF-8') . '</li>';
+      }
+      $scope_html .= '</ul>';
+    }
+
+    $html = '<dl>';
+    $html .= '<dt><strong>' . $this->t('Owner Role') . '</strong></dt>';
+    $html .= '<dd>' . htmlspecialchars((string) $owner, ENT_QUOTES, 'UTF-8') . '</dd>';
+    $html .= '<dt><strong>' . $this->t('Review Cadence') . '</strong></dt>';
+    $html .= '<dd>' . htmlspecialchars((string) $cadence, ENT_QUOTES, 'UTF-8') . '</dd>';
+    $html .= '<dt><strong>' . $this->t('Review Scope') . '</strong></dt>';
+    $html .= '<dd>' . ($scope_html ?: $this->t('Not defined')) . '</dd>';
+    $html .= '<dt><strong>' . $this->t('Escalation Path') . '</strong></dt>';
+    $html .= '<dd>' . htmlspecialchars((string) $escalation, ENT_QUOTES, 'UTF-8') . '</dd>';
+    $html .= '<dt><strong>' . $this->t('Follow-Up Artifacts') . '</strong></dt>';
+    $html .= '<dd><code>' . htmlspecialchars((string) $artifact, ENT_QUOTES, 'UTF-8') . '</code></dd>';
+    $html .= '</dl>';
+
+    return [
+      '#markup' => $html,
+    ];
   }
 
 }

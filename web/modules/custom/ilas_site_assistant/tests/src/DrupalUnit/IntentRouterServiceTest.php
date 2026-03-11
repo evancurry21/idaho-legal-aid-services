@@ -241,18 +241,40 @@ class IntentRouterServiceTest extends UnitTestCase {
    * Tests guides intent detection.
    *
    * @covers ::route
+   * @dataProvider guidesFinderProvider
    */
-  public function testGuidesDetection(): void {
-    $messages = [
-      'tenant rights guide',
-      'step by step instructions',
-      'how to guide',
-    ];
+  public function testGuidesDetection(string $message): void {
+    $result = $this->intentRouter->route($message);
+    $this->assertEquals('guides_finder', $result['type'], "Failed for: $message");
+  }
 
-    foreach ($messages as $message) {
-      $result = $this->intentRouter->route($message);
-      $this->assertEquals('guides_finder', $result['type'], "Failed for: $message");
-    }
+  /**
+   * Data provider for guides finder tests.
+   */
+  public static function guidesFinderProvider(): array {
+    return [
+      // Existing cases.
+      'tenant rights guide' => ['tenant rights guide'],
+      'step by step instructions' => ['step by step instructions'],
+      'how to guide' => ['how to guide'],
+      // Pluralization.
+      'eviction guides' => ['eviction guides'],
+      'find guides about divorce' => ['find guides about divorce'],
+      'i need custody guides' => ['i need custody guides'],
+      // Interrogative.
+      'do you have eviction guides' => ['do you have eviction guides'],
+      'can i get a divorce guide' => ['can i get a divorce guide'],
+      'got any custody guides' => ['got any custody guides'],
+      // Topic-qualified.
+      'eviction guide' => ['eviction guide'],
+      'divorce guides' => ['divorce guides'],
+      'custody guide' => ['custody guide'],
+      'landlord guide' => ['landlord guide'],
+      // Information about.
+      'info on eviction' => ['info on eviction'],
+      'information about divorce' => ['information about divorce'],
+      'information about custody' => ['information about custody'],
+    ];
   }
 
   /**

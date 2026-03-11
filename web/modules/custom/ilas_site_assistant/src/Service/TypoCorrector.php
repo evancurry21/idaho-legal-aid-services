@@ -304,7 +304,7 @@ class TypoCorrector {
       'forms', 'paperwork', 'documents', 'complaint',
       'feedback', 'donation', 'donate', 'office', 'location',
       'hotline', 'advice', 'phone', 'assistance',
-      'guide', 'instructions', 'resources',
+      'guide', 'guides', 'instructions', 'resources',
       'representation', 'address', 'represent', 'representing',
       'judgment', 'notice', 'petition', 'motion', 'affidavit',
       'statement', 'testimony', 'subpoena', 'summons', 'answer',

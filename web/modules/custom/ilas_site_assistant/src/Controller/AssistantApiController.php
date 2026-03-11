@@ -15,7 +15,9 @@ use Drupal\ilas_site_assistant\Service\LlmEnhancer;
 use Drupal\ilas_site_assistant\Service\FallbackGate;
 use Drupal\ilas_site_assistant\Service\FallbackTreeEvaluator;
 use Drupal\ilas_site_assistant\Service\RequestTrustInspector;
+use Drupal\ilas_site_assistant\Service\AssistantReadEndpointGuard;
 use Drupal\ilas_site_assistant\Service\ResponseGrounder;
+use Drupal\ilas_site_assistant\Service\PostGenerationLegalAdviceDetector;
 use Drupal\ilas_site_assistant\Service\SafetyClassifier;
 use Drupal\ilas_site_assistant\Service\InputNormalizer;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
@@ -37,6 +39,7 @@ use Drupal\ilas_site_assistant\Service\AssistantSessionBootstrapGuard;
 use Drupal\ilas_site_assistant\Service\PreRoutingDecisionEngine;
 use Drupal\ilas_site_assistant\Service\LangfuseTracer;
 use Drupal\ilas_site_assistant\Service\SourceGovernanceService;
+use Drupal\ilas_site_assistant\Service\RetrievalConfigurationService;
 use Drupal\ilas_site_assistant\Service\VectorIndexHygieneService;
 use Drupal\Component\Uuid\Php as UuidGenerator;
 use Drupal\Core\Flood\FloodInterface;
@@ -77,6 +80,11 @@ class AssistantApiController extends ControllerBase {
    * Max turns to keep office follow-up slot-fill active.
    */
   const OFFICE_FOLLOWUP_MAX_TURNS = 2;
+
+  /**
+   * Safe fallback for post-generation safety replacement.
+   */
+  private const POST_GENERATION_SAFE_FALLBACK = 'I found some information that may help. For guidance specific to your situation, please contact our Legal Advice Line or apply for help.';
 
   /**
    * Authoritative request-context quick actions accepted by /message.
@@ -238,6 +246,13 @@ class AssistantApiController extends ControllerBase {
   protected $vectorIndexHygiene;
 
   /**
+   * The retrieval/configuration governance service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\RetrievalConfigurationService|null
+   */
+  protected $retrievalConfiguration;
+
+  /**
    * The Top Intents Pack service.
    *
    * @var \Drupal\ilas_site_assistant\Service\TopIntentsPack|null
@@ -294,6 +309,13 @@ class AssistantApiController extends ControllerBase {
   protected $sessionBootstrapGuard;
 
   /**
+   * The public read-endpoint abuse guard.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\AssistantReadEndpointGuard|null
+   */
+  protected $readEndpointGuard;
+
+  /**
    * Constructs an AssistantApiController object.
    */
   public function __construct(
@@ -321,11 +343,13 @@ class AssistantApiController extends ControllerBase {
     TopIntentsPack $top_intents_pack = NULL,
     SourceGovernanceService $source_governance = NULL,
     VectorIndexHygieneService $vector_index_hygiene = NULL,
+    RetrievalConfigurationService $retrieval_configuration = NULL,
     RequestTrustInspector $request_trust_inspector = NULL,
     CsrfTokenGenerator $csrf_token_generator = NULL,
     EnvironmentDetector $environment_detector = NULL,
     AssistantSessionBootstrapGuard $session_bootstrap_guard = NULL,
     PreRoutingDecisionEngine $pre_routing_decision_engine = NULL,
+    AssistantReadEndpointGuard $read_endpoint_guard = NULL,
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -351,10 +375,12 @@ class AssistantApiController extends ControllerBase {
     $this->topIntentsPack = $top_intents_pack;
     $this->sourceGovernance = $source_governance;
     $this->vectorIndexHygiene = $vector_index_hygiene;
+    $this->retrievalConfiguration = $retrieval_configuration;
     $this->requestTrustInspector = $request_trust_inspector;
     $this->csrfTokenGenerator = $csrf_token_generator;
     $this->environmentDetector = $environment_detector ?? new EnvironmentDetector();
     $this->sessionBootstrapGuard = $session_bootstrap_guard;
+    $this->readEndpointGuard = $read_endpoint_guard;
     $this->preRoutingDecisionEngine = $pre_routing_decision_engine ?? new PreRoutingDecisionEngine(
       $policy_filter,
       $safety_classifier,
@@ -391,11 +417,13 @@ class AssistantApiController extends ControllerBase {
       $container->has('ilas_site_assistant.top_intents_pack') ? $container->get('ilas_site_assistant.top_intents_pack') : NULL,
       $container->has('ilas_site_assistant.source_governance') ? $container->get('ilas_site_assistant.source_governance') : NULL,
       $container->has('ilas_site_assistant.vector_index_hygiene') ? $container->get('ilas_site_assistant.vector_index_hygiene') : NULL,
+      $container->has('ilas_site_assistant.retrieval_configuration') ? $container->get('ilas_site_assistant.retrieval_configuration') : NULL,
       $container->has('ilas_site_assistant.request_trust_inspector') ? $container->get('ilas_site_assistant.request_trust_inspector') : NULL,
       $container->has('csrf_token') ? $container->get('csrf_token') : NULL,
       $container->has('ilas_site_assistant.environment_detector') ? $container->get('ilas_site_assistant.environment_detector') : NULL,
       $container->has('ilas_site_assistant.session_bootstrap_guard') ? $container->get('ilas_site_assistant.session_bootstrap_guard') : NULL,
       $container->has('ilas_site_assistant.pre_routing_decision_engine') ? $container->get('ilas_site_assistant.pre_routing_decision_engine') : NULL,
+      $container->has('ilas_site_assistant.read_endpoint_guard') ? $container->get('ilas_site_assistant.read_endpoint_guard') : NULL,
     );
   }
 
@@ -528,7 +556,7 @@ class AssistantApiController extends ControllerBase {
     $trust_context = $this->inspectRequestTrust($request);
     $status = $trust_context['status'] ?? RequestTrustInspector::STATUS_DIRECT_REMOTE_ADDR;
     if (!empty($trust_context['forwarded_header_present']) && $status !== RequestTrustInspector::STATUS_TRUSTED_FORWARDED_CHAIN) {
-      $this->logger->warning(
+      $this->logger->notice(
         'event={event} request_id={request_id} trust_status={trust_status} effective_client_ip={effective_client_ip} remote_addr={remote_addr} forwarded_for={forwarded_for} configured_trusted_proxies={configured_trusted_proxies} runtime_trusted_proxies={runtime_trusted_proxies}',
         [
           'event' => $event,
@@ -1437,8 +1465,9 @@ class AssistantApiController extends ControllerBase {
     // Post-generation safety enforcement: block legal advice in LLM output,
     // enforce _requires_review flag, and strip internal flags.
     $this->langfuseTracer?->startSpan('safety.post_generation');
-    $response = $this->enforcePostGenerationSafety($response, $request_id);
-    $this->langfuseTracer?->endSpan(['legal_advice_blocked' => ($response['_legal_advice_blocked'] ?? FALSE)]);
+    $post_generation_safety = $this->enforcePostGenerationSafety($response, $request_id);
+    $response = $post_generation_safety['response'];
+    $this->langfuseTracer?->endSpan($post_generation_safety['meta']);
 
     if ($debug_mode) {
       $debug_meta['processing_stages'][] = 'post_generation_safety';
@@ -1605,6 +1634,17 @@ class AssistantApiController extends ControllerBase {
       $response['turn_type'] = $turn_type;
     }
     $response = $this->assembleContractFields($response, $gate_decision, 'normal');
+
+    // PHARD-03: Refuse when answerable + low confidence + no citations.
+    $is_citation_required = in_array($response['type'] ?? '', ResponseGrounder::CITATION_REQUIRED_TYPES, TRUE);
+    if ($is_citation_required && empty($response['citations']) && ($response['confidence'] ?? 0) <= 0.5) {
+      $response['message'] = (string) $this->t("I wasn't able to find specific information on that topic. For help with your situation, please call our Legal Advice Line or apply for help.");
+      $response['type'] = 'clarify_no_grounding';
+      $response['confidence'] = 0.0;
+      $response['decision_reason'] = 'answerable_type_no_citations_low_confidence';
+      $this->analyticsLogger->log('grounding_refusal', $request_id ?? '');
+    }
+
     return $this->jsonResponse($response, 200, [], $request_id);
 
     }
@@ -1740,6 +1780,7 @@ class AssistantApiController extends ControllerBase {
       'chat_open', 'suggestion_click', 'resource_click',
       'hotline_click', 'apply_click', 'apply_cta_click',
       'apply_secondary_click', 'service_area_click', 'topic_selected',
+      'feedback_helpful', 'feedback_not_helpful',
     ];
 
     if (in_array($event_type, $allowed_types)) {
@@ -2007,8 +2048,8 @@ class AssistantApiController extends ControllerBase {
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The request object.
    *
-   * @return \Drupal\Core\Cache\CacheableJsonResponse
-   *   JSON response with suggestions.
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   JSON response with suggestions or a throttled error body.
    */
   public function suggest(Request $request) {
     $request_id = $this->resolveCorrelationId($request);
@@ -2022,6 +2063,13 @@ class AssistantApiController extends ControllerBase {
       $suggestions = [];
 
       if (strlen($query) >= 2) {
+        if ($this->readEndpointGuard) {
+          $decision = $this->readEndpointGuard->evaluate($request, 'suggest');
+          if (!$decision['allowed']) {
+            return $this->suggestRateLimitResponse($request_id, (int) ($decision['retry_after'] ?? 60));
+          }
+        }
+
         $query = $this->sanitizeInput($query);
 
         if ($type === 'all' || $type === 'topics') {
@@ -2074,19 +2122,27 @@ class AssistantApiController extends ControllerBase {
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The request object.
    *
-   * @return \Drupal\Core\Cache\CacheableJsonResponse
-   *   JSON response with FAQ data.
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   JSON response with FAQ data or a throttled error body.
    */
   public function faq(Request $request) {
     $request_id = $this->resolveCorrelationId($request);
     $query = (string) $request->query->get('q', '');
     $id = $request->query->get('id');
+    $faq_mode = $this->determineFaqReadMode($id, $query);
 
     $cache_meta = new CacheableMetadata();
     $cache_meta->setCacheContexts(['url.query_args:q', 'url.query_args:id']);
     $cache_meta->setCacheTags(['node_list', 'config:ilas_site_assistant.settings']);
 
     try {
+      if ($this->readEndpointGuard) {
+        $decision = $this->readEndpointGuard->evaluate($request, 'faq');
+        if (!$decision['allowed']) {
+          return $this->faqRateLimitResponse($faq_mode, $request_id, (int) ($decision['retry_after'] ?? 60));
+        }
+      }
+
       if ($id) {
         $faq = $this->faqIndex->getById($id);
         if ($faq) {
@@ -2147,6 +2203,65 @@ class AssistantApiController extends ControllerBase {
       $response->addCacheableDependency($cache_meta);
       return $response;
     }
+  }
+
+  /**
+   * Returns the read mode for the FAQ endpoint.
+   */
+  private function determineFaqReadMode(mixed $id, string $query): string {
+    if ($id !== NULL && $id !== '') {
+      return 'id';
+    }
+
+    if (strlen($query) >= 2) {
+      return 'query';
+    }
+
+    return 'categories';
+  }
+
+  /**
+   * Builds the suggest rate-limit response.
+   */
+  private function suggestRateLimitResponse(string $request_id, int $retry_after): JsonResponse {
+    return $this->jsonResponse([
+      'suggestions' => [],
+      'error' => 'Too many suggestion requests. Please wait a moment before trying again.',
+      'type' => 'rate_limit',
+      'request_id' => $request_id,
+    ], 429, [
+      'Retry-After' => (string) $retry_after,
+    ], $request_id);
+  }
+
+  /**
+   * Builds the FAQ rate-limit response for the active mode.
+   */
+  private function faqRateLimitResponse(string $mode, string $request_id, int $retry_after): JsonResponse {
+    $response = [
+      'error' => 'Too many FAQ requests. Please wait a moment before trying again.',
+      'type' => 'rate_limit',
+      'request_id' => $request_id,
+    ];
+
+    switch ($mode) {
+      case 'id':
+        $response['faq'] = NULL;
+        break;
+
+      case 'query':
+        $response['results'] = [];
+        $response['count'] = 0;
+        break;
+
+      default:
+        $response['categories'] = [];
+        break;
+    }
+
+    return $this->jsonResponse($response, 429, [
+      'Retry-After' => (string) $retry_after,
+    ], $request_id);
   }
 
   /**
@@ -2939,7 +3054,7 @@ class AssistantApiController extends ControllerBase {
         }
         $response['type'] = 'ui_troubleshooting';
         $response['followup'] = $this->t('Tip: Try refreshing the page if elements are not displaying correctly.');
-        $this->logger->warning('[@request_id] ui_troubleshooting triggered, previous flow: @prev', [
+        $this->logger->notice('[@request_id] ui_troubleshooting triggered, previous flow: @prev', [
           '@request_id' => $request_id,
           '@prev' => $prev_type ?: 'none',
         ]);
@@ -3067,12 +3182,14 @@ class AssistantApiController extends ControllerBase {
           $intent['type'] ?? 'unknown',
           [],
           $server_history,
-          $this->topIntentsPack
+          $this->topIntentsPack,
+          $canonical_urls
         );
         $response['message'] = $this->t($fallback['message']);
         $response['primary_action'] = $fallback['primary_action'];
         $response['links'] = $fallback['links'];
         $response['fallback_level'] = $fallback['level'];
+        $this->analyticsLogger->log('generic_answer', (string) $fallback['level']);
         if (!empty($fallback['suggestions'])) {
           $response['suggestions'] = $fallback['suggestions'];
         }
@@ -3119,41 +3236,80 @@ class AssistantApiController extends ControllerBase {
    *   Per-request correlation UUID for structured logging.
    *
    * @return array
-   *   The response with safety enforcement applied.
+   *   Array with:
+   *   - response: sanitized response payload safe for serialization.
+   *   - meta: tracing metadata describing any enforcement action taken.
    */
   protected function enforcePostGenerationSafety(array $response, string $request_id): array {
+    $meta = [
+      'review_flag_triggered' => FALSE,
+      'unsafe_llm_summary_detected' => FALSE,
+      'message_replaced' => FALSE,
+      'llm_summary_replaced' => FALSE,
+    ];
+    $safe_fallback = $this->getPostGenerationSafeFallback();
+
     // Check 1: _requires_review flag from ResponseGrounder.
     if (!empty($response['_requires_review'])) {
+      $meta['review_flag_triggered'] = TRUE;
       $this->logger->warning(
-        '[@request_id] Post-generation safety: _requires_review flag set, replacing llm_summary',
+        '[@request_id] Post-generation safety: _requires_review flag set, replacing final response content',
         ['@request_id' => $request_id]
       );
       $this->analyticsLogger->log('post_gen_safety_review_flag', $request_id);
-      // Replace LLM-generated summary with safe fallback.
-      if (isset($response['llm_summary'])) {
-        $response['llm_summary'] = (string) $this->t('I found some information that may help. For guidance specific to your situation, please contact our Legal Advice Line or apply for help.');
+      $response['message'] = $safe_fallback;
+      $meta['message_replaced'] = TRUE;
+
+      if (array_key_exists('llm_summary', $response)) {
+        $response['llm_summary'] = $safe_fallback;
+        $meta['llm_summary_replaced'] = TRUE;
       }
     }
 
     // Check 2: Run legal-advice regex on llm_summary.
     if (!empty($response['llm_summary'])) {
-      $normalized_summary = InputNormalizer::normalize($response['llm_summary']);
-      if ($this->containsLegalAdviceInOutput($normalized_summary)) {
+      if ($this->containsLegalAdviceInOutput((string) $response['llm_summary'])) {
+        $meta['unsafe_llm_summary_detected'] = TRUE;
         $this->logger->warning(
           '[@request_id] Post-generation safety: legal advice detected in llm_summary, replacing',
           ['@request_id' => $request_id]
         );
         $this->analyticsLogger->log('post_gen_safety_legal_advice', $request_id);
-        $response['llm_summary'] = (string) $this->t('I found some information that may help. For guidance specific to your situation, please contact our Legal Advice Line or apply for help.');
+        $response['llm_summary'] = $safe_fallback;
+        $meta['llm_summary_replaced'] = TRUE;
       }
     }
 
-    // Check 3: Strip internal flags before returning to client.
+    // Check 3: Weak grounding — answerable type without citations.
+    if (!empty($response['_grounding_weak'])) {
+      $this->logger->warning(
+        '[@request_id] Post-generation safety: grounding weak, type=@type reason=@reason',
+        ['@request_id' => $request_id, '@type' => $response['type'] ?? 'unknown', '@reason' => $response['_grounding_weak_reason'] ?? 'unknown']
+      );
+      $this->analyticsLogger->log('post_gen_safety_weak_grounding', $request_id);
+      if (isset($response['llm_summary'])) {
+        $response['llm_summary'] = (string) $this->t('I found some related information, but I could not verify specific sources. For reliable guidance, please contact our Legal Advice Line or apply for help.');
+        $meta['llm_summary_replaced'] = TRUE;
+      }
+    }
+
+    // Check 4: Stale citations caveat.
+    if (!empty($response['_all_citations_stale'])) {
+      $response['freshness_caveat'] = 'Some of the information cited may not reflect the most recent updates. Please verify details by contacting our office or checking our website directly.';
+      $this->analyticsLogger->log('post_gen_stale_citations', $request_id);
+    }
+
+    // Strip internal flags before returning to client.
     unset($response['_requires_review']);
     unset($response['_validation_warnings']);
     unset($response['_grounding_version']);
+    unset($response['_grounding_weak'], $response['_grounding_weak_reason']);
+    unset($response['_all_citations_stale'], $response['_stale_citation_count']);
 
-    return $response;
+    return [
+      'response' => $response,
+      'meta' => $meta,
+    ];
   }
 
   /**
@@ -3169,32 +3325,14 @@ class AssistantApiController extends ControllerBase {
    *   TRUE if legal advice detected.
    */
   protected function containsLegalAdviceInOutput(string $text): bool {
-    $patterns = [
-      // Advising on legal strategy.
-      '/you\s+should\s+(file|sue|appeal|claim|motion)/i',
-      '/i\s+(would\s+)?(advise|recommend|suggest)\s+(you|that\s+you)/i',
-      '/my\s+(legal\s+)?advice\s+is/i',
-      '/the\s+best\s+(legal\s+)?(strategy|approach)\s+is/i',
-      '/you\s+need\s+to\s+(file|submit|send)/i',
-      // Predicting legal outcomes.
-      '/you\s+(will|would)\s+(likely|probably)\s+(win|lose|succeed|fail)/i',
-      '/the\s+court\s+will\s+(likely|probably)/i',
-      // Recommending specific actions with legal consequence.
-      '/you\s+should\s+(stop\s+paying|withhold|break\s+your)/i',
-      '/don\'t\s+(pay|respond|go\s+to\s+court)/i',
-      '/ignore\s+the\s+(notice|summons|order)/i',
-      // Interpreting laws.
-      '/idaho\s+code\s*(§|section)/i',
-      '/(statute|code)\s+(says|states|requires)/i',
-    ];
+    return PostGenerationLegalAdviceDetector::containsLegalAdvice($text);
+  }
 
-    foreach ($patterns as $pattern) {
-      if (preg_match($pattern, $text)) {
-        return TRUE;
-      }
-    }
-
-    return FALSE;
+  /**
+   * Returns the safe replacement text for unsafe post-generation output.
+   */
+  protected function getPostGenerationSafeFallback(): string {
+    return (string) $this->t(self::POST_GENERATION_SAFE_FALLBACK);
   }
 
   /**
@@ -3280,7 +3418,7 @@ class AssistantApiController extends ControllerBase {
       ];
       $clarify_count = 0;
       $question_hash = '';
-      $this->logger->warning('[@request_id] Clarify loop-break activated for conversation @conversation_id', [
+      $this->logger->notice('[@request_id] Clarify loop-break activated for conversation @conversation_id', [
         '@request_id' => $request_id,
         '@conversation_id' => $conversation_id,
       ]);
@@ -4022,6 +4160,15 @@ class AssistantApiController extends ControllerBase {
       }
     }
 
+    if ($this->retrievalConfiguration) {
+      $retrieval_configuration = $this->retrievalConfiguration->getHealthSnapshot();
+      $checks['retrieval_configuration'] = $retrieval_configuration;
+      if (($retrieval_configuration['status'] ?? 'unknown') === 'degraded') {
+        $status = 'degraded';
+        $httpCode = 503;
+      }
+    }
+
     if ($status !== 'healthy' && $status !== 'degraded') {
       $httpCode = 503;
     }
@@ -4157,8 +4304,23 @@ class AssistantApiController extends ControllerBase {
     // citations: prefer ResponseGrounder sources; derive safely from results when needed.
     $response['citations'] = $this->normalizeContractCitations($response);
 
+    // PHARD-03: Downgrade confidence for citation-required types missing citations.
+    $response_type = $response['type'] ?? 'unknown';
+    if (in_array($response_type, ResponseGrounder::CITATION_REQUIRED_TYPES, TRUE)
+        && empty($response['citations'])
+        && !empty($response['results'])) {
+      $response['confidence'] = min($response['confidence'], 0.3);
+    }
+
     // decision_reason: human-readable string from reason codes or path defaults.
     $response['decision_reason'] = $this->normalizeContractDecisionReason($response, $gate_decision, $path_type);
+
+    // PHARD-03: Append citations_unavailable to decision_reason when applicable.
+    if (in_array($response_type, ResponseGrounder::CITATION_REQUIRED_TYPES, TRUE)
+        && empty($response['citations'])
+        && !empty($response['results'])) {
+      $response['decision_reason'] .= '; citations_unavailable';
+    }
 
     return $response;
   }
