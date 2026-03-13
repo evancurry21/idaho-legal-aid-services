@@ -56,6 +56,14 @@ final class RobotsTxtCrawlerPolicyContractTest extends TestCase {
   }
 
   /**
+   * Returns whether a repo-relative file exists in the current checkout.
+   */
+  private static function repoFileExists(string $relativePath): bool {
+    $path = self::repoRoot() . '/' . ltrim($relativePath, '/');
+    return is_file($path);
+  }
+
+  /**
    * Splits normalized robots.txt content into trimmed non-empty lines.
    */
   private static function robotsLines(string $contents): array {
@@ -80,7 +88,16 @@ final class RobotsTxtCrawlerPolicyContractTest extends TestCase {
     $robots = self::readFile('web/robots.txt');
 
     $this->assertSame($robots, self::readRobotsConfigContent('config/robotstxt.settings.yml'));
-    $this->assertSame($robots, self::readRobotsConfigContent('web/sites/default/files/sync/robotstxt.settings.yml'));
+
+    // The site files sync mirror is ignored by git, so require parity only
+    // when that local export is present in the current checkout.
+    $syncMirror = 'web/sites/default/files/sync/robotstxt.settings.yml';
+    if (self::repoFileExists($syncMirror)) {
+      $this->assertSame($robots, self::readRobotsConfigContent($syncMirror));
+    }
+    else {
+      $this->addToAssertionCount(1);
+    }
   }
 
   /**

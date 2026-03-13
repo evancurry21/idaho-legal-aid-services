@@ -112,6 +112,9 @@ desktop.ini
 .env.local
 .env.*.local
 
+# PHPUnit local cache
+.phpunit.cache/
+
 # DDEV local dev environment
 .ddev/*
 !.ddev/.gitignore
