@@ -112,10 +112,16 @@ Uses the free tier of Google Gemini API, available through Google for Nonprofits
 1. Sign up at [Google for Nonprofits](https://www.google.com/nonprofits/)
 2. Enable the Gemini API in Google AI Studio
 3. Generate an API key
-4. Configure in Admin > Config > ILAS > Site Assistant Settings:
+4. Provide the credential only through runtime secret injection:
+   - Pantheon runtime secret: `ILAS_GEMINI_API_KEY`
+   - Local DDEV environment: add `ILAS_GEMINI_API_KEY=<value>` to `.ddev/.env`
+     and restart DDEV
+5. Configure in Admin > Config > ILAS > Site Assistant Settings:
    - Provider: `Gemini API`
-   - API Key: `your-api-key`
    - Model: `gemini-1.5-flash` (recommended)
+
+The assistant admin form no longer accepts or exports the Gemini API key.
+Drupal config exports must remain free of the secret.
 
 **Cost**: Free tier includes 60 queries/minute, 1M tokens/month. Generally sufficient for most site traffic.
 
@@ -168,7 +174,7 @@ After configuration:
 
 **LLM not working:**
 1. Check that `enabled` is TRUE in settings
-2. Verify API key/credentials are correct
+2. Verify the runtime secret / credentials are correct
 3. Check watchdog logs for API errors
 4. Ensure `fallback_on_error` is TRUE to see rule-based responses
 

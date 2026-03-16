@@ -86,11 +86,20 @@ class AssistantSettingsForm extends ConfigFormBase {
   }
 
   /**
+   * Returns TRUE when a Gemini runtime secret is available.
+   */
+  protected function isGeminiRuntimeSecretConfigured(): bool {
+    $apiKey = Settings::get('ilas_gemini_api_key');
+    return is_string($apiKey) && $apiKey !== '';
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('ilas_site_assistant.settings');
     $is_live_environment = $this->isLiveEnvironment();
+    $gemini_runtime_configured = $this->isGeminiRuntimeSecretConfigured();
     $canonical_urls = $this->retrievalConfiguration
       ? $this->retrievalConfiguration->getCanonicalUrls()
       : (is_array($config->get('canonical_urls')) ? $config->get('canonical_urls') : []);
@@ -518,12 +527,12 @@ class AssistantSettingsForm extends ConfigFormBase {
       ],
     ];
 
-    $form['llm']['gemini_settings']['llm_api_key'] = [
-      '#type' => 'textfield',
+    $form['llm']['gemini_settings']['llm_api_key_runtime_notice'] = [
+      '#type' => 'item',
       '#title' => $this->t('Gemini API Key'),
-      '#default_value' => $llm_config['api_key'] ?? '',
-      '#description' => $this->t('Get your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>. Keep this secret!'),
-      '#attributes' => ['autocomplete' => 'off'],
+      '#markup' => $gemini_runtime_configured
+        ? $this->t('Configured via runtime secret injection. Drupal will not display or store the Gemini API key.')
+        : $this->t('Runtime-only. Set <code>ILAS_GEMINI_API_KEY</code> in Pantheon runtime secrets or local DDEV environment settings. Drupal will not accept or export the Gemini API key.'),
     ];
 
     $form['llm']['vertex_settings'] = [
@@ -728,7 +737,7 @@ class AssistantSettingsForm extends ConfigFormBase {
       'enabled' => $llm_enabled,
       'provider' => $form_state->getValue('llm_provider'),
       'model' => $form_state->getValue('llm_model'),
-      'api_key' => $form_state->getValue('llm_api_key'),
+      'api_key' => '',
       'project_id' => $form_state->getValue('llm_project_id'),
       'location' => $form_state->getValue('llm_location'),
       'max_tokens' => (int) $form_state->getValue('llm_max_tokens'),

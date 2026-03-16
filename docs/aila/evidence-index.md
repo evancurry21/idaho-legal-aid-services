@@ -3035,3 +3035,41 @@ that remained open after 2026-03-13.
 - Evidence:
   - `docs/aila/runtime/tovr-02-unknown-resolution-sweep.txt:27`
   - `docs/aila/runtime/tovr-02-unknown-resolution-sweep.txt:183-194`
+
+### CLAIM-206
+- Claim: TOVR-03 fixes the repo-side Sentry release/source-map path by making
+  the Observability Release workflow build theme assets before upload,
+  checking out full git history for commit association, and staging only
+  deployable theme `css`/`js` assets in `sentry-release.sh` so source-map
+  upload no longer depends on tracked `.map` files or a `node_modules` sweep.
+- Evidence:
+  - `.github/workflows/observability-release.yml`
+  - `scripts/observability/sentry-release.sh`
+  - `docs/aila/runtime/tovr-03-sentry-operationalization.txt`
+
+### CLAIM-207
+- Claim: TOVR-03 makes the browser-side Sentry payload contract explicit:
+  `ilas:assistant:error` payloads are contract-tested to prove raw
+  prompt/body/content/message values are redacted before send, bounded tags are
+  attached, feedback dialog behavior is gated by `promptForFeedback`, and
+  replay is loaded only with privacy-safe masking options.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/tests/js/observability-assistant-error.test.js`
+  - `web/modules/custom/ilas_site_assistant/tests/js/observability-noise-filter.test.js`
+  - `docs/observability.md`
+  - `docs/aila/runtime/tovr-03-sentry-operationalization.txt`
+
+### CLAIM-208
+- Claim: TOVR-03 reran current repo/runtime verification on 2026-03-16 and
+  confirmed: `VC-PURE` and `VC-UNIT` pass, pre- and post-edit PHP probes emit
+  fresh event IDs in `local`/`dev`/`test`/`live`, post-edit Pantheon `test`
+  browser synthetic capture returned event ID
+  `163b2e3129ae4ca884586aaaf75f9438` with scrubbed client context, and the
+  remaining Sentry status is still `Unverified` because local
+  `SENTRY_AUTH_TOKEN` is absent, alert/ownership placeholders remain
+  unresolved, the browser-project slug is not yet verified, and the fixed
+  workflow still has no execution history.
+- Evidence:
+  - `docs/aila/runtime/tovr-03-sentry-operationalization.txt`
+  - `docs/aila/current-state.md`
+  - `docs/aila/risk-register.md`

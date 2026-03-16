@@ -54,7 +54,7 @@ llm:
   enabled: false
   provider: gemini_api
   model: gemini-1.5-flash
-  api_key: ''
+  api_key: '' # Runtime-only via ILAS_GEMINI_API_KEY; config export must stay blank.
   project_id: ''
   location: us-central1
   max_tokens: 150

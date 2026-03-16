@@ -292,6 +292,38 @@ class ConfigCompletenessDriftTest extends TestCase {
   }
 
   /**
+   * Secret-bearing tracked config values must stay empty or runtime-backed.
+   */
+  public function testTrackedSecretBearingConfigValuesRemainEmpty(): void {
+    $active = self::activeConfig();
+    $geminiKey = Yaml::parseFile(self::repoRoot() . '/config/key.key.gemini_api_key.yml');
+    $pineconeKey = Yaml::parseFile(self::repoRoot() . '/config/key.key.pinecone_api_key.yml');
+    $turnstileKey = Yaml::parseFile(self::repoRoot() . '/config/key.key.cloudflare_turnstile_keys.yml');
+    $translator = Yaml::parseFile(self::repoRoot() . '/config/tmgmt.translator.google.yml');
+    $donationInquiry = Yaml::parseFile(self::repoRoot() . '/config/ilas_donation_inquiry.settings.yml');
+
+    $this->assertSame(
+      '',
+      $active['llm']['api_key'] ?? NULL,
+      'Active config export must keep llm.api_key empty; provide Gemini secrets via runtime injection only.',
+    );
+
+    $this->assertSame('ilas_runtime_site_setting', $geminiKey['key_provider'] ?? NULL);
+    $this->assertSame('ilas_gemini_api_key', $geminiKey['key_provider_settings']['settings_key'] ?? NULL);
+    $this->assertArrayNotHasKey('key_value', $geminiKey['key_provider_settings'] ?? []);
+    $this->assertSame('none', $geminiKey['key_input'] ?? NULL);
+
+    $this->assertSame('', $pineconeKey['key_provider_settings']['key_value'] ?? NULL);
+    $this->assertSame('', $translator['settings']['api_key'] ?? NULL);
+    $this->assertSame('', $donationInquiry['recaptcha_secret_key'] ?? NULL);
+
+    $turnstileValues = json_decode((string) ($turnstileKey['key_provider_settings']['key_value'] ?? ''), TRUE);
+    $this->assertIsArray($turnstileValues, 'Turnstile key config must remain JSON-encoded.');
+    $this->assertSame('', $turnstileValues['site_key'] ?? NULL);
+    $this->assertSame('', $turnstileValues['secret_key'] ?? NULL);
+  }
+
+  /**
    * Recursively flattens array keys into dot-notation paths.
    *
    * @param array $data

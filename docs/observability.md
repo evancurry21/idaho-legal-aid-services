@@ -39,6 +39,7 @@ These labels are produced at runtime in `settings.php` and reused across Sentry 
 - Backend assistant failures continue to flow through `AssistantApiController`, Langfuse, Drupal logs, and Sentry with the same `request_id`.
 
 ## Operational Ownership
+- TOVR-03 status on 2026-03-16: this section remains `Unverified` until a local `SENTRY_AUTH_TOKEN` is available to confirm the real Sentry owner, alert destination, and browser-project slug from Sentry itself.
 - **Project owner:** `<NAME — fill after assignment>`
 - **Triage cadence:** Weekly review of Sentry issue stream, alert noise ratio, and unresolved incidents.
 - **Review artifact location:** `docs/aila/runtime/phard-01-sentry-operationalization.txt`
@@ -53,6 +54,15 @@ The `SentryOptionsSubscriber` class defines the approved payload schema via cons
 - **`SEND_DEFAULT_PII`** — Invariant: always `false`.
 
 Contract tests in `SentryPayloadContractTest.php` enforce that these constants match the runtime enforcement logic.
+
+## Approved Browser Sentry Payload
+- `ilas:assistant:error` may send only bounded operational context needed for browser incident triage: `surface`, `pageMode`, `feature`, `errorCode`, `status`, `promptForFeedback`, and scrubbed arbitrary strings.
+- Browser payload keys `prompt`, `body`, `content`, and `message` are fully redacted to `[REDACTED]` before capture.
+- Other string values are scrubbed for emails, bearer tokens, UUIDs, SSNs, and query-like user text before capture.
+- Browser assistant tags are bounded to operational metadata: `environment`, `pantheon_env`, `site_name`, `assistant_name`, `release`, `route_name`, `assistant_surface`, `assistant_mode`, `assistant_feature`, `assistant_route`, and `error_code`.
+- Replay must only load when runtime settings explicitly enable it, and the replay integration must use `maskAllText`, `maskAllInputs`, and `blockAllMedia`.
+
+Contract tests in `observability-assistant-error.test.js` and `observability-noise-filter.test.js` enforce the browser payload and replay boundary.
 
 ## Verification Checklist
 - Local:

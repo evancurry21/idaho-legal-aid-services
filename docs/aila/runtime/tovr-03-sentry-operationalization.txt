@@ -1,0 +1,131 @@
+# TOVR-03 Sentry Operationalization Report
+Date: 2026-03-16
+Verification level tag: `repo+current-runtime+browser-runtime+github-config+unverified-account-side`
+
+## Prior status
+- Sentry runtime wiring, PHP probes, and historical PHARD-01 redaction proof already existed, but account-side alert-routing, ownership, and release/source-map proof were still blocked.
+- `observability-release.yml` had zero recorded workflow runs.
+- The release workflow could not have uploaded source maps from a clean checkout because the theme `.map` files are gitignored and the workflow did not build assets before running `sentry-release.sh`.
+- The browser redaction boundary existed in code, but there was no explicit contract test locking the `ilas:assistant:error` payload shape, tag set, or replay gating behavior.
+
+## Post-change status
+- `VC-PURE` passed: `2172` tests, `10982` assertions, `1` skipped.
+- `VC-UNIT` passed: `2172` tests, `10982` assertions, `1` skipped.
+- Fresh PHP probe events were emitted after the repo-side fixes:
+  - `local`: `a88546b760a64f8ab5480d49eb4a3565`
+  - `dev`: `52b66a148f45457eb698f1c462306568`
+  - `test`: `2d803608842140f895a5b90b31bd1ca1`
+  - `live`: `9addbb244db4416b99241195533f821d`
+- Fresh post-edit browser-side synthetic capture from Pantheon `test` returned event ID `163b2e3129ae4ca884586aaaf75f9438` and confirmed client-side redaction before send:
+  - `prompt`, `body`, `content`, and `message` were fully redacted to `[REDACTED]`
+  - arbitrary UUID-bearing strings were scrubbed to `[REDACTED-UUID]`
+  - bounded tags included `environment=pantheon-test`, `release=test_155`, `assistant_name=aila`, `route_name=ilas_site_assistant.page`, `assistant_feature=browser_probe_post_edit`
+- The Observability Release workflow now checks out full git history, installs theme dependencies, builds theme assets with source maps, and then runs Sentry release preparation.
+- `sentry-release.sh` now stages only deployable theme assets (`css`, `js`) into a temporary upload root and fails fast if no source maps exist after the build step.
+- A new JS contract test locks browser assistant-error payload scrubbing, bounded tag emission, feedback dialog gating, and privacy-safe replay integration options.
+
+## Evidence
+### VC-SENTRY-PROBE (pre-edit baseline)
+- PHP probe event IDs captured before repo edits:
+  - `local`: `88bee4c61b0e44849dd39222823099fb`
+  - `dev`: `0df680308e014fc0bc2c4032487eb3bb`
+  - `test`: `3b45f5760e8c43d3b45ec16f5205f355`
+  - `live`: `88d29f7e1305450e8b494afbc68b92e3`
+- Browser synthetic event ID captured before repo edits:
+  - Pantheon `test`: `a62f429bb470433d98ddf663fd6628b7`
+
+### VC-GHA-OBS-RELEASE-HISTORY
+- Command: `gh run list --workflow observability-release.yml -L 10 --json ...`
+- Result on 2026-03-16: `[]`
+- Interpretation: workflow exists but still has no recorded execution history after the repo-side fix.
+
+### VC-RUNTIME-LOCAL-SAFE
+- Drupal bootstrap succeeded locally (`https://ilas-pantheon.ddev.site`, Drupal `11.3.3`, DB connected).
+- Effective runtime booleans: `langfuse_enabled=true`, `sentry_client_key_present=true`, `pinecone_key_present=true`, `llm_enabled=false`, `vector_search.enabled=false`.
+- Rendered `/assistant` exposed `ilasObservability.environment=local`, `sentry.browserEnabled=true`, `showReportDialog=true`, `replayEnabled=false`.
+
+### VC-RUNTIME-PANTHEON-SAFE
+- `dev`, `test`, and `live` all bootstrapped successfully with Drupal `11.3.3`.
+- Effective runtime booleans matched across sampled Pantheon environments: `langfuse_enabled=true`, `sentry_client_key_present=true`, `pinecone_key_present=true`, `llm_enabled=false`, `vector_search.enabled=false`.
+- Rendered `/assistant` runtime settings on 2026-03-16:
+  - `dev`: `environment=pantheon-dev`, `release=f361f99`, `browserEnabled=true`, `replayEnabled=true`
+  - `test`: `environment=pantheon-test`, `release=test_155`, `browserEnabled=true`, `replayEnabled=true`
+  - `live`: `environment=pantheon-live`, `release=live_145`, `browserEnabled=true`, `showReportDialog=false`, `replayEnabled=true`
+
+### VC-SENTRY-PROBE (post-edit verification pass)
+- PHP probe event IDs captured after the workflow/script/test/doc changes:
+  - `local`: `a88546b760a64f8ab5480d49eb4a3565`
+  - `dev`: `52b66a148f45457eb698f1c462306568`
+  - `test`: `2d803608842140f895a5b90b31bd1ca1`
+  - `live`: `9addbb244db4416b99241195533f821d`
+
+### Browser synthetic capture (post-edit)
+- Mechanism: direct Playwright/Chromium evaluation on Pantheon `test` `/assistant`
+- Returned event ID: `163b2e3129ae4ca884586aaaf75f9438`
+- Captured browser context before send:
+  - `prompt=[REDACTED]`
+  - `body=[REDACTED]`
+  - `content=[REDACTED]`
+  - `message=[REDACTED]`
+  - `custom=uuid [REDACTED-UUID]`
+- Captured bounded browser tags before send:
+  - `environment=pantheon-test`
+  - `pantheon_env=test`
+  - `assistant_name=aila`
+  - `release=test_155`
+  - `route_name=ilas_site_assistant.page`
+  - `assistant_surface=page`
+  - `assistant_mode=page`
+  - `assistant_feature=browser_probe_post_edit`
+  - `assistant_route=/assistant/api`
+  - `error_code=synthetic_browser_probe_post_edit`
+
+### Repo-side hardening
+- Workflow fix: `.github/workflows/observability-release.yml`
+  - adds `fetch-depth: 0`
+  - runs `npm ci` in `web/themes/custom/b5subtheme`
+  - runs `npm run prod` before Sentry release upload
+- Script fix: `scripts/observability/sentry-release.sh`
+  - stages only deployable `css` and `js` assets
+  - avoids sweeping `node_modules`
+  - fails instead of silently succeeding when source maps are absent
+- Browser contract fix:
+  - new `web/modules/custom/ilas_site_assistant/tests/js/observability-assistant-error.test.js`
+  - existing `observability-noise-filter.test.js` still passes
+
+### Browser JS tests
+- Command: `npx --yes jest@30.2.0 --runInBand web/modules/custom/ilas_site_assistant/tests/js/observability-noise-filter.test.js web/modules/custom/ilas_site_assistant/tests/js/observability-assistant-error.test.js`
+- Result: `2` suites passed, `17` tests passed
+- Note: Jest reported upstream theme-package name collisions under `web/themes/contrib/bootstrap5`, but the targeted observability suites still passed.
+
+## SaaS proof artifacts
+- Not produced from this shell.
+- Blocking reason: local `SENTRY_AUTH_TOKEN` is still unset, so current Sentry API/UI verification of the fresh PHP/browser event IDs, alert rules, ownership, and release/source-map artifacts could not be completed.
+- Additional open operational blocker: GitHub Actions repo variable `SENTRY_PROJECT_SLUG_BROWSER` still resolves to `php`, and the actual browser-project slug has not yet been verified from Sentry.
+
+## Changed files
+- `.github/workflows/observability-release.yml`
+- `scripts/observability/sentry-release.sh`
+- `web/modules/custom/ilas_site_assistant/tests/js/observability-assistant-error.test.js`
+- `docs/observability.md`
+- `docs/aila/current-state.md`
+- `docs/aila/evidence-index.md`
+- `docs/aila/risk-register.md`
+- `docs/aila/runtime/tovr-03-sentry-operationalization.txt`
+
+## Residual risks / unknowns
+- Actual Sentry browser-project slug remains unverified; current GitHub repo variable still points to `php`.
+- Alert routing, delivery proof, and named ownership are still unverified.
+- Sentry-side confirmation that the fresh PHP/browser event IDs are visible, correctly tagged, sanitized, and linked to the expected projects is still unverified.
+- Release/source-map proof is still unverified because the fixed workflow has not yet been executed and inspected against Sentry.
+
+## Rollback notes
+- Revert the workflow, script, JS test, and doc changes in this report if the repo should return to the previous release-automation posture.
+- No Pantheon runtime secrets or Drupal runtime settings were changed by this pass.
+
+## Still-unverified surfaces
+- Fresh Sentry API/UI proof for PHP probe event IDs
+- Fresh Sentry API/UI proof for browser event ID `163b2e3129ae4ca884586aaaf75f9438`
+- Actual browser-project slug and whether `SENTRY_PROJECT_SLUG_BROWSER=php` is correct
+- Alert-rule existence, delivery proof, and named incident owner
+- Successful `observability-release.yml` execution history and Sentry-side release/source-map artifacts
