@@ -4,11 +4,14 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 THEME_DIR="${ROOT_DIR}/web/themes/custom/b5subtheme"
+THEME_DEPLOY_ROOT="themes/custom/b5subtheme"
 SITE_NAME="${PANTHEON_SITE_NAME:-}"
 TARGET_ENV="${PANTHEON_ENVIRONMENT:-}"
 SENTRY_ORG_SLUG="${SENTRY_ORG_SLUG:-}"
 SENTRY_PROJECT_SLUG_BROWSER="${SENTRY_PROJECT_SLUG_BROWSER:-}"
 RELEASE_NAME="${SENTRY_RELEASE:-}"
+UPLOAD_ROOT=""
+STAGING_DIR=""
 
 usage() {
   cat <<'EOF'
@@ -19,6 +22,14 @@ the matching Sentry release and uploads any source maps found in the custom
 theme build output.
 EOF
 }
+
+cleanup() {
+  if [[ -n "$STAGING_DIR" && -d "$STAGING_DIR" ]]; then
+    rm -rf "$STAGING_DIR"
+  fi
+}
+
+trap cleanup EXIT
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -73,9 +84,20 @@ if [[ -z "$RELEASE_NAME" ]]; then
   exit 1
 fi
 
-if ! find "$THEME_DIR" -type f -name '*.map' -print -quit | grep -q .; then
-  echo "No source maps found under ${THEME_DIR}; skipping upload for release ${RELEASE_NAME}."
-  exit 0
+STAGING_DIR="$(mktemp -d)"
+UPLOAD_ROOT="${STAGING_DIR}/${THEME_DEPLOY_ROOT}"
+mkdir -p "$UPLOAD_ROOT"
+
+for asset_dir in css js; do
+  if [[ -d "${THEME_DIR}/${asset_dir}" ]]; then
+    mkdir -p "${UPLOAD_ROOT}/${asset_dir}"
+    cp -R "${THEME_DIR}/${asset_dir}/." "${UPLOAD_ROOT}/${asset_dir}/"
+  fi
+done
+
+if ! find "$UPLOAD_ROOT" -type f -name '*.map' -print -quit | grep -q .; then
+  echo "No source maps found under deployable theme assets in ${UPLOAD_ROOT}; build the theme before uploading release ${RELEASE_NAME}." >&2
+  exit 1
 fi
 
 CLI=(npm exec --yes @sentry/cli -- --auth-token "$SENTRY_AUTH_TOKEN" --org "$SENTRY_ORG_SLUG" --project "$SENTRY_PROJECT_SLUG_BROWSER")
@@ -86,12 +108,12 @@ if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   "${CLI[@]}" releases set-commits "$RELEASE_NAME" --auto || true
 fi
 
-"${CLI[@]}" releases files "$RELEASE_NAME" upload-sourcemaps "$THEME_DIR" \
+"${CLI[@]}" releases files "$RELEASE_NAME" upload-sourcemaps "$UPLOAD_ROOT" \
   --ext map \
   --ext js \
   --ext css \
-  --url-prefix "~/themes/custom/b5subtheme" \
-  --strip-prefix "$THEME_DIR" \
+  --url-prefix "~/${THEME_DEPLOY_ROOT}" \
+  --strip-prefix "$UPLOAD_ROOT" \
   --rewrite
 
 "${CLI[@]}" releases finalize "$RELEASE_NAME"

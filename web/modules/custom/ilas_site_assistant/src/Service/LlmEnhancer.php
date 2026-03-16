@@ -308,7 +308,7 @@ PROMPT,
     $provider = $config->get('llm.provider');
 
     if ($provider === 'gemini_api') {
-      return !empty($config->get('llm.api_key'));
+      return $this->getGeminiApiKey() !== '';
     }
 
     if ($provider === 'vertex_ai') {
@@ -317,6 +317,21 @@ PROMPT,
     }
 
     return FALSE;
+  }
+
+  /**
+   * Returns the Gemini API key from runtime settings or legacy config.
+   */
+  protected function getGeminiApiKey(): string {
+    $runtimeApiKey = Settings::get('ilas_gemini_api_key');
+    if (is_string($runtimeApiKey) && $runtimeApiKey !== '') {
+      return $runtimeApiKey;
+    }
+
+    $config = $this->configFactory->get('ilas_site_assistant.settings');
+    $configuredApiKey = $config->get('llm.api_key');
+
+    return is_string($configuredApiKey) ? $configuredApiKey : '';
   }
 
   /**
@@ -797,7 +812,7 @@ PROMPT,
    */
   protected function callGeminiApi(string $prompt, array $options): string {
     $config = $this->configFactory->get('ilas_site_assistant.settings');
-    $apiKey = $config->get('llm.api_key');
+    $apiKey = $this->getGeminiApiKey();
     $model = $config->get('llm.model') ?? 'gemini-1.5-flash';
 
     if (empty($apiKey)) {

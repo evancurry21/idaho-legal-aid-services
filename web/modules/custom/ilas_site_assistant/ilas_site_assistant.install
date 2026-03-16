@@ -757,6 +757,78 @@ function ilas_site_assistant_update_10009() {
 }
 
 /**
+ * Removes stored Gemini API keys from config and migrates the key path.
+ */
+function ilas_site_assistant_update_10010() {
+  $messages = [];
+
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $llm = $config->get('llm');
+  if (is_array($llm) && (($llm['api_key'] ?? '') !== '')) {
+    $llm['api_key'] = '';
+    $config->set('llm', $llm)->save(TRUE);
+    $messages[] = t('Removed stored llm.api_key from active ILAS Site Assistant config.');
+  }
+
+  if (!\Drupal::moduleHandler()->moduleExists('key')) {
+    $messages[] = t('Key module is not enabled; skipped Gemini key entity migration.');
+    return implode(' ', $messages);
+  }
+
+  $geminiKey = \Drupal::configFactory()->getEditable('key.key.gemini_api_key');
+  $geminiKeyData = $geminiKey->getRawData();
+  if (!is_array($geminiKeyData) || $geminiKeyData === []) {
+    $messages[] = t('Gemini key entity config was not found.');
+    return implode(' ', $messages);
+  }
+
+  $changed = FALSE;
+  if (($geminiKeyData['key_provider'] ?? NULL) !== 'ilas_runtime_site_setting') {
+    $geminiKey->set('key_provider', 'ilas_runtime_site_setting');
+    $changed = TRUE;
+  }
+
+  $providerSettings = $geminiKeyData['key_provider_settings'] ?? [];
+  if (!is_array($providerSettings) || ($providerSettings['settings_key'] ?? NULL) !== 'ilas_gemini_api_key' || array_key_exists('key_value', $providerSettings)) {
+    $geminiKey->set('key_provider_settings', [
+      'settings_key' => 'ilas_gemini_api_key',
+    ]);
+    $changed = TRUE;
+  }
+
+  if (($geminiKeyData['key_input'] ?? NULL) !== 'none') {
+    $geminiKey->set('key_input', 'none');
+    $changed = TRUE;
+  }
+
+  if (($geminiKeyData['description'] ?? NULL) !== 'Google AI Studio API key. Value resolved from a runtime-only Drupal site setting populated in settings.php.') {
+    $geminiKey->set('description', 'Google AI Studio API key. Value resolved from a runtime-only Drupal site setting populated in settings.php.');
+    $changed = TRUE;
+  }
+
+  $dependencies = $geminiKeyData['dependencies'] ?? [];
+  $moduleDependencies = $dependencies['module'] ?? [];
+  if (!is_array($moduleDependencies) || !in_array('ilas_site_assistant', $moduleDependencies, TRUE)) {
+    $moduleDependencies = is_array($moduleDependencies) ? $moduleDependencies : [];
+    $moduleDependencies[] = 'ilas_site_assistant';
+    sort($moduleDependencies);
+    $dependencies['module'] = $moduleDependencies;
+    $geminiKey->set('dependencies', $dependencies);
+    $changed = TRUE;
+  }
+
+  if ($changed) {
+    $geminiKey->save(TRUE);
+    $messages[] = t('Migrated gemini_api_key to the runtime-only site-setting key provider.');
+  }
+  else {
+    $messages[] = t('Gemini key entity already uses the runtime-only site-setting key provider.');
+  }
+
+  return implode(' ', $messages);
+}
+
+/**
  * Creates a lexical Search API index from canonical config when missing.
  *
  * @param string $index_id

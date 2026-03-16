@@ -137,8 +137,9 @@ class SafetyAlertService {
       }
     }
     catch (\Exception $e) {
-      $this->logger->error('Safety alert check failed: @message', [
-        '@message' => $e->getMessage(),
+      $this->logger->error('Safety alert check failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
       return;
     }

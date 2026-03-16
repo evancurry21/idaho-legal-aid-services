@@ -6,6 +6,7 @@
  */
 
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 
 /**
  * Implements hook_help().
@@ -214,8 +215,9 @@ function ilas_site_assistant_cron() {
         // log as warning instead of error to reduce Sentry noise (PHP-15).
         $env = getenv('PANTHEON_ENVIRONMENT') ?: '';
         $logMethod = ($env === 'live' || $env === 'test') ? 'error' : 'warning';
-        \Drupal::logger('ilas_site_assistant')->{$logMethod}('Vector index hygiene refresh failed: @message', [
-          '@message' => $e->getMessage(),
+        \Drupal::logger('ilas_site_assistant')->{$logMethod}('Vector index hygiene refresh failed: @class @error_signature', [
+          '@class' => get_class($e),
+          '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
         ]);
       }
     }
@@ -223,8 +225,9 @@ function ilas_site_assistant_cron() {
   }
   catch (\Throwable $e) {
     $success = FALSE;
-    \Drupal::logger('ilas_site_assistant')->error('Cron failed: @message', [
-      '@message' => $e->getMessage(),
+    \Drupal::logger('ilas_site_assistant')->error('Cron failed: @class @error_signature', [
+      '@class' => get_class($e),
+      '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
     ]);
   }
   finally {
@@ -239,8 +242,9 @@ function ilas_site_assistant_cron() {
         \Drupal::service('ilas_site_assistant.slo_alert')->checkAll();
       }
       catch (\Throwable $e) {
-        \Drupal::logger('ilas_site_assistant')->error('SLO alert check failed: @message', [
-          '@message' => $e->getMessage(),
+        \Drupal::logger('ilas_site_assistant')->error('SLO alert check failed: @class @error_signature', [
+          '@class' => get_class($e),
+          '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
         ]);
       }
     }

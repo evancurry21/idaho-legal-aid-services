@@ -445,7 +445,7 @@ if ($tmgmt_google_key) {
  */
 $ilas_gemini_key = _ilas_get_secret('ILAS_GEMINI_API_KEY');
 if ($ilas_gemini_key) {
-  $config['ilas_site_assistant.settings']['llm.api_key'] = $ilas_gemini_key;
+  $settings['ilas_gemini_api_key'] = $ilas_gemini_key;
 }
 
 /**
@@ -486,16 +486,6 @@ if ($langfuse_pk && $langfuse_sk) {
   $config['ilas_site_assistant.settings']['langfuse']['secret_key'] = $langfuse_sk;
 }
 $config['ilas_site_assistant.settings']['langfuse']['environment'] = _ilas_observability_environment_name();
-
-/**
- * Gemini API key for Drupal AI module (Google AI Studio).
- * Key entity "gemini_api_key" (config provider, empty default).
- * Reuses the same secret as ilas_site_assistant above.
- */
-$gemini_for_ai = _ilas_get_secret('ILAS_GEMINI_API_KEY');
-if ($gemini_for_ai) {
-  $config['key.key.gemini_api_key']['key_provider_settings']['key_value'] = $gemini_for_ai;
-}
 
 /**
  * Pinecone API key for AI Search vector database.

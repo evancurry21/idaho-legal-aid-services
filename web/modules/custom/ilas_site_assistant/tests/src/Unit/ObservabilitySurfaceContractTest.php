@@ -74,6 +74,46 @@ class ObservabilitySurfaceContractTest extends TestCase {
   }
 
   /**
+   * Tests that no production PHP uses the raw @message placeholder.
+   *
+   * The @message placeholder passes exception text literally to Sentry via the
+   * Raven module, losing class, stack trace, and grouping. All catch-block
+   * logging must use @class + @error_signature instead.
+   */
+  public function testNoRawMessagePlaceholderInProductionCode(): void {
+    $moduleRoot = self::repoRoot() . '/web/modules/custom/ilas_site_assistant';
+
+    // Collect all production PHP files: src/ (excluding Commands/ and tests/).
+    $srcFiles = glob($moduleRoot . '/src/{,*/,*/*/,*/*/*/}*.php', GLOB_BRACE) ?: [];
+    $srcFiles = array_filter($srcFiles, function (string $path): bool {
+      return !str_contains($path, '/Commands/')
+        && !str_contains($path, '/tests/');
+    });
+
+    // Also include the .module file.
+    $moduleFile = $moduleRoot . '/ilas_site_assistant.module';
+    if (file_exists($moduleFile)) {
+      $srcFiles[] = $moduleFile;
+    }
+
+    $this->assertNotEmpty($srcFiles, 'Expected at least one production PHP file to scan');
+
+    $violations = [];
+    foreach ($srcFiles as $file) {
+      $contents = file_get_contents($file);
+      if ($contents !== FALSE && str_contains($contents, "'@message'")) {
+        $violations[] = str_replace($moduleRoot . '/', '', $file);
+      }
+    }
+
+    $this->assertSame(
+      [],
+      $violations,
+      "Files still using '@message' placeholder (use @class + @error_signature instead):\n  " . implode("\n  ", $violations)
+    );
+  }
+
+  /**
    * Tests that admin/report views no longer reference text-bearing columns.
    */
   public function testAdminViewsUseMetadataOnlyColumns(): void {
