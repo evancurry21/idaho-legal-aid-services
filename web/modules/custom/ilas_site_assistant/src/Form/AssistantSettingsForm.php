@@ -6,12 +6,15 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Session\AccountProxy;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
 use Drupal\ilas_site_assistant\Service\RetrievalConfigurationService;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * Configuration form for ILAS Site Assistant.
@@ -60,8 +63,8 @@ class AssistantSettingsForm extends ConfigFormBase {
     parent::__construct($config_factory, $typed_config_manager);
     $this->environmentDetector = $environment_detector ?? new EnvironmentDetector();
     $this->retrievalConfiguration = $retrieval_configuration;
-    $this->logger = $logger ?? \Drupal::logger('ilas_site_assistant');
-    $this->currentUser = $current_user ?? \Drupal::currentUser();
+    $this->logger = $logger ?? new NullLogger();
+    $this->currentUser = $current_user ?? new AccountProxy(new EventDispatcher());
   }
 
   /**
@@ -727,13 +730,11 @@ class AssistantSettingsForm extends ConfigFormBase {
 
   public function submitForm(array &$form, FormStateInterface $form_state) {
     // Snapshot security-sensitive values BEFORE save for audit diff.
-    $pre_save_config = $this->config('ilas_site_assistant.settings');
+    $config = $this->config('ilas_site_assistant.settings');
     $before = [];
     foreach (self::AUDITED_KEYS as $key) {
-      $before[$key] = $pre_save_config->get($key);
+      $before[$key] = $config->get($key);
     }
-
-    $config = $this->config('ilas_site_assistant.settings');
 
     // Process excluded paths.
     $excluded_paths = array_filter(
@@ -819,10 +820,9 @@ class AssistantSettingsForm extends ConfigFormBase {
       ->save();
 
     // Audit log: record which security-sensitive settings changed.
-    $saved_config = $this->config('ilas_site_assistant.settings');
     $changes = [];
     foreach (self::AUDITED_KEYS as $key) {
-      $after = $saved_config->get($key);
+      $after = $config->get($key);
       if ($before[$key] !== $after) {
         $changes[$key] = [
           'from' => is_bool($before[$key]) ? ($before[$key] ? 'true' : 'false') : (string) ($before[$key] ?? '(null)'),

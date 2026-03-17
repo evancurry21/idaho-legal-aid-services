@@ -530,14 +530,15 @@ class LlmEnhancerHardeningTest extends TestCase {
   }
 
   /**
-   * Tests unavailable dependency (missing API key) keeps classifyIntent deterministic.
+   * Tests classifyIntent stays deterministic when no Gemini credential exists.
    */
   public function testClassifyIntentFallbackWhenApiKeyMissing(): void {
-    // Clear the runtime API key to simulate missing credentials.
+    // Clear both runtime and effective-config sources to simulate no credential.
     new Settings(['hash_salt' => 'test-salt']);
     $enhancer = $this->buildEnhancer(configOverrides: [
       'llm.enabled' => TRUE,
       'llm.provider' => 'gemini_api',
+      'llm.api_key' => '',
     ]);
 
     $result = $enhancer->classifyIntent('some query', 'unknown');
@@ -600,6 +601,26 @@ class LlmEnhancerHardeningTest extends TestCase {
       'canonical English category name',
       $this->control->capturedPrompt
     );
+  }
+
+  /**
+   * Tests prompt-language detection keeps mixed English/Spanish queries mixed.
+   */
+  public function testDetectPromptLanguageKeepsMixedOfficeQueryMixed(): void {
+    $enhancer = $this->buildEnhancer();
+
+    $this->assertInstanceOf(HardeningTestableEnhancer::class, $enhancer);
+    $this->assertSame('mixed', $enhancer->detectPromptLanguageForTest('Where is the oficina in Boise'));
+  }
+
+  /**
+   * Tests English phrases with "me" stay English for prompt-language detection.
+   */
+  public function testDetectPromptLanguageKeepsEnglishHelpPhraseEnglish(): void {
+    $enhancer = $this->buildEnhancer();
+
+    $this->assertInstanceOf(HardeningTestableEnhancer::class, $enhancer);
+    $this->assertSame('en', $enhancer->detectPromptLanguageForTest('Please help me with this'));
   }
 
   /**
@@ -1105,6 +1126,10 @@ class HardeningTestableEnhancer extends LlmEnhancer {
     }
 
     return $this->control->apiResponse;
+  }
+
+  public function detectPromptLanguageForTest(string $text): string {
+    return $this->detectPromptLanguage($text);
   }
 
 }

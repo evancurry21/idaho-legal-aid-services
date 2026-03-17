@@ -7,6 +7,7 @@ namespace Drupal\Tests\ilas_site_assistant\Unit;
 use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -35,6 +36,14 @@ class ObservabilityPayloadMinimizerTest extends TestCase {
     $metadata = ObservabilityPayloadMinimizer::buildTextMetadataWithLanguage('Me llamo Juan y necesito ayuda');
 
     $this->assertSame('es', $metadata['language_hint']);
+  }
+
+  /**
+   * Tests conservative language-hint detection for English and Spanish text.
+   */
+  #[DataProvider('languageHintProvider')]
+  public function testDetectLanguageHint(string $text, string $expected): void {
+    $this->assertSame($expected, ObservabilityPayloadMinimizer::detectLanguageHint($text));
   }
 
   /**
@@ -167,6 +176,19 @@ class ObservabilityPayloadMinimizerTest extends TestCase {
       ])),
       $signature
     );
+  }
+
+  /**
+   * Provides language-hint regression cases.
+   */
+  public static function languageHintProvider(): array {
+    return [
+      'english please-help phrase' => ['Please help me with this', 'en'],
+      'english help-apply phrase' => ['Help me apply', 'en'],
+      'english eviction phrase' => ['Can you help me with eviction forms?', 'en'],
+      'obvious spanish phrase' => ['Me llamo Juan y necesito ayuda', 'es'],
+      'unaccented spanish phrase' => ['Como aplico para ayuda legal', 'es'],
+    ];
   }
 
 }

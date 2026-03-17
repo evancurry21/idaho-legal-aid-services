@@ -224,11 +224,36 @@ final class ObservabilityPayloadMinimizer {
       return 'es';
     }
 
-    if (preg_match('/\b(mi|me|llamo|nombre|direccion|ayuda|necesito|donde|como|para|por|vivo|telefono|licencia)\b/u', $normalized)) {
+    // Keep ambiguous ASCII markers from flipping common English phrases to Spanish.
+    $strong_spanish_patterns = [
+      '/\bme\s+llamo\b/u',
+      '/\bmi\s+nombre\b/u',
+      '/\b(llamo|nombre|ayuda|necesito|direccion|telefono|licencia)\b/u',
+    ];
+    $weak_spanish_patterns = [
+      '/\b(como|donde|para|por|vivo)\b/u',
+    ];
+    $english_patterns = [
+      '/\b(the|and|help|need|where|what|how|with|my|apply|forms|guide|eviction|please|can|this)\b/u',
+    ];
+
+    $has_strong_spanish = self::matchesAnyPattern($normalized, $strong_spanish_patterns);
+    $has_weak_spanish = self::matchesAnyPattern($normalized, $weak_spanish_patterns);
+    $has_english = self::matchesAnyPattern($normalized, $english_patterns);
+
+    if ($has_strong_spanish && $has_english) {
+      return 'en';
+    }
+
+    if ($has_strong_spanish) {
       return 'es';
     }
 
-    if (preg_match('/\b(the|and|help|need|where|what|how|with|my|apply|forms|guide|eviction)\b/u', $normalized)) {
+    if ($has_english) {
+      return 'en';
+    }
+
+    if ($has_weak_spanish) {
       return 'en';
     }
 
@@ -237,6 +262,19 @@ final class ObservabilityPayloadMinimizer {
     }
 
     return 'other';
+  }
+
+  /**
+   * Returns whether any pattern matches the normalized text.
+   */
+  private static function matchesAnyPattern(string $normalized, array $patterns): bool {
+    foreach ($patterns as $pattern) {
+      if (preg_match($pattern, $normalized)) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
   }
 
   /**

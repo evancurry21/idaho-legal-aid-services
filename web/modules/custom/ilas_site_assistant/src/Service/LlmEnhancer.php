@@ -320,16 +320,24 @@ PROMPT,
   }
 
   /**
-   * Returns the Gemini API key from runtime settings only.
+   * Returns the Gemini API key with runtime settings taking precedence.
    *
-   * The API key MUST be set via settings.php from an environment variable
-   * (ILAS_GEMINI_API_KEY). Legacy Drupal config fallback was removed to
-   * prevent secrets from leaking into exportable configuration.
+   * Runtime site settings remain the preferred secret source. A legacy
+   * effective-config fallback is retained so older environments and tests that
+   * still inject the key via config overrides keep working while exported
+   * config remains blank.
    */
   protected function getGeminiApiKey(): string {
     $runtimeApiKey = Settings::get('ilas_gemini_api_key');
     if (is_string($runtimeApiKey) && $runtimeApiKey !== '') {
       return $runtimeApiKey;
+    }
+
+    $configuredApiKey = $this->configFactory
+      ->get('ilas_site_assistant.settings')
+      ->get('llm.api_key');
+    if (is_string($configuredApiKey) && $configuredApiKey !== '') {
+      return $configuredApiKey;
     }
 
     return '';

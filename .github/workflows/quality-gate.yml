@@ -13,6 +13,9 @@ on:
       - 'release/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: quality-gate-${{ github.ref }}
   cancel-in-progress: true
@@ -32,7 +35,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up PHP 8.3
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2
         with:
           php-version: '8.3'
           extensions: dom, curl, mbstring, zip, pdo, pdo_mysql, gd
@@ -130,8 +133,9 @@ jobs:
 
       - name: Annotate advisory vs blocking result
         if: always()
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          BRANCH="${{ github.head_ref || github.ref_name }}"
           if [[ "$BRANCH" == "master" || "$BRANCH" == "main" || "$BRANCH" =~ ^release/ ]]; then
             echo "::notice::Promptfoo gate ran in BLOCKING mode for branch $BRANCH as a hosted GitHub check"
           else

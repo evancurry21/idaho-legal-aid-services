@@ -179,14 +179,11 @@
       fetch(url)
         .then(response => response.text())
         .then(html => {
-          // Use Drupal's safe method to insert HTML or sanitize it
-          if (typeof Drupal.theme.sanitizeHTML !== 'undefined') {
-            element.innerHTML = Drupal.theme.sanitizeHTML(html);
-          } else {
-            // Fallback: create a temporary element and use textContent for safety
-            const temp = document.createElement('div');
-            temp.textContent = html;
-            element.innerHTML = temp.innerHTML;
+          // Parse response as DOM to safely insert HTML and prevent XSS
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          element.innerHTML = '';
+          while (doc.body.firstChild) {
+            element.appendChild(doc.body.firstChild);
           }
           // Re-attach Drupal behaviors to new content
           Drupal.attachBehaviors(element);

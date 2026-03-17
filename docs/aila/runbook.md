@@ -44,6 +44,32 @@ ddev version
 
 Record sanitized output in `docs/aila/runtime/local-preflight.txt`.[^CLAIM-108]
 
+### Host-shell PHPUnit entrypoint
+
+Use the host-safe wrapper for local host-shell PHPUnit runs that may touch
+Drupal kernel/bootstrap setup:
+
+```bash
+cd /home/evancurry/idaho-legal-aid-services
+
+# Targeted host-side kernel proof.
+bash scripts/ci/run-host-phpunit.sh \
+  web/modules/custom/ilas_seo/tests/src/Kernel/FullHtmlFilterTest.php
+
+# Host-side kernel/full-suite smoke runs.
+npm run test:phpunit:host -- --testsuite kernel --stop-on-failure
+npm run test:phpunit:host -- --stop-on-failure
+```
+
+- The wrapper only sets `SIMPLETEST_DB` when the caller has not already set it,
+  and defaults host-shell kernel installs to an SQLite file under
+  `${TMPDIR:-/tmp}`.
+- Raw host `vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml`
+  is container-oriented because `phpunit.xml` expects the DDEV/Docker MySQL
+  hostname `db`.
+- Keep DDEV/MySQL parity commands unchanged for `VC-UNIT` and `VC-KERNEL`:
+  `ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml ...`
+
 ### Drupal/Drush checks
 
 ```bash
@@ -2270,7 +2296,7 @@ done
   - `VC-QUALITY-GATE`
 - Targeted local checks:
   - `vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/TelemetrySchemaContractTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityRedactionContractTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseTracerTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilityPayloadMinimizerTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/ObservabilitySurfaceContractTest.php`
-  - `SIMPLETEST_DB='sqlite://localhost//tmp/ilas-kernel.sqlite?module=sqlite' vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php`
+  - `bash /home/evancurry/idaho-legal-aid-services/scripts/ci/run-host-phpunit.sh /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php`
   - `bash /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh`
 - Expected contract after the remediation:
   - No raw or redacted user/assistant snippets are persisted in analytics,
@@ -3792,7 +3818,7 @@ ddev exec vendor/bin/phpunit --configuration /var/www/html/phpunit.xml \
   /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Unit
 
 # Local contract spot-checks
-vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml \
+bash /home/evancurry/idaho-legal-aid-services/scripts/ci/run-host-phpunit.sh \
   /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/RetrievalConfigurationServiceTest.php \
   /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/LegalServerRuntimeUrlGuardTest.php \
   /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorSearchConfigSchemaTest.php \

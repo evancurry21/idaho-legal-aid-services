@@ -100,8 +100,8 @@ if ! find "$UPLOAD_ROOT" -type f -name '*.map' -print -quit | grep -q .; then
   exit 1
 fi
 
-RELEASES_CLI=(npm exec --yes @sentry/cli -- releases --auth-token "$SENTRY_AUTH_TOKEN" --org "$SENTRY_ORG_SLUG" --project "$SENTRY_PROJECT_SLUG_BROWSER")
-SOURCEMAPS_CLI=(npm exec --yes @sentry/cli -- sourcemaps --auth-token "$SENTRY_AUTH_TOKEN" --org "$SENTRY_ORG_SLUG" --project "$SENTRY_PROJECT_SLUG_BROWSER" --release "$RELEASE_NAME")
+RELEASES_CLI=(npm exec --yes @sentry/cli -- releases --org "$SENTRY_ORG_SLUG" --project "$SENTRY_PROJECT_SLUG_BROWSER")
+SOURCEMAPS_CLI=(npm exec --yes @sentry/cli -- sourcemaps --org "$SENTRY_ORG_SLUG" --project "$SENTRY_PROJECT_SLUG_BROWSER" --release "$RELEASE_NAME")
 
 "${RELEASES_CLI[@]}" new "$RELEASE_NAME" || true
 
