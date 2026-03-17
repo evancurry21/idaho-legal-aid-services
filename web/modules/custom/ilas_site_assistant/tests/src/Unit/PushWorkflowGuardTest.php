@@ -49,8 +49,10 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('do not wait on stale PR', $runbook);
     $this->assertStringContainsString('terminus env:code-log idaho-legal-aid-services.dev --format=table', $runbook);
     $this->assertStringContainsString('PR-branch publishes from local `master` are advisory locally', $runbook);
-    $this->assertStringContainsString('skips local promptfoo and trusts the already-passed', $runbook);
-    $this->assertStringContainsString('GitHub `Promptfoo Gate` for that commit.', $runbook);
+    $this->assertStringContainsString('runs the local DDEV deploy-bound Promptfoo gate before the Pantheon push', $runbook);
+    $this->assertStringContainsString('hosted GitHub check is not treated as deploy proof for `origin/master`', $runbook);
+    $this->assertStringContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $runbook);
+    $this->assertStringContainsString('GitHub `Install Composer dependencies` step', $runbook);
     $this->assertStringContainsString('promotion to Pantheon `test` and `live` is a separate deployment', $runbook);
     $this->assertStringContainsString('"git:finish": "bash scripts/git/finish.sh"', $package);
   }
@@ -69,13 +71,18 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('Direct pushes to protected github/master are not supported', $strictHook);
     $this->assertStringContainsString('Refusing to push origin/master before github/master matches local master', $strictHook);
     $this->assertStringContainsString('Use: npm run git:publish', $strictHook);
+    $this->assertStringContainsString('Running Composer installability parity check...', $strictHook);
+    $this->assertStringContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $strictHook);
+    $this->assertStringContainsString("mirrors the GitHub 'Install Composer dependencies' step", $strictHook);
     $this->assertStringContainsString('run-quality-gate.sh', $strictHook);
     $this->assertStringContainsString('resolve_promptfoo_branch', $strictHook);
     $this->assertStringContainsString('is_effective_target_branch', $strictHook);
     $this->assertStringContainsString('Promptfoo policy target branch', $strictHook);
     $this->assertStringContainsString('CI_BRANCH="$PROMPTFOO_BRANCH" bash scripts/ci/run-promptfoo-gate.sh --env dev --mode auto', $strictHook);
+    $this->assertStringContainsString('promptfooconfig.deploy.yaml', $strictHook);
+    $this->assertStringContainsString('--no-deep-eval', $strictHook);
     $this->assertStringContainsString(
-      'Skipping local promptfoo gate for origin/master: trusting GitHub Promptfoo Gate for this synced commit.',
+      'Running deploy-bound promptfoo gate for origin/master against local DDEV exact code...',
       $strictHook
     );
     $this->assertStringNotContainsString('CI_BRANCH="$CURRENT_BRANCH" bash scripts/ci/run-promptfoo-gate.sh --env dev --mode auto', $strictHook);
@@ -87,8 +94,10 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('git status --short --branch', $installer);
     $this->assertStringContainsString('npm run git:publish', $installer);
     $this->assertStringContainsString('npm run git:finish', $installer);
+    $this->assertStringContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $installer);
+    $this->assertStringContainsString("mirroring the GitHub 'Install Composer dependencies' step", $installer);
     $this->assertStringContainsString('using the pushed target branch for blocking/advisory policy', $installer);
-    $this->assertStringContainsString('trusts GitHub Promptfoo Gate for synced origin/master deploy pushes', $installer);
+    $this->assertStringContainsString('requires local DDEV exact-code evals for synced origin/master deploy pushes', $installer);
     $this->assertStringContainsString('Do not wait on stale PR numbers from earlier publishes.', $installer);
     $this->assertStringContainsString('git push --no-verify', $installer);
 
@@ -97,6 +106,7 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('npm run git:finish', $publishHelper);
     $this->assertStringContainsString('npm run git:sync-master', $publishHelper);
     $this->assertStringContainsString('npm run git:publish -- --origin-only', $publishHelper);
+    $this->assertStringContainsString('through the local DDEV deploy gate', $publishHelper);
 
     $syncHelper = self::readFile('scripts/git/sync-master.sh');
     $this->assertStringContainsString('Syncing local master from github/master', $syncHelper);
@@ -110,6 +120,7 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('sync-master.sh', $finishHelper);
     $this->assertStringContainsString('publish.sh" --origin-only', $finishHelper);
     $this->assertStringContainsString('Refusing to deploy Pantheon dev while master is red.', $finishHelper);
+    $this->assertStringContainsString('deploying origin/master through the local DDEV deploy gate', $finishHelper);
     $this->assertStringContainsString('Commit or stash them before running npm run git:finish.', $finishHelper);
   }
 

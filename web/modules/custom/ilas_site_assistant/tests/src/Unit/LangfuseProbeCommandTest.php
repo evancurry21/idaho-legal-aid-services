@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Queue\QueueFactory;
+use Drupal\Core\Queue\QueueInterface;
 use Drupal\ilas_site_assistant\Commands\LangfuseProbeCommands;
 use Drupal\ilas_site_assistant\Service\LangfusePayloadContract;
+use Drush\Log\DrushLoggerManager;
+use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Yaml\Yaml;
@@ -156,6 +163,110 @@ class LangfuseProbeCommandTest extends TestCase {
   }
 
   /**
+   * Queue mode enqueues the same top-level shape the worker expects.
+   */
+  public function testQueuedProbeUsesWorkerContractShape(): void {
+    $queue = $this->createMock(QueueInterface::class);
+    $queue->expects($this->exactly(2))
+      ->method('numberOfItems')
+      ->willReturnOnConsecutiveCalls(10, 11);
+    $queue->expects($this->once())
+      ->method('createItem')
+      ->with($this->callback(function (array $item): bool {
+        $this->assertArrayHasKey('batch', $item);
+        $this->assertArrayHasKey('metadata', $item);
+        $this->assertArrayHasKey('enqueued_at', $item);
+        $this->assertArrayNotHasKey('payload', $item);
+        return TRUE;
+      }))
+      ->willReturn(123);
+
+    $queueFactory = $this->createStub(QueueFactory::class);
+    $queueFactory->method('get')->with('ilas_langfuse_export')->willReturn($queue);
+
+    $logger = $this->createMock(DrushLoggerManager::class);
+    $successMessages = [];
+    $noticeMessages = [];
+    $logger->expects($this->once())
+      ->method('success')
+      ->willReturnCallback(function (string $message) use (&$successMessages): void {
+        $successMessages[] = $message;
+      });
+    $logger->expects($this->once())
+      ->method('notice')
+      ->willReturnCallback(function (string $message) use (&$noticeMessages): void {
+        $noticeMessages[] = $message;
+      });
+
+    $command = $this->buildProbeCommandStub(
+      queueFactory: $queueFactory,
+      logger: $logger,
+    );
+
+    $result = $command->langfuseProbe();
+
+    $this->assertSame(0, $result);
+    $this->assertCount(1, $successMessages);
+    $this->assertStringContainsString('Langfuse probe enqueued.', $successMessages[0]);
+    $this->assertSame(['Queue depth: 10 -> 11'], $noticeMessages);
+  }
+
+  /**
+   * Direct mode uses exporter defaults and reports partial success details.
+   */
+  public function testDirectProbeUsesExporterDefaultsAndLogsPartialSuccess(): void {
+    $httpClient = $this->createMock(ClientInterface::class);
+    $httpClient->expects($this->once())
+      ->method('request')
+      ->with(
+        'POST',
+        'https://us.cloud.langfuse.com/api/public/ingestion',
+        $this->callback(function (array $options): bool {
+          $this->assertSame(7.5, $options['timeout']);
+          $this->assertSame(7.5, $options['connect_timeout']);
+          $this->assertSame(['pk-test-123', 'sk-test-456'], $options['auth']);
+          $this->assertArrayHasKey('json', $options);
+          return TRUE;
+        }),
+      )
+      ->willReturn(new Response(207, [], json_encode([
+        'successes' => [['id' => 'ok-1']],
+        'errors' => [['id' => 'err-1'], ['id' => 'err-2']],
+      ], JSON_THROW_ON_ERROR)));
+
+    $logger = $this->createMock(DrushLoggerManager::class);
+    $successMessages = [];
+    $noticeMessages = [];
+    $logger->expects($this->once())
+      ->method('success')
+      ->willReturnCallback(function (string $message) use (&$successMessages): void {
+        $successMessages[] = $message;
+      });
+    $logger->expects($this->exactly(3))
+      ->method('notice')
+      ->willReturnCallback(function (string $message) use (&$noticeMessages): void {
+        $noticeMessages[] = $message;
+      });
+
+    $command = $this->buildProbeCommandStub(
+      configValues: [
+        'langfuse.host' => NULL,
+        'langfuse.timeout' => 7.5,
+      ],
+      httpClient: $httpClient,
+      logger: $logger,
+    );
+
+    $result = $command->langfuseProbe(['direct' => TRUE]);
+
+    $this->assertSame(0, $result);
+    $this->assertCount(1, $successMessages);
+    $this->assertStringContainsString('HTTP status: 207', $successMessages[0]);
+    $this->assertContains('Langfuse direct probe partial success: 1 succeeded, 2 errors', $noticeMessages);
+    $this->assertCount(3, $noticeMessages);
+  }
+
+  /**
    * Drush services entry exists and references correct class.
    */
   public function testDrushServicesEntryExists(): void {
@@ -193,24 +304,50 @@ class LangfuseProbeCommandTest extends TestCase {
   /**
    * Builds a LangfuseProbeCommands instance with stubbed dependencies.
    */
-  private function buildProbeCommandStub(): LangfuseProbeCommands {
-    $config = $this->createStub(\Drupal\Core\Config\ImmutableConfig::class);
-    $config->method('get')->willReturnCallback(fn($key) => match ($key) {
+  private function buildProbeCommandStub(
+    array $configValues = [],
+    ?QueueFactory $queueFactory = NULL,
+    ?ClientInterface $httpClient = NULL,
+    ?DrushLoggerManager $logger = NULL,
+  ): TestableLangfuseProbeCommands {
+    $values = $configValues + [
       'langfuse.enabled' => TRUE,
       'langfuse.public_key' => 'pk-test-123',
       'langfuse.secret_key' => 'sk-test-456',
-      'langfuse.host' => 'https://cloud.langfuse.com',
+      'langfuse.host' => 'https://us.cloud.langfuse.com',
       'langfuse.sample_rate' => 1.0,
-      default => NULL,
-    });
+      'langfuse.timeout' => 5.0,
+    ];
 
-    $configFactory = $this->createStub(\Drupal\Core\Config\ConfigFactoryInterface::class);
+    $config = $this->createStub(ImmutableConfig::class);
+    $config->method('get')->willReturnCallback(fn($key) => $values[$key] ?? NULL);
+
+    $configFactory = $this->createStub(ConfigFactoryInterface::class);
     $configFactory->method('get')->willReturn($config);
 
-    $queueFactory = $this->createStub(\Drupal\Core\Queue\QueueFactory::class);
-    $httpClient = $this->createStub(\GuzzleHttp\ClientInterface::class);
+    $queueFactory ??= $this->createStub(QueueFactory::class);
+    $httpClient ??= $this->createStub(ClientInterface::class);
 
-    return new LangfuseProbeCommands($configFactory, $queueFactory, $httpClient);
+    $command = new TestableLangfuseProbeCommands($configFactory, $queueFactory, $httpClient);
+    $command->testLogger = $logger;
+
+    return $command;
+  }
+
+}
+
+final class TestableLangfuseProbeCommands extends LangfuseProbeCommands {
+
+  /**
+   * Test logger override.
+   */
+  public ?DrushLoggerManager $testLogger = NULL;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function logger(): ?DrushLoggerManager {
+    return $this->testLogger;
   }
 
 }

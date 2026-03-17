@@ -224,7 +224,7 @@ main() {
         if [[ "$github_master_status" == "in-sync" ]]; then
           ok "github/master already matches local master; no PR publish is needed."
           if [[ "${remote_status[origin]}" == "local-ahead" ]]; then
-            warn "Pantheon is behind. Run: npm run git:publish -- --origin-only"
+            warn "Pantheon is behind. Run: npm run git:publish -- --origin-only (local DDEV deploy gate required)"
           fi
           exit 0
         fi
@@ -238,7 +238,7 @@ main() {
         ensure_master_github_pr "$branch" "$no_verify"
 
         if [[ "$TARGET_MODE" == "both" ]]; then
-          info "Pantheon deploy is intentionally separate. After merge + local fast-forward, run: npm run git:publish -- --origin-only"
+          info "Pantheon deploy is intentionally separate. After merge + local fast-forward, run: npm run git:publish -- --origin-only through the local DDEV deploy gate."
         fi
         exit 0
         ;;

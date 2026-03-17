@@ -275,7 +275,6 @@ class AuditBaselineAcceptanceTest extends TestCase {
     $expectedTopics = [
       'Sentry operational usefulness' => 'Sentry operational usefulness beyond runtime wiring',
       'Langfuse ingestion' => 'Langfuse ingestion and queue-export success',
-      'New Relic entity activity' => 'New Relic entity activity and browser-snippet value',
       'Promptfoo deploy-bound gate fidelity' => 'Promptfoo deploy-bound gate fidelity',
       'cron cadence' => 'Long-run cron cadence and queue drain timing under load',
     ];

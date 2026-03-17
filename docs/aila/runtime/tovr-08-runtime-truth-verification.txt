@@ -1,0 +1,184 @@
+TOVR-08 Override-Aware Runtime Truth Verification
+=================================================
+
+Prompt ID: TOVR-08
+Roadmap item: Tooling + Pinecone remediation -> Operations verification #1
+Verification level tag: repo-remediated / local-post-edit-verified / pantheon-deployment-pending
+Created: 2026-03-17
+Last updated: 2026-03-17
+
+1. Prior status
+---------------
+
+Before TOVR-08, the canonical `VC-RUNTIME-*` examples used direct `php:eval`
+snapshots and older `config:get` habits were still easy to misuse as runtime
+truth. Fresh 2026-03-17 rechecks reproduced the audited divergence:
+
+- Stored config:
+  - `config/ilas_site_assistant.settings.yml` keeps `langfuse.enabled=false`.
+  - `config/raven.settings.yml` is absent.
+- Fresh baseline commands:
+  - Local:
+    - `ddev drush config:get ilas_site_assistant.settings langfuse.enabled -y`
+      -> `'ilas_site_assistant.settings:langfuse.enabled': false`
+    - `ddev drush php:eval '$c=Drupal::config("ilas_site_assistant.settings"); echo ($c->get("langfuse.enabled") ? "true" : "false") . PHP_EOL;'`
+      -> `true`
+  - Pantheon `dev` / `test` / `live`:
+    - `terminus remote:drush ... -- config:get ilas_site_assistant.settings langfuse.enabled -y`
+      -> `false`
+    - `terminus remote:drush ... -- php:eval '...langfuse.enabled...'`
+      -> `true`
+- Misleading prior habits:
+  - `config:get raven.settings`
+  - `config:get langfuse.settings`
+  - `config:get ilas_site_assistant.settings langfuse.enabled`
+
+2. Post-change status
+---------------------
+
+Implemented repo-owned helper:
+
+- New Drush command: `ilas:runtime-truth`
+- Backing service: `RuntimeTruthSnapshotBuilder`
+- Fixed top-level JSON sections:
+  - `environment`
+  - `exported_storage`
+  - `effective_runtime`
+  - `runtime_site_settings`
+  - `browser_expected`
+  - `override_channels`
+  - `divergences`
+
+Local post-edit verification succeeded:
+
+- `ddev drush status --fields=uri,drupal-version,db-status`
+  - Result: Drupal 11.3.3, DB connected, DDEV URI healthy.
+- `ddev drush ilas:runtime-truth`
+  - Result summary:
+    - `environment.effective_environment=local`
+    - `exported_storage.langfuse.enabled=false`
+    - `effective_runtime.langfuse.enabled=true`
+    - `effective_runtime.sentry.client_key_present=true`
+    - `effective_runtime.pinecone.key_present=true`
+    - `runtime_site_settings.gemini_api_key_present=true`
+    - Divergences emitted for Langfuse enablement/key presence/environment,
+      Sentry key/DSN/environment, and Pinecone key presence.
+- `curl -skL https://ilas-pantheon.ddev.site/assistant | rg ...`
+  - Result summary:
+    - `ilasObservability` marker present
+    - `environment="local"`
+    - `browserEnabled` present
+    - `showReportDialog` present
+    - `replaySessionSampleRate=0`
+    - no GA/dataLayer markers locally
+- `ddev drush ilas:sentry-probe`
+  - Result: success, event ID `8e56822da88b4b5685d089a1c8ff573d`
+- `ddev drush ilas:langfuse-probe --direct`
+  - Result: success, trace ID `fb942204-1034-46d5-97ba-1b5618687b93`, HTTP `207`,
+    `3 succeeded`, `0 errors`
+
+Pantheon read-only post-change attempt is deployment-gated:
+
+- Attempted command:
+  - `terminus remote:drush idaho-legal-aid-services.dev -- ilas:runtime-truth`
+  - `terminus remote:drush idaho-legal-aid-services.test -- ilas:runtime-truth`
+  - `terminus remote:drush idaho-legal-aid-services.live -- ilas:runtime-truth`
+- Result:
+  - All three returned `Command "ilas:runtime-truth" is not defined.`
+  - Interpretation: hosted environments are still serving pre-TOVR-08 code.
+
+Pantheon read-only companion proof still succeeded:
+
+- Browser markers:
+  - `dev`: `environment="pantheon-dev"`, `release="1d3bb3b"`,
+    `browserEnabled`, `showReportDialog`, `replaySessionSampleRate=0.05`
+  - `test`: `environment="pantheon-test"`, `release="test_157"`,
+    `browserEnabled`, `showReportDialog`, `replaySessionSampleRate=0.05`
+  - `live`: `environment="pantheon-live"`, `release="live_147"`,
+    `browserEnabled`, `showReportDialog`, `replaySessionSampleRate=0.01`,
+    plus `googletagmanager` and `dataLayer`
+- Predeploy divergence recheck:
+  - `config:get ilas_site_assistant.settings langfuse.enabled` remained `false`
+  - runtime `Drupal::config(...)->get('langfuse.enabled')` remained `true`
+
+3. Before / after procedure
+---------------------------
+
+Before:
+
+- `config:get` or one-off `php:eval` snippets were used to infer runtime truth.
+- Browser-only runtime was sampled separately with `/assistant`, but there was
+  no single canonical sanitized helper for stored-versus-effective comparison.
+
+After:
+
+- Canonical `VC-RUNTIME-LOCAL-SAFE`:
+  - `ddev drush status --fields=uri,drupal-version,db-status`
+  - `ddev drush ilas:runtime-truth`
+  - `curl -skL https://ilas-pantheon.ddev.site/assistant | rg ...`
+- Canonical `VC-RUNTIME-PANTHEON-SAFE` after deploy:
+  - `terminus remote:drush ... -- status --fields=uri,drupal-version,db-status`
+  - `terminus remote:drush ... -- ilas:runtime-truth`
+  - `curl "$BASE_URL/assistant" | rg ...`
+
+4. Evidence summary
+-------------------
+
+- Code:
+  - `web/modules/custom/ilas_site_assistant/src/Service/RuntimeTruthSnapshotBuilder.php`
+  - `web/modules/custom/ilas_site_assistant/src/Commands/RuntimeTruthCommands.php`
+  - `web/modules/custom/ilas_site_assistant/drush.services.yml`
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml`
+- Tests:
+  - `RuntimeTruthSnapshotBuilderTest.php`
+  - `RuntimeTruthCommandTest.php`
+  - `RuntimeTruthDocumentationGuardTest.php`
+- Docs:
+  - `docs/aila/runbook.md`
+  - `docs/aila/current-state.md`
+  - `docs/aila/evidence-index.md`
+  - `docs/aila/roadmap.md`
+  - `docs/aila/tooling-observability-vector-remediation-prompt-pack.md`
+
+5. Changed files
+----------------
+
+- `docs/aila/current-state.md`
+- `docs/aila/evidence-index.md`
+- `docs/aila/roadmap.md`
+- `docs/aila/runbook.md`
+- `docs/aila/runtime/tovr-08-runtime-truth-verification.txt`
+- `docs/aila/tooling-observability-vector-remediation-prompt-pack.md`
+- `web/modules/custom/ilas_site_assistant/drush.services.yml`
+- `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml`
+- `web/modules/custom/ilas_site_assistant/src/Commands/RuntimeTruthCommands.php`
+- `web/modules/custom/ilas_site_assistant/src/Service/RuntimeTruthSnapshotBuilder.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/RuntimeTruthCommandTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/RuntimeTruthDocumentationGuardTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/RuntimeTruthSnapshotBuilderTest.php`
+
+6. Residual risks / unknowns
+----------------------------
+
+- Pantheon post-change `ilas:runtime-truth` proof is still deployment-gated.
+- The helper intentionally does not replace `/assistant` HTML sampling for
+  browser-only truth.
+- Override-channel labels stay coarse by design (`config export`,
+  `settings.php live branch`, `settings.php secret -> getenv/pantheon_get_secret`,
+  `settings.php runtime site setting`) to keep the output deterministic.
+
+7. Rollback notes
+-----------------
+
+- Remove `RuntimeTruthSnapshotBuilder`, `RuntimeTruthCommands`, and their
+  service registrations.
+- Restore the previous `VC-RUNTIME-*` documentation if the helper is reverted.
+- Re-run local `VC-RUNTIME-LOCAL-SAFE` and probe commands after rollback to
+  confirm the legacy path still behaves as expected.
+
+8. Still-unverified surfaces
+----------------------------
+
+- Hosted post-deploy `ilas:runtime-truth` output on Pantheon `dev`
+- Hosted post-deploy `ilas:runtime-truth` output on Pantheon `test`
+- Hosted post-deploy `ilas:runtime-truth` output on Pantheon `live`

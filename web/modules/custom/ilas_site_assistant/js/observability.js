@@ -184,20 +184,6 @@
       });
   }
 
-  function configureNewRelic() {
-    if (!settings.newRelic || !settings.newRelic.browserEnabled || !window.newrelic) {
-      return;
-    }
-
-    if (typeof window.newrelic.setCustomAttribute === 'function') {
-      Object.keys(sharedTags()).forEach(function (key) {
-        if (sharedTags()[key]) {
-          window.newrelic.setCustomAttribute(key, sharedTags()[key]);
-        }
-      });
-    }
-  }
-
   function emitAssistantError(detail) {
     var payload = scrubValue(detail || {});
     var tags = withCompactTags(Object.assign(sharedTags(), {
@@ -228,23 +214,15 @@
       });
     }
 
-    if (window.newrelic && typeof window.newrelic.noticeError === 'function') {
-      window.newrelic.noticeError(new Error('AILA browser error'), payload);
-    }
   }
 
-  function emitAssistantAction(detail) {
-    if (!window.newrelic || typeof window.newrelic.addPageAction !== 'function') {
-      return;
-    }
-
-    var payload = scrubValue(detail || {});
-    window.newrelic.addPageAction('aila_action', Object.assign({}, withCompactTags(sharedTags()), payload));
+  function emitAssistantAction() {
+    // No-op: New Relic retired (TOVR-06). Stub preserved for event contract
+    // compatibility — assistant-widget.js dispatches ilas:assistant:action.
   }
 
   function scheduleProviders() {
     configureSentry();
-    configureNewRelic();
 
     if (!sentryConfigured && settings.sentry && settings.sentry.browserEnabled) {
       window.setTimeout(scheduleProviders, 1000);

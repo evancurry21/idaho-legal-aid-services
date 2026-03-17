@@ -117,6 +117,9 @@ desktop.ini
 # PHPUnit local cache
 .phpunit.cache/
 
+# Playwright CLI test artifacts
+.playwright-cli/
+
 # DDEV local dev environment
 .ddev/*
 !.ddev/.gitignore
@@ -131,12 +134,8 @@ desktop.ini
 !.ddev/web-build/
 !.ddev/web-build/README.txt
 !.ddev/.env.example
-!.ddev/config.newrelic.yaml.example
-!.ddev/newrelic/
-!.ddev/newrelic/Dockerfile.newrelic.example
 .ddev/.env
 .ddev/.env.local
-.ddev/config.newrelic.yaml
 
 # PHP tooling
 .phpunit.result.cache

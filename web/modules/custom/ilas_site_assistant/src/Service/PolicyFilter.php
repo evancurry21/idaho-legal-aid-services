@@ -86,8 +86,9 @@ class PolicyFilter {
     '/\b(evict(ed|ing)?\s*(me\s*)?(today|tomorrow|right\s*now|immediately))/i',
     '/\b(sheriff\s*(is\s*)?(coming|here)|being\s*removed)/i',
 
-    // Immediate danger.
-    '/\b(emergency|urgent|immediate|right\s*now|today|asap)/i',
+    // Immediate danger — "today" excluded as standalone trigger (too broad;
+    // it fires on "I got an eviction notice today" which is informational).
+    '/\b(emergency|urgent|immediate|right\s*now|asap)/i',
     '/\b(in\s*danger|not\s*safe|unsafe)/i',
     '/\b(suicide|suicidal|kill\s*myself|end\s*my\s*life|want\s*to\s*die)/i',
   ];
@@ -131,6 +132,22 @@ class PolicyFilter {
     '/\b(help\s*me\s*(fill|write|draft|complete))/i',
     '/\b(write\s*(this|it)\s*for\s*me)/i',
     '/\b(put\s*my\s*(information|info|details)\s*(in|into|on))/i',
+  ];
+
+  /**
+   * Negative context patterns that indicate navigation intent, not legal advice.
+   *
+   * When these match, "should I" / "what should I do" patterns are suppressed
+   * to avoid blocking legitimate help-seeking queries like "should I use
+   * form A or form B?" or "should I click apply?".
+   *
+   * @var array
+   */
+  protected $navigationNegativePatterns = [
+    '/\bshould\s+i\s+(use|click|fill|select|choose|download|print|go\s+to|visit|call|try|start\s+with)\b/i',
+    '/\bshould\s+i\s+(apply|contact|look\s+at|read|check|open|submit)\b/i',
+    '/\bwhat\s+should\s+i\s+(use|click|fill|select|choose|download|print|start\s+with|read|look\s+at)\b/i',
+    '/\b(which|what)\s+(form|page|link|resource|guide|section|document|number)\s+should\s+i\b/i',
   ];
 
   /**
@@ -462,6 +479,9 @@ You can speak with a person by calling our Legal Advice Line, or share feedback 
   /**
    * Checks if message requests legal advice.
    *
+   * Suppresses matches when the message contains navigation-intent negative
+   * context (e.g., "should I use form A?" is not legal advice).
+   *
    * @param string $message
    *   The message to check.
    *
@@ -469,7 +489,16 @@ You can speak with a person by calling our Legal Advice Line, or share feedback 
    *   TRUE if the message requests legal advice.
    */
   protected function requestsLegalAdvice(string $message) {
-    return $this->matchesPatterns($message, $this->legalAdvicePatterns);
+    if (!$this->matchesPatterns($message, $this->legalAdvicePatterns)) {
+      return FALSE;
+    }
+
+    // Suppress if the "should I" phrasing is navigation-oriented.
+    if ($this->matchesPatterns($message, $this->navigationNegativePatterns)) {
+      return FALSE;
+    }
+
+    return TRUE;
   }
 
   /**

@@ -255,9 +255,6 @@ final class AssistantApiControllerProxyTrustTest extends TestCase {
 
     $analyticsLogger = $this->createStub(AnalyticsLogger::class);
     $llmEnhancer = $this->createStub(LlmEnhancer::class);
-    $llmEnhancer->method('enhanceResponse')->willReturnCallback(
-      static fn($response, $message) => $response
-    );
     $fallbackGate = $this->createStub(FallbackGate::class);
     $fallbackGate->method('evaluate')->willReturn([
       'decision' => 'allow',

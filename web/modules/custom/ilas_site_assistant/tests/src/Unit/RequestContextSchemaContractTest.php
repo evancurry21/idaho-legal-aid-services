@@ -214,10 +214,6 @@ final class RequestContextSchemaContractTest extends TestCase {
     $analyticsLogger = $this->createStub(AnalyticsLogger::class);
 
     $llmEnhancer = $this->createStub(LlmEnhancer::class);
-    $llmEnhancer->method('enhanceResponse')->willReturnCallback(
-      static fn(array $response, string $message): array => $response
-    );
-
     $fallbackGate = $this->createStub(FallbackGate::class);
     $fallbackGate->method('evaluate')->willReturn([
       'decision' => 'allow',

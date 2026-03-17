@@ -23,17 +23,6 @@ on hosted environments.
 - `SENTRY_CRON_MONITOR_ID`
   - Optional Sentry cron monitor slug for Drupal cron.
 
-### New Relic
-
-- `NEW_RELIC_BROWSER_SNIPPET`
-  - Full copy/paste Browser snippet, including `<script>...</script>`.
-- `NEW_RELIC_API_KEY`
-  - New Relic User key used by Pantheon Quicksilver change tracking.
-- `NEW_RELIC_ENTITY_GUID_APM`
-  - Target APM entity GUID for deploy change tracking.
-- `NEW_RELIC_ENTITY_GUID_BROWSER`
-  - Target Browser entity GUID for deploy change tracking.
-
 ### ILAS Site Assistant
 
 - `ILAS_LEGALSERVER_ONLINE_APPLICATION_URL`
@@ -61,15 +50,6 @@ These are used by CI/release workflows, not by Drupal runtime.
 
 These values are needed for operator workflows, but Drupal does not read them
 at runtime on Pantheon.
-
-### New Relic account and support values
-
-- `NEW_RELIC_ACCOUNT_ID`
-  - Needed for Pantheon BYO APM setup.
-  - Not secret.
-- `NEW_RELIC_LICENSE_KEY`
-  - Needed for Pantheon BYO APM setup.
-  - Secret.
 
 ### Reference-only Sentry values
 
@@ -100,17 +80,6 @@ Use local-only files for local values. Do not commit real credentials.
 - Start from `.ddev/.env.example`
 - Set `ILAS_LOCAL_BROWSER_OBSERVABILITY=1` only if you intentionally want local
   browser injection when the corresponding secrets exist
-- Keep `.ddev/config.newrelic.yaml` local-only
-- Start from `.ddev/config.newrelic.yaml.example`
-
-### Optional local-only New Relic values
-
-- `NEW_RELIC_ACCOUNT_ID`
-- `NEW_RELIC_LICENSE_KEY`
-- `NEW_RELIC_BROWSER_SNIPPET`
-- `NEW_RELIC_API_KEY`
-- `NEW_RELIC_ENTITY_GUID_APM`
-- `NEW_RELIC_ENTITY_GUID_BROWSER`
 
 ## Hosted Pantheon Rules
 

@@ -260,9 +260,9 @@ class ImpObs01AcceptanceTest extends TestCase {
   }
 
   /**
-   * Langfuse AC-6: Install config sample_rate is 1.0; runtime gates doc 0.10.
+   * Langfuse AC-6: Install config and runtime gates both document sample_rate=1.0.
    */
-  public function testInstallSampleRateAndRuntimeGatesPolicyCap(): void {
+  public function testInstallSampleRateAndRuntimeGatesAlignment(): void {
     // Verify install config default sample_rate.
     $installPath = self::repoRoot() . '/' . self::MODULE_PATH
       . '/config/install/ilas_site_assistant.settings.yml';
@@ -275,12 +275,17 @@ class ImpObs01AcceptanceTest extends TestCase {
       'Install config langfuse.sample_rate must be 1.0',
     );
 
-    // Verify runtime gates file documents live at 0.10.
+    // Verify runtime gates file documents live at 1.0.
     $gatesFile = self::readFile('docs/aila/runtime/phase1-observability-gates.txt');
     $this->assertStringContainsString(
+      'langfuse_sample_rate=1',
+      $gatesFile,
+      'Runtime gates must document live sample rate of 1.0',
+    );
+    $this->assertStringNotContainsString(
       'langfuse_sample_rate=0.1',
       $gatesFile,
-      'Runtime gates must document live sample rate of 0.1',
+      'Runtime gates must no longer document a 0.1 Langfuse sample rate',
     );
   }
 

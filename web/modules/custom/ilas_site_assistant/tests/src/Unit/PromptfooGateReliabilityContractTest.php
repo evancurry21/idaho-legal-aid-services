@@ -55,6 +55,7 @@ final class PromptfooGateReliabilityContractTest extends TestCase {
     $this->assertStringContainsString('connectivity_status=', $script);
     $this->assertStringContainsString('connectivity_error_code=', $script);
     $this->assertStringContainsString('quality_phase=', $script);
+    $this->assertStringContainsString('eval_execution_mode=', $script);
     $this->assertStringContainsString('rate_limit_source=', $script);
     $this->assertStringContainsString('effective_request_delay_ms=', $script);
     $this->assertStringContainsString('ddev_rate_limit_override=', $script);
@@ -126,6 +127,8 @@ final class PromptfooGateReliabilityContractTest extends TestCase {
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR', $workflow);
     $this->assertStringContainsString('TARGET_ENV="${CI_PROMPTFOO_ENV}"', $workflow);
     $this->assertStringContainsString('npm run test:promptfoo:runtime', $workflow);
+    $this->assertStringContainsString('promptfooconfig.deploy.yaml', $workflow);
+    $this->assertStringContainsString('--no-deep-eval', $workflow);
   }
 
 }

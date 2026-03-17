@@ -136,4 +136,40 @@ class SentryProbeCommandTest extends TestCase {
     $this->assertSame('int', $returnType->getName(), 'sentryProbe() must return int');
   }
 
+  /**
+   * SentryProbeCommands::sentryProbe() calls configureScope with fingerprint.
+   *
+   * Verifies the method body contains the fingerprint grouping logic (R-4).
+   */
+  public function testProbeCommandSetsFingerprint(): void {
+    $reflection = new \ReflectionMethod(
+      'Drupal\ilas_site_assistant\Commands\SentryProbeCommands',
+      'sentryProbe',
+    );
+    $source = file_get_contents($reflection->getFileName());
+    $this->assertNotFalse($source);
+
+    // Extract just the method body.
+    $start = $reflection->getStartLine();
+    $end = $reflection->getEndLine();
+    $lines = array_slice(explode("\n", $source), $start - 1, $end - $start + 1);
+    $methodBody = implode("\n", $lines);
+
+    $this->assertStringContainsString(
+      'configureScope',
+      $methodBody,
+      'sentryProbe() must call configureScope to set fingerprint',
+    );
+    $this->assertStringContainsString(
+      'setFingerprint',
+      $methodBody,
+      'sentryProbe() must set a fixed fingerprint for probe grouping',
+    );
+    $this->assertStringContainsString(
+      'sentry-probe',
+      $methodBody,
+      'Fingerprint must include the sentry-probe identifier',
+    );
+  }
+
 }

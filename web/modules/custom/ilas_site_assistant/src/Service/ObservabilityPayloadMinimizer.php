@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\ilas_site_assistant\Service;
 
+use Drupal\Core\Site\Settings;
+
 /**
  * Shared helper for minimizing observability payloads.
  */
@@ -22,7 +24,7 @@ final class ObservabilityPayloadMinimizer {
     $normalized = self::normalizeRedactedText($text);
 
     return [
-      'text_hash' => hash('sha256', $normalized),
+      'text_hash' => self::saltedHash($normalized),
       'length_bucket' => self::lengthBucketForNormalized($normalized),
       'redaction_profile' => self::redactionProfileForNormalized($normalized),
     ];
@@ -64,7 +66,38 @@ final class ObservabilityPayloadMinimizer {
    * Returns a stable hash for opaque identifiers.
    */
   public static function hashIdentifier(string $value): string {
-    return hash('sha256', mb_strtolower(trim($value)));
+    return self::saltedHash(mb_strtolower(trim($value)));
+  }
+
+  /**
+   * Returns a SHA-256 hash with a per-installation salt.
+   *
+   * The salt prevents rainbow-table inversion of common query hashes
+   * across installations. Falls back to Drupal's hash_salt when no
+   * dedicated observability salt is configured, and to unsalted hash
+   * when Settings is unavailable (e.g., unit tests).
+   */
+  public static function saltedHash(string $value): string {
+    $salt = '';
+    try {
+      $candidate = Settings::get('ilas_observability_hash_salt');
+      if (is_string($candidate) && $candidate !== '') {
+        $salt = $candidate;
+      }
+      else {
+        $hashSalt = Settings::getHashSalt();
+        if (is_string($hashSalt) && $hashSalt !== '') {
+          $salt = $hashSalt;
+        }
+      }
+    }
+    catch (\Throwable $e) {
+      // Settings not initialized (e.g., unit tests without bootstrap).
+    }
+    if ($salt === '') {
+      return hash('sha256', $value);
+    }
+    return hash('sha256', $salt . '|' . $value);
   }
 
   /**
@@ -191,11 +224,36 @@ final class ObservabilityPayloadMinimizer {
       return 'es';
     }
 
-    if (preg_match('/\b(mi|me|llamo|nombre|direccion|ayuda|necesito|donde|como|para|por|vivo|telefono|licencia)\b/u', $normalized)) {
+    // Keep ambiguous ASCII markers from flipping common English phrases to Spanish.
+    $strong_spanish_patterns = [
+      '/\bme\s+llamo\b/u',
+      '/\bmi\s+nombre\b/u',
+      '/\b(llamo|nombre|ayuda|necesito|direccion|telefono|licencia)\b/u',
+    ];
+    $weak_spanish_patterns = [
+      '/\b(como|donde|para|por|vivo)\b/u',
+    ];
+    $english_patterns = [
+      '/\b(the|and|help|need|where|what|how|with|my|apply|forms|guide|eviction|please|can|this)\b/u',
+    ];
+
+    $has_strong_spanish = self::matchesAnyPattern($normalized, $strong_spanish_patterns);
+    $has_weak_spanish = self::matchesAnyPattern($normalized, $weak_spanish_patterns);
+    $has_english = self::matchesAnyPattern($normalized, $english_patterns);
+
+    if ($has_strong_spanish && $has_english) {
+      return 'en';
+    }
+
+    if ($has_strong_spanish) {
       return 'es';
     }
 
-    if (preg_match('/\b(the|and|help|need|where|what|how|with|my|apply|forms|guide|eviction)\b/u', $normalized)) {
+    if ($has_english) {
+      return 'en';
+    }
+
+    if ($has_weak_spanish) {
       return 'en';
     }
 
@@ -204,6 +262,19 @@ final class ObservabilityPayloadMinimizer {
     }
 
     return 'other';
+  }
+
+  /**
+   * Returns whether any pattern matches the normalized text.
+   */
+  private static function matchesAnyPattern(string $normalized, array $patterns): bool {
+    foreach ($patterns as $pattern) {
+      if (preg_match($pattern, $normalized)) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
   }
 
   /**

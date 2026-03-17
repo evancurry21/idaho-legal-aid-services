@@ -11,7 +11,8 @@ REMOTE_URL="${2:-unknown-url}"
 CURRENT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 PUSH_LINES=()
 PROMPTFOO_BRANCH="$CURRENT_BRANCH"
-SKIP_PROMPTFOO="false"
+DEPLOY_BOUND_PROMPTFOO="false"
+DDEV_ASSISTANT_URL=""
 
 while IFS=' ' read -r local_ref local_oid remote_ref remote_oid; do
   [[ -z "${local_ref:-}" ]] && continue
@@ -67,6 +68,29 @@ resolve_promptfoo_branch() {
   printf '%s\n' "$CURRENT_BRANCH"
 }
 
+resolve_ddev_assistant_url() {
+  local ddev_json=""
+  local ddev_primary_url=""
+
+  if ! command -v ddev >/dev/null 2>&1; then
+    return 1
+  fi
+
+  if ! ddev_json="$(ddev describe -j 2>/dev/null)"; then
+    return 1
+  fi
+
+  ddev_primary_url="$(
+    printf '%s' "$ddev_json" | node -e "const fs=require('node:fs'); const data=JSON.parse(fs.readFileSync(0,'utf8')); process.stdout.write((data?.raw?.primary_url || '').trim());"
+  )"
+
+  if [[ -z "$ddev_primary_url" ]]; then
+    return 1
+  fi
+
+  printf '%s/assistant/api/message\n' "${ddev_primary_url%/}"
+}
+
 is_effective_target_branch() {
   local branch="$1"
 
@@ -114,7 +138,13 @@ if [[ "$REMOTE_NAME" == "origin" || "$REMOTE_NAME" == "github" ]]; then
       echo "Emergency bypass only: git push --no-verify origin master" >&2
       exit 1
     fi
-    SKIP_PROMPTFOO="true"
+    if ! DDEV_ASSISTANT_URL="$(resolve_ddev_assistant_url)"; then
+      echo "ERROR: Deploy-bound origin/master promptfoo gating requires a running DDEV environment." >&2
+      echo "Start DDEV so the exact local code can be evaluated before the Pantheon push." >&2
+      echo "Emergency bypass only: git push --no-verify origin master" >&2
+      exit 1
+    fi
+    DEPLOY_BOUND_PROMPTFOO="true"
   fi
 
   if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/$OTHER_REMOTE/$CURRENT_BRANCH"; then
@@ -140,11 +170,31 @@ fi
 
 cd "$REPO_ROOT"
 
+if ! command -v composer >/dev/null 2>&1; then
+  echo "ERROR: Composer is required for strict pre-push dependency parity checks." >&2
+  echo "Install Composer locally before publishing, or bypass intentionally with git push --no-verify." >&2
+  exit 1
+fi
+
+echo "Running Composer installability parity check..."
+if ! composer install --no-interaction --no-progress --prefer-dist --dry-run; then
+  echo "ERROR: Composer install dry-run failed." >&2
+  echo "This mirrors the GitHub 'Install Composer dependencies' step and usually means composer.json/composer.lock drift." >&2
+  exit 1
+fi
+
 echo "Running module quality gate..."
 bash web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
 
-if [[ "$SKIP_PROMPTFOO" == "true" ]]; then
-  echo "Skipping local promptfoo gate for origin/master: trusting GitHub Promptfoo Gate for this synced commit."
+if [[ "$DEPLOY_BOUND_PROMPTFOO" == "true" ]]; then
+  echo "Running deploy-bound promptfoo gate for origin/master against local DDEV exact code..."
+  CI_BRANCH="$PROMPTFOO_BRANCH" \
+    ILAS_ASSISTANT_URL="$DDEV_ASSISTANT_URL" \
+    bash scripts/ci/run-promptfoo-gate.sh \
+      --env dev \
+      --mode auto \
+      --config promptfooconfig.deploy.yaml \
+      --no-deep-eval
 else
   echo "Running branch-aware promptfoo gate for target branch ${PROMPTFOO_BRANCH}..."
   CI_BRANCH="$PROMPTFOO_BRANCH" bash scripts/ci/run-promptfoo-gate.sh --env dev --mode auto

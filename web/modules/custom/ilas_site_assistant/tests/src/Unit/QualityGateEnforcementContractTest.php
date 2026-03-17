@@ -74,9 +74,11 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('EFFECTIVE_MODE="blocking"', $script);
     $this->assertStringContainsString('EFFECTIVE_MODE="advisory"', $script);
     $this->assertStringContainsString('promptfooconfig.smoke.yaml', $script);
+    $this->assertStringContainsString('promptfooconfig.deploy.yaml', $script);
     $this->assertStringContainsString('promptfooconfig.deep.yaml', $script);
     $this->assertStringContainsString('promptfooconfig.abuse.yaml', $script);
     $this->assertStringContainsString('config_file=', $script);
+    $this->assertStringContainsString('eval_execution_mode=', $script);
     $this->assertStringContainsString('gate-metrics.js', $script);
     $this->assertStringContainsString('apply_metric_threshold_report', $script);
   }
@@ -107,8 +109,8 @@ final class QualityGateEnforcementContractTest extends TestCase {
     );
     $this->assertStringContainsString('Run promptfoo transport/runtime tests', $workflow);
     $this->assertStringContainsString('run-promptfoo-gate.sh', $workflow);
-    $this->assertStringContainsString('--skip-eval', $workflow);
-    $this->assertStringContainsString('--simulate-pass-rate', $workflow);
+    $this->assertStringContainsString('promptfooconfig.deploy.yaml', $workflow);
+    $this->assertStringContainsString('--no-deep-eval', $workflow);
     $this->assertStringContainsString('CI_PROMPTFOO_ENV: dev', $workflow);
     $this->assertStringContainsString('TARGET_ENV="${CI_PROMPTFOO_ENV}"', $workflow);
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE', $workflow);

@@ -40,9 +40,6 @@ describe('observability.js assistant error capture', function () {
           replaySessionSampleRate: 0.05,
           replayOnErrorSampleRate: 1,
         },
-        newRelic: {
-          browserEnabled: false,
-        },
       }, settingsOverrides || {}),
     };
 

@@ -7,6 +7,7 @@
     "git:finish": "bash scripts/git/finish.sh",
     "git:sync-master": "bash scripts/git/sync-master.sh",
     "git:sync-check": "bash scripts/git/sync-check.sh",
+    "test:phpunit:host": "bash scripts/ci/run-host-phpunit.sh",
     "eval:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh eval",
     "eval:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action eval",
     "eval:promptfoo:live": "ILAS_ASSISTANT_URL=https://idaholegalaid.org/assistant/api/message bash promptfoo-evals/scripts/run-promptfoo.sh eval",

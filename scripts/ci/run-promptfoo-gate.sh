@@ -24,6 +24,7 @@ DEEP_CONFIG_FILE=""
 SMOKE_CONFIG_FILE="promptfooconfig.smoke.yaml"
 CONNECTIVITY_ONLY="false"
 SKIP_EVAL="false"
+NO_DEEP_EVAL="false"
 SIMULATED_PASS_RATE=""
 RAG_METRIC_THRESHOLD="${RAG_CONFIDENCE_THRESHOLD:-90}"
 RAG_METRIC_MIN_COUNT="${RAG_METRIC_MIN_COUNT:-10}"
@@ -58,6 +59,7 @@ EFFECTIVE_REQUEST_DELAY_MS=""
 DDEV_RATE_LIMIT_OVERRIDE="not_needed"
 NODE_CA_SOURCE=""
 FULL_EVAL_COMPLETED="false"
+EVAL_EXECUTION_MODE="real"
 
 PLANNED_SMOKE_CASE_COUNT="0"
 PLANNED_PRIMARY_CASE_COUNT="0"
@@ -177,11 +179,12 @@ count_cases_for_config() {
 
 usage() {
   cat <<USAGE
-Usage: $0 --env <dev|test|live> [--site <pantheon-site>] [--mode auto|blocking|advisory] [--threshold <0-100>] [--config <promptfoo-config>] [--deep-config <deep-config>] [--connectivity-only] [--skip-eval] [--simulate-pass-rate <0-100>]
+Usage: $0 --env <dev|test|live> [--site <pantheon-site>] [--mode auto|blocking|advisory] [--threshold <0-100>] [--config <promptfoo-config>] [--deep-config <deep-config>] [--no-deep-eval] [--connectivity-only] [--skip-eval] [--simulate-pass-rate <0-100>]
 
 Policy:
   mode=auto -> blocking on master/main/release/*, advisory otherwise.
-  --deep-config auto-enables on blocking branches if not explicitly set.
+  --deep-config auto-enables on blocking branches if not explicitly set, unless --no-deep-eval is supplied.
+  Deploy-safe hosted/deploy-bound runs commonly use --config promptfooconfig.deploy.yaml --no-deep-eval.
 USAGE
 }
 
@@ -634,6 +637,7 @@ write_summary() {
     echo "connectivity_status=${CONNECTIVITY_STATUS}"
     echo "connectivity_error_code=${CONNECTIVITY_ERROR_CODE}"
     echo "quality_phase=${QUALITY_PHASE}"
+    echo "eval_execution_mode=${EVAL_EXECUTION_MODE}"
     echo "rate_limit_source=${RATE_LIMIT_SOURCE}"
     echo "configured_rate_limit_per_minute=${CONFIGURED_RATE_LIMIT_PER_MINUTE_VALUE}"
     echo "configured_rate_limit_per_hour=${CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE}"
@@ -771,6 +775,10 @@ while [[ $# -gt 0 ]]; do
       DEEP_CONFIG_FILE="${2:-}"
       shift 2
       ;;
+    --no-deep-eval)
+      NO_DEEP_EVAL="true"
+      shift 1
+      ;;
     --connectivity-only)
       CONNECTIVITY_ONLY="true"
       shift 1
@@ -837,7 +845,7 @@ fi
 if [[ -z "$CONFIG_FILE" ]]; then
   CONFIG_FILE="promptfooconfig.abuse.yaml"
 fi
-if [[ "$EFFECTIVE_MODE" == "blocking" && -z "$DEEP_CONFIG_FILE" ]]; then
+if [[ "$EFFECTIVE_MODE" == "blocking" && -z "$DEEP_CONFIG_FILE" && "$NO_DEEP_EVAL" != "true" ]]; then
   DEEP_CONFIG_FILE="promptfooconfig.deep.yaml"
 fi
 if [[ "$CONNECTIVITY_ONLY" == "true" && "$SKIP_EVAL" == "true" ]]; then
@@ -855,6 +863,7 @@ PLANNED_CASE_COUNT=$((PLANNED_SMOKE_CASE_COUNT + PLANNED_PRIMARY_CASE_COUNT + PL
 mkdir -p "$(dirname "$SUMMARY_FILE")"
 
 if [[ "$SKIP_EVAL" == "true" ]]; then
+  EVAL_EXECUTION_MODE="simulated"
   QUALITY_PHASE="target_resolution"
   if [[ -n "${ILAS_ASSISTANT_URL:-}" ]]; then
     resolve_assistant_target

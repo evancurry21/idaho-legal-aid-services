@@ -272,7 +272,7 @@ function _ilas_observability_site_id(): ?string {
 /**
  * Returns shared observability settings for runtime consumers.
  */
-function _ilas_observability_settings(string $new_relic_browser_snippet = '', bool $new_relic_browser_enabled = FALSE): array {
+function _ilas_observability_settings(): array {
   return [
     'environment' => _ilas_observability_environment_name(),
     'pantheon_env' => _ilas_raw_pantheon_environment() ?: '',
@@ -286,10 +286,6 @@ function _ilas_observability_settings(string $new_relic_browser_snippet = '', bo
         'replay_session_sample_rate' => _ilas_observability_sentry_sample_rate('replay_session'),
         'replay_on_error_sample_rate' => _ilas_observability_sentry_sample_rate('replay_error'),
       ],
-    ],
-    'new_relic' => [
-      'browser_enabled' => $new_relic_browser_enabled,
-      'browser_snippet' => $new_relic_browser_snippet,
     ],
   ];
 }
@@ -569,13 +565,7 @@ if ($sentry_cron_monitor_id) {
   $config['raven.settings']['cron_monitor_id'] = $sentry_cron_monitor_id;
 }
 
-$new_relic_browser_snippet = _ilas_get_secret('NEW_RELIC_BROWSER_SNIPPET');
-$new_relic_local_enabled = getenv('ILAS_LOCAL_BROWSER_OBSERVABILITY') === '1';
-$new_relic_browser_enabled = $new_relic_browser_snippet && ($observability_environment !== 'local' || $new_relic_local_enabled);
-$settings['ilas_observability'] = _ilas_observability_settings(
-  $new_relic_browser_enabled ? (string) $new_relic_browser_snippet : '',
-  $new_relic_browser_enabled,
-);
+$settings['ilas_observability'] = _ilas_observability_settings();
 $settings['ilas_observability']['pantheon_site_name'] = $observability_site_name;
 $settings['ilas_observability']['pantheon_site_id'] = $observability_site_id ?? '';
 $settings['ilas_observability']['pantheon_environment'] = $observability_pantheon_env;
@@ -583,6 +573,19 @@ $settings['ilas_observability']['multidev_name'] = $observability_multidev;
 $settings['ilas_observability']['release'] = $observability_release ?? '';
 $settings['ilas_observability']['git_sha'] = $observability_git_sha ?? '';
 $settings['ilas_observability']['public_site_url'] = $public_site_url;
+
+/**
+ * Assistant diagnostics token for private machine-auth health/metrics access.
+ *
+ * On Pantheon: type "runtime", scope "web", key
+ * "ILAS_ASSISTANT_DIAGNOSTICS_TOKEN".
+ * Locally (DDEV): add ILAS_ASSISTANT_DIAGNOSTICS_TOKEN=<value> to .ddev/.env,
+ * then ddev restart.
+ */
+$ilas_assistant_diagnostics_token = _ilas_get_secret('ILAS_ASSISTANT_DIAGNOSTICS_TOKEN');
+if ($ilas_assistant_diagnostics_token) {
+  $settings['ilas_assistant_diagnostics_token'] = $ilas_assistant_diagnostics_token;
+}
 
 /**
  * Include DDEV settings if present.

@@ -857,6 +857,12 @@ class AssistantApiController extends ControllerBase {
       ], 400, [], $request_id, FALSE, 'message.invalid_context', TRUE);
     }
 
+    // Guard against runaway processing: cap message pipeline to 25 seconds.
+    // The client has a 15s AbortController timeout but the server would
+    // otherwise continue until PHP max_execution_time kills it.
+    $previous_time_limit = (int) ini_get('max_execution_time');
+    set_time_limit(25);
+
     // Start performance tracking.
     $start_time = microtime(TRUE);
 
@@ -922,12 +928,34 @@ class AssistantApiController extends ControllerBase {
       'prior_question_hash' => '',
       'updated_at' => 0,
     ];
+
+    // Compute session fingerprint for conversation cache binding.
+    // Defense-in-depth: prevents UUID-based cache poisoning if a
+    // conversation ID leaks (logs, shared computers, Langfuse traces).
+    $session_fingerprint = '';
+    if ($request->hasSession() && $request->getSession()->isStarted()) {
+      $session_fingerprint = hash('sha256', $request->getSession()->getId());
+    }
+
     if (!empty($data['conversation_id']) && preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i', $data['conversation_id'])) {
       $conversation_id = $data['conversation_id'];
       $cache_key = 'ilas_conv:' . $conversation_id;
       $cached = $this->conversationCache->get($cache_key);
       if ($cached) {
-        $server_history = $cached->data;
+        $cached_data = $cached->data;
+        // Verify session ownership. If the cache entry has a stored
+        // fingerprint and it differs from the current session, treat
+        // the conversation as new (do not load stale/foreign history).
+        $stored_fp = $cached_data['_session_fp'] ?? '';
+        if ($stored_fp !== '' && $session_fingerprint !== '' && $stored_fp !== $session_fingerprint) {
+          $this->logger->warning(
+            '[@request_id] Conversation cache session mismatch for @conv_id — treating as new conversation.',
+            ['@request_id' => $request_id, '@conv_id' => $conversation_id]
+          );
+        }
+        else {
+          $server_history = is_array($cached_data) ? array_filter($cached_data, 'is_int', ARRAY_FILTER_USE_KEY) : [];
+        }
       }
       $clarify_meta = $this->loadClarifyMeta($conversation_id);
 
@@ -1811,8 +1839,11 @@ class AssistantApiController extends ControllerBase {
       // Keep only last 10 entries (5 exchanges).
       $server_history = array_slice($server_history, -10);
 
-      // Build cache data: history + A/B variant assignments.
+      // Build cache data: history + session fingerprint + A/B assignments.
       $cache_data = $server_history;
+      if ($session_fingerprint !== '') {
+        $cache_data['_session_fp'] = $session_fingerprint;
+      }
       if (!empty($ab_assignments)) {
         // Store assignments alongside history keyed separately so they persist.
         $this->conversationCache->set(
@@ -1995,6 +2026,11 @@ class AssistantApiController extends ControllerBase {
         ],
         'request_id' => $request_id,
       ], 500, [], $request_id, FALSE, 'message.internal_error', FALSE, FALSE, 'error');
+    }
+    finally {
+      // Restore original time limit so subsequent Drupal processing is
+      // not constrained by the message-pipeline guard.
+      set_time_limit($previous_time_limit);
     }
   }
 
@@ -4393,9 +4429,13 @@ class AssistantApiController extends ControllerBase {
       'timestamp' => time(),
     ];
     $server_history = array_slice($server_history, -10);
+    $cache_data = $server_history;
+    if ($request->hasSession() && $request->getSession()->isStarted()) {
+      $cache_data['_session_fp'] = hash('sha256', $request->getSession()->getId());
+    }
     $this->conversationCache->set(
       'ilas_conv:' . $conversation_id,
-      $server_history,
+      $cache_data,
       time() + 1800
     );
 
@@ -4508,9 +4548,13 @@ class AssistantApiController extends ControllerBase {
       'timestamp' => time(),
     ];
     $server_history = array_slice($server_history, -10);
+    $cache_data = $server_history;
+    if ($request->hasSession() && $request->getSession()->isStarted()) {
+      $cache_data['_session_fp'] = hash('sha256', $request->getSession()->getId());
+    }
     $this->conversationCache->set(
       'ilas_conv:' . $conversation_id,
-      $server_history,
+      $cache_data,
       time() + 1800
     );
 

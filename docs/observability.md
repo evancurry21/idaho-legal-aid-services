@@ -2,7 +2,7 @@
 
 ## Ownership
 - Sentry owns backend errors, browser errors, stack traces, trace correlation, replay, assistant/browser incident capture, and release/source-map workflows.
-- New Relic owns Pantheon APM, browser performance/RUM, change tracking, synthetics, SLO dashboards, and account-level alert/workflow routing.
+- New Relic AILA integration was retired (TOVR-06, 2026-03-16). Pantheon platform-level APM is a separate concern.
 
 ## Environment Naming
 - `local`
@@ -11,7 +11,7 @@
 - `pantheon-live`
 - `pantheon-multidev-<name>`
 
-These labels are produced at runtime in `settings.php` and reused across Sentry tags, browser telemetry, and New Relic custom attributes.
+These labels are produced at runtime in `settings.php` and reused across Sentry tags and browser telemetry.
 
 ## Release Naming
 - Hosted environments use `PANTHEON_DEPLOYMENT_IDENTIFIER`.
@@ -29,13 +29,12 @@ These labels are produced at runtime in `settings.php` and reused across Sentry 
 - Backend Sentry callbacks scrub event messages, exception values, request/context payloads, transactions, and structured logs before send.
 - Browser Sentry helper redacts emails, bearer tokens, UUIDs, SSNs, and user/body/query payloads before capture.
 - Assistant browser events never emit raw prompts or form text; they carry only minimized fields such as `feature`, `surface`, `status`, and `errorCode`.
-- New Relic Browser must be injected through `NEW_RELIC_BROWSER_SNIPPET`; apply replay masking and obfuscation there before storing it as a runtime secret.
 
 ## Assistant / AILA Notes
 - Shared tags: `assistant_name=aila`, `site_name`, `site_id`, `pantheon_env`, `multidev_name`, `runtime_context`, `release`, `git_sha`
 - Browser assistant events:
   - `ilas:assistant:error`
-  - `ilas:assistant:action`
+  - `ilas:assistant:action` (event contract preserved; handler is a no-op after NR retirement)
 - Backend assistant failures continue to flow through `AssistantApiController`, Langfuse, Drupal logs, and Sentry with the same `request_id`.
 
 ## Operational Ownership
@@ -43,7 +42,7 @@ These labels are produced at runtime in `settings.php` and reused across Sentry 
 - **Project owner:** `Evan Curry <evancurry@idaholegalaid.org>`
 - **Triage cadence:** Weekly review of Sentry issue stream, alert noise ratio, and unresolved incidents.
 - **Review artifact location:** `docs/aila/runtime/phard-01-sentry-operationalization.txt`
-- **Alert routing:** Sentry alerts route directly to the project owner’s member email (`evancurry@idaholegalaid.org`) for the three permanent live AILA rules.
+- **Alert routing:** Sentry alerts route directly to the project owner's member email (`evancurry@idaholegalaid.org`) for the three permanent live AILA rules.
 - **Escalation:** No backup responder is configured; Evan is the sole responder and escalation target.
 
 ## Approved Sentry Payload
@@ -74,6 +73,5 @@ Contract tests in `observability-assistant-error.test.js` and `observability-noi
   - trigger one backend exception, one browser error, and `ddev drush cron`
 - Pantheon:
   - verify `raven` runtime config on `dev`, `test`, `live`
-  - fetch rendered HTML and confirm New Relic snippet and Sentry trace headers
-  - verify New Relic change-tracking markers after a deploy
+  - fetch rendered HTML and confirm Sentry trace headers
   - verify Sentry release association and source-map upload for the deployed release

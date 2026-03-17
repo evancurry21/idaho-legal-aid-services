@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\ilas_site_assistant\Functional;
 
+use Drupal\Core\Site\Settings;
 use Drupal\Tests\BrowserTestBase;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Cookie\CookieJarInterface;
@@ -54,6 +55,16 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * @var \Drupal\user\UserInterface
    */
   protected $regularUser;
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function tearDown(): void {
+    new Settings([]);
+    putenv('ILAS_ASSISTANT_DIAGNOSTICS_TOKEN');
+    unset($_ENV['ILAS_ASSISTANT_DIAGNOSTICS_TOKEN']);
+    parent::tearDown();
+  }
 
   /**
    * {@inheritdoc}
@@ -477,6 +488,19 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
+   * Tests that anonymous callers cannot read health without machine auth.
+   */
+  public function testHealthEndpointAnonymousWithoutTokenReturnsAccessDenied(): void {
+    $response = $this->getJson('/assistant/api/health');
+
+    $this->assertEquals(403, $response->getStatusCode());
+    $data = json_decode($response->getBody(), TRUE);
+    $this->assertSame(TRUE, $data['error'] ?? NULL);
+    $this->assertSame('access_denied', $data['error_code'] ?? NULL);
+    $this->assertSame('Access denied', $data['message'] ?? NULL);
+  }
+
+  /**
    * Tests that the health endpoint requires proper permission.
    */
   public function testHealthEndpointPermissionCheck(): void {
@@ -489,6 +513,28 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     ]);
 
     $this->assertEquals(403, $response->getStatusCode());
+  }
+
+  /**
+   * Tests that the health endpoint is accessible with a valid machine header.
+   */
+  public function testHealthEndpointAccessibleWithValidMachineHeader(): void {
+    $this->configureDiagnosticsToken('functional-health-token');
+
+    $response = $this->getJson('/assistant/api/health', NULL, [
+      'X-ILAS-Observability-Key' => 'functional-health-token',
+    ]);
+
+    $this->assertContains(
+      $response->getStatusCode(),
+      [200, 503],
+      'Machine-auth health endpoint should be reachable and return healthy/degraded status'
+    );
+
+    $data = json_decode($response->getBody(), TRUE);
+    $this->assertArrayHasKey('status', $data);
+    $this->assertArrayHasKey('timestamp', $data);
+    $this->assertArrayHasKey('checks', $data);
   }
 
   /**
@@ -518,6 +564,19 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
+   * Tests that anonymous callers cannot read metrics without machine auth.
+   */
+  public function testMetricsEndpointAnonymousWithoutTokenReturnsAccessDenied(): void {
+    $response = $this->getJson('/assistant/api/metrics');
+
+    $this->assertEquals(403, $response->getStatusCode());
+    $data = json_decode($response->getBody(), TRUE);
+    $this->assertSame(TRUE, $data['error'] ?? NULL);
+    $this->assertSame('access_denied', $data['error_code'] ?? NULL);
+    $this->assertSame('Access denied', $data['message'] ?? NULL);
+  }
+
+  /**
    * Tests that the metrics endpoint requires proper permission.
    */
   public function testMetricsEndpointPermissionCheck(): void {
@@ -529,6 +588,27 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     ]);
 
     $this->assertEquals(403, $response->getStatusCode());
+  }
+
+  /**
+   * Tests that the metrics endpoint is accessible with a valid machine header.
+   */
+  public function testMetricsEndpointAccessibleWithValidMachineHeader(): void {
+    $this->configureDiagnosticsToken('functional-metrics-token');
+
+    $response = $this->getJson('/assistant/api/metrics', NULL, [
+      'X-ILAS-Observability-Key' => 'functional-metrics-token',
+    ]);
+
+    $this->assertEquals(200, $response->getStatusCode());
+
+    $data = json_decode($response->getBody(), TRUE);
+    $this->assertArrayHasKey('timestamp', $data);
+    $this->assertArrayHasKey('metrics', $data);
+    $this->assertArrayHasKey('proxy_trust', $data);
+    $this->assertArrayHasKey('thresholds', $data);
+    $this->assertArrayHasKey('cron', $data);
+    $this->assertArrayHasKey('queue', $data);
   }
 
   /**
@@ -1222,6 +1302,23 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     }
 
     return $this->getHttpClient()->get($this->buildUrl($path) . $query, $options);
+  }
+
+  /**
+   * Writes a runtime diagnostics token into the generated test-site settings.
+   */
+  protected function configureDiagnosticsToken(string $token): void {
+    $this->writeSettings([
+      'settings' => [
+        'ilas_assistant_diagnostics_token' => (object) [
+          'value' => $token,
+          'required' => TRUE,
+        ],
+      ],
+    ]);
+
+    \Drupal::service('kernel')->invalidateContainer();
+    Settings::initialize(DRUPAL_ROOT, $this->siteDirectory, $this->classLoader);
   }
 
   /**

@@ -279,7 +279,7 @@ main() {
 
   case "$origin_status" in
     local-ahead)
-      info "Pantheon dev is behind; deploying origin/master..."
+      info "Pantheon dev is behind; deploying origin/master through the local DDEV deploy gate..."
       bash "$SCRIPT_DIR/publish.sh" --origin-only
       ;;
     in-sync)

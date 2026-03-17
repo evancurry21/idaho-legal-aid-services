@@ -1,0 +1,184 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\Tests\ilas_site_assistant\Unit;
+
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Config\MemoryStorage;
+use Drupal\Core\Site\Settings;
+use Drupal\ilas_site_assistant\Service\RuntimeTruthSnapshotBuilder;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Contract tests for override-aware runtime truth snapshots.
+ */
+#[Group('ilas_site_assistant')]
+class RuntimeTruthSnapshotBuilderTest extends TestCase {
+
+  /**
+   * Resets Settings after each test.
+   */
+  protected function tearDown(): void {
+    new Settings([]);
+    parent::tearDown();
+  }
+
+  /**
+   * The snapshot is sanitized and detects stored-versus-effective divergence.
+   */
+  public function testBuildSnapshotRedactsSecretsAndReportsDivergences(): void {
+    new Settings([
+      'ilas_observability' => [
+        'environment' => 'pantheon-live',
+        'pantheon_environment' => 'live',
+        'release' => 'live_147',
+        'git_sha' => '6bc13fd',
+        'pantheon_site_name' => 'idaho-legal-aid-services',
+        'pantheon_site_id' => 'site-id-123',
+        'public_site_url' => 'https://live-idaho-legal-aid-services.pantheonsite.io',
+        'sentry' => [
+          'browser' => [
+            'replay_session_sample_rate' => 0.01,
+            'replay_on_error_sample_rate' => 0.25,
+          ],
+        ],
+      ],
+      'ilas_gemini_api_key' => 'gemini-secret-value',
+      'ilas_vertex_sa_json' => '{"private_key":"vertex-secret-value"}',
+      'ilas_site_assistant_legalserver_online_application_url' => 'https://idoi.legalserver.org/modules/matter/extern_intake.php?pid=60&h=secret',
+      'ilas_assistant_diagnostics_token' => 'diag-secret-token',
+      'google_tag_id' => 'G-QYT2ZNY442',
+      'ilas_site_assistant_debug_metadata_force_disable' => TRUE,
+    ]);
+
+    $syncStorage = new MemoryStorage();
+    $syncStorage->write('ilas_site_assistant.settings', [
+      'llm' => [
+        'enabled' => FALSE,
+      ],
+      'vector_search' => [
+        'enabled' => FALSE,
+      ],
+      'langfuse' => [
+        'enabled' => FALSE,
+        'public_key' => '',
+        'secret_key' => '',
+        'environment' => 'production',
+        'sample_rate' => 1.0,
+      ],
+    ]);
+    $syncStorage->write('key.key.pinecone_api_key', [
+      'key_provider_settings' => [
+        'key_value' => '',
+      ],
+    ]);
+
+    $builder = new RuntimeTruthSnapshotBuilder($this->buildConfigFactory([
+      'ilas_site_assistant.settings' => [
+        'llm.enabled' => FALSE,
+        'vector_search.enabled' => FALSE,
+        'langfuse.enabled' => TRUE,
+        'langfuse.public_key' => 'pk-live-secret',
+        'langfuse.secret_key' => 'sk-live-secret',
+        'langfuse.environment' => 'pantheon-live',
+        'langfuse.sample_rate' => 1.0,
+      ],
+      'raven.settings' => [
+        'client_key' => 'https://sentry-secret@example.ingest.sentry.io/123',
+        'public_dsn' => 'https://browser-secret@example.ingest.sentry.io/123',
+        'environment' => 'pantheon-live',
+        'release' => 'live_147',
+        'javascript_error_handler' => TRUE,
+        'browser_traces_sample_rate' => 0.02,
+        'show_report_dialog' => FALSE,
+      ],
+      'key.key.pinecone_api_key' => [
+        'key_provider_settings' => [
+          'key_value' => 'pinecone-secret-value',
+        ],
+      ],
+    ]), $syncStorage);
+
+    $snapshot = $builder->buildSnapshot();
+
+    $this->assertSame([
+      'environment',
+      'exported_storage',
+      'effective_runtime',
+      'runtime_site_settings',
+      'browser_expected',
+      'override_channels',
+      'divergences',
+    ], array_keys($snapshot));
+
+    $this->assertFalse($snapshot['exported_storage']['langfuse']['enabled']);
+    $this->assertTrue($snapshot['effective_runtime']['langfuse']['enabled']);
+    $this->assertTrue($snapshot['effective_runtime']['sentry']['client_key_present']);
+    $this->assertTrue($snapshot['runtime_site_settings']['gemini_api_key_present']);
+    $this->assertTrue($snapshot['browser_expected']['google_analytics']['loader_expected']);
+    $this->assertSame('settings.php secret -> getenv/pantheon_get_secret', $snapshot['override_channels']['langfuse.enabled']);
+
+    $divergenceFields = array_column($snapshot['divergences'], 'field');
+    $this->assertContains('langfuse.enabled', $divergenceFields);
+    $this->assertContains('langfuse.public_key_present', $divergenceFields);
+    $this->assertContains('raven.settings.client_key_present', $divergenceFields);
+    $this->assertContains('key.key.pinecone_api_key.key_present', $divergenceFields);
+    $this->assertContains('google_tag_id', $divergenceFields);
+
+    $json = json_encode($snapshot, JSON_THROW_ON_ERROR);
+    $this->assertStringNotContainsString('gemini-secret-value', $json);
+    $this->assertStringNotContainsString('vertex-secret-value', $json);
+    $this->assertStringNotContainsString('diag-secret-token', $json);
+    $this->assertStringNotContainsString('pk-live-secret', $json);
+    $this->assertStringNotContainsString('sk-live-secret', $json);
+    $this->assertStringNotContainsString('sentry-secret@example.ingest.sentry.io', $json);
+    $this->assertStringNotContainsString('browser-secret@example.ingest.sentry.io', $json);
+    $this->assertStringNotContainsString('pinecone-secret-value', $json);
+  }
+
+  /**
+   * Missing required sync config fails loudly.
+   */
+  public function testBuildSnapshotThrowsWhenRequiredSyncConfigIsMissing(): void {
+    new Settings([]);
+    $builder = new RuntimeTruthSnapshotBuilder(
+      $this->buildConfigFactory([]),
+      new MemoryStorage(),
+    );
+
+    $this->expectException(\RuntimeException::class);
+    $this->expectExceptionMessage('ilas_site_assistant.settings');
+    $builder->buildSnapshot();
+  }
+
+  /**
+   * Builds a config factory stub keyed by config object name.
+   *
+   * @param array<string, array<string, mixed>> $configValues
+   *   The config values keyed by config object name.
+   *
+   * @return \Drupal\Core\Config\ConfigFactoryInterface
+   *   The stubbed config factory.
+   */
+  private function buildConfigFactory(array $configValues): ConfigFactoryInterface {
+    $configs = [];
+
+    foreach ($configValues as $configName => $values) {
+      $config = $this->createStub(ImmutableConfig::class);
+      $config->method('get')->willReturnCallback(static fn(string $key): mixed => $values[$key] ?? NULL);
+      $configs[$configName] = $config;
+    }
+
+    $empty = $this->createStub(ImmutableConfig::class);
+    $empty->method('get')->willReturn(NULL);
+
+    $configFactory = $this->createStub(ConfigFactoryInterface::class);
+    $configFactory->method('get')->willReturnCallback(static fn(string $name) => $configs[$name] ?? $empty);
+
+    return $configFactory;
+  }
+
+}

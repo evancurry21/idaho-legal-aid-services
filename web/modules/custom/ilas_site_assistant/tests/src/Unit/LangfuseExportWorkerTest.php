@@ -107,6 +107,46 @@ class LangfuseExportWorkerTest extends TestCase {
   }
 
   /**
+   * Tests that a 207 response is treated as partial success, not generic 2xx.
+   */
+  public function testPartialSuccessResponseLoggedAsNotice(): void {
+    $mocks = $this->buildWorker();
+
+    $mocks['httpClient']->expects($this->once())
+      ->method('request')
+      ->willReturn(new Response(207, [], json_encode([
+        'successes' => [['id' => 'ok-1']],
+        'errors' => [['id' => 'err-1']],
+      ], JSON_THROW_ON_ERROR)));
+
+    $mocks['logger']->expects($this->once())
+      ->method('notice')
+      ->with($this->stringContains('partial success'), $this->anything());
+    $mocks['logger']->expects($this->never())
+      ->method('info');
+
+    $mocks['worker']->processItem($this->buildPayload(time() - 60));
+  }
+
+  /**
+   * Tests that invalid queue item shapes are discarded before any HTTP call.
+   */
+  public function testInvalidQueueItemDiscarded(): void {
+    $mocks = $this->buildWorker();
+
+    $mocks['httpClient']->expects($this->never())->method('request');
+
+    $mocks['logger']->expects($this->once())
+      ->method('warning')
+      ->with($this->stringContains('invalid queue item'));
+
+    $mocks['worker']->processItem([
+      'payload' => $this->buildPayload(time() - 60),
+      'enqueued_at' => time(),
+    ]);
+  }
+
+  /**
    * Tests that a stale item is discarded without making an HTTP call.
    */
   public function testStaleItemDiscarded(): void {

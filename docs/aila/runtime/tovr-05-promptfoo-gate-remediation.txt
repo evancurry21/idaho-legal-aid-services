@@ -1,0 +1,105 @@
+TOVR-05 Promptfoo Gate Remediation
+Timestamp (UTC): 2026-03-17T00:09:44Z
+Verification level tag: repo+runtime+dry-run-push+workflow-history(pre-change)
+
+Prior status
+- `master` branch protection currently requires `PHPUnit Quality Gate` and `Promptfoo Gate`, with `strict=false` and `enforce_admins=true`.
+- Historical GitHub proof from run `23165709608` (`pull_request`, `publish/master-fddd772c0f60`, created `2026-03-16T21:00:36Z`) showed a real promptfoo eval in advisory mode; the job still concluded `success` even when the promptfoo output reported `104 passed, 0 failed, 1 error (99.05%)`.
+- Historical GitHub proof from run `23166428930` (`push`, `master`, created `2026-03-16T21:19:25Z`) showed the protected-branch path still used `--skip-eval --simulate-pass-rate 100`, so the hosted `master` check was simulated config parity rather than a live deploy-bound eval.
+- The deploy-bound `origin/master` path skipped local promptfoo entirely before this remediation, so a bad Aila change could still ship to Pantheon `dev` without an exact-code promptfoo gate.
+
+Post-change status
+- PR/helper-branch GitHub checks now run the live-safe deploy profile (`promptfooconfig.deploy.yaml`) in advisory mode with real hosted evals when `ILAS_ASSISTANT_URL` is available.
+- Protected-branch GitHub pushes now run the same deploy profile in blocking hosted mode with `--no-deep-eval`; the protected path no longer uses simulated config parity.
+- Synced `origin/master` deploy pushes now require a local DDEV exact-code promptfoo gate before Pantheon push. Hosted GitHub status is no longer treated as deploy proof for `origin/master`.
+- Blocking versus advisory after the change:
+  - PR/helper hosted checks: advisory.
+  - Protected-branch hosted pushes: blocking.
+  - `origin/master` deploy gate against local DDEV exact code: blocking.
+
+Evidence
+- Repo wiring:
+  - `.github/workflows/quality-gate.yml`
+  - `promptfoo-evals/promptfooconfig.deploy.yaml`
+  - `scripts/ci/run-promptfoo-gate.sh`
+  - `scripts/ci/run-external-quality-gate.sh`
+  - `scripts/ci/pre-push-strict.sh`
+  - `scripts/ci/install-pre-push-strict-hook.sh`
+  - `scripts/git/publish.sh`
+  - `scripts/git/finish.sh`
+- Documentation updates:
+  - `docs/aila/current-state.md`
+  - `docs/aila/evidence-index.md`
+  - `docs/aila/runbook.md`
+  - `docs/aila/roadmap.md`
+- Contract coverage:
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PromptfooGateReliabilityContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PushWorkflowGuardTest.php`
+
+Command summaries
+- `npm run test:promptfoo:runtime`
+  - Result: pass (`13/13` node tests).
+- `vendor/bin/phpunit -c phpunit.pure.xml --colors=always ...`
+  - Result: pass (`35` tests, `360` assertions) across the updated quality-gate, promptfoo-reliability, push-workflow, and continuity guards.
+- `ILAS_ASSISTANT_URL="https://ilas-pantheon.ddev.site/assistant/api/message" CI_BRANCH=feature/tovr-05 scripts/ci/run-promptfoo-gate.sh --env dev --mode advisory --config promptfooconfig.deploy.yaml --no-deep-eval`
+  - Result: exit `0`.
+  - Smoke suite: `5/5`.
+  - Deploy profile: `112/112`.
+  - Meaning: real hosted-equivalent advisory gate passes on current DDEV code.
+- `ILAS_ASSISTANT_URL="https://ilas-pantheon.ddev.site/assistant/api/message" CI_BRANCH=master scripts/ci/run-promptfoo-gate.sh --env dev --mode auto --config promptfooconfig.deploy.yaml --no-deep-eval`
+  - Result: exit `0`.
+  - Summary artifact (`promptfoo-evals/output/gate-summary.txt`) records `mode=blocking`, `eval_execution_mode=real`, `planned_case_count=117`, `smoke_pass_rate=100.0`, `pass_rate=100.0`.
+  - Meaning: the deploy-bound blocking path passes on current DDEV exact code.
+- `ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message" CI_BRANCH=master scripts/ci/run-promptfoo-gate.sh --env dev --mode auto --config promptfooconfig.deploy.yaml --no-deep-eval`
+  - Result: exit `3`.
+  - Summary artifact recorded `connectivity_status=failed`, `connectivity_error_code=dns_resolution_failed`, `failure_kind=connectivity`, `quality_phase=preflight`.
+  - Meaning: blocking mode fails non-zero on a real environment defect and does not degrade to advisory.
+- Direct strict-hook simulation without `ddev` on `PATH`:
+  - Result: exit `1`.
+  - Output: `ERROR: Deploy-bound origin/master promptfoo gating requires a running DDEV environment.`
+- `git push --dry-run origin master` with a temporary `pre-push` hook and `ddev` removed from `PATH`
+  - Result: exit `1`.
+  - Output: the push was blocked before completion with the same `Deploy-bound origin/master promptfoo gating requires a running DDEV environment` error.
+
+Workflow-history proof
+- Branch protection check state was refreshed with:
+  - `gh api repos/evancurry21/idaho-legal-aid-services/branches/master/protection --jq '{strict:.required_status_checks.strict,contexts:.required_status_checks.contexts,enforce_admins:.enforce_admins.enabled}'`
+  - Result: `{"contexts":["PHPUnit Quality Gate","Promptfoo Gate"],"enforce_admins":true,"strict":false}`
+- Historical mode split was refreshed with:
+  - `gh run view 23165709608 --json databaseId,workflowName,event,headBranch,createdAt,updatedAt,conclusion,status`
+  - `gh run view 23166428930 --json databaseId,workflowName,event,headBranch,createdAt,updatedAt,conclusion,status`
+- These runs remain the proof of the prior state; no post-change GitHub run exists yet in workflow history for the new hosted path.
+
+Changed files
+- `.github/workflows/quality-gate.yml`
+- `promptfoo-evals/promptfooconfig.deploy.yaml`
+- `scripts/ci/run-promptfoo-gate.sh`
+- `scripts/ci/run-external-quality-gate.sh`
+- `scripts/ci/pre-push-strict.sh`
+- `scripts/ci/install-pre-push-strict-hook.sh`
+- `scripts/git/publish.sh`
+- `scripts/git/finish.sh`
+- `docs/aila/current-state.md`
+- `docs/aila/evidence-index.md`
+- `docs/aila/runbook.md`
+- `docs/aila/roadmap.md`
+- `docs/aila/runtime/tovr-05-promptfoo-gate-remediation.txt`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/PromptfooGateReliabilityContractTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/PushWorkflowGuardTest.php`
+
+Residual risks / unknowns
+- No post-change GitHub `Quality Gate` run has been observed yet, so hosted workflow-history proof for the remediated path is still pending.
+- No real Pantheon deploy push was executed in this verification window; deploy blocking is proven locally through the exact hook and a `git push --dry-run` path, not by mutating remotes.
+- The deep multi-turn suite remains outside the deploy-bound gate by design to stay within the current `120/hour` hosted limit.
+- Local DDEV currently reports `rate_limit_per_minute=1000` and `rate_limit_per_hour=6135`, so the gate restores to the pre-run local baseline rather than repo-standard `15` / `120`. That state is runtime-only and not a repo diff, but it means local verification is currently more permissive than production outside the script's temporary override path.
+
+Rollback notes
+- Revert the workflow/script/doc/test changes above and remove `promptfoo-evals/promptfooconfig.deploy.yaml`.
+- If only the deploy-bound hook behavior needs rollback, restore the previous `origin/master` skip path in `scripts/ci/pre-push-strict.sh` and the related publish/install messaging, but that would return deploy proof to an advisory/simulated posture.
+
+Still-unverified surfaces
+- The next post-change PR/helper GitHub hosted run.
+- The next post-change protected-branch GitHub push run.
+- A real `origin/master` deploy push through the normal installed local hook path against Pantheon `dev`.

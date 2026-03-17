@@ -333,6 +333,43 @@ class SentryPayloadContractTest extends TestCase {
   }
 
   /**
+   * scrub_opacity and exception_class tags are in APPROVED_TAGS.
+   */
+  public function testMinimumContextTagsAreApproved(): void {
+    $approved = SentryOptionsSubscriber::APPROVED_TAGS;
+    $this->assertContains('scrub_opacity', $approved, 'scrub_opacity must be in APPROVED_TAGS');
+    $this->assertContains('exception_class', $approved, 'exception_class must be in APPROVED_TAGS');
+  }
+
+  /**
+   * Fully-scrubbed events retain scrub_opacity tag through the full pipeline.
+   */
+  public function testFullyScrubhedEventRetainsScrubOpacityTag(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+    $exception = new \LogicException('');
+    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $exceptionBag->setValue('');
+    $event->setExceptions([$exceptionBag]);
+
+    $result = $callback($event, NULL);
+
+    $this->assertNotNull($result);
+    $tags = $result->getTags();
+
+    // scrub_opacity must survive the APPROVED_TAGS filter.
+    $this->assertArrayHasKey('scrub_opacity', $tags, 'scrub_opacity must survive APPROVED_TAGS filtering');
+    $this->assertSame('full', $tags['scrub_opacity']);
+
+    // exception_class must survive the APPROVED_TAGS filter.
+    $this->assertArrayHasKey('exception_class', $tags, 'exception_class must survive APPROVED_TAGS filtering');
+    $this->assertSame('LogicException', $tags['exception_class']);
+  }
+
+  /**
    * Skips the test if Sentry SDK is not installed.
    */
   protected function requireSentry(): void {

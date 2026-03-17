@@ -334,6 +334,24 @@ Explicit mapping:
 3. Deterministic response-correctness confidence remains contract-enforced through `VC-UNIT` and `VC-DRUPAL-UNIT` suites, including SafetyClassifier and OutOfScopeClassifier Drupal-unit coverage tied to existing gate scripts. (Refs: current-state §4F; evidence-index CLAIM-105, CLAIM-132; runbook §4)
 4. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline. (Refs: current-state §1, §5; evidence-index CLAIM-115, CLAIM-119, CLAIM-132; runbook §3)
 
+### TOVR-06 New Relic binary decision — RETIRE (2026-03-16)
+1. Decision: retire all AILA-owned New Relic integration. Zero data was flowing, browser snippet was dormant on all environments, Quicksilver change tracking was broken, and browser error capture duplicated proven Sentry coverage.
+2. Code cleanup: deleted deploy-marker script, DDEV NR scaffold, NR setup doc; removed NR wiring from settings.php, b5subtheme.theme, html.html.twig, ilas_site_assistant.module, observability.js, .ddev/.env.example, .gitignore, and pantheon.yml workflows block.
+3. Test updates: removed NR assertions from ObservabilityRuntimeContractTest, ObservabilityBrowserAssetContractTest, AuditBaselineAcceptanceTest, and observability-assistant-error.test.js.
+4. Residual CWV/RUM gap is addressable via GA4 Web Vitals or a future platform-level (not AILA) decision. Pantheon platform APM is a separate concern and is not affected. (Refs: current-state §3, §8; evidence-index CLAIM-189, CLAIM-190, CLAIM-193, CLAIM-203; runtime/tovr-06-new-relic-decision.txt)
+
+### TOVR-05 deploy-bound gate disposition (2026-03-16)
+1. Prior status is now explicitly recorded: representative PR runs executed real promptfoo evals in advisory mode, representative protected-branch pushes executed simulated config-parity mode in blocking status, and synced `origin/master` deploy pushes skipped local promptfoo entirely.
+2. Post-change status is now split by proof surface: PR/helper GitHub checks run the live-safe deploy profile in advisory mode, protected-branch GitHub pushes run the same hosted deploy profile in blocking mode, and synced `origin/master` deploy pushes block on local DDEV exact-code evals with `promptfooconfig.deploy.yaml --no-deep-eval`.
+3. Deep multi-turn coverage remains in the broader repo-owned eval program but stays outside the deploy-bound gate so the hosted live-safe suite remains under the current `120/hour` budget.
+4. Hosted GitHub promptfoo runs remain mandatory merge and protected-branch checks, but deploy proof for Pantheon `dev` now comes from the local DDEV exact-code gate rather than simulated or advisory hosted results. (Refs: current-state §4F, §8; evidence-index CLAIM-200, CLAIM-211; runbook §4)
+
+### TOVR-08 override-aware runtime truth disposition (2026-03-17)
+1. Repo/runtime verification now has a dedicated helper: `ilas:runtime-truth` backed by `RuntimeTruthSnapshotBuilder` emits sanitized stored-versus-effective JSON for override-prone Langfuse, Sentry, Pinecone, GA, and runtime site-setting surfaces without printing secrets.
+2. Canonical `VC-RUNTIME-LOCAL-SAFE` and `VC-RUNTIME-PANTHEON-SAFE` now use `drush status`, `drush ilas:runtime-truth`, and a rendered `/assistant` marker sample. `config:get raven.settings`, `config:get langfuse.settings`, and `config:get` on override-prone AILA keys are now explicitly storage-only historical evidence rather than runtime truth.
+3. Fresh local post-edit verification passed, but Pantheon `dev` / `test` / `live` still report `Command "ilas:runtime-truth" is not defined` because those environments are serving pre-TOVR-08 code. Hosted post-change proof remains deployment-gated even though the predeploy baseline still reproduces the stored-versus-effective Langfuse divergence there. (Refs: current-state §5, §8; evidence-index CLAIM-213, CLAIM-214, CLAIM-215; runbook §3)
+4. Scope boundaries remain unchanged: no live production LLM enablement in Phase 2 and no broad platform migration outside current Pantheon baseline.
+
 ### Phase 2 Objective #3 disposition (2026-03-03)
 1. Objective #3 is closed as implemented: source freshness and provenance governance is now enforced through additive config policy, retrieval-result annotations, observation snapshots, health/metrics exposure, and objective-level closure guards without runtime filtering side effects. (Refs: current-state §4D, §8; evidence-index CLAIM-067, CLAIM-122, CLAIM-133; system-map Diagram A; runbook §4)
 2. Governance enforcement mode is soft-governance enforcement mode only: stale/missing/unknown conditions raise annotations, observability counters, and cooldowned alerts, while retrieval ranking/filtering behavior remains unchanged. (Refs: current-state §4D; evidence-index CLAIM-067, CLAIM-133; runbook §4)
@@ -669,6 +687,6 @@ This addendum captures regression classes observed in production transcript revi
 **Operational follow-ups:**
 - RAUD-11 update_10007 backfill for legacy observability rows
 - Sentry account-side capture/alert/source-map proof (TOVR-02/TOVR-03)
-- New Relic browser snippet enablement proof
+- New Relic AILA integration retired (TOVR-06)
 
 Full closure memo: [`docs/aila/runtime/raud-28-audit-closure-memo.md`](aila/runtime/raud-28-audit-closure-memo.md)

@@ -106,9 +106,7 @@ function ilas_site_assistant_attach_observability(array &$attachments): void {
       (bool) $ravenConfig->get('javascript_error_handler')
       || (float) ($ravenConfig->get('browser_traces_sample_rate') ?? 0) > 0
     );
-  $newRelicEnabled = !empty($runtime['new_relic']['browser_enabled']);
-
-  if (!$sentryBrowserEnabled && !$newRelicEnabled) {
+  if (!$sentryBrowserEnabled) {
     return;
   }
 
@@ -135,9 +133,6 @@ function ilas_site_assistant_attach_observability(array &$attachments): void {
       'replayEnabled' => !empty(($runtime['sentry']['browser']['replay_session_sample_rate'] ?? 0)) || !empty(($runtime['sentry']['browser']['replay_on_error_sample_rate'] ?? 0)),
       'replaySessionSampleRate' => (float) ($runtime['sentry']['browser']['replay_session_sample_rate'] ?? 0),
       'replayOnErrorSampleRate' => (float) ($runtime['sentry']['browser']['replay_on_error_sample_rate'] ?? 0),
-    ],
-    'newRelic' => [
-      'browserEnabled' => $newRelicEnabled,
     ],
   ];
 }

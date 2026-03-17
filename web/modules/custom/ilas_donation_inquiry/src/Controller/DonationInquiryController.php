@@ -437,7 +437,7 @@ class DonationInquiryController extends ControllerBase {
     }
     $local = $parts[0];
     $domain = $parts[1];
-    $localMasked = strlen($local) > 3 ? substr($local, 0, 3) . '***' : '***';
+    $localMasked = strlen($local) > 1 ? substr($local, 0, 1) . '***' : '***';
     return $localMasked . '@' . $domain;
   }
 

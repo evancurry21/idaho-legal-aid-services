@@ -320,7 +320,12 @@ PROMPT,
   }
 
   /**
-   * Returns the Gemini API key from runtime settings or legacy config.
+   * Returns the Gemini API key with runtime settings taking precedence.
+   *
+   * Runtime site settings remain the preferred secret source. A legacy
+   * effective-config fallback is retained so older environments and tests that
+   * still inject the key via config overrides keep working while exported
+   * config remains blank.
    */
   protected function getGeminiApiKey(): string {
     $runtimeApiKey = Settings::get('ilas_gemini_api_key');
@@ -328,10 +333,14 @@ PROMPT,
       return $runtimeApiKey;
     }
 
-    $config = $this->configFactory->get('ilas_site_assistant.settings');
-    $configuredApiKey = $config->get('llm.api_key');
+    $configuredApiKey = $this->configFactory
+      ->get('ilas_site_assistant.settings')
+      ->get('llm.api_key');
+    if (is_string($configuredApiKey) && $configuredApiKey !== '') {
+      return $configuredApiKey;
+    }
 
-    return is_string($configuredApiKey) ? $configuredApiKey : '';
+    return '';
   }
 
   /**
@@ -362,26 +371,6 @@ PROMPT,
     return $this->costControlPolicy?->getSummary();
   }
 
-  /**
-   * Preserves deterministic response payloads on the product response path.
-   *
-   * Response summarization was removed because the widget renders only the
-   * deterministic `message` field. The controller still keeps this method for
-   * backwards compatibility with the injected service shape, but it no longer
-   * performs any LLM work or mutates the response payload.
-   *
-   * @param array $response
-   *   The original response from intent processing.
-   * @param string $userQuery
-   *   The user's original query.
-   *
-   * @return array
-   *   The unmodified response.
-   */
-  public function enhanceResponse(array $response, string $userQuery): array {
-    unset($userQuery);
-    return $response;
-  }
 
   /**
    * Uses LLM to help classify ambiguous intents.
@@ -928,6 +917,7 @@ PROMPT,
           'headers' => $allHeaders,
           'json' => $payload,
           'timeout' => 10,
+          'connect_timeout' => 5,
         ]);
 
         $body = json_decode($response->getBody()->getContents(), TRUE);
@@ -1191,6 +1181,8 @@ PROMPT,
         'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
         'assertion' => $jwt,
       ],
+      'timeout' => 10,
+      'connect_timeout' => 5,
     ]);
 
     $body = json_decode($response->getBody()->getContents(), TRUE);
@@ -1212,6 +1204,7 @@ PROMPT,
             'Metadata-Flavor' => 'Google',
           ],
           'timeout' => 5,
+          'connect_timeout' => 3,
         ]
       );
 

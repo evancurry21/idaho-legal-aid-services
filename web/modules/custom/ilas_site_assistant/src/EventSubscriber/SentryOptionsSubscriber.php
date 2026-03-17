@@ -44,6 +44,8 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
     'fallback_path',
     'request_id',
     'env',
+    'scrub_opacity',
+    'exception_class',
   ];
 
   /**
@@ -299,8 +301,18 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
       return FALSE;
     }
 
+    // Check both raw and formatted message. The simple_sitemap Logger calls
+    // strtr() before dispatching to the PSR logger, so Raven receives the
+    // already-formatted string as getMessage(). getMessageFormatted() is a
+    // fallback for SDK versions that store the formatted string separately.
+    $needle = 'has been omitted from the XML sitemaps';
     $message = $sentryEvent->getMessage() ?? '';
-    return str_contains($message, 'has been omitted from the XML sitemaps');
+    if (str_contains($message, $needle)) {
+      return TRUE;
+    }
+
+    $formatted = $sentryEvent->getMessageFormatted() ?? '';
+    return str_contains($formatted, $needle);
   }
 
   /**
@@ -477,7 +489,55 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
     }
     $sentryEvent->setBreadcrumb($scrubbed);
 
+    // Minimum-context guarantee: if scrubbing left the event fully opaque
+    // (empty message + empty exception values), preserve exception type and
+    // mark the event so it still has triage value (PHP-1M).
+    if (!$transaction) {
+      static::ensureMinimumContext($sentryEvent);
+    }
+
     return $sentryEvent;
+  }
+
+  /**
+   * Ensures an event retains minimum triage context after scrubbing.
+   *
+   * When PII scrubbing empties both the message and all exception values, the
+   * event becomes opaque — no debugging value remains. This adds a
+   * 'scrub_opacity' tag ('full') and preserves the exception class name as
+   * 'exception_class' so the event can still be triaged in Sentry.
+   *
+   * @param \Sentry\Event $sentryEvent
+   *   The Sentry event to inspect and annotate.
+   */
+  private static function ensureMinimumContext(\Sentry\Event $sentryEvent): void {
+    $message = $sentryEvent->getMessage() ?? '';
+    $formatted = $sentryEvent->getMessageFormatted() ?? '';
+    $hasMessage = $message !== '' || $formatted !== '';
+
+    $hasExceptionValue = FALSE;
+    $firstExceptionType = NULL;
+    foreach ($sentryEvent->getExceptions() as $exceptionBag) {
+      if ($firstExceptionType === NULL) {
+        $firstExceptionType = $exceptionBag->getType();
+      }
+      if ($exceptionBag->getValue() !== '') {
+        $hasExceptionValue = TRUE;
+        break;
+      }
+    }
+
+    if ($hasMessage || $hasExceptionValue) {
+      return;
+    }
+
+    // Event is fully opaque after scrubbing — add minimum triage context.
+    $tags = $sentryEvent->getTags();
+    $tags['scrub_opacity'] = 'full';
+    if ($firstExceptionType !== NULL && $firstExceptionType !== '') {
+      $tags['exception_class'] = mb_substr($firstExceptionType, 0, 255);
+    }
+    $sentryEvent->setTags($tags);
   }
 
   /**

@@ -412,14 +412,6 @@ final class PostGenerationTestableLlmEnhancer extends LlmEnhancer {
 
   public function __construct() {}
 
-  /**
-   * {@inheritdoc}
-   */
-  public function enhanceResponse(array $response, string $userQuery): array {
-    unset($userQuery);
-    return $response;
-  }
-
 }
 
 /**

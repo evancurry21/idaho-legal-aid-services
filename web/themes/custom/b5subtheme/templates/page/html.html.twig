@@ -41,12 +41,6 @@
     <head-placeholder token="{{ placeholder_token }}">
     <title>{{ head_title|safe_join(' | ') }}</title>
 
-    {# Runtime-injected New Relic Browser snippet. The value comes from a
-       trusted runtime secret and must not be hardcoded in the repository. #}
-    {% if new_relic_browser_snippet %}
-      {{ new_relic_browser_snippet|raw }}
-    {% endif %}
-
     {# Google tag (gtag.js) - async loader only in head; config script moved to body end #}
     {% if google_tag_id %}
       <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_tag_id }}"></script>

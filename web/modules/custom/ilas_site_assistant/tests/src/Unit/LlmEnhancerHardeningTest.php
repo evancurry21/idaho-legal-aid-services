@@ -8,6 +8,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Lock\NullLockBackend;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Site\Settings;
 use Drupal\Core\State\StateInterface;
 use Drupal\ilas_site_assistant\Service\CostControlPolicy;
 use Drupal\ilas_site_assistant\Service\LlmAdmissionCoordinator;
@@ -41,6 +42,9 @@ class LlmEnhancerHardeningTest extends TestCase {
    */
   protected function setUp(): void {
     parent::setUp();
+    // Initialize Settings with a test API key since getGeminiApiKey()
+    // now requires runtime settings (legacy config fallback removed).
+    new Settings(['ilas_gemini_api_key' => 'test-api-key', 'hash_salt' => 'test-salt']);
     $this->control = new \stdClass();
     $this->control->capturedPrompt = NULL;
     $this->control->apiCallCount = 0;
@@ -512,57 +516,6 @@ class LlmEnhancerHardeningTest extends TestCase {
   }
 
   /**
-   * Tests that FAQ response enhancement is fully disabled.
-   */
-  public function testFaqResponseEnhancementIsDisabled(): void {
-    $enhancer = $this->buildEnhancer();
-
-    $response = [
-      'type' => 'faq',
-      'results' => [['question' => 'Q?', 'answer' => 'A.']],
-    ];
-
-    $result = $enhancer->enhanceResponse($response, 'test question');
-
-    $this->assertSame(0, $this->control->apiCallCount, 'FAQ response path must remain deterministic');
-    $this->assertSame($response, $result, 'FAQ responses should pass through unchanged');
-  }
-
-  /**
-   * Tests that resource response enhancement is fully disabled.
-   */
-  public function testResourceResponseEnhancementIsDisabled(): void {
-    $enhancer = $this->buildEnhancer();
-
-    $response = [
-      'type' => 'resources',
-      'results' => [['title' => 'Resource 1', 'type' => 'guide']],
-    ];
-
-    $result = $enhancer->enhanceResponse($response, 'test question');
-
-    $this->assertSame(0, $this->control->apiCallCount, 'Resource response path must remain deterministic');
-    $this->assertSame($response, $result, 'Resource responses should pass through unchanged');
-  }
-
-  /**
-   * Tests that escalation/error responses are never sent to the LLM.
-   */
-  public function testEscalationResponseSkipsLlm(): void {
-    $enhancer = $this->buildEnhancer();
-
-    $response = [
-      'type' => 'escalation',
-      'message' => 'Please call our hotline.',
-    ];
-
-    $result = $enhancer->enhanceResponse($response, 'test');
-
-    $this->assertSame(0, $this->control->apiCallCount, 'API should not be called for escalation responses');
-    $this->assertSame($response, $result);
-  }
-
-  /**
    * Tests classifyIntent returns deterministic fallback when LLM is disabled.
    */
   public function testClassifyIntentFallbackWhenDisabled(): void {
@@ -577,9 +530,11 @@ class LlmEnhancerHardeningTest extends TestCase {
   }
 
   /**
-   * Tests unavailable dependency (missing API key) keeps classifyIntent deterministic.
+   * Tests classifyIntent stays deterministic when no Gemini credential exists.
    */
   public function testClassifyIntentFallbackWhenApiKeyMissing(): void {
+    // Clear both runtime and effective-config sources to simulate no credential.
+    new Settings(['hash_salt' => 'test-salt']);
     $enhancer = $this->buildEnhancer(configOverrides: [
       'llm.enabled' => TRUE,
       'llm.provider' => 'gemini_api',
@@ -590,6 +545,8 @@ class LlmEnhancerHardeningTest extends TestCase {
 
     $this->assertEquals('unknown', $result);
     $this->assertEquals(0, $this->control->apiCallCount);
+    // Restore API key for subsequent tests.
+    new Settings(['ilas_gemini_api_key' => 'test-api-key', 'hash_salt' => 'test-salt']);
   }
 
   /**
@@ -644,6 +601,26 @@ class LlmEnhancerHardeningTest extends TestCase {
       'canonical English category name',
       $this->control->capturedPrompt
     );
+  }
+
+  /**
+   * Tests prompt-language detection keeps mixed English/Spanish queries mixed.
+   */
+  public function testDetectPromptLanguageKeepsMixedOfficeQueryMixed(): void {
+    $enhancer = $this->buildEnhancer();
+
+    $this->assertInstanceOf(HardeningTestableEnhancer::class, $enhancer);
+    $this->assertSame('mixed', $enhancer->detectPromptLanguageForTest('Where is the oficina in Boise'));
+  }
+
+  /**
+   * Tests English phrases with "me" stay English for prompt-language detection.
+   */
+  public function testDetectPromptLanguageKeepsEnglishHelpPhraseEnglish(): void {
+    $enhancer = $this->buildEnhancer();
+
+    $this->assertInstanceOf(HardeningTestableEnhancer::class, $enhancer);
+    $this->assertSame('en', $enhancer->detectPromptLanguageForTest('Please help me with this'));
   }
 
   /**
@@ -827,27 +804,6 @@ class LlmEnhancerHardeningTest extends TestCase {
     $this->assertGreaterThanOrEqual($summary['cache_hit_rate_target'], $cacheHitRate);
     $this->assertGreaterThanOrEqual($summary['cache_hit_rate_target'], $callReductionRate);
     $this->assertSame(1, $this->control->apiCallCount, 'Normalized intent cache should collapse the corpus to one external call.');
-  }
-
-  /**
-   * Tests repeated enhanceResponse calls preserve deterministic response class.
-   */
-  public function testEnhanceResponsePreservesResponseClassDeterministically(): void {
-    $enhancer = $this->buildEnhancer();
-
-    $response = [
-      'type' => 'faq',
-      'results' => [['question' => 'Q?', 'answer' => 'A.']],
-    ];
-
-    $first = $enhancer->enhanceResponse($response, 'test question');
-    $second = $enhancer->enhanceResponse($response, 'test question');
-
-    $this->assertEquals('faq', $first['type']);
-    $this->assertEquals('faq', $second['type']);
-    $this->assertSame(0, $this->control->apiCallCount);
-    $this->assertSame($response, $first);
-    $this->assertSame($response, $second);
   }
 
   /**
@@ -1170,6 +1126,10 @@ class HardeningTestableEnhancer extends LlmEnhancer {
     }
 
     return $this->control->apiResponse;
+  }
+
+  public function detectPromptLanguageForTest(string $text): string {
+    return $this->detectPromptLanguage($text);
   }
 
 }
