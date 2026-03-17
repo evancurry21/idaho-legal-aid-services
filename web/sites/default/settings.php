@@ -566,7 +566,6 @@ $ilas_vector_search_environment = $ilas_vector_search_environment !== FALSE
 
 if (
   !$ilas_vector_search_enabled &&
-  ($ilas_vector_search_raw === FALSE || trim((string) $ilas_vector_search_raw) === '') &&
   in_array($ilas_vector_search_environment, ['dev', 'test'], TRUE) &&
   !empty($settings['file_private_path']) &&
   is_string($settings['file_private_path'])
