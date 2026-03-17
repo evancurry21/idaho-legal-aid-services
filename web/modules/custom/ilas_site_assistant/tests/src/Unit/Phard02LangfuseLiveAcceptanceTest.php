@@ -211,9 +211,14 @@ class Phard02LangfuseLiveAcceptanceTest extends TestCase {
     $gatesFile = self::readFile('docs/aila/runtime/phase1-observability-gates.txt');
 
     $this->assertStringContainsString(
+      'langfuse_sample_rate=1',
+      $gatesFile,
+      'Runtime gates must document live sample rate of 1.0',
+    );
+    $this->assertStringNotContainsString(
       'langfuse_sample_rate=0.1',
       $gatesFile,
-      'Runtime gates must document live sample rate of 0.1',
+      'Runtime gates must no longer document a 0.1 Langfuse sample rate',
     );
   }
 

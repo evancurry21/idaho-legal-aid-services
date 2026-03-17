@@ -9,12 +9,13 @@ MODE="auto"
 SITE_NAME="${SITE_NAME:-idaho-legal-aid-services}"
 THRESHOLD=""
 CONFIG_FILE=""
+NO_DEEP_EVAL="false"
 SKIP_EVAL="false"
 SIMULATED_PASS_RATE=""
 
 usage() {
   cat <<USAGE
-Usage: $0 --env <dev|test|live> [--mode auto|blocking|advisory] [--site <pantheon-site>] [--threshold <0-100>] [--config <promptfoo-config>] [--skip-eval] [--simulate-pass-rate <0-100>]
+Usage: $0 --env <dev|test|live> [--mode auto|blocking|advisory] [--site <pantheon-site>] [--threshold <0-100>] [--config <promptfoo-config>] [--no-deep-eval] [--skip-eval] [--simulate-pass-rate <0-100>]
 USAGE
 }
 
@@ -39,6 +40,10 @@ while [[ $# -gt 0 ]]; do
     --config)
       CONFIG_FILE="${2:-}"
       shift 2
+      ;;
+    --no-deep-eval)
+      NO_DEEP_EVAL="true"
+      shift 1
       ;;
     --skip-eval)
       SKIP_EVAL="true"
@@ -83,6 +88,9 @@ if [[ -n "$THRESHOLD" ]]; then
 fi
 if [[ -n "$CONFIG_FILE" ]]; then
   PROMPTFOO_ARGS+=(--config "$CONFIG_FILE")
+fi
+if [[ "$NO_DEEP_EVAL" == "true" ]]; then
+  PROMPTFOO_ARGS+=(--no-deep-eval)
 fi
 if [[ "$SKIP_EVAL" == "true" ]]; then
   PROMPTFOO_ARGS+=(--skip-eval)

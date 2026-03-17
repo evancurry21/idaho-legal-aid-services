@@ -39,7 +39,7 @@ raven
 langfuse_enabled=true
 langfuse_public_key=present
 langfuse_secret_key=present
-langfuse_sample_rate=0.1
+langfuse_sample_rate=1
 raven_client_key=present
 'ilas_site_assistant.settings:llm.enabled': false
 

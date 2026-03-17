@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\ilas_site_assistant\Service;
 
+use Drupal\Core\Site\Settings;
+
 /**
  * Shared helper for minimizing observability payloads.
  */
@@ -22,7 +24,7 @@ final class ObservabilityPayloadMinimizer {
     $normalized = self::normalizeRedactedText($text);
 
     return [
-      'text_hash' => hash('sha256', $normalized),
+      'text_hash' => self::saltedHash($normalized),
       'length_bucket' => self::lengthBucketForNormalized($normalized),
       'redaction_profile' => self::redactionProfileForNormalized($normalized),
     ];
@@ -64,7 +66,38 @@ final class ObservabilityPayloadMinimizer {
    * Returns a stable hash for opaque identifiers.
    */
   public static function hashIdentifier(string $value): string {
-    return hash('sha256', mb_strtolower(trim($value)));
+    return self::saltedHash(mb_strtolower(trim($value)));
+  }
+
+  /**
+   * Returns a SHA-256 hash with a per-installation salt.
+   *
+   * The salt prevents rainbow-table inversion of common query hashes
+   * across installations. Falls back to Drupal's hash_salt when no
+   * dedicated observability salt is configured, and to unsalted hash
+   * when Settings is unavailable (e.g., unit tests).
+   */
+  public static function saltedHash(string $value): string {
+    $salt = '';
+    try {
+      $candidate = Settings::get('ilas_observability_hash_salt');
+      if (is_string($candidate) && $candidate !== '') {
+        $salt = $candidate;
+      }
+      else {
+        $hashSalt = Settings::getHashSalt();
+        if (is_string($hashSalt) && $hashSalt !== '') {
+          $salt = $hashSalt;
+        }
+      }
+    }
+    catch (\Throwable $e) {
+      // Settings not initialized (e.g., unit tests without bootstrap).
+    }
+    if ($salt === '') {
+      return hash('sha256', $value);
+    }
+    return hash('sha256', $salt . '|' . $value);
   }
 
   /**

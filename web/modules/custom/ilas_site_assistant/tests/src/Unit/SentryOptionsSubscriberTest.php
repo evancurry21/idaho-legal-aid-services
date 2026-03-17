@@ -484,6 +484,233 @@ class SentryOptionsSubscriberTest extends TestCase {
     }
   }
 
+  // ─── Sitemap noise filter tests ─────────────────────────────────────
+
+  /**
+   * Tests isSitemapCustomPathNoise drops events on non-live with raw message.
+   */
+  public function testSitemapNoiseFilterDropsOnDevWithRawMessage(): void {
+    $this->requireSentry();
+
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+
+    try {
+      putenv('PANTHEON_ENVIRONMENT=dev');
+
+      $event = \Sentry\Event::createEvent();
+      $event->setLogger('simple_sitemap');
+      $event->setMessage('The custom path /events has been omitted from the XML sitemaps as it does not exist.');
+
+      $this->assertTrue(
+        SentryOptionsSubscriber::isSitemapCustomPathNoise($event),
+        'Sitemap custom path noise should be detected on dev',
+      );
+    }
+    finally {
+      if ($originalPantheon !== FALSE) {
+        putenv("PANTHEON_ENVIRONMENT=$originalPantheon");
+      }
+      else {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+    }
+  }
+
+  /**
+   * Tests isSitemapCustomPathNoise checks formatted message fallback.
+   */
+  public function testSitemapNoiseFilterChecksFormattedMessage(): void {
+    $this->requireSentry();
+
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+
+    try {
+      putenv('PANTHEON_ENVIRONMENT=test');
+
+      $event = \Sentry\Event::createEvent();
+      $event->setLogger('simple_sitemap');
+      // Set raw message as template, formatted as resolved string.
+      $event->setMessage(
+        'The custom path @path has been omitted from the XML sitemaps as it does not exist.',
+        ['@path' => '/events'],
+        'The custom path /events has been omitted from the XML sitemaps as it does not exist.',
+      );
+
+      $this->assertTrue(
+        SentryOptionsSubscriber::isSitemapCustomPathNoise($event),
+        'Sitemap noise should be detected via raw message with template placeholders',
+      );
+    }
+    finally {
+      if ($originalPantheon !== FALSE) {
+        putenv("PANTHEON_ENVIRONMENT=$originalPantheon");
+      }
+      else {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+    }
+  }
+
+  /**
+   * Tests isSitemapCustomPathNoise falls back to getMessageFormatted().
+   */
+  public function testSitemapNoiseFilterFormattedFallback(): void {
+    $this->requireSentry();
+
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+
+    try {
+      putenv('PANTHEON_ENVIRONMENT=dev');
+
+      $event = \Sentry\Event::createEvent();
+      $event->setLogger('simple_sitemap');
+      // Simulate an edge case where getMessage() returns a template without
+      // the needle but getMessageFormatted() has the full resolved text.
+      $event->setMessage(
+        '@sitemap_warning',
+        ['@sitemap_warning' => 'The custom path /press-room has been omitted from the XML sitemaps as it does not exist.'],
+        'The custom path /press-room has been omitted from the XML sitemaps as it does not exist.',
+      );
+
+      $this->assertTrue(
+        SentryOptionsSubscriber::isSitemapCustomPathNoise($event),
+        'Sitemap noise should be detected via getMessageFormatted() fallback',
+      );
+    }
+    finally {
+      if ($originalPantheon !== FALSE) {
+        putenv("PANTHEON_ENVIRONMENT=$originalPantheon");
+      }
+      else {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+    }
+  }
+
+  /**
+   * Tests isSitemapCustomPathNoise allows through on live environment.
+   */
+  public function testSitemapNoiseFilterAllowsOnLive(): void {
+    $this->requireSentry();
+
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+
+    try {
+      putenv('PANTHEON_ENVIRONMENT=live');
+
+      $event = \Sentry\Event::createEvent();
+      $event->setLogger('simple_sitemap');
+      $event->setMessage('The custom path /events has been omitted from the XML sitemaps as it does not exist.');
+
+      $this->assertFalse(
+        SentryOptionsSubscriber::isSitemapCustomPathNoise($event),
+        'Sitemap warnings on live should NOT be filtered — they indicate real missing content',
+      );
+    }
+    finally {
+      if ($originalPantheon !== FALSE) {
+        putenv("PANTHEON_ENVIRONMENT=$originalPantheon");
+      }
+      else {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+    }
+  }
+
+  /**
+   * Tests isSitemapCustomPathNoise skips non-simple_sitemap loggers.
+   */
+  public function testSitemapNoiseFilterSkipsOtherLoggers(): void {
+    $this->requireSentry();
+
+    $originalPantheon = getenv('PANTHEON_ENVIRONMENT');
+
+    try {
+      putenv('PANTHEON_ENVIRONMENT=dev');
+
+      $event = \Sentry\Event::createEvent();
+      $event->setLogger('system');
+      $event->setMessage('has been omitted from the XML sitemaps');
+
+      $this->assertFalse(
+        SentryOptionsSubscriber::isSitemapCustomPathNoise($event),
+        'Non-simple_sitemap logger events should not be filtered',
+      );
+    }
+    finally {
+      if ($originalPantheon !== FALSE) {
+        putenv("PANTHEON_ENVIRONMENT=$originalPantheon");
+      }
+      else {
+        putenv('PANTHEON_ENVIRONMENT');
+      }
+    }
+  }
+
+  // ─── Minimum-context guarantee tests ──────────────────────────────
+
+  /**
+   * Tests that fully-scrubbed events get scrub_opacity and exception_class tags.
+   */
+  public function testMinimumContextGuaranteeForFullyScrubbed(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+    // Exception with an empty value simulates a fully redacted event.
+    $exception = new \RuntimeException('');
+    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $exceptionBag->setValue('');
+    $event->setExceptions([$exceptionBag]);
+    // No message — event is fully opaque.
+
+    $result = $callback($event, NULL);
+
+    $this->assertNotNull($result);
+    $tags = $result->getTags();
+    $this->assertSame('full', $tags['scrub_opacity'] ?? NULL, 'Fully scrubbed event must have scrub_opacity=full');
+    $this->assertSame('RuntimeException', $tags['exception_class'] ?? NULL, 'Exception class must be preserved');
+  }
+
+  /**
+   * Tests that events with a message do NOT get scrub_opacity tag.
+   */
+  public function testMinimumContextNotAppliedWhenMessageExists(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+    $event->setMessage('Error in module XYZ');
+
+    $result = $callback($event, NULL);
+
+    $this->assertNotNull($result);
+    $tags = $result->getTags();
+    $this->assertArrayNotHasKey('scrub_opacity', $tags, 'Events with messages should not have scrub_opacity');
+  }
+
+  /**
+   * Tests that events with exception values do NOT get scrub_opacity tag.
+   */
+  public function testMinimumContextNotAppliedWhenExceptionHasValue(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+
+    $event = \Sentry\Event::createEvent();
+    $exception = new \InvalidArgumentException('Bad input detected');
+    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $event->setExceptions([$exceptionBag]);
+
+    $result = $callback($event, NULL);
+
+    $this->assertNotNull($result);
+    $tags = $result->getTags();
+    $this->assertArrayNotHasKey('scrub_opacity', $tags, 'Events with exception values should not have scrub_opacity');
+  }
+
   // ─── Runtime context resolution tests ──────────────────────────────
 
   /**

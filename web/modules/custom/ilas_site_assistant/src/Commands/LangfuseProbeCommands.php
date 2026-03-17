@@ -68,7 +68,7 @@ class LangfuseProbeCommands extends DrushCommands {
 
     // Guard: Langfuse must be enabled.
     if (!$config->get('langfuse.enabled')) {
-      $this->logger()->error('Langfuse is not enabled. Set langfuse.enabled=true in ilas_site_assistant.settings.');
+      $this->logger()?->error('Langfuse is not enabled. Set langfuse.enabled=true in ilas_site_assistant.settings.');
       return 1;
     }
 
@@ -76,7 +76,7 @@ class LangfuseProbeCommands extends DrushCommands {
     $publicKey = $config->get('langfuse.public_key') ?? '';
     $secretKey = $config->get('langfuse.secret_key') ?? '';
     if ($publicKey === '' || $secretKey === '') {
-      $this->logger()->error('Langfuse credentials not configured. Set langfuse.public_key and langfuse.secret_key.');
+      $this->logger()?->error('Langfuse credentials not configured. Set langfuse.public_key and langfuse.secret_key.');
       return 1;
     }
 
@@ -175,10 +175,11 @@ class LangfuseProbeCommands extends DrushCommands {
    * POST payload directly to Langfuse API.
    */
   protected function sendDirect(array $payload, string $traceId, $config): int {
-    $host = $config->get('langfuse.host') ?? 'https://cloud.langfuse.com';
+    $host = rtrim($config->get('langfuse.host') ?? 'https://us.cloud.langfuse.com', '/');
     $publicKey = $config->get('langfuse.public_key');
     $secretKey = $config->get('langfuse.secret_key');
-    $url = rtrim($host, '/') . '/api/public/ingestion';
+    $timeout = (float) ($config->get('langfuse.timeout') ?? 5.0);
+    $url = $host . '/api/public/ingestion';
 
     try {
       $response = $this->httpClient->request('POST', $url, [
@@ -187,20 +188,33 @@ class LangfuseProbeCommands extends DrushCommands {
         'headers' => [
           'Content-Type' => 'application/json',
         ],
-        'timeout' => 10,
+        'timeout' => $timeout,
+        'connect_timeout' => $timeout,
       ]);
 
       $statusCode = $response->getStatusCode();
-      $this->logger()->success(sprintf('Langfuse probe sent directly. Trace ID: %s, HTTP status: %d', $traceId, $statusCode));
+      if ($statusCode === 207) {
+        $summary = $this->decodeIngestionResponse((string) $response->getBody());
+        $this->logger()?->success(sprintf('Langfuse probe sent directly. Trace ID: %s, HTTP status: %d', $traceId, $statusCode));
+        $this->logger()?->notice(sprintf('Langfuse direct probe partial success: %d succeeded, %d errors', $summary['successes'], $summary['errors']));
+      }
+      elseif ($statusCode >= 200 && $statusCode < 300) {
+        $this->logger()?->success(sprintf('Langfuse probe sent directly. Trace ID: %s, HTTP status: %d', $traceId, $statusCode));
+      }
+      else {
+        $this->logger()?->error(sprintf('Langfuse direct probe returned unexpected HTTP status: %d', $statusCode));
+        $this->logger()?->notice(sprintf('Trace ID: %s', $traceId));
+        return 1;
+      }
     }
     catch (\Throwable $e) {
-      $this->logger()->error(sprintf('Langfuse direct probe failed: %s', $e->getMessage()));
-      $this->logger()->notice(sprintf('Trace ID: %s', $traceId));
+      $this->logger()?->error(sprintf('Langfuse direct probe failed: %s', $e->getMessage()));
+      $this->logger()?->notice(sprintf('Trace ID: %s', $traceId));
       return 1;
     }
 
-    $this->logger()->notice(sprintf('Trace ID: %s', $traceId));
-    $this->logger()->notice(sprintf('Langfuse URL: %s', rtrim($host, '/')));
+    $this->logger()?->notice(sprintf('Trace ID: %s', $traceId));
+    $this->logger()?->notice(sprintf('Langfuse URL: %s', $host));
 
     return 0;
   }
@@ -212,22 +226,35 @@ class LangfuseProbeCommands extends DrushCommands {
     $queue = $this->queueFactory->get('ilas_langfuse_export');
     $depthBefore = $queue->numberOfItems();
 
-    $item = [
-      'payload' => $payload,
-      'enqueued_at' => time(),
-    ];
+    $item = $payload;
+    $item['enqueued_at'] = time();
 
-    if (!$queue->createItem($item)) {
-      $this->logger()->error('Failed to enqueue Langfuse probe payload.');
+    if ($queue->createItem($item) === FALSE) {
+      $this->logger()?->error('Failed to enqueue Langfuse probe payload.');
       return 1;
     }
 
     $depthAfter = $queue->numberOfItems();
 
-    $this->logger()->success(sprintf('Langfuse probe enqueued. Trace ID: %s', $traceId));
-    $this->logger()->notice(sprintf('Queue depth: %d -> %d', $depthBefore, $depthAfter));
+    $this->logger()?->success(sprintf('Langfuse probe enqueued. Trace ID: %s', $traceId));
+    $this->logger()?->notice(sprintf('Queue depth: %d -> %d', $depthBefore, $depthAfter));
 
     return 0;
+  }
+
+  /**
+   * Extracts success and error counts from a Langfuse ingestion response body.
+   *
+   * @return array{successes:int,errors:int}
+   *   Count summary for a probe response.
+   */
+  private function decodeIngestionResponse(string $body): array {
+    $decoded = json_decode($body, TRUE);
+
+    return [
+      'successes' => is_array($decoded['successes'] ?? NULL) ? count($decoded['successes']) : 0,
+      'errors' => is_array($decoded['errors'] ?? NULL) ? count($decoded['errors']) : 0,
+    ];
   }
 
 }

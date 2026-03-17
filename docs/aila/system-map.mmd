@@ -30,7 +30,6 @@ flowchart LR
     VX[Vertex AI]
     LF[Langfuse]
     SN[Sentry / Raven]
-    NR[New Relic\nbrowser snippet + deploy markers\nsampled runtime inactive]
     CI[GitHub Actions\nQuality Gate]
     OR[GitHub Actions\nObservability Release\nworkflow_dispatch]
     PF[Promptfoo harness]
@@ -67,7 +66,6 @@ flowchart LR
   ALT --> STO
   OBS --> LF
   OBS --> SN
-  OBS -. runtime-secret gated .-> NR
   R --> STO
   PL --> STO
   RET --> STO

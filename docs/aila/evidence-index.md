@@ -763,7 +763,7 @@ Evidence precedence used in this audit:
 - Claim: Langfuse enablement requires config flag + credentials and applies sampling.
 - Evidence:
   - `web/modules/custom/ilas_site_assistant/src/Service/LangfuseTracer.php:116-155`
-- Addendum (2026-02-27; updated 2026-03-16): IMP-OBS-01 adds `TelemetrySchema::normalize()` to the controller `endTrace()` exit points, ensuring consistent field names across Langfuse metadata. The current trace contract buffers request state until `endTrace()` and emits a single finalized `trace-create` with privacy-safe input/output summaries. Acceptance tests in `web/modules/custom/ilas_site_assistant/tests/src/Unit/ImpObs01AcceptanceTest.php` prove full lifecycle event-type coverage and install config policy-cap lock (sample_rate=1.0 install, 0.10 live).
+- Addendum (2026-02-27; updated 2026-03-16): IMP-OBS-01 adds `TelemetrySchema::normalize()` to the controller `endTrace()` exit points, ensuring consistent field names across Langfuse metadata. The current trace contract buffers request state until `endTrace()` and emits a single finalized `trace-create` with privacy-safe input/output summaries. Acceptance tests in `web/modules/custom/ilas_site_assistant/tests/src/Unit/ImpObs01AcceptanceTest.php` now lock sample-rate alignment at `1.0` in both install defaults and the sampled runtime-gates artifact.
 
 ### CLAIM-080
 - Claim: Langfuse traces include spans, generations, events, and serialized batch payloads.
@@ -2691,11 +2691,11 @@ Evidence precedence used in this audit:
 
 ### CLAIM-181
 - Claim: Langfuse sampling policy justified with quarterly review cadence —
-  install default 1.0, live override 0.1, documented in evidence artifact
+  install default 1.0, current sampled runtime 1.0, documented in evidence artifact
   and runtime gates.
 - Evidence:
   - `docs/aila/runtime/phard-02-langfuse-operationalization.txt` (section 6: Sampling Policy)
-  - `docs/aila/runtime/phase1-observability-gates.txt` (langfuse_sample_rate=0.1)
+  - `docs/aila/runtime/phase1-observability-gates.txt` (langfuse_sample_rate=1)
   - `web/modules/custom/ilas_site_assistant/config/install/ilas_site_assistant.settings.yml` (sample_rate: 1.0)
   - `web/modules/custom/ilas_site_assistant/tests/src/Unit/Phard02LangfuseLiveAcceptanceTest.php` (policy assertions)
 - Status: Implemented.
@@ -2832,7 +2832,7 @@ March audit prose as the current tooling truth baseline.
   `llm.enabled=false`, `vector_search.enabled=false`, `langfuse.enabled=true`,
   Langfuse keys present, Sentry client key present, Pinecone key present, and a
   rendered `/assistant` page with Sentry browser config enabled while
-  `newRelic.browserEnabled=false`.
+  `newRelic.browserEnabled=false`. (NR wiring subsequently retired in TOVR-06.)
 - Evidence:
   - `docs/aila/runtime/tovr-01-tooling-truth-baseline.txt:43-60`
   - `web/sites/default/settings.php:475-591`
@@ -2845,6 +2845,7 @@ March audit prose as the current tooling truth baseline.
   `live`; rendered `/assistant` pages exposed Sentry browser config in all
   three sampled environments while `newRelic.browserEnabled=false` everywhere;
   GA4 loader and `dataLayer` markers appeared only on `live`.
+  (NR wiring subsequently retired in TOVR-06.)
 - Evidence:
   - `docs/aila/runtime/tovr-01-tooling-truth-baseline.txt:62-79`
   - `web/sites/default/settings.php:343-355`
@@ -2854,10 +2855,11 @@ March audit prose as the current tooling truth baseline.
   - `web/themes/custom/b5subtheme/templates/page/html.html.twig:193-219`
 
 ### CLAIM-191
-- Claim: Current promptfoo gate behavior is branch-aware and mixed by event:
-  the first-party workflow is active, but protected-branch post-merge pushes
-  run `scripts/ci/run-promptfoo-gate.sh --skip-eval --simulate-pass-rate 100`,
-  proving config-parity mode rather than a guaranteed deploy-bound live eval.
+- Claim: TOVR-01 baseline promptfoo gate behavior was branch-aware and mixed by
+  event: the first-party workflow was active, but protected-branch post-merge
+  pushes ran `scripts/ci/run-promptfoo-gate.sh --skip-eval --simulate-pass-rate
+  100`, proving config-parity mode rather than a guaranteed deploy-bound live
+  eval.
 - Evidence:
   - `docs/aila/runtime/tovr-01-tooling-truth-baseline.txt:81-86`
   - `.github/workflows/quality-gate.yml:3-18`
@@ -2875,10 +2877,11 @@ March audit prose as the current tooling truth baseline.
   - `scripts/observability/sentry-release.sh:1-99`
 
 ### CLAIM-193
-- Claim: New Relic remains a runtime-secret-driven but currently unproven path:
-  browser snippet injection and browser action/error hooks exist in repo, and a
-  Pantheon deploy hook exists for change tracking, but sampled local and
+- Claim: New Relic was a runtime-secret-driven but unproven path:
+  browser snippet injection and browser action/error hooks existed in repo, and a
+  Pantheon deploy hook existed for change tracking, but sampled local and
   Pantheon rendered pages all showed `newRelic.browserEnabled=false`.
+  All AILA-owned NR wiring retired in TOVR-06 (2026-03-16).
 - Evidence:
   - `docs/aila/runtime/tovr-01-tooling-truth-baseline.txt:55-60`
   - `docs/aila/runtime/tovr-01-tooling-truth-baseline.txt:74-79`
@@ -2960,10 +2963,10 @@ that remained open after 2026-03-13.
   - `docs/aila/runtime/tovr-02-unknown-resolution-sweep.txt:211-228`
 
 ### CLAIM-200
-- Claim: Promptfoo deploy-bound gate fidelity is now directly resolved from
-  current job logs: representative PR runs execute real promptfoo evals in
-  advisory mode, while representative protected-branch pushes execute simulated
-  config-parity mode in blocking status.
+- Claim: Promptfoo deploy-bound gate fidelity is directly resolved from the
+  pre-remediation job logs inspected in TOVR-02: representative PR runs execute
+  real promptfoo evals in advisory mode, while representative protected-branch
+  pushes execute simulated config-parity mode in blocking status.
 - Evidence:
   - `docs/aila/runtime/tovr-02-unknown-resolution-sweep.txt:36-58`
   - `.github/workflows/quality-gate.yml:87-135`
@@ -3000,12 +3003,13 @@ that remained open after 2026-03-13.
   - `web/modules/custom/ilas_site_assistant/src/EventSubscriber/LangfuseTerminateSubscriber.php:96-115`
 
 ### CLAIM-203
-- Claim: New Relic remains unproven and partially broken on 2026-03-16:
+- Claim: New Relic was unproven and partially broken on 2026-03-16:
   Pantheon presence-only checks showed New Relic secret names present on
   `dev`/`test`/`live`, but sampled rendered pages still exposed
   `newRelic.browserEnabled=false`, `terminus new-relic:info` returned empty
   fields, and recent `test`/`live` deploy logs reported
   `scripts/quicksilver/new-relic-change-tracking.php is not a valid path.`
+  This evidence informed the TOVR-06 retirement decision.
 - Evidence:
   - `docs/aila/runtime/tovr-02-unknown-resolution-sweep.txt:25`
   - `docs/aila/runtime/tovr-02-unknown-resolution-sweep.txt:141-181`
@@ -3080,4 +3084,126 @@ that remained open after 2026-03-13.
 - Evidence:
   - `docs/aila/runtime/tovr-03-sentry-operationalization.txt`
   - `docs/aila/current-state.md`
+  - `docs/aila/risk-register.md`
+
+### CLAIM-209
+- Claim: TOVR-04 rechecked current Langfuse runtime truth on 2026-03-16 and
+  confirmed `langfuse.enabled=true`, both keys present, `langfuse.timeout=5`,
+  `langfuse.max_queue_depth=10000`, `langfuse.max_item_age_seconds=3600`, and
+  `langfuse.sample_rate=1` in sampled `local` / `dev` / `test` / `live`
+  effective config. The repo docs/tests/runtime artifacts were updated to stop
+  asserting outdated lower live sample-rate guidance.
+- Evidence:
+  - `docs/aila/runtime/tovr-04-langfuse-remediation.txt`
+  - `docs/aila/runtime/phase1-observability-gates.txt`
+  - `docs/aila/runtime/phard-02-langfuse-operationalization.txt`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/ImpObs01AcceptanceTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/Phard02LangfuseLiveAcceptanceTest.php`
+  - `docs/aila/current-state.md`
+
+### CLAIM-210
+- Claim: TOVR-04 fixed the Langfuse queued probe/export parity bug by removing
+  the top-level `payload` wrapper, aligning direct-probe host/timeout/HTTP-207
+  handling with the export worker, and proving both direct and queued local
+  traces end to end with Langfuse trace API lookups. The retained custom
+  exporter remains acceptable because it preserves the metadata-only payload
+  contract and existing queue semantics; Pantheon queued proof still needs a
+  post-deploy rerun.
+- Evidence:
+  - `docs/aila/runtime/tovr-04-langfuse-remediation.txt`
+  - `web/modules/custom/ilas_site_assistant/src/Commands/LangfuseProbeCommands.php`
+  - `web/modules/custom/ilas_site_assistant/src/Plugin/QueueWorker/LangfuseExportWorker.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseProbeCommandTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseExportWorkerTest.php`
+  - `docs/aila/current-state.md`
+  - `docs/aila/risk-register.md`
+
+### CLAIM-211
+- Claim: TOVR-05 hardens promptfoo release gating by replacing the protected
+  push simulated path with a real hosted deploy-profile check, keeping PR/helper
+  hosted checks advisory, and making synced `origin/master` deploys block on a
+  local DDEV exact-code promptfoo gate instead of trusting hosted GitHub status
+  as deploy proof.
+- Evidence:
+  - `docs/aila/runtime/tovr-05-promptfoo-gate-remediation.txt`
+  - `.github/workflows/quality-gate.yml`
+  - `promptfoo-evals/promptfooconfig.deploy.yaml`
+  - `scripts/ci/run-promptfoo-gate.sh`
+  - `scripts/ci/run-external-quality-gate.sh`
+  - `scripts/ci/pre-push-strict.sh`
+  - `scripts/ci/install-pre-push-strict-hook.sh`
+  - `scripts/git/publish.sh`
+  - `scripts/git/finish.sh`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PushWorkflowGuardTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/PromptfooGateReliabilityContractTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php`
+
+### CLAIM-212
+- Claim: TOVR-07 converts `/assistant/api/health` and
+  `/assistant/api/metrics` from Drupal-permission-only diagnostics into
+  private machine-consumable endpoints by accepting either
+  `view ilas site assistant reports` or
+  `X-ILAS-Observability-Key: <runtime token>`, where the token is sourced only
+  from `ILAS_ASSISTANT_DIAGNOSTICS_TOKEN` /
+  `ilas_assistant_diagnostics_token`. Anonymous requests remain controlled
+  `403 access_denied` responses, payload semantics stay unchanged, and
+  `/admin/reports/ilas-assistant` plus conversation views remain Drupal-only.
+  Metadata-only retention boundaries for analytics, no-answer, and
+  conversation storage are unchanged.
+- Evidence:
+  - `docs/aila/runtime/tovr-07-internal-telemetry-operationalization.txt`
+  - `web/modules/custom/ilas_site_assistant/src/Access/AssistantDiagnosticsAccessCheck.php`
+
+### CLAIM-213
+- Claim: TOVR-08 rechecked the stored-versus-effective runtime divergence on
+  2026-03-17 and confirmed the old `VC-RUNTIME-*` pattern was misleading for
+  override-prone fields: exported `config/ilas_site_assistant.settings.yml`
+  still reports `langfuse.enabled=false`, `config/raven.settings.yml` is
+  absent, and Pantheon `dev` / `test` / `live` still report
+  `config:get ilas_site_assistant.settings langfuse.enabled = false` while
+  effective runtime returns `true`.
+- Evidence:
+  - `docs/aila/runtime/tovr-08-runtime-truth-verification.txt`
+  - `config/ilas_site_assistant.settings.yml`
+  - `web/sites/default/settings.php`
+
+### CLAIM-214
+- Claim: TOVR-08 adds a repo-owned override-aware runtime truth helper:
+  `ilas:runtime-truth` plus `RuntimeTruthSnapshotBuilder` now emit sanitized
+  stored-versus-effective JSON, and canonical docs/tests were updated so
+  `VC-RUNTIME-*` uses the helper instead of raw `config:get` or ad hoc
+  `php:eval` snapshots.
+- Evidence:
+  - `web/modules/custom/ilas_site_assistant/src/Commands/RuntimeTruthCommands.php`
+  - `web/modules/custom/ilas_site_assistant/src/Service/RuntimeTruthSnapshotBuilder.php`
+  - `web/modules/custom/ilas_site_assistant/drush.services.yml`
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/RuntimeTruthSnapshotBuilderTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/RuntimeTruthCommandTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/RuntimeTruthDocumentationGuardTest.php`
+  - `docs/aila/runbook.md`
+  - `docs/aila/tooling-observability-vector-remediation-prompt-pack.md`
+
+### CLAIM-215
+- Claim: Local post-edit TOVR-08 verification passed on 2026-03-17:
+  `ddev drush ilas:runtime-truth` emitted the expected sanitized divergence
+  report, `/assistant` HTML still exposed the expected browser observability
+  markers, and local `ilas:sentry-probe` plus direct `ilas:langfuse-probe`
+  still succeeded. Pantheon post-change helper execution remains
+  deployment-gated because `dev` / `test` / `live` are still serving pre-TOVR-08
+  code and return `Command "ilas:runtime-truth" is not defined`, although the
+  predeploy browser markers and Langfuse stored-versus-effective baseline were
+  rechecked successfully.
+- Evidence:
+  - `docs/aila/runtime/tovr-08-runtime-truth-verification.txt`
+  - `web/modules/custom/ilas_site_assistant/src/Commands/SentryProbeCommands.php`
+  - `web/modules/custom/ilas_site_assistant/src/Commands/LangfuseProbeCommands.php`
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.routing.yml`
+  - `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml`
+  - `web/sites/default/settings.php`
+  - `web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantDiagnosticsAccessCheckTest.php`
+  - `web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php`
+  - `docs/aila/current-state.md`
+  - `docs/aila/runbook.md`
   - `docs/aila/risk-register.md`

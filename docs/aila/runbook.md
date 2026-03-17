@@ -159,11 +159,17 @@ curl -k -sS -D '<headers>' -o '<body>' -X POST "${BASE_URL}/assistant/api/track"
 
 rm -f "${COOKIE_JAR}"
 
-# Read endpoints and permission-gated checks
+# Read endpoints and private diagnostics checks
 curl -k -sS "${BASE_URL}/assistant/api/suggest?q=housing&type=all"
 curl -k -sS "${BASE_URL}/assistant/api/faq?q=eviction"
+
+# Anonymous diagnostics negative path -> 403 access_denied
 curl -k -sS "${BASE_URL}/assistant/api/health"
 curl -k -sS "${BASE_URL}/assistant/api/metrics"
+
+# Positive diagnostics path -> admin session or private machine header
+curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" "${BASE_URL}/assistant/api/health"
+curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" "${BASE_URL}/assistant/api/metrics"
 
 # RAUD-20 read-endpoint abuse-control proof. Use varied queries so Drupal does
 # not satisfy the second request from a cached 200 before the controller-level
@@ -370,6 +376,11 @@ Alert policy contract:
 - `/assistant/api/health` must expose `checks` for `availability_pct`,
   `latency_p95_ms`, `error_rate_pct`, `cron`, and `queue`.
 - `/assistant/api/metrics` must expose `thresholds` matching `slo.*` config.
+- `/assistant/api/health` and `/assistant/api/metrics` remain private:
+  anonymous/sessionless requests should return `403 access_denied`, while
+  operators and machine monitors must use Drupal permission or
+  `X-ILAS-Observability-Key` sourced from the runtime-only
+  `ILAS_ASSISTANT_DIAGNOSTICS_TOKEN` secret.[^CLAIM-212]
 - `SloAlertService` emits structured watchdog warnings (`SLO violation: ...`)
   for availability, latency, error-rate, cron, and queue breaches.
 - Alert cooldown is 900 seconds per SLO dimension to reduce noise.
@@ -378,8 +389,17 @@ Verification commands (local):
 
 ```bash
 BASE_URL="https://<local-host>"
+# Anonymous/sessionless negative path.
 curl -k -sS "${BASE_URL}/assistant/api/health"
 curl -k -sS "${BASE_URL}/assistant/api/metrics"
+
+# Positive path for external monitors. Pull the token from the environment's
+# secret manager; it is runtime-only and is not exposed through Drupal config,
+# forms, or drupalSettings.
+curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" \
+  "${BASE_URL}/assistant/api/health"
+curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" \
+  "${BASE_URL}/assistant/api/metrics"
 
 # Trigger cron-driven SLO checks and inspect emitted violations (if any).
 ddev drush cron
@@ -391,8 +411,15 @@ Verification commands (Pantheon):
 ```bash
 for ENV in dev test live; do
   BASE_URL="$(terminus env:view "idaho-legal-aid-services.${ENV}" --print)"
+  # Anonymous negative path.
   curl -k -sS "${BASE_URL%/}/assistant/api/health"
   curl -k -sS "${BASE_URL%/}/assistant/api/metrics"
+
+  # Positive path with the environment-specific runtime secret.
+  curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" \
+    "${BASE_URL%/}/assistant/api/health"
+  curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" \
+    "${BASE_URL%/}/assistant/api/metrics"
 done
 ```
 
@@ -505,13 +532,27 @@ done
 
 # 2) Monitoring checks (local + Pantheon continuity).
 LOCAL_BASE_URL="https://ilas-pantheon.ddev.site"
+# Anonymous negative path.
 curl -k -sS "${LOCAL_BASE_URL}/assistant/api/health"
 curl -k -sS "${LOCAL_BASE_URL}/assistant/api/metrics"
 
+# Positive path when the runtime diagnostics secret is available to the caller.
+curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" \
+  "${LOCAL_BASE_URL}/assistant/api/health"
+curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" \
+  "${LOCAL_BASE_URL}/assistant/api/metrics"
+
 for ENV in dev test live; do
   BASE_URL="$(terminus env:view "idaho-legal-aid-services.${ENV}" --print)"
+  # Anonymous negative path.
   curl -k -sS "${BASE_URL%/}/assistant/api/health"
   curl -k -sS "${BASE_URL%/}/assistant/api/metrics"
+
+  # Positive path with the environment-specific runtime secret.
+  curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" \
+    "${BASE_URL%/}/assistant/api/health"
+  curl -k -sS -H "X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}" \
+    "${BASE_URL%/}/assistant/api/metrics"
 done
 
 # 3) Guardrail and owner-acceptance linkage continuity checks.
@@ -549,9 +590,9 @@ Expected `P3-EXT-02` verification result:
   `metrics.cost_control` / `thresholds.cost_control` continuity on all three
   environments.
 - `/assistant/api/health` and `/assistant/api/metrics` monitoring checks return
-  deterministic JSON payloads in local and Pantheon contexts (operational
-  payloads or controlled `access_denied` payloads, depending on route
-  permissions in the target environment).
+  deterministic JSON payloads in local and Pantheon contexts: anonymous checks
+  should remain controlled `access_denied` payloads, while operator-or-machine
+  authenticated checks should return the operational health/metrics documents.
 - Guardrail anchors remain present for `CLAIM-077` and `CLAIM-084` service paths,
   and `/assistant/api/metrics` exposes `metrics.cost_control` plus
   `thresholds.cost_control` in repo-local proof.
@@ -2022,14 +2063,129 @@ Expected verification result:
   - `/assistant/api/message` and `/assistant/api/track` derive flood identity
     from the centralized request-trust inspector and warn when forwarded headers
     are present but currently untrusted.
-  - Admin-only `/assistant/api/health` and `/assistant/api/metrics` expose a
-    `proxy_trust` diagnostic block without changing the health status on proxy
-    uncertainty alone.
+  - Private `/assistant/api/health` and `/assistant/api/metrics` expose a
+    `proxy_trust` diagnostic block for admin-or-machine-auth callers without
+    changing the health status on proxy uncertainty alone.
   - If Pantheon read-only checks still show unset proxy trust settings or there
     is no authenticated HTTP capture of a live `proxy_trust` block, classify
     the finding as `Partially Fixed` rather than `Fixed`.
 - Archive the executed command summaries and final classification in
   `docs/aila/runtime/raud-08-reverse-proxy-client-ip-trust.txt`.
+
+### TOVR-07 private telemetry operationalization verification
+
+- Baseline before the remediation:
+  - Anonymous `GET /assistant/api/health` and `GET /assistant/api/metrics`
+    returned HTTP `403` with JSON `error_code=access_denied` in local runtime.
+  - `/admin/reports/ilas-assistant` and conversation views were already
+    permission-gated Drupal-only review surfaces.
+- Required verification commands for the remediation report:
+  - `VC-UNIT`
+  - `VC-KERNEL`
+  - `VC-RUNTIME-LOCAL-SAFE`
+  - `VC-RUNTIME-PANTHEON-SAFE`
+  - `VC-ASSISTANT-SMOKE-LOCAL`
+- Targeted local checks:
+  - `vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantDiagnosticsAccessCheckTest.php`
+  - `ddev exec bash -lc "vendor/bin/phpunit --configuration /var/www/html/phpunit.xml /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php --filter 'test(HealthEndpointAnonymousWithoutTokenReturnsAccessDenied|HealthEndpointPermissionCheck|HealthEndpointAccessibleWithValidMachineHeader|HealthEndpointAccessibleToAdmin|MetricsEndpointAnonymousWithoutTokenReturnsAccessDenied|MetricsEndpointPermissionCheck|MetricsEndpointAccessibleWithValidMachineHeader|MetricsEndpointAccessibleToAdmin)'"`.
+  - Anonymous curls to `/assistant/api/health` and `/assistant/api/metrics`
+    should stay `403 access_denied`.
+  - Positive-path curls should send
+    `X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}` when the
+    caller has the runtime secret; do not expect Drupal config export, forms,
+    or `drupalSettings` to reveal it.[^CLAIM-212]
+- Targeted Pantheon safe checks:
+  - Anonymous curls to `/assistant/api/health` and `/assistant/api/metrics`
+    should stay `403 access_denied`.
+  - Safe runtime booleans may confirm whether
+    `Settings::get('ilas_assistant_diagnostics_token')` is wired in the
+    sampled environment, but positive-path HTTP proof still requires the real
+    web-runtime secret to be provisioned to the monitor or operator making the
+    request.
+- Expected contract after the remediation:
+  - `/assistant/api/health` and `/assistant/api/metrics` allow either the
+    `view ilas site assistant reports` permission or a valid
+    `X-ILAS-Observability-Key`.
+  - Anonymous/sessionless callers continue to receive JSON
+    `error_code=access_denied` with no public diagnostic payload.
+  - `/admin/reports/ilas-assistant`,
+    `/admin/reports/ilas-assistant/conversations`, and conversation detail
+    remain Drupal-only manual-review surfaces.
+  - `ilas_site_assistant_stats`, `ilas_site_assistant_no_answer`, and
+    `ilas_site_assistant_conversations` remain metadata-only stores; do not add
+    raw transcript or query retention to make monitoring easier.
+  - If `VC-UNIT` or `VC-KERNEL` fail in unrelated pre-existing suites, record
+    the specific failing tests and treat TOVR-07 as implemented with residual
+    suite noise rather than silently treating the machine-auth path as
+    unverified.
+- Archive the executed command summaries, telemetry map, residual risks, and
+  final classification in
+  `docs/aila/runtime/tovr-07-internal-telemetry-operationalization.txt`.[^CLAIM-212]
+
+### TOVR-08 override-aware runtime truth verification
+
+- Baseline before the remediation:
+  - Exported sync still reports `langfuse.enabled=false` in
+    `config/ilas_site_assistant.settings.yml`, while fresh local and Pantheon
+    baseline checks show effective runtime `langfuse.enabled=true`.
+  - `config/raven.settings.yml` is absent from sync, and
+    `config:get raven.settings` may return "does not exist" even when runtime
+    `raven.settings.client_key` is present via `settings.php`.
+  - `/assistant` HTML remains a separate truth surface for browser-only
+    observability and live-only GA behavior; Drupal config inspection alone
+    cannot prove those client markers.
+- Required verification commands for the remediation report:
+  - `VC-RUNTIME-LOCAL-SAFE`
+  - `VC-RUNTIME-PANTHEON-SAFE`
+  - `VC-SENTRY-PROBE`
+  - `VC-LANGFUSE-PROBE-DIRECT`
+- Canonical local checks:
+
+```bash
+cd /home/evancurry/idaho-legal-aid-services
+
+ddev drush status --fields=uri,drupal-version,db-status
+ddev drush ilas:runtime-truth
+curl -skL https://ilas-pantheon.ddev.site/assistant | rg -o 'ilasObservability|environment":"[^"]+"|release":"[^"]+"|browserEnabled|showReportDialog|replaySessionSampleRate":[^,]+|googletagmanager|dataLayer' -n || true
+```
+
+- Canonical Pantheon read-only checks after deployment:
+
+```bash
+for ENV in dev test live; do
+  BASE_URL="$(terminus env:view "idaho-legal-aid-services.${ENV}" --print)"
+  echo "=== ${ENV} ==="
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- status --fields=uri,drupal-version,db-status
+  terminus remote:drush "idaho-legal-aid-services.${ENV}" -- ilas:runtime-truth
+  curl -skL "${BASE_URL%/}/assistant" | rg -o 'ilasObservability|environment":"[^"]+"|release":"[^"]+"|browserEnabled|showReportDialog|replaySessionSampleRate":[^,]+|googletagmanager|dataLayer' -n || true
+done
+```
+
+- Stored-config-only habits to avoid:
+  - `ddev drush config:get raven.settings`
+  - `ddev drush config:get langfuse.settings`
+  - `ddev drush config:get ilas_site_assistant.settings langfuse.enabled`
+  - Historical ad hoc `php:eval` snapshots remain valid evidence for
+    pre-TOVR-08 artifacts, but they are no longer the canonical runtime-truth
+    path for `VC-RUNTIME-*`.
+- Expected contract after the remediation:
+  - `ilas:runtime-truth` emits a sanitized JSON snapshot with the fixed
+    top-level sections `environment`, `exported_storage`,
+    `effective_runtime`, `runtime_site_settings`, `browser_expected`,
+    `override_channels`, and `divergences`.
+  - `config:get raven.settings`, `config:get langfuse.settings`, and
+    `config:get` on override-prone AILA keys are treated as stored-config
+    inspection only, not effective runtime truth.
+  - `/assistant` HTML sampling remains the authoritative companion proof for
+    browser-only truth such as `ilasObservability`, browser Sentry flags, and
+    live-only GA/dataLayer markers.
+  - If Pantheon `dev`/`test`/`live` still report
+    `Command "ilas:runtime-truth" is not defined`, classify the result as
+    `repo remediated / deployment pending` instead of claiming hosted
+    post-change runtime proof.
+- Archive the executed command summaries, misleading prior habits, residual
+  risks, and final classification in
+  `docs/aila/runtime/tovr-08-runtime-truth-verification.txt`.
 
 ### RAUD-09 live debug metadata guard verification
 
@@ -2354,7 +2510,13 @@ Notes:
   match local `master`, which enforces GitHub-first ordering.
 - Once local `master` is fast-forwarded to the merged `github/master` commit,
   `npm run git:publish -- --origin-only` still runs sync-check plus the local
-  module quality gate, but skips local promptfoo and trusts the already-passed GitHub `Promptfoo Gate` for that commit.
+  module quality gate and runs the local DDEV deploy-bound Promptfoo gate before the Pantheon push.
+- The hosted GitHub check is not treated as deploy proof for `origin/master`;
+  deploy proof for Pantheon `dev` comes from the local DDEV exact-code promptfoo
+  gate on the commit being pushed.
+- Synced `origin/master` deploy pushes require a running DDEV app with a
+  resolvable primary URL; otherwise the strict hook refuses the push unless you
+  intentionally bypass it with `git push --no-verify`.
 - `npm run git:publish -- --origin-only` is the normal sync path for Pantheon
   `dev`; promotion to Pantheon `test` and `live` is a separate deployment
   workflow.
@@ -2383,11 +2545,20 @@ GitHub Actions blocking runs should keep these settings aligned with Pantheon
 - `ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE=15`
 - `ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR=120`
 
-GitHub Actions uses two Promptfoo modes:
-- PR/helper-branch runs use the live eval path when `ILAS_ASSISTANT_URL` is set.
-- Post-merge `push` runs on `master`/`main`/`release/*` use `--skip-eval`
-  config parity against the same explicit Pantheon `dev` URL so merge-commit
-  trust checks do not silently drift from CI settings.
+GitHub Actions uses two hosted Promptfoo paths plus a separate deploy-bound
+local gate:
+- PR/helper-branch runs use the real hosted eval path in advisory mode with
+  `promptfooconfig.deploy.yaml --no-deep-eval` when `ILAS_ASSISTANT_URL` is
+  available.
+- Protected-branch `push` runs on `master`/`main`/`release/*` use the same real
+  hosted deploy profile in blocking mode; the workflow no longer uses simulated
+  config-parity mode on that path.
+- Helper-branch runs can still fall back to simulated advisory mode when
+  `ILAS_ASSISTANT_URL` is unavailable, but that result is explicitly hosted-only
+  and not deploy proof.
+- Synced `origin/master` deploy pushes are separately blocked by the local DDEV
+  exact-code gate in `scripts/ci/pre-push-strict.sh`; hosted GitHub results
+  remain hosted-environment evidence only.
 
 If `ILAS_ASSISTANT_URL` explicitly points at a different Pantheon environment
 than the requested `--env`, `scripts/ci/run-promptfoo-gate.sh` now fails with
@@ -2396,6 +2567,9 @@ than the requested `--env`, `scripts/ci/run-promptfoo-gate.sh` now fails with
 Expected CI policy:
 - `master`, `main`, and `release/*` branches are blocking for threshold failures.
 - Other branches are advisory (non-zero eval result reported but does not fail job).
+- Deploy-safe hosted runs should use `promptfooconfig.deploy.yaml --no-deep-eval`
+  so PR/helper checks match the live-safe deploy suite without auto-appending
+  `promptfooconfig.deep.yaml`.
 - Default promptfoo config in auto mode is `promptfooconfig.deep.yaml` for
   blocking branches and `promptfooconfig.abuse.yaml` for advisory branches;
   explicit `--config` overrides either default.
@@ -2437,6 +2611,15 @@ ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message" \
     --config promptfooconfig.abuse.yaml \
     --skip-eval \
     --simulate-pass-rate 85
+
+# 5) Deploy-bound local DDEV gate using the shared live-safe deploy profile.
+ILAS_ASSISTANT_URL="https://ilas-pantheon.ddev.site/assistant/api/message" \
+  CI_BRANCH=master \
+  scripts/ci/run-promptfoo-gate.sh \
+    --env dev \
+    --mode auto \
+    --config promptfooconfig.deploy.yaml \
+    --no-deep-eval
 ```
 
 Expected quality gate result:
@@ -2444,6 +2627,9 @@ Expected quality gate result:
   `VC-DRUPAL-UNIT` suite regressions, plus golden transcript failures.
 - `scripts/ci/run-promptfoo-gate.sh` blocks threshold/eval failures on
   `master`/`main`/`release/*` and reports advisory-only failures on other branches.
+- Synced `origin/master` pushes are deploy-bound only when the exact code is
+  exercised locally through the DDEV command above; hosted GitHub promptfoo
+  results remain useful but are not deploy proof for Pantheon `dev`.
 - `scripts/ci/run-external-quality-gate.sh` composes repo-owned gate assets for
   CI platforms where workflow ownership is external to this repository.
 
@@ -3550,10 +3736,14 @@ sed -E \
     web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseProbeCommandTest.php \
     web/modules/custom/ilas_site_assistant/tests/src/Unit/Phard02LangfuseLiveAcceptanceTest.php
   ```
-- Expected verification result: All probe commands return exit 0 with trace IDs;
-  trace IDs visible in Langfuse UI; contract tests pass; queue depth unchanged
-  or incremented by 1 in queue mode.
-- Evidence artifact: `docs/aila/runtime/phard-02-langfuse-operationalization.txt`
+- Expected verification result: Direct probes return exit `0` plus HTTP `207`
+  summaries, queued probes store top-level `batch` / `metadata` / `enqueued_at`
+  rows (no top-level `payload` wrapper), queue processing logs partial success
+  instead of `invalid queue item`, and fresh trace IDs resolve in Langfuse
+  UI/API with metadata-only input/output summaries.
+- Evidence artifacts:
+  - `docs/aila/runtime/phard-02-langfuse-operationalization.txt`
+  - `docs/aila/runtime/tovr-04-langfuse-remediation.txt`
 
 ### PHARD-06 retrieval contract verification
 
@@ -3843,3 +4033,4 @@ Run this checklist for every future audit cycle that touches assistant routing, 
 [^CLAIM-163]: [CLAIM-163](evidence-index.md#claim-163)
 [^CLAIM-164]: [CLAIM-164](evidence-index.md#claim-164)
 [^CLAIM-165]: [CLAIM-165](evidence-index.md#claim-165)
+[^CLAIM-212]: [CLAIM-212](evidence-index.md#claim-212)

@@ -1,4 +1,9 @@
 services:
+  ilas_site_assistant.access_check.diagnostics:
+    class: Drupal\ilas_site_assistant\Access\AssistantDiagnosticsAccessCheck
+    tags:
+      - { name: access_check, needs_incoming_request: TRUE }
+
   ilas_site_assistant.access_check.strict_csrf:
     class: Drupal\ilas_site_assistant\Access\StrictCsrfRequestHeaderAccessCheck
     arguments: ['@csrf_token', '@logger.channel.ilas_site_assistant']
@@ -42,6 +47,10 @@ services:
   ilas_site_assistant.retrieval_configuration:
     class: Drupal\ilas_site_assistant\Service\RetrievalConfigurationService
     arguments: ['@config.factory', '@entity_type.manager']
+
+  ilas_site_assistant.runtime_truth_snapshot_builder:
+    class: Drupal\ilas_site_assistant\Service\RuntimeTruthSnapshotBuilder
+    arguments: ['@config.factory', '@config.storage.sync']
 
   ilas_site_assistant.topic_resolver:
     class: Drupal\ilas_site_assistant\Service\TopicResolver

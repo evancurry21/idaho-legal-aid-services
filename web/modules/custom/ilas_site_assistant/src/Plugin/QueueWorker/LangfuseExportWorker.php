@@ -148,20 +148,20 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
 
       $statusCode = $response->getStatusCode();
 
-      if ($statusCode >= 200 && $statusCode < 300) {
-        $this->logger->info('Langfuse export: sent @count events successfully.', [
-          '@count' => count($data['batch']),
-        ]);
-        $this->recordDrain(1);
-      }
-      elseif ($statusCode === 207) {
+      if ($statusCode === 207) {
         // Partial success — Langfuse returns 207 for batch with some errors.
-        $body = json_decode($response->getBody()->getContents(), TRUE);
+        $body = json_decode((string) $response->getBody(), TRUE);
         $errors = $body['errors'] ?? [];
         $successes = $body['successes'] ?? [];
         $this->logger->notice('Langfuse export: partial success. @ok succeeded, @err errors.', [
           '@ok' => count($successes),
           '@err' => count($errors),
+        ]);
+        $this->recordDrain(1);
+      }
+      elseif ($statusCode >= 200 && $statusCode < 300) {
+        $this->logger->info('Langfuse export: sent @count events successfully.', [
+          '@count' => count($data['batch']),
         ]);
         $this->recordDrain(1);
       }

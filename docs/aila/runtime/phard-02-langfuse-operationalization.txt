@@ -28,7 +28,7 @@ live:
   langfuse_enabled=true
   langfuse_public_key=present
   langfuse_secret_key=present
-  langfuse_sample_rate=0.1
+  langfuse_sample_rate=1.0
   queue_depth=0
 
 ────────────────────────────────────────────────────
@@ -145,12 +145,12 @@ live:
 Install default sample_rate: 1.0
   Source: config/install/ilas_site_assistant.settings.yml
 
-Live override sample_rate: 0.1
-  Source: Pantheon live environment config override
+Live runtime sample_rate: 1.0
+  Source: effective Pantheon live runtime config (`Drupal::config(...)`)
 
-Justification: 10% sampling on live balances observability coverage
-  against Langfuse ingestion costs and queue throughput. Full sampling
-  on dev/test ensures complete trace visibility during development.
+Justification: Full live sampling keeps Langfuse usable as a production
+  signal source and avoids queue/export blind spots caused by probabilistic
+  drop. Queue health, timeout, and cost reviews remain the control surface.
 
 Review cadence: Quarterly — review sampling rate against trace volume,
   cost trends, and queue health metrics. Adjust if queue backlog or
@@ -221,9 +221,9 @@ Runbook reference: docs/aila/runbook.md (PHARD-02 section)
    probe and queue export will fail. Mitigated by queue buffering and
    retry in the export worker.
 
-2. Sampling blind spots: At 0.1 live sample rate, 90% of traces are
-   dropped. Low-frequency issues may not be captured. Mitigated by
-   full sampling on dev/test for pre-deploy validation.
+2. Sampling-policy drift: Live currently runs at sample_rate=1.0. Any
+   future reduction would reintroduce visibility gaps. Mitigated by
+   runtime-gate review and acceptance tests that reject 0.1-era docs.
 
 3. Cost growth: Trace volume scales with traffic. Quarterly review of
    sampling rate and Langfuse plan usage prevents surprise costs.

@@ -1,0 +1,121 @@
+TOVR-04 Langfuse End-to-End Remediation
+timestamp_utc=2026-03-16T00:00:00Z
+verification_level=Partially Verified
+
+1. Prior status
+
+- Local safe runtime check:
+  - langfuse_enabled=true
+  - langfuse_public_key_present=true
+  - langfuse_secret_key_present=true
+  - langfuse_sample_rate=1
+  - langfuse_timeout=5
+  - langfuse_max_queue_depth=10000
+  - langfuse_max_item_age_seconds=3600
+- Pantheon safe runtime checks (`dev` / `test` / `live`) all returned:
+  - langfuse_enabled=true
+  - langfuse_public_key_present=true
+  - langfuse_secret_key_present=true
+  - langfuse_sample_rate=1
+  - langfuse_timeout=5
+  - langfuse_max_queue_depth=10000
+  - langfuse_max_item_age_seconds=3600
+- Pre-edit direct probe:
+  - command: `ddev drush ilas:langfuse-probe --direct`
+  - result: HTTP 207
+  - trace_id: `8f333348-cbfd-454f-bb19-ec61c80048f6`
+- Pre-edit queued probe:
+  - command: `ddev drush ilas:langfuse-probe`
+  - result: queue depth `111 -> 112`
+  - trace_id: `5410f6b2-4327-4bbf-b499-6a0a7c70599b`
+  - latest queue item inspection:
+    - item_id: `74811`
+    - top_level_keys: `payload`, `enqueued_at`
+    - has_payload_wrapper: `true`
+    - has_batch: `false`
+    - has_metadata: `false`
+
+2. Trace lifecycle summary
+
+- Request path: `AssistantApiController`
+- Trace assembly: `LangfuseTracer`
+- Async enqueue: `LangfuseTerminateSubscriber`
+- Queue name: `ilas_langfuse_export`
+- Export worker: `LangfuseExportWorker`
+- Langfuse API: `POST /api/public/ingestion`
+- Account-side verification path: `GET /api/public/traces/{trace_id}`
+
+3. Post-change status
+
+- Code changes:
+  - queued probe now enqueues top-level `batch`, `metadata`, `enqueued_at`
+  - direct probe now uses the worker default host, configured timeout, and logs HTTP 207 success/error counts
+  - worker now handles HTTP 207 before generic 2xx
+- Post-edit direct probe:
+  - command: `ddev drush ilas:langfuse-probe --direct`
+  - result: HTTP 207, `3 succeeded, 0 errors`
+  - trace_id: `7e70bedf-c7f6-4e9a-9b4d-3467360b859f`
+- Post-edit direct trace API proof:
+  - command path: `GET /api/public/traces/7e70bedf-c7f6-4e9a-9b4d-3467360b859f`
+  - result: HTTP 200
+  - name: `phard-02.synthetic_probe`
+  - input: `hash=synthetic0001 len=1-24 redact=none`
+  - output: `type=probe_complete reason=none hash=synthetic9999 len=1-24`
+  - metadata_keys:
+    - `environment`
+    - `probe_timestamp`
+    - `input_hash`
+    - `input_length_bucket`
+    - `input_redaction_profile`
+    - `output_hash`
+    - `output_length_bucket`
+    - `output_redaction_profile`
+    - `response_type`
+    - `reason_code`
+- Post-edit queued probe:
+  - command: `ddev drush ilas:langfuse-probe`
+  - result: queue depth `112 -> 113`
+  - trace_id: `ab0a7e4c-41d7-4c28-92c9-618e9c38ed9f`
+  - latest queue item inspection:
+    - item_id: `74812`
+    - top_level_keys: `batch`, `metadata`, `enqueued_at`
+    - has_payload_wrapper: `false`
+    - has_batch: `true`
+    - has_metadata: `true`
+    - has_enqueued_at: `true`
+- Queue processing:
+  - command: `ddev drush queue:run ilas_langfuse_export --items-limit=1`
+  - result: `Langfuse export: partial success. 9 succeeded, 0 errors.`
+  - queue depth after run: `112`
+- Targeted fresh-item worker proof:
+  - command path: `plugin.manager.queue_worker -> processItem($latest_queue_row)`
+  - result: `Langfuse export: partial success. 3 succeeded, 0 errors.`
+  - processed trace_id: `ab0a7e4c-41d7-4c28-92c9-618e9c38ed9f`
+- Post-edit queued trace API proof:
+  - first lookup immediately after send returned `404 not found within authorized project`
+  - retry after 5 seconds returned HTTP 200
+  - trace_id: `ab0a7e4c-41d7-4c28-92c9-618e9c38ed9f`
+  - name: `phard-02.synthetic_probe`
+  - input: `hash=synthetic0001 len=1-24 redact=none`
+  - output: `type=probe_complete reason=none hash=synthetic9999 len=1-24`
+  - observation_count: `2`
+
+4. Exported payload review
+
+- Allowed visible fields observed in Langfuse:
+  - input summary string with hash prefix, length bucket, redaction profile
+  - output summary string with response type, reason code, hash prefix, length bucket
+  - metadata hashes, length buckets, redaction profiles, environment, probe timestamp
+- No raw user or assistant text was observed in the verified probe traces.
+- The current custom exporter remains acceptable for now because it preserves the metadata-only contract and queue semantics already in production code. The bundled SDK remains unused and is not a drop-in replacement for the current privacy/minimization path.
+
+5. Residual risks and still-unverified surfaces
+
+- Pantheon `dev` / `test` / `live` still need post-deploy direct and queued probe reruns against the patched code before production-wide closure can be claimed.
+- The local queue already had backlog (`111` items pre-edit), so the fresh queued probe required targeted latest-row worker invocation in addition to a normal `queue:run` pass.
+- Trace lookup for the queued probe was eventually consistent: the first GET returned 404 and the retry after 5 seconds returned 200.
+
+6. Rollback notes
+
+- Probe/worker changes are localized to the Langfuse probe command and export worker.
+- Reverting would restore the pre-edit queued probe defect (`payload` wrapper) and the worker's hidden HTTP 207 branch.

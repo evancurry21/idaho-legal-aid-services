@@ -46,6 +46,12 @@ class SentryProbeCommands extends DrushCommands {
       $timestamp,
     );
 
+    // Set a fixed fingerprint so all probes for the same environment group
+    // into a single Sentry issue instead of fragmenting (R-4).
+    \Sentry\configureScope(function (\Sentry\State\Scope $scope) use ($context): void {
+      $scope->setFingerprint(['sentry-probe', $context['environment']]);
+    });
+
     $eventId = \Sentry\captureMessage($message);
 
     if ($eventId === NULL) {

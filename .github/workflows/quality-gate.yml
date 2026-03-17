@@ -84,15 +84,15 @@ jobs:
       - name: Run promptfoo transport/runtime tests
         run: npm run test:promptfoo:runtime
 
-      - name: Run promptfoo gate (live eval on PRs, config parity on post-merge pushes)
+      - name: Run promptfoo gate (real hosted check on PRs and protected pushes)
         env:
           ILAS_ASSISTANT_URL: ${{ secrets.ILAS_ASSISTANT_URL }}
           ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE: ${{ vars.ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE }}
           ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR: ${{ vars.ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR }}
-          CI_BRANCH: ${{ github.ref_name }}
+          CI_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
-          BRANCH="${{ github.ref_name }}"
+          BRANCH="${CI_BRANCH}"
           EVENT_NAME="${{ github.event_name }}"
           TARGET_ENV="${CI_PROMPTFOO_ENV}"
           if [[ "$EVENT_NAME" == "push" && ( "$BRANCH" == "master" || "$BRANCH" == "main" || "$BRANCH" =~ ^release/ ) ]]; then
@@ -100,26 +100,30 @@ jobs:
               echo "::error::ILAS_ASSISTANT_URL secret is required for blocking branches (master/main/release/*)."
               exit 1
             fi
-            echo "::notice::Running post-merge promptfoo config parity gate against ILAS_ASSISTANT_URL"
+            echo "::notice::Running real hosted promptfoo check against ILAS_ASSISTANT_URL in blocking mode (hosted-only proof, not deploy-proof for origin/master)."
             bash scripts/ci/run-promptfoo-gate.sh \
               --env "$TARGET_ENV" \
               --mode auto \
-              --skip-eval \
-              --simulate-pass-rate 100
+              --config promptfooconfig.deploy.yaml \
+              --no-deep-eval
           elif [[ -n "${ILAS_ASSISTANT_URL:-}" ]]; then
-            echo "::notice::Running real promptfoo eval against ILAS_ASSISTANT_URL"
+            echo "::notice::Running real hosted promptfoo check against ILAS_ASSISTANT_URL in advisory mode."
             bash scripts/ci/run-promptfoo-gate.sh \
               --env "$TARGET_ENV" \
-              --mode auto
+              --mode auto \
+              --config promptfooconfig.deploy.yaml \
+              --no-deep-eval
           else
             if [[ "$BRANCH" == "master" || "$BRANCH" == "main" || "$BRANCH" =~ ^release/ ]]; then
               echo "::error::ILAS_ASSISTANT_URL secret is required for blocking branches (master/main/release/*)."
               exit 1
             fi
-            echo "::warning::ILAS_ASSISTANT_URL missing; running simulated promptfoo gate."
+            echo "::warning::ILAS_ASSISTANT_URL missing; running simulated promptfoo gate in advisory mode only (not deploy-proof)."
             bash scripts/ci/run-promptfoo-gate.sh \
               --env "$TARGET_ENV" \
               --mode auto \
+              --config promptfooconfig.deploy.yaml \
+              --no-deep-eval \
               --skip-eval \
               --simulate-pass-rate 100
           fi
@@ -127,11 +131,11 @@ jobs:
       - name: Annotate advisory vs blocking result
         if: always()
         run: |
-          BRANCH="${{ github.ref_name }}"
+          BRANCH="${{ github.head_ref || github.ref_name }}"
           if [[ "$BRANCH" == "master" || "$BRANCH" == "main" || "$BRANCH" =~ ^release/ ]]; then
-            echo "::notice::Promptfoo gate ran in BLOCKING mode for branch $BRANCH"
+            echo "::notice::Promptfoo gate ran in BLOCKING mode for branch $BRANCH as a hosted GitHub check"
           else
-            echo "::notice::Promptfoo gate ran in ADVISORY mode for branch $BRANCH"
+            echo "::notice::Promptfoo gate ran in ADVISORY mode for branch $BRANCH as a hosted GitHub check"
           fi
 
       - name: Upload gate summary

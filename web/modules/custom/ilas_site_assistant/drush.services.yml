@@ -13,6 +13,11 @@ services:
     arguments: ['@config.factory', '@queue', '@http_client']
     tags:
       - { name: drush.command }
+  ilas_site_assistant.runtime_truth_commands:
+    class: \Drupal\ilas_site_assistant\Commands\RuntimeTruthCommands
+    arguments: ['@ilas_site_assistant.runtime_truth_snapshot_builder']
+    tags:
+      - { name: drush.command }
   ilas_site_assistant.disambiguation_review_commands:
     class: \Drupal\ilas_site_assistant\Commands\DisambiguationReviewCommands
     arguments: ['@ilas_site_assistant.analytics_logger']

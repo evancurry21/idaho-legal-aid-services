@@ -1,0 +1,116 @@
+TOVR-06 New Relic Binary Decision — RETIRE
+===========================================
+Date: 2026-03-16
+Scope: AILA-owned New Relic integration (not Pantheon platform-level APM)
+
+1) Prior status
+---------------
+- Browser snippet injection: runtime-secret path exists in settings.php,
+  b5subtheme.theme, html.html.twig, ilas_site_assistant.module, and
+  observability.js. Sampled local/dev/test/live pages all rendered
+  newRelic.browserEnabled=false. No browser snippet value was ever active.
+- Deploy change tracking: pantheon.yml referenced
+  scripts/quicksilver/new-relic-change-tracking.php. Recent test/live deploy
+  logs reported "not a valid path." terminus new-relic:info returned empty
+  fields.
+- Browser action/error hooks: observability.js contained configureNewRelic(),
+  newrelic.noticeError(), and newrelic.addPageAction() calls, all guarded by
+  window.newrelic which was never present (no snippet loaded).
+- DDEV local scaffold: config.newrelic.yaml.example and
+  Dockerfile.newrelic.example existed as opt-in example files, never activated.
+- Pantheon secret presence: NEW_RELIC_BROWSER_SNIPPET, NEW_RELIC_API_KEY,
+  NEW_RELIC_ENTITY_GUID_APM, and NEW_RELIC_ENTITY_GUID_BROWSER names were
+  present on dev/test/live but values produced no observable effect.
+
+2) Binary decision: RETIRE
+--------------------------
+Rationale:
+  a) Zero data flowing — dormant on all environments.
+  b) Quicksilver change tracking broken — Pantheon logs: "not a valid path."
+  c) terminus new-relic:info returns empty fields — no entity-side proof.
+  d) Browser error capture duplicates Sentry (proven, operational, with replay
+     + PII scrubbing).
+  e) PRODUCTION_AUDIT ranked tools by ROI — New Relic absent from
+     recommendations.
+  f) RAUD-28 audit: "Remove New Relic scaffold or document as intentionally
+     disabled."
+  g) ilas:assistant:action events route only to NR with no dashboard/alert
+     consumers.
+  h) Sentry has nonprofit free tier; NR cost path unclear.
+  i) CWV/RUM gap is real but served by GA4 or revisitable as a platform-level
+     (not AILA) concern.
+
+3) Verification level: full code cleanup with atomic test updates
+-----------------------------------------------------------------
+All AILA-owned New Relic wiring removed in a single commit. Platform-level
+Pantheon New Relic APM is a separate concern and is not touched.
+
+4) Evidence summary
+-------------------
+- CLAIM-189: local runtime showed newRelic.browserEnabled=false
+- CLAIM-190: Pantheon dev/test/live showed newRelic.browserEnabled=false
+- CLAIM-193: NR paths existed but were unproven
+- CLAIM-194: DDEV NR scaffold was example-only
+- CLAIM-203: NR partially broken on 2026-03-16 — empty terminus fields,
+  invalid quicksilver path
+
+5) Changed files
+----------------
+Deleted:
+  - scripts/quicksilver/new-relic-change-tracking.php
+  - .ddev/config.newrelic.yaml.example
+  - .ddev/newrelic/Dockerfile.newrelic.example
+  - docs/manual-steps-newrelic.md
+
+Modified (code):
+  - pantheon.yml — removed workflows block
+  - web/sites/default/settings.php — removed NR params and secret retrieval
+  - web/themes/custom/b5subtheme/b5subtheme.theme — removed NR snippet variable
+  - web/themes/custom/b5subtheme/templates/page/html.html.twig — removed NR
+    snippet injection block
+  - web/modules/custom/ilas_site_assistant/ilas_site_assistant.module — removed
+    NR enabled check and drupalSettings key
+  - web/modules/custom/ilas_site_assistant/js/observability.js — removed
+    configureNewRelic(), newrelic.noticeError(), replaced emitAssistantAction()
+    with no-op stub
+  - .ddev/.env.example — removed NR env var placeholders
+  - .gitignore — removed NR-related exclusion lines
+
+Modified (tests):
+  - ObservabilityRuntimeContractTest.php — removed deploy script assertions and
+    testPantheonYmlReferencesNewRelicDeployHook
+  - ObservabilityBrowserAssetContractTest.php — removed newrelic.noticeError
+    assertion and testThemeExposesNewRelicSnippetVariable
+  - AuditBaselineAcceptanceTest.php — removed 'New Relic entity activity' from
+    expected known-unknowns
+  - observability-assistant-error.test.js — removed newRelic settings from test
+    bootstrap
+
+Modified (docs):
+  - docs/env-vars.md — removed NR sections
+  - docs/observability.md — removed NR ownership/references, added retirement
+    note
+  - docs/incident-runbook.md — removed NR path and references
+  - docs/aila/current-state.md — updated NR rows to retired (TOVR-06)
+  - docs/aila/evidence-index.md — updated CLAIM-189/190/193/203 to reflect
+    retirement
+  - docs/aila/roadmap.md — added TOVR-06 entry as complete
+  - docs/aila/system-map.mmd — removed NR node and edges
+
+6) Residual risks
+-----------------
+- CWV/RUM gap: addressable via GA4 Web Vitals or future platform-level NR
+  decision (out of AILA scope).
+- Pantheon platform APM: unchanged; separate concern from AILA wiring.
+
+7) Rollback notes
+-----------------
+git revert of the cleanup commit restores all AILA NR wiring.
+
+8) Post-deploy manual steps (operator tasks)
+--------------------------------------------
+Remove from Pantheon runtime secrets (dev/test/live):
+  - NEW_RELIC_BROWSER_SNIPPET
+  - NEW_RELIC_API_KEY
+  - NEW_RELIC_ENTITY_GUID_APM
+  - NEW_RELIC_ENTITY_GUID_BROWSER

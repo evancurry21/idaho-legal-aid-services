@@ -6,9 +6,11 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
 use Drupal\ilas_site_assistant\Service\RetrievalConfigurationService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -31,6 +33,20 @@ class AssistantSettingsForm extends ConfigFormBase {
   protected ?RetrievalConfigurationService $retrievalConfiguration;
 
   /**
+   * The module logger channel.
+   *
+   * @var \Psr\Log\LoggerInterface
+   */
+  protected LoggerInterface $logger;
+
+  /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected AccountProxyInterface $currentUser;
+
+  /**
    * Constructs the assistant settings form.
    */
   public function __construct(
@@ -38,10 +54,14 @@ class AssistantSettingsForm extends ConfigFormBase {
     TypedConfigManagerInterface $typed_config_manager,
     ?EnvironmentDetector $environment_detector = NULL,
     ?RetrievalConfigurationService $retrieval_configuration = NULL,
+    ?LoggerInterface $logger = NULL,
+    ?AccountProxyInterface $current_user = NULL,
   ) {
     parent::__construct($config_factory, $typed_config_manager);
     $this->environmentDetector = $environment_detector ?? new EnvironmentDetector();
     $this->retrievalConfiguration = $retrieval_configuration;
+    $this->logger = $logger ?? \Drupal::logger('ilas_site_assistant');
+    $this->currentUser = $current_user ?? \Drupal::currentUser();
   }
 
   /**
@@ -53,6 +73,8 @@ class AssistantSettingsForm extends ConfigFormBase {
       $container->get('config.typed'),
       $container->get('ilas_site_assistant.environment_detector'),
       $container->has('ilas_site_assistant.retrieval_configuration') ? $container->get('ilas_site_assistant.retrieval_configuration') : NULL,
+      $container->get('logger.factory')->get('ilas_site_assistant'),
+      $container->get('current_user'),
     );
   }
 
@@ -686,7 +708,31 @@ class AssistantSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
+  /**
+   * Security-sensitive config keys to audit on change.
+   */
+  private const AUDITED_KEYS = [
+    'rate_limit_per_minute',
+    'rate_limit_per_hour',
+    'llm.enabled',
+    'llm.provider',
+    'vector_search.enabled',
+    'conversation_logging.enabled',
+    'conversation_logging.retention_hours',
+    'conversation_logging.redact_pii',
+    'enable_global_widget',
+    'enable_faq',
+    'enable_resources',
+  ];
+
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    // Snapshot security-sensitive values BEFORE save for audit diff.
+    $pre_save_config = $this->config('ilas_site_assistant.settings');
+    $before = [];
+    foreach (self::AUDITED_KEYS as $key) {
+      $before[$key] = $pre_save_config->get($key);
+    }
+
     $config = $this->config('ilas_site_assistant.settings');
 
     // Process excluded paths.
@@ -771,6 +817,33 @@ class AssistantSettingsForm extends ConfigFormBase {
       ->set('llm', $llm_config)
       ->set('conversation_logging', $conversation_logging_config)
       ->save();
+
+    // Audit log: record which security-sensitive settings changed.
+    $saved_config = $this->config('ilas_site_assistant.settings');
+    $changes = [];
+    foreach (self::AUDITED_KEYS as $key) {
+      $after = $saved_config->get($key);
+      if ($before[$key] !== $after) {
+        $changes[$key] = [
+          'from' => is_bool($before[$key]) ? ($before[$key] ? 'true' : 'false') : (string) ($before[$key] ?? '(null)'),
+          'to' => is_bool($after) ? ($after ? 'true' : 'false') : (string) ($after ?? '(null)'),
+        ];
+      }
+    }
+    if ($changes !== []) {
+      $change_summary = [];
+      foreach ($changes as $key => $diff) {
+        $change_summary[] = $key . ': ' . $diff['from'] . ' → ' . $diff['to'];
+      }
+      $this->logger->notice(
+        'Assistant settings changed by @user (uid @uid): @changes',
+        [
+          '@user' => $this->currentUser->getAccountName(),
+          '@uid' => $this->currentUser->id(),
+          '@changes' => implode('; ', $change_summary),
+        ]
+      );
+    }
 
     parent::submitForm($form, $form_state);
   }

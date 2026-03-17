@@ -1,0 +1,173 @@
+# TOVR-07 Internal Telemetry Operationalization
+
+- Timestamp (UTC): `2026-03-17T00:53:58Z`
+- Verification level tag: `implementation-backed / partial-runtime`
+- Scope: private health/metrics machine access, telemetry-map classification,
+  privacy/retention continuity, and explicit separation of machine-consumable
+  versus Drupal-only observability surfaces.
+
+## Prior status
+
+- Anonymous local `GET /assistant/api/health` returned HTTP `403` with JSON
+  `error_code=access_denied`.
+- Anonymous local `GET /assistant/api/metrics` returned HTTP `403` with JSON
+  `error_code=access_denied`.
+- `/assistant/api/health` and `/assistant/api/metrics` were route-gated only by
+  `view ilas site assistant reports`, so external monitors without a Drupal
+  session could not consume the existing SLO/cron/queue/metrics payloads.
+- `/admin/reports/ilas-assistant`,
+  `/admin/reports/ilas-assistant/conversations`, and conversation detail were
+  already Drupal-admin/manual-review surfaces.
+
+## Post-change status
+
+- `/assistant/api/health` and `/assistant/api/metrics` now allow either:
+  - Drupal permission `view ilas site assistant reports`, or
+  - `X-ILAS-Observability-Key: <token>` matching runtime-only
+    `ILAS_ASSISTANT_DIAGNOSTICS_TOKEN`.
+- Anonymous/sessionless callers still receive controlled JSON
+  `error_code=access_denied`; no detailed diagnostics became public.
+- Health/metrics payload semantics were preserved:
+  - health still returns `status`, `timestamp`, `checks`
+  - metrics still returns `timestamp`, `metrics`, `thresholds`, `cron`, `queue`
+  - metrics still includes `all_endpoints`, `by_endpoint`, `by_outcome`,
+    `source_governance`, `vector_index_hygiene`, `session_bootstrap`,
+    `cost_control`
+- `/admin/reports/ilas-assistant` and conversation views remain Drupal-only.
+- Metadata-only retention boundaries remain unchanged for
+  `ilas_site_assistant_stats`, `ilas_site_assistant_no_answer`, and
+  `ilas_site_assistant_conversations`.
+
+## Telemetry map
+
+| Signal / surface | Storage or emission | Exposure class | Privacy / retention boundary | Alertability / actionability | TOVR-07 status |
+|---|---|---|---|---|---|
+| `ilas_site_assistant_stats` | DB aggregate counts by `event_type`, normalized `event_value`, `date` | Internal-only; surfaced through admin report tables | Configurable retention capped at 365 days; no raw text | Manual review only; supports trend analysis, not direct alerting | Unchanged; remains private |
+| `ilas_site_assistant_no_answer` | DB hashes + language/length/redaction metadata + counts | Internal-only; surfaced through admin report content-gap table | Configurable retention capped at 365 days; no raw query text | Manual review only | Unchanged; remains private |
+| `ilas_site_assistant_conversations` | DB opt-in message hashes/buckets/intent/response_type/request_id | Internal-only; surfaced through Drupal conversation list/detail | Configurable retention capped at 720 hours; no raw transcript text | Manual QA/debug only | Unchanged; remains Drupal-only |
+| `ilas_site_assistant.performance_metrics` | Drupal state rolling window of per-request duration/success/endpoint/outcome/status/denied/degraded | Private machine-consumable through `/assistant/api/health` and `/assistant/api/metrics` | Rolling window only; no transcript text | Yes; feeds SLO checks and private monitors | Newly machine-actionable via token auth |
+| `ilas_site_assistant.cron_*` | Drupal state for last run, duration, success, consecutive failures | Private machine-consumable through health/metrics | State only; no user text | Yes; cron freshness/failure can drive alerts | Newly machine-actionable via token auth |
+| `ilas_site_assistant.queue_*` | Drupal state for oldest enqueue time and total drained | Private machine-consumable through health/metrics | State only; no user text | Yes; queue depth/age can drive alerts | Newly machine-actionable via token auth |
+| `ilas_site_assistant.slo_alert_last_*` + watchdog warnings | Drupal state cooldown markers + logger warnings from `SloAlertService` | Internal log/sink surface; not public | No user text; cooldown timestamps only | Yes; current alert path via Drupal logger/Sentry routing | Unchanged; already alert-capable |
+| `ilas_site_assistant.source_governance.*` snapshot | Drupal state snapshot + cooldown markers | Private machine-consumable through health/metrics | Snapshot metadata only | Yes; degraded governance snapshot is monitorable | Machine-actionable via token auth |
+| `ilas_site_assistant.vector_index_hygiene.*` snapshot | Drupal state snapshot + cooldown markers | Private machine-consumable through health/metrics | Snapshot metadata only | Yes; degraded hygiene snapshot is monitorable | Machine-actionable via token auth |
+| `ilas_site_assistant.session_bootstrap.snapshot` | Drupal state snapshot of new-session and rate-limited counts | Private machine-consumable through metrics only | Counts/timestamps only | Monitorable, but not yet a direct SLO alert dimension | Machine-actionable via token auth |
+| `ilas_site_assistant.cost_control.*` summary | Drupal state for daily/monthly/per-IP/cache/kill-switch counters, exposed via controller summary | Private machine-consumable through metrics only | Budget/counter metadata only | Monitorable for spend/kill-switch posture | Machine-actionable via token auth |
+| `/assistant/api/health` | JSON `status`, `timestamp`, `checks` | Private machine-consumable | Anonymous denied; no-store on deny path | Yes; direct synthetic target | Fixed |
+| `/assistant/api/metrics` | JSON `timestamp`, `metrics`, `thresholds`, `cron`, `queue` and nested observability blocks | Private machine-consumable | Anonymous denied; detailed internals stay private | Yes; direct synthetic/dashboard target | Fixed |
+| `/admin/reports/ilas-assistant` | Drupal render arrays over stats/no-answer/quality/feedback/review loop | Drupal-only | Admin permission only | Manual review only | Explicitly remains Drupal-only |
+| `/admin/reports/ilas-assistant/conversations/*` | Drupal render arrays over conversation metadata logs | Drupal-only, sensitive | Conversation permission only; metadata-only but sensitive | Manual QA/debug only | Explicitly remains Drupal-only |
+
+## Signals that can currently drive alerts
+
+- `SloAlertService` logger warnings for availability, latency, error rate, cron,
+  and queue violations.
+- Private machine-auth synthetic checks against `/assistant/api/health`.
+- Private machine-auth synthetic checks against `/assistant/api/metrics`,
+  including threshold and nested snapshot regressions.
+
+## Signals that still require manual Drupal review
+
+- Admin report dashboard trends in summary stats, top topics/destinations,
+  content-gap hashes, quality signals, feedback, and review loop.
+- Conversation list/detail review for opt-in QA/debugging.
+- Direct DB inspection of analytics/no-answer/conversation tables.
+
+## Evidence and command summaries
+
+- Baseline anonymous local curls:
+  - `curl -sk https://ilas-pantheon.ddev.site/assistant/api/health`
+    returned HTTP `403` with JSON `error_code=access_denied`.
+  - `curl -sk https://ilas-pantheon.ddev.site/assistant/api/metrics`
+    returned HTTP `403` with JSON `error_code=access_denied`.
+- Code-path verification:
+  - `web/modules/custom/ilas_site_assistant/src/Access/AssistantDiagnosticsAccessCheck.php`
+    implements permission-or-header access using `Settings::get()` first and
+    `getenv()` fallback.
+  - `web/sites/default/settings.php` now maps
+    `ILAS_ASSISTANT_DIAGNOSTICS_TOKEN` to
+    `$settings['ilas_assistant_diagnostics_token']`.
+  - `ilas_site_assistant.routing.yml` switches only health/metrics to the new
+    access checker.
+- Targeted unit coverage:
+  - `vendor/bin/phpunit --configuration /home/evancurry/idaho-legal-aid-services/phpunit.xml /home/evancurry/idaho-legal-aid-services/web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantDiagnosticsAccessCheckTest.php`
+  - Result: passed, `9 tests`, `18 assertions`.
+- Targeted functional coverage:
+  - `ddev exec bash -lc "vendor/bin/phpunit --configuration /var/www/html/phpunit.xml /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php --filter 'test(HealthEndpointAnonymousWithoutTokenReturnsAccessDenied|HealthEndpointPermissionCheck|HealthEndpointAccessibleWithValidMachineHeader|HealthEndpointAccessibleToAdmin|MetricsEndpointAnonymousWithoutTokenReturnsAccessDenied|MetricsEndpointPermissionCheck|MetricsEndpointAccessibleWithValidMachineHeader|MetricsEndpointAccessibleToAdmin)'"`.
+  - Result: passed, `8 tests`, `100 assertions`.
+- `VC-UNIT` broad suite:
+  - Failed in unrelated existing tests:
+    `GeminiRuntimeCredentialGuardTest::testSettingsFormSubmitIgnoresSpoofedGeminiApiKey`,
+    `GeminiRuntimeCredentialGuardTest::testLlmEnhancerFallsBackToStoredConfigWhenRuntimeSettingMissing`,
+    `LlmEnhancerApiKeyTest::testApiKeyNotInUrl`,
+    `VertexRuntimeCredentialGuardTest::testSettingsFormSubmitIgnoresSpoofedServiceAccountValue`.
+  - No TOVR-07 access-path failures were reported in that run.
+- `VC-KERNEL` broad suite:
+  - Failed in unrelated existing test
+    `AnalyticsLoggerKernelTest::testLogDisambiguationStoresSafeFamilyMetadata`
+    (`lang=en` expected, `lang=es` actual).
+  - No TOVR-07 route-access regression was implicated.
+- `VC-RUNTIME-LOCAL-SAFE`:
+  - DDEV runtime-safe command reported `diagnostics_token_present=true` and the
+    sampled `/assistant` page rendered normally.
+  - CLI-safe retrieval of the actual token remained unavailable in this
+    session, so direct local positive-path curl proof was not captured without
+    relying on the functional test harness.
+- `VC-RUNTIME-PANTHEON-SAFE`:
+  - Sampled `dev`/`test`/`live` safe runtime booleans reported
+    `diagnostics_token_present=true`.
+  - Anonymous Pantheon curls to `/assistant/api/health` still returned
+    `403 access_denied`.
+  - Later direct remote Drush token echo attempts returned blank, so positive
+    machine-auth HTTP proof on Pantheon remains unverified in this session and
+    should be repeated post-deploy using the real web-runtime secret from the
+    monitor/secret manager.
+- `VC-ASSISTANT-SMOKE-LOCAL`:
+  - Passed with deterministic assistant JSON responses for navigation,
+    clarification, and office-detail cases.
+
+## Changed files
+
+- `web/modules/custom/ilas_site_assistant/src/Access/AssistantDiagnosticsAccessCheck.php`
+- `web/modules/custom/ilas_site_assistant/ilas_site_assistant.routing.yml`
+- `web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml`
+- `web/sites/default/settings.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantDiagnosticsAccessCheckTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php`
+- `docs/aila/current-state.md`
+- `docs/aila/evidence-index.md`
+- `docs/aila/runbook.md`
+- `docs/aila/risk-register.md`
+- `docs/aila/runtime/tovr-07-internal-telemetry-operationalization.txt`
+
+## Residual risks and unknowns
+
+- Pantheon positive-path HTTP verification is still outstanding because the
+  runtime-only diagnostics secret could not be safely reproduced from CLI in
+  this session even though safe boolean checks reported it present.
+- Long-run cron cadence and queue drain behavior under sustained load remain
+  unproven.
+- Broad `VC-UNIT` and `VC-KERNEL` suites currently have unrelated failures,
+  which adds suite noise around otherwise-passing TOVR-07 targeted coverage.
+- Admin report and conversation surfaces remain manual/Drupal-only by design;
+  TOVR-07 does not attempt to make those views public or anonymously machine
+  readable.
+
+## Rollback notes
+
+- Restore `_permission: 'view ilas site assistant reports'` on
+  `ilas_site_assistant.api.health` and `ilas_site_assistant.api.metrics`.
+- Remove `AssistantDiagnosticsAccessCheck` service registration.
+- Remove `ilas_assistant_diagnostics_token` runtime setting wiring from
+  `settings.php`.
+- Revert the corresponding unit/functional tests and documentation updates.
+- Clear Drupal caches after rollback.
+
+## Still-unverified surfaces
+
+- Positive machine-auth HTTP checks against deployed Pantheon `dev`/`test`/`live`
+  using the real web-runtime diagnostics secret.
+- Alert-routing proof that an external monitor is actively consuming the new
+  machine-auth path in each environment.
+- Sustained cron/queue behavior under non-trivial load or over a longer time
+  window.
