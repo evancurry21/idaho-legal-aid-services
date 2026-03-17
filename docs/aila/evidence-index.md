@@ -3120,14 +3120,22 @@ that remained open after 2026-03-13.
 
 ### CLAIM-211
 - Claim: TOVR-05 hardens promptfoo release gating by replacing the protected
-  push simulated path with a real hosted deploy-profile check, keeping PR/helper
-  hosted checks advisory, and making synced `origin/master` deploys block on a
-  local DDEV exact-code promptfoo gate instead of trusting hosted GitHub status
-  as deploy proof.
+  push simulated path with a real hosted check, then closes the helper-PR
+  honesty gap exposed by runs `23176299781` and `23176706947`: helper
+  `publish/master-*` PRs and protected pushes now both block on real hosted
+  Promptfoo, `git:finish` downloads and inspects `gate-summary.txt` before
+  merge, hosted GitHub runs use the smaller `promptfooconfig.hosted.yaml`
+  profile to stay inside the shared Pantheon `dev` hourly budget, and synced
+  `origin/master` deploys still block on a local DDEV exact-code promptfoo
+  gate instead of trusting hosted GitHub status as deploy proof.
 - Evidence:
   - `docs/aila/runtime/tovr-05-promptfoo-gate-remediation.txt`
+  - `docs/aila/runtime/tovr-05-promptfoo-hosted-rate-limit-followup.txt`
   - `.github/workflows/quality-gate.yml`
+  - `promptfoo-evals/promptfooconfig.hosted.yaml`
   - `promptfoo-evals/promptfooconfig.deploy.yaml`
+  - `promptfoo-evals/tests/abuse-safety-hosted.yaml`
+  - `promptfoo-evals/tests/grounding-escalation-safety-boundaries-hosted.yaml`
   - `scripts/ci/run-promptfoo-gate.sh`
   - `scripts/ci/run-external-quality-gate.sh`
   - `scripts/ci/pre-push-strict.sh`

@@ -33,6 +33,27 @@ final class PromptfooGateReliabilityContractTest extends TestCase {
   }
 
   /**
+   * Counts scenario IDs from a promptfoo test file.
+   *
+   * @return array<int, string>
+   *   Scenario IDs in file order.
+   */
+  private static function scenarioIds(string $relativePath): array {
+    $contents = self::readFile($relativePath);
+    preg_match_all('/scenario_id:\s+([a-z0-9-]+)/', $contents, $matches);
+    return $matches[1] ?? [];
+  }
+
+  /**
+   * Counts top-level promptfoo test cases from a YAML file.
+   */
+  private static function caseCount(string $relativePath): int {
+    $contents = self::readFile($relativePath);
+    preg_match_all('/^- vars:/m', $contents, $matches);
+    return count($matches[0] ?? []);
+  }
+
+  /**
    * Gate script must preserve phased execution and classified summary fields.
    */
   public function testPromptfooGateContainsPhasedReliabilityMarkers(): void {
@@ -57,9 +78,17 @@ final class PromptfooGateReliabilityContractTest extends TestCase {
     $this->assertStringContainsString('quality_phase=', $script);
     $this->assertStringContainsString('eval_execution_mode=', $script);
     $this->assertStringContainsString('rate_limit_source=', $script);
+    $this->assertStringContainsString('effective_pacing_rate_per_minute=', $script);
     $this->assertStringContainsString('effective_request_delay_ms=', $script);
     $this->assertStringContainsString('ddev_rate_limit_override=', $script);
+    $this->assertStringContainsString('planned_message_request_budget=', $script);
     $this->assertStringContainsString('target_env_mismatch', $script);
+    $this->assertStringContainsString('compute_message_request_budget()', $script);
+    $this->assertStringContainsString('compute_remote_pacing_rate_per_minute()', $script);
+    $this->assertStringContainsString('configure_transport_policy()', $script);
+    $this->assertStringContainsString('ILAS_429_MAX_RETRIES', $script);
+    $this->assertStringContainsString('ILAS_429_BASE_WAIT_MS', $script);
+    $this->assertStringContainsString('ILAS_429_MAX_WAIT_MS', $script);
     $this->assertStringContainsString('finalize_and_exit 2', $script);
     $this->assertStringContainsString('finalize_and_exit 3', $script);
     $this->assertStringContainsString('finalize_and_exit 4', $script);
@@ -127,8 +156,42 @@ final class PromptfooGateReliabilityContractTest extends TestCase {
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR', $workflow);
     $this->assertStringContainsString('TARGET_ENV="${CI_PROMPTFOO_ENV}"', $workflow);
     $this->assertStringContainsString('npm run test:promptfoo:runtime', $workflow);
-    $this->assertStringContainsString('promptfooconfig.deploy.yaml', $workflow);
+    $this->assertStringContainsString('promptfooconfig.hosted.yaml', $workflow);
     $this->assertStringContainsString('--no-deep-eval', $workflow);
+  }
+
+  /**
+   * Hosted GitHub profile must keep the rate-limit-safe case budget and metric families.
+   */
+  public function testHostedPromptfooProfilePreservesBudgetedMetricCoverage(): void {
+    $config = self::readFile('promptfoo-evals/promptfooconfig.hosted.yaml');
+    $abuseCaseCount = self::caseCount('promptfoo-evals/tests/abuse-safety-hosted.yaml');
+    $groundingScenarioIds = self::scenarioIds('promptfoo-evals/tests/grounding-escalation-safety-boundaries-hosted.yaml');
+    $retrievalCaseCount = self::caseCount('promptfoo-evals/tests/retrieval-confidence-thresholds.yaml');
+    $multilingualCaseCount = self::caseCount('promptfoo-evals/tests/multilingual-routing-live.yaml');
+
+    $this->assertStringContainsString('Hosted GitHub evals', $config);
+    $this->assertStringContainsString('tests/abuse-safety-hosted.yaml', $config);
+    $this->assertStringContainsString('tests/retrieval-confidence-thresholds.yaml', $config);
+    $this->assertStringContainsString('tests/grounding-escalation-safety-boundaries-hosted.yaml', $config);
+    $this->assertStringContainsString('tests/multilingual-routing-live.yaml', $config);
+
+    $this->assertSame(8, $abuseCaseCount);
+    $this->assertSame(20, $retrievalCaseCount);
+    $this->assertCount(40, $groundingScenarioIds);
+    $this->assertSame(7, $multilingualCaseCount);
+    $this->assertSame(75, $abuseCaseCount + $retrievalCaseCount + count($groundingScenarioIds) + $multilingualCaseCount);
+
+    $weakGrounding = array_values(array_filter($groundingScenarioIds, static fn(string $id): bool => str_starts_with($id, 'wg-')));
+    $escalation = array_values(array_filter($groundingScenarioIds, static fn(string $id): bool => str_starts_with($id, 'es-')));
+    $safetyBoundary = array_values(array_filter($groundingScenarioIds, static fn(string $id): bool => str_starts_with($id, 'sb-')));
+
+    $this->assertCount(10, $weakGrounding);
+    $this->assertCount(10, $escalation);
+    $this->assertCount(20, $safetyBoundary);
+    $this->assertContains('sb-10', $groundingScenarioIds);
+    $this->assertContains('sb-11', $groundingScenarioIds);
+    $this->assertContains('sb-20', $groundingScenarioIds);
   }
 
 }

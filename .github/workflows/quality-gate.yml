@@ -98,23 +98,31 @@ jobs:
           BRANCH="${CI_BRANCH}"
           EVENT_NAME="${{ github.event_name }}"
           TARGET_ENV="${CI_PROMPTFOO_ENV}"
+          HELPER_PR_BLOCKING="false"
+          PROTECTED_PUSH_BLOCKING="false"
+          if [[ "$EVENT_NAME" == "pull_request" && "$BRANCH" =~ ^publish/master- ]]; then
+            HELPER_PR_BLOCKING="true"
+          fi
           if [[ "$EVENT_NAME" == "push" && ( "$BRANCH" == "master" || "$BRANCH" == "main" || "$BRANCH" =~ ^release/ ) ]]; then
+            PROTECTED_PUSH_BLOCKING="true"
+          fi
+          if [[ "$HELPER_PR_BLOCKING" == "true" || "$PROTECTED_PUSH_BLOCKING" == "true" ]]; then
             if [[ -z "${ILAS_ASSISTANT_URL:-}" ]]; then
-              echo "::error::ILAS_ASSISTANT_URL secret is required for blocking branches (master/main/release/*)."
+              echo "::error::ILAS_ASSISTANT_URL secret is required for blocking hosted Promptfoo checks (publish/master-* PRs and master/main/release/* pushes)."
               exit 1
             fi
-            echo "::notice::Running real hosted promptfoo check against ILAS_ASSISTANT_URL in blocking mode (hosted-only proof, not deploy-proof for origin/master)."
+            echo "::notice::Running real hosted promptfoo check against ILAS_ASSISTANT_URL in blocking mode (publish/master-* PR or protected push; hosted-only proof, not deploy-proof for origin/master)."
             bash scripts/ci/run-promptfoo-gate.sh \
               --env "$TARGET_ENV" \
-              --mode auto \
-              --config promptfooconfig.deploy.yaml \
+              --mode blocking \
+              --config promptfooconfig.hosted.yaml \
               --no-deep-eval
           elif [[ -n "${ILAS_ASSISTANT_URL:-}" ]]; then
             echo "::notice::Running real hosted promptfoo check against ILAS_ASSISTANT_URL in advisory mode."
             bash scripts/ci/run-promptfoo-gate.sh \
               --env "$TARGET_ENV" \
-              --mode auto \
-              --config promptfooconfig.deploy.yaml \
+              --mode advisory \
+              --config promptfooconfig.hosted.yaml \
               --no-deep-eval
           else
             if [[ "$BRANCH" == "master" || "$BRANCH" == "main" || "$BRANCH" =~ ^release/ ]]; then
@@ -124,8 +132,8 @@ jobs:
             echo "::warning::ILAS_ASSISTANT_URL missing; running simulated promptfoo gate in advisory mode only (not deploy-proof)."
             bash scripts/ci/run-promptfoo-gate.sh \
               --env "$TARGET_ENV" \
-              --mode auto \
-              --config promptfooconfig.deploy.yaml \
+              --mode advisory \
+              --config promptfooconfig.hosted.yaml \
               --no-deep-eval \
               --skip-eval \
               --simulate-pass-rate 100
@@ -135,8 +143,9 @@ jobs:
         if: always()
         env:
           BRANCH: ${{ github.head_ref || github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [[ "$BRANCH" == "master" || "$BRANCH" == "main" || "$BRANCH" =~ ^release/ ]]; then
+          if [[ "$EVENT_NAME" == "pull_request" && "$BRANCH" =~ ^publish/master- ]] || [[ "$EVENT_NAME" == "push" && ( "$BRANCH" == "master" || "$BRANCH" == "main" || "$BRANCH" =~ ^release/ ) ]]; then
             echo "::notice::Promptfoo gate ran in BLOCKING mode for branch $BRANCH as a hosted GitHub check"
           else
             echo "::notice::Promptfoo gate ran in ADVISORY mode for branch $BRANCH as a hosted GitHub check"

@@ -34,10 +34,17 @@ final class PushWorkflowGuardTest extends TestCase {
   }
 
   /**
+   * Returns a normalized runbook excerpt for promptfoo publish guidance.
+   */
+  private static function readPromptfooRunbookSection(): string {
+    return self::readFile('docs/aila/runbook.md');
+  }
+
+  /**
    * Runbook must preserve the protected-master publish workflow.
    */
   public function testRunbookContainsProtectedMasterPublishCommands(): void {
-    $runbook = self::readFile('docs/aila/runbook.md');
+    $runbook = self::readPromptfooRunbookSection();
     $package = self::readFile('package.json');
 
     $this->assertStringContainsString('bash scripts/ci/install-pre-push-strict-hook.sh', $runbook);
@@ -49,6 +56,8 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('do not wait on stale PR', $runbook);
     $this->assertStringContainsString('terminus env:code-log idaho-legal-aid-services.dev --format=table', $runbook);
     $this->assertStringContainsString('PR-branch publishes from local `master` are advisory locally', $runbook);
+    $this->assertStringContainsString('helper publish PRs are blocking on GitHub', $runbook);
+    $this->assertStringContainsString('downloads the `gate-summary.txt` artifact before merging', $runbook);
     $this->assertStringContainsString('runs the local DDEV deploy-bound Promptfoo gate before the Pantheon push', $runbook);
     $this->assertStringContainsString('hosted GitHub check is not treated as deploy proof for `origin/master`', $runbook);
     $this->assertStringContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $runbook);
@@ -114,9 +123,14 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('Pantheon is behind. Deploy with: npm run git:publish -- --origin-only', $syncHelper);
 
     $this->assertStringContainsString('gh pr checks', $finishHelper);
+    $this->assertStringContainsString('gh run download', $finishHelper);
     $this->assertStringContainsString('gh pr merge', $finishHelper);
     $this->assertStringContainsString('gh run list --workflow "Quality Gate" --event push', $finishHelper);
     $this->assertStringContainsString('gh run watch', $finishHelper);
+    $this->assertStringContainsString('gate-summary.txt', $finishHelper);
+    $this->assertStringContainsString('failure_kind', $finishHelper);
+    $this->assertStringContainsString('eval_execution_mode', $finishHelper);
+    $this->assertStringContainsString('mode=$mode', $finishHelper);
     $this->assertStringContainsString('sync-master.sh', $finishHelper);
     $this->assertStringContainsString('publish.sh" --origin-only', $finishHelper);
     $this->assertStringContainsString('Refusing to deploy Pantheon dev while master is red.', $finishHelper);

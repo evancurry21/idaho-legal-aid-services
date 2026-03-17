@@ -35,6 +35,10 @@ ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE="${ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE:-
 ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR="${ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR:-}"
 ILAS_429_FAIL_FAST="${ILAS_429_FAIL_FAST:-1}"
 REQUEST_DELAY_OVERRIDE_MS="${ILAS_REQUEST_DELAY_MS:-}"
+REMOTE_REQUEST_HEADROOM_PER_MINUTE="${ILAS_REMOTE_REQUEST_HEADROOM_PER_MINUTE:-1}"
+REMOTE_429_MAX_RETRIES="${ILAS_REMOTE_429_MAX_RETRIES:-2}"
+REMOTE_429_BASE_WAIT_MS="${ILAS_REMOTE_429_BASE_WAIT_MS:-65000}"
+REMOTE_429_MAX_WAIT_MS="${ILAS_REMOTE_429_MAX_WAIT_MS:-180000}"
 ILAS_GATE_MODE=1
 
 TARGET_KIND="unknown"
@@ -55,6 +59,7 @@ CONFIGURED_RATE_LIMIT_PER_MINUTE_VALUE=""
 CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE=""
 EFFECTIVE_RATE_LIMIT_PER_MINUTE=""
 EFFECTIVE_RATE_LIMIT_PER_HOUR=""
+EFFECTIVE_PACING_RATE_PER_MINUTE=""
 EFFECTIVE_REQUEST_DELAY_MS=""
 DDEV_RATE_LIMIT_OVERRIDE="not_needed"
 NODE_CA_SOURCE=""
@@ -65,6 +70,7 @@ PLANNED_SMOKE_CASE_COUNT="0"
 PLANNED_PRIMARY_CASE_COUNT="0"
 PLANNED_DEEP_CASE_COUNT="0"
 PLANNED_CASE_COUNT="0"
+PLANNED_MESSAGE_REQUEST_BUDGET="0"
 
 SMOKE_EVAL_EXIT=0
 SMOKE_PASS_RATE="0"
@@ -184,7 +190,8 @@ Usage: $0 --env <dev|test|live> [--site <pantheon-site>] [--mode auto|blocking|a
 Policy:
   mode=auto -> blocking on master/main/release/*, advisory otherwise.
   --deep-config auto-enables on blocking branches if not explicitly set, unless --no-deep-eval is supplied.
-  Deploy-safe hosted/deploy-bound runs commonly use --config promptfooconfig.deploy.yaml --no-deep-eval.
+  Deploy-safe local exact-code runs commonly use --config promptfooconfig.deploy.yaml --no-deep-eval.
+  Hosted GitHub runs commonly use --config promptfooconfig.hosted.yaml --no-deep-eval.
 USAGE
 }
 
@@ -196,6 +203,41 @@ compute_request_delay_ms() {
   fi
 
   echo $(((60000 + per_minute - 1) / per_minute))
+}
+
+compute_remote_pacing_rate_per_minute() {
+  local configured_per_minute="$1"
+  local headroom_per_minute="$2"
+
+  if [[ -z "$configured_per_minute" || "$configured_per_minute" -le 0 ]]; then
+    echo "0"
+    return 0
+  fi
+
+  if [[ -z "$headroom_per_minute" || "$headroom_per_minute" -lt 0 ]]; then
+    headroom_per_minute=0
+  fi
+
+  if [[ "$configured_per_minute" -le "$headroom_per_minute" ]]; then
+    echo "1"
+    return 0
+  fi
+
+  echo $((configured_per_minute - headroom_per_minute))
+}
+
+compute_message_request_budget() {
+  if [[ "$SKIP_EVAL" == "true" ]]; then
+    echo "0"
+    return 0
+  fi
+
+  if [[ "$CONNECTIVITY_ONLY" == "true" ]]; then
+    echo "1"
+    return 0
+  fi
+
+  echo $((PLANNED_CASE_COUNT + 1))
 }
 
 parse_results_pass_rate() {
@@ -493,10 +535,38 @@ resolve_rate_limits() {
 
   EFFECTIVE_RATE_LIMIT_PER_MINUTE="$CONFIGURED_RATE_LIMIT_PER_MINUTE_VALUE"
   EFFECTIVE_RATE_LIMIT_PER_HOUR="$CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE"
-  EFFECTIVE_REQUEST_DELAY_MS="$(compute_request_delay_ms "${EFFECTIVE_RATE_LIMIT_PER_MINUTE:-0}")"
+}
+
+configure_transport_policy() {
+  if [[ "$TARGET_KIND" == "ddev" ]]; then
+    EFFECTIVE_PACING_RATE_PER_MINUTE="$EFFECTIVE_RATE_LIMIT_PER_MINUTE"
+    if [[ "$REQUEST_DELAY_OVERRIDE_MS" =~ ^[0-9]+$ && "$REQUEST_DELAY_OVERRIDE_MS" -gt 0 ]]; then
+      EFFECTIVE_REQUEST_DELAY_MS="$REQUEST_DELAY_OVERRIDE_MS"
+    else
+      EFFECTIVE_REQUEST_DELAY_MS="$(compute_request_delay_ms "${EFFECTIVE_PACING_RATE_PER_MINUTE:-0}")"
+    fi
+  else
+    EFFECTIVE_PACING_RATE_PER_MINUTE="$(
+      compute_remote_pacing_rate_per_minute \
+        "${CONFIGURED_RATE_LIMIT_PER_MINUTE_VALUE:-0}" \
+        "${REMOTE_REQUEST_HEADROOM_PER_MINUTE:-0}"
+    )"
+    if [[ "$REQUEST_DELAY_OVERRIDE_MS" =~ ^[0-9]+$ && "$REQUEST_DELAY_OVERRIDE_MS" -gt 0 ]]; then
+      EFFECTIVE_REQUEST_DELAY_MS="$REQUEST_DELAY_OVERRIDE_MS"
+    else
+      EFFECTIVE_REQUEST_DELAY_MS="$(compute_request_delay_ms "${EFFECTIVE_PACING_RATE_PER_MINUTE:-0}")"
+    fi
+
+    ILAS_429_FAIL_FAST="0"
+    export ILAS_429_MAX_RETRIES="${ILAS_429_MAX_RETRIES:-$REMOTE_429_MAX_RETRIES}"
+    export ILAS_429_BASE_WAIT_MS="${ILAS_429_BASE_WAIT_MS:-$REMOTE_429_BASE_WAIT_MS}"
+    export ILAS_429_MAX_WAIT_MS="${ILAS_429_MAX_WAIT_MS:-$REMOTE_429_MAX_WAIT_MS}"
+  fi
+
   export ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE="$EFFECTIVE_RATE_LIMIT_PER_MINUTE"
   export ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR="$EFFECTIVE_RATE_LIMIT_PER_HOUR"
   export ILAS_REQUEST_DELAY_MS="$EFFECTIVE_REQUEST_DELAY_MS"
+  export ILAS_429_FAIL_FAST
 }
 
 run_connectivity_preflight() {
@@ -560,7 +630,7 @@ apply_ddev_rate_limit_override() {
   # Local DDEV verification commonly reruns the full gate back-to-back; use a
   # generous local-only ceiling so residual flood counters do not force 429s.
   local override_minute=1000
-  local override_hour=$((PLANNED_CASE_COUNT * 15))
+  local override_hour=$((PLANNED_MESSAGE_REQUEST_BUDGET * 15))
   if [[ "$override_hour" -lt 6000 ]]; then
     override_hour=6000
   fi
@@ -581,6 +651,7 @@ apply_ddev_rate_limit_override() {
   CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE="$override_hour"
   EFFECTIVE_RATE_LIMIT_PER_MINUTE="$override_minute"
   EFFECTIVE_RATE_LIMIT_PER_HOUR="$override_hour"
+  EFFECTIVE_PACING_RATE_PER_MINUTE="$override_minute"
   if [[ "$REQUEST_DELAY_OVERRIDE_MS" =~ ^[0-9]+$ && "$REQUEST_DELAY_OVERRIDE_MS" -gt 0 ]]; then
     EFFECTIVE_REQUEST_DELAY_MS="$REQUEST_DELAY_OVERRIDE_MS"
   else
@@ -643,6 +714,7 @@ write_summary() {
     echo "configured_rate_limit_per_hour=${CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE}"
     echo "effective_rate_limit_per_minute=${EFFECTIVE_RATE_LIMIT_PER_MINUTE}"
     echo "effective_rate_limit_per_hour=${EFFECTIVE_RATE_LIMIT_PER_HOUR}"
+    echo "effective_pacing_rate_per_minute=${EFFECTIVE_PACING_RATE_PER_MINUTE}"
     echo "effective_request_delay_ms=${EFFECTIVE_REQUEST_DELAY_MS}"
     echo "hourly_limit_preflight=${RATE_LIMIT_PREFLIGHT_STATUS}"
     echo "ddev_rate_limit_override=${DDEV_RATE_LIMIT_OVERRIDE}"
@@ -651,6 +723,7 @@ write_summary() {
     echo "failure_kind=${FAILURE_KIND}"
     echo "failure_code=${FAILURE_CODE}"
     echo "planned_case_count=${PLANNED_CASE_COUNT}"
+    echo "planned_message_request_budget=${PLANNED_MESSAGE_REQUEST_BUDGET}"
     echo "planned_smoke_case_count=${PLANNED_SMOKE_CASE_COUNT}"
     echo "planned_primary_case_count=${PLANNED_PRIMARY_CASE_COUNT}"
     echo "planned_deep_case_count=${PLANNED_DEEP_CASE_COUNT}"
@@ -859,6 +932,7 @@ if [[ -n "$DEEP_CONFIG_FILE" ]]; then
   PLANNED_DEEP_CASE_COUNT="$(count_cases_for_config "$DEEP_CONFIG_FILE")"
 fi
 PLANNED_CASE_COUNT=$((PLANNED_SMOKE_CASE_COUNT + PLANNED_PRIMARY_CASE_COUNT + PLANNED_DEEP_CASE_COUNT))
+PLANNED_MESSAGE_REQUEST_BUDGET="$(compute_message_request_budget)"
 
 mkdir -p "$(dirname "$SUMMARY_FILE")"
 
@@ -873,6 +947,7 @@ if [[ "$SKIP_EVAL" == "true" ]]; then
     fi
 
     resolve_rate_limits
+    configure_transport_policy
     if [[ -z "$CONFIGURED_RATE_LIMIT_PER_MINUTE_VALUE" || -z "$CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE" ]]; then
       cat >&2 <<EOF
 Promptfoo rate-limit preflight could not resolve required limits for ${SITE_NAME}.${ENV_NAME}.
@@ -907,6 +982,7 @@ if [[ "$target_resolution_exit" -ne 0 ]]; then
 fi
 ensure_ddev_node_trust || finalize_and_exit 3
 resolve_rate_limits
+configure_transport_policy
 
 if [[ -z "$CONFIGURED_RATE_LIMIT_PER_MINUTE_VALUE" || -z "$CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE" ]]; then
   cat >&2 <<EOF
@@ -922,10 +998,11 @@ fi
 
 if [[ "$TARGET_KIND" != "ddev" && "$ILAS_HOURLY_LIMIT_PREFLIGHT" == "true" ]]; then
   RATE_LIMIT_PREFLIGHT_STATUS="checked"
-  if [[ "$CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE" -lt "$PLANNED_CASE_COUNT" ]]; then
+  if [[ "$CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE" -lt "$PLANNED_MESSAGE_REQUEST_BUDGET" ]]; then
     cat >&2 <<EOF
 Promptfoo hourly-rate preflight failed:
   configured_hour_limit=${CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE}
+  planned_message_request_budget=${PLANNED_MESSAGE_REQUEST_BUDGET}
   planned_case_count=${PLANNED_CASE_COUNT}
   smoke_cases=${PLANNED_SMOKE_CASE_COUNT}
   primary_cases=${PLANNED_PRIMARY_CASE_COUNT}

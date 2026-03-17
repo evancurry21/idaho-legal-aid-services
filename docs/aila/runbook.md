@@ -2535,7 +2535,9 @@ Notes:
   numbers from earlier publishes.
 - PR-branch publishes from local `master` are advisory locally because the
   hook classifies `github/publish/master-<shortsha>` as a non-protected target;
-  the blocking `Promptfoo Gate` still runs on GitHub for the PR/merge path.
+  helper publish PRs are blocking on GitHub, and `npm run git:finish`
+  downloads the `gate-summary.txt` artifact before merging so advisory,
+  simulated, or failed hosted Promptfoo runs cannot be merged into `master`.
 - Direct `git push origin master` is blocked while `github/master` does not yet
   match local `master`, which enforces GitHub-first ordering.
 - Once local `master` is fast-forwarded to the merged `github/master` commit,
@@ -2577,15 +2579,18 @@ GitHub Actions blocking runs should keep these settings aligned with Pantheon
 
 GitHub Actions uses two hosted Promptfoo paths plus a separate deploy-bound
 local gate:
-- PR/helper-branch runs use the real hosted eval path in advisory mode with
-  `promptfooconfig.deploy.yaml --no-deep-eval` when `ILAS_ASSISTANT_URL` is
-  available.
+- Helper publish PRs (`publish/master-*`) use the real hosted eval path in
+  blocking mode with `promptfooconfig.hosted.yaml --no-deep-eval` when
+  `ILAS_ASSISTANT_URL` is available.
 - Protected-branch `push` runs on `master`/`main`/`release/*` use the same real
-  hosted deploy profile in blocking mode; the workflow no longer uses simulated
+  hosted profile in blocking mode; the workflow no longer uses simulated
   config-parity mode on that path.
-- Helper-branch runs can still fall back to simulated advisory mode when
+- Ordinary feature PRs use the real hosted eval path in advisory mode with
+  `promptfooconfig.hosted.yaml --no-deep-eval` when `ILAS_ASSISTANT_URL` is
+  available.
+- Non-helper PRs can still fall back to simulated advisory mode when
   `ILAS_ASSISTANT_URL` is unavailable, but that result is explicitly hosted-only
-  and not deploy proof.
+  and never deploy proof.
 - Synced `origin/master` deploy pushes are separately blocked by the local DDEV
   exact-code gate in `scripts/ci/pre-push-strict.sh`; hosted GitHub results
   remain hosted-environment evidence only.
@@ -2596,10 +2601,15 @@ than the requested `--env`, `scripts/ci/run-promptfoo-gate.sh` now fails with
 
 Expected CI policy:
 - `master`, `main`, and `release/*` branches are blocking for threshold failures.
+- `publish/master-*` helper PRs are also blocking in GitHub Actions even though
+  the local pre-push helper branch remains advisory.
 - Other branches are advisory (non-zero eval result reported but does not fail job).
-- Deploy-safe hosted runs should use `promptfooconfig.deploy.yaml --no-deep-eval`
-  so PR/helper checks match the live-safe deploy suite without auto-appending
-  `promptfooconfig.deep.yaml`.
+- Hosted GitHub runs should use `promptfooconfig.hosted.yaml --no-deep-eval`
+  so the shared Pantheon `dev` budget stays below the hourly rate ceiling while
+  preserving the enforced retrieval, grounding, escalation, safety-boundary,
+  abuse, and multilingual metric families.
+- Deploy-safe local exact-code runs should use
+  `promptfooconfig.deploy.yaml --no-deep-eval`.
 - Default promptfoo config in auto mode is `promptfooconfig.deep.yaml` for
   blocking branches and `promptfooconfig.abuse.yaml` for advisory branches;
   explicit `--config` overrides either default.

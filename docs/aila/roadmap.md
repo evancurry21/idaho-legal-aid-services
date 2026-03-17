@@ -342,9 +342,9 @@ Explicit mapping:
 
 ### TOVR-05 deploy-bound gate disposition (2026-03-16)
 1. Prior status is now explicitly recorded: representative PR runs executed real promptfoo evals in advisory mode, representative protected-branch pushes executed simulated config-parity mode in blocking status, and synced `origin/master` deploy pushes skipped local promptfoo entirely.
-2. Post-change status is now split by proof surface: PR/helper GitHub checks run the live-safe deploy profile in advisory mode, protected-branch GitHub pushes run the same hosted deploy profile in blocking mode, and synced `origin/master` deploy pushes block on local DDEV exact-code evals with `promptfooconfig.deploy.yaml --no-deep-eval`.
-3. Deep multi-turn coverage remains in the broader repo-owned eval program but stays outside the deploy-bound gate so the hosted live-safe suite remains under the current `120/hour` budget.
-4. Hosted GitHub promptfoo runs remain mandatory merge and protected-branch checks, but deploy proof for Pantheon `dev` now comes from the local DDEV exact-code gate rather than simulated or advisory hosted results. (Refs: current-state §4F, §8; evidence-index CLAIM-200, CLAIM-211; runbook §4)
+2. Post-change status is now split by proof surface: helper `publish/master-*` PRs and protected-branch GitHub pushes both run hosted blocking checks with `promptfooconfig.hosted.yaml`, ordinary feature PRs remain hosted advisory, `git:finish` refuses merges when the helper PR artifact records advisory/simulated/failed Promptfoo results, and synced `origin/master` deploy pushes still block on local DDEV exact-code evals with `promptfooconfig.deploy.yaml --no-deep-eval`.
+3. Deep multi-turn coverage remains in the broader repo-owned eval program but stays outside the deploy-bound gate so the hosted GitHub profile remains within the current `120/hour` Pantheon `dev` budget.
+4. Hosted GitHub promptfoo runs remain mandatory merge and protected-branch checks, but deploy proof for Pantheon `dev` now comes from the local DDEV exact-code gate rather than hosted results. (Refs: current-state §4F, §8; evidence-index CLAIM-200, CLAIM-211; runbook §4)
 
 ### TOVR-08 override-aware runtime truth disposition (2026-03-17)
 1. Repo/runtime verification now has a dedicated helper: `ilas:runtime-truth` backed by `RuntimeTruthSnapshotBuilder` emits sanitized stored-versus-effective JSON for override-prone Langfuse, Sentry, Pinecone, GA, and runtime site-setting surfaces without printing secrets.

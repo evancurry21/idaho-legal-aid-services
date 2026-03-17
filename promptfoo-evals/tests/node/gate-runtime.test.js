@@ -236,3 +236,48 @@ test('IlasLiveTransport fails fast on HTTP 429 in gate mode', async () => {
   assert.equal(result.error.code, 'rate_limited');
   assert.equal(calls.filter((url) => url.endsWith('/assistant/api/message')).length, 1);
 });
+
+test('IlasLiveTransport retries HTTP 429 when failFast429 is disabled', async () => {
+  const calls = [];
+  let messageAttempts = 0;
+  const transport = new IlasLiveTransport({
+    assistantUrl: 'https://example.test/assistant/api/message',
+    pacer: async () => {},
+    silent: true,
+    gateMode: true,
+    failFast429: false,
+    max429Retries: 2,
+    base429WaitMs: 1,
+    max429WaitMs: 1,
+    fetchImpl: async (url) => {
+      calls.push(url);
+      if (url.endsWith('/assistant/api/session/bootstrap')) {
+        return createResponse({
+          status: 200,
+          body: 'csrf-token',
+          headers: { 'set-cookie': 'SSESS=abc123; Path=/; HttpOnly' },
+        });
+      }
+      if (url.endsWith('/assistant/api/message')) {
+        messageAttempts++;
+        if (messageAttempts === 1) {
+          return createResponse({
+            status: 429,
+            body: { message: 'Too Many Requests' },
+            headers: { 'Retry-After': '0' },
+          });
+        }
+        return createResponse({
+          status: 200,
+          body: { message: 'The Boise office is available for walk-ins.' },
+        });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    },
+  });
+
+  const result = await transport.runConnectivityPreflight('Where is your Boise office?');
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.filter((url) => url.endsWith('/assistant/api/message')).length, 2);
+});

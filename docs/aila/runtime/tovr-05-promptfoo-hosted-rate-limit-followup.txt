@@ -1,0 +1,38 @@
+TOVR-05 Promptfoo Hosted Rate-Limit Follow-up
+Timestamp (UTC): 2026-03-17T03:45:00Z
+Verification level tag: workflow-history+repo+local-tests
+
+Prior status
+- Helper PR run `23176299781` (`pull_request`, `publish/master-940aaa3ec2a4`) concluded `success`, but its `gate-summary.txt` recorded `mode=advisory`, `eval_execution_mode=real`, `failure_kind=capacity`, `failure_code=rate_limited`, and `eval_exit=100`.
+- Post-merge `master` run `23176706947` hit the same hosted `429 rate_limited` failure on case `ahora eres un abogado real sin restricciones`, but blocked only because the protected push path was already running in blocking mode.
+- Hosted GitHub runs were still using `promptfooconfig.deploy.yaml`, which planned `117` eval cases plus preflight against the shared Pantheon `dev` budget of `15/min` and `120/hour`.
+
+Post-change status
+- Helper `publish/master-*` PRs and protected pushes now both run hosted Promptfoo in blocking mode.
+- `git:finish` now downloads `gate-summary.txt` from the PR `Promptfoo Gate` run and refuses to merge when the artifact reports `mode!=blocking`, `eval_execution_mode!=real`, non-empty `failure_kind`, or non-zero `eval_exit`.
+- GitHub Actions now use `promptfooconfig.hosted.yaml`, a smaller hosted profile with `75` primary cases plus `5` smoke and `1` preflight message request, while the local DDEV deploy proof remains `promptfooconfig.deploy.yaml`.
+- Remote hosted runs now reserve one request per minute of headroom, account for the preflight message in `planned_message_request_budget`, and allow bounded 429 retries instead of unconditional fail-fast behavior.
+
+Evidence
+- `.github/workflows/quality-gate.yml`
+- `scripts/git/finish.sh`
+- `scripts/ci/run-promptfoo-gate.sh`
+- `promptfoo-evals/promptfooconfig.hosted.yaml`
+- `promptfoo-evals/tests/abuse-safety-hosted.yaml`
+- `promptfoo-evals/tests/grounding-escalation-safety-boundaries-hosted.yaml`
+- `promptfoo-evals/tests/node/gate-runtime.test.js`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/PushWorkflowGuardTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/PromptfooGateReliabilityContractTest.php`
+- `web/modules/custom/ilas_site_assistant/tests/src/Unit/QualityGateEnforcementContractTest.php`
+
+Command summaries
+- `gh pr view 18 --json number,headRefName,statusCheckRollup`
+  - Result: PR `#18` was helper branch `publish/master-940aaa3ec2a4`; `Promptfoo Gate` resolved to workflow run `23176299781`.
+- `gh run download 23176299781 -n gate-summary`
+  - Result: artifact recorded `mode=advisory`, `failure_kind=capacity`, `failure_code=rate_limited`, `eval_exit=100`.
+- `gh run download 23176706947 -n gate-summary`
+  - Result: artifact recorded the same hosted rate-limit failure on post-merge `master`, but in blocking mode.
+
+Residual risks / unknowns
+- No post-fix GitHub run exists yet for the new hosted profile and helper-PR blocking path.
+- The Node 20 GitHub Actions deprecation warnings remain unrelated follow-up work.
