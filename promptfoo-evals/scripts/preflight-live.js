@@ -28,7 +28,7 @@ for (let i = 2; i < process.argv.length; i++) {
   try {
     const transport = new IlasLiveTransport({
       gateMode: true,
-      failFast429: true,
+      failFast429: process.env.ILAS_429_FAIL_FAST,
       silent: true,
     });
     const result = await transport.runConnectivityPreflight(question);

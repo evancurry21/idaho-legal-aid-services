@@ -109,12 +109,13 @@ final class QualityGateEnforcementContractTest extends TestCase {
     );
     $this->assertStringContainsString('Run promptfoo transport/runtime tests', $workflow);
     $this->assertStringContainsString('run-promptfoo-gate.sh', $workflow);
-    $this->assertStringContainsString('promptfooconfig.deploy.yaml', $workflow);
+    $this->assertStringContainsString('promptfooconfig.hosted.yaml', $workflow);
     $this->assertStringContainsString('--no-deep-eval', $workflow);
     $this->assertStringContainsString('CI_PROMPTFOO_ENV: dev', $workflow);
     $this->assertStringContainsString('TARGET_ENV="${CI_PROMPTFOO_ENV}"', $workflow);
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE', $workflow);
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR', $workflow);
+    $this->assertStringContainsString('publish/master-', $workflow);
 
     // Branch-aware policy annotation.
     $this->assertStringContainsString('BLOCKING', $workflow);

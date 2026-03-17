@@ -11,6 +11,8 @@ PR_POLL_SECONDS=2
 PR_POLL_ATTEMPTS=15
 MASTER_RUN_POLL_SECONDS=5
 MASTER_RUN_POLL_ATTEMPTS=24
+ARTIFACT_POLL_SECONDS=3
+ARTIFACT_POLL_ATTEMPTS=10
 
 usage() {
   cat <<'USAGE'
@@ -110,6 +112,132 @@ wait_for_quality_checks() {
     info "Waiting for GitHub checks to appear on PR #$pr_number..."
     sleep "$CHECK_POLL_SECONDS"
   done
+}
+
+find_promptfoo_check_run_id() {
+  local pr_number="$1"
+  local pr_json=""
+
+  pr_json="$(gh pr view "$pr_number" --json statusCheckRollup)"
+
+  php -r '
+    $data = json_decode(stream_get_contents(STDIN), true);
+    $checks = $data["statusCheckRollup"] ?? [];
+    foreach ($checks as $check) {
+      if (($check["name"] ?? "") !== "Promptfoo Gate") {
+        continue;
+      }
+
+      $detailsUrl = (string) ($check["detailsUrl"] ?? "");
+      if (preg_match("~actions/runs/([0-9]+)(?:/job/[0-9]+)?~", $detailsUrl, $matches)) {
+        echo $matches[1], PHP_EOL;
+        exit(0);
+      }
+    }
+    exit(1);
+  ' <<< "$pr_json"
+}
+
+download_gate_summary_artifact() {
+  local run_id="$1"
+  local destination_dir="$2"
+  local attempt=0
+
+  while true; do
+    rm -rf "$destination_dir"
+    mkdir -p "$destination_dir"
+    if gh run download "$run_id" --name gate-summary --dir "$destination_dir" >/dev/null 2>&1; then
+      if [[ -f "$destination_dir/gate-summary.txt" ]]; then
+        return 0
+      fi
+    fi
+
+    attempt=$((attempt + 1))
+    if (( attempt >= ARTIFACT_POLL_ATTEMPTS )); then
+      return 1
+    fi
+
+    info "Waiting for gate-summary artifact from Promptfoo Gate run $run_id..."
+    sleep "$ARTIFACT_POLL_SECONDS"
+  done
+}
+
+summary_field_value() {
+  local summary_file="$1"
+  local field_name="$2"
+  grep -E "^${field_name}=" "$summary_file" | tail -n1 | cut -d= -f2- || true
+}
+
+require_publish_pr_promptfoo_artifact_pass() {
+  local pr_number="$1"
+  local publish_branch="$2"
+  local promptfoo_run_id=""
+  local artifact_dir=""
+  local summary_file=""
+  local mode=""
+  local eval_execution_mode=""
+  local failure_kind=""
+  local eval_exit=""
+  local failure_code=""
+
+  if [[ ! "$publish_branch" =~ ^publish/master- ]]; then
+    return 0
+  fi
+
+  if ! promptfoo_run_id="$(find_promptfoo_check_run_id "$pr_number")"; then
+    err "Unable to resolve the Promptfoo Gate workflow run for PR #$pr_number."
+    err "Inspect with: gh pr view $pr_number --json statusCheckRollup,url"
+    exit 1
+  fi
+
+  artifact_dir="$(mktemp -d)"
+  summary_file="$artifact_dir/gate-summary.txt"
+
+  if ! download_gate_summary_artifact "$promptfoo_run_id" "$artifact_dir"; then
+    rm -rf "$artifact_dir"
+    err "Unable to download gate-summary artifact from Promptfoo Gate run $promptfoo_run_id."
+    err "Inspect with: gh run view $promptfoo_run_id"
+    exit 1
+  fi
+
+  mode="$(summary_field_value "$summary_file" "mode")"
+  eval_execution_mode="$(summary_field_value "$summary_file" "eval_execution_mode")"
+  failure_kind="$(summary_field_value "$summary_file" "failure_kind")"
+  failure_code="$(summary_field_value "$summary_file" "failure_code")"
+  eval_exit="$(summary_field_value "$summary_file" "eval_exit")"
+
+  if [[ -z "$mode" || -z "$eval_execution_mode" || -z "$eval_exit" ]]; then
+    rm -rf "$artifact_dir"
+    err "gate-summary artifact from Promptfoo Gate run $promptfoo_run_id is missing required fields."
+    err "Inspect with: gh run download $promptfoo_run_id --name gate-summary"
+    exit 1
+  fi
+
+  if [[ "$mode" != "blocking" ]]; then
+    rm -rf "$artifact_dir"
+    err "Refusing to merge helper PR #$pr_number because Promptfoo gate summary recorded mode=$mode."
+    exit 1
+  fi
+
+  if [[ "$eval_execution_mode" != "real" ]]; then
+    rm -rf "$artifact_dir"
+    err "Refusing to merge helper PR #$pr_number because Promptfoo gate summary recorded eval_execution_mode=$eval_execution_mode."
+    exit 1
+  fi
+
+  if [[ -n "$failure_kind" ]]; then
+    rm -rf "$artifact_dir"
+    err "Refusing to merge helper PR #$pr_number because Promptfoo gate summary recorded failure_kind=$failure_kind failure_code=${failure_code:-unknown}."
+    exit 1
+  fi
+
+  if [[ "$eval_exit" != "0" ]]; then
+    rm -rf "$artifact_dir"
+    err "Refusing to merge helper PR #$pr_number because Promptfoo gate summary recorded eval_exit=$eval_exit."
+    exit 1
+  fi
+
+  rm -rf "$artifact_dir"
 }
 
 find_master_quality_gate_run() {
@@ -222,7 +350,13 @@ main() {
 
     wait_for_quality_checks "$pr_number"
     info "Waiting for GitHub checks to finish on PR #$pr_number..."
-    gh pr checks "$pr_number" --watch
+    if ! gh pr checks "$pr_number" --watch; then
+      err "GitHub checks failed on PR #$pr_number."
+      err "Inspect with: gh pr checks $pr_number"
+      exit 1
+    fi
+
+    require_publish_pr_promptfoo_artifact_pass "$pr_number" "$publish_branch"
 
     info "Merging PR #$pr_number with a merge commit..."
     gh pr merge "$pr_number" --merge --delete-branch
