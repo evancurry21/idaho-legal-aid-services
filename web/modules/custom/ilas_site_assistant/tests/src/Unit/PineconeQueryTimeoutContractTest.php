@@ -18,10 +18,16 @@ use Symfony\Component\Yaml\Yaml;
 class PineconeQueryTimeoutContractTest extends TestCase {
 
   /**
-   * Query timeout defaults exist in both install and active config.
+   * Query timeout defaults exist in the installed module config and active config.
    */
   public function testQueryTimeoutDefaultsExistInInstallAndActiveConfig(): void {
-    $install = Yaml::parseFile($this->repoRoot() . '/web/modules/contrib/ai_vdb_provider_pinecone/config/install/ai_vdb_provider_pinecone.settings.yml');
+    $install_path = $this->repoRoot() . '/web/modules/contrib/ai_vdb_provider_pinecone/config/install/ai_vdb_provider_pinecone.settings.yml';
+    self::assertFileExists(
+      $install_path,
+      'Installed ai_vdb_provider_pinecone config is missing. Run composer install so repo patches apply before VC-PURE.'
+    );
+
+    $install = Yaml::parseFile($install_path);
     $active = Yaml::parseFile($this->repoRoot() . '/config/ai_vdb_provider_pinecone.settings.yml');
 
     $this->assertSame(1.0, (float) ($install['query_connect_timeout_seconds'] ?? NULL));
@@ -34,7 +40,10 @@ class PineconeQueryTimeoutContractTest extends TestCase {
    * Saloon applies the query-only connection and request timeouts.
    */
   public function testQueryTimeoutClientAppliesSaloonTimeoutConfig(): void {
-    require_once $this->repoRoot() . '/web/modules/contrib/ai_vdb_provider_pinecone/src/QueryTimeoutPineconeClient.php';
+    self::assertTrue(
+      class_exists(QueryTimeoutPineconeClient::class),
+      'QueryTimeoutPineconeClient is unavailable. Ensure composer-installed Pinecone patches are applied before running VC-PURE.'
+    );
 
     $client = new QueryTimeoutPineconeClient(
       'test-api-key',

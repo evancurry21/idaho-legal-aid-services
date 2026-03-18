@@ -3053,7 +3053,9 @@ Notes:
   `remote-ahead`/`diverged` pushes, then runs
   `composer install --no-interaction --no-progress --prefer-dist --dry-run`
   to mirror the GitHub `Install Composer dependencies` step and catch
-  `composer.json`/`composer.lock` drift before publish. After that it runs
+  `composer.json`/`composer.lock` drift before publish. It then runs
+  `vendor/bin/phpunit -c phpunit.pure.xml --colors=always` to mirror the
+  GitHub `Run PHPUnit pure-unit tests (VC-PURE)` step before running
   `run-quality-gate.sh` plus branch-aware Promptfoo gate checks keyed to the
   pushed target branch.
 - Post-merge local sync is reduced to one command: `npm run git:sync-master`.

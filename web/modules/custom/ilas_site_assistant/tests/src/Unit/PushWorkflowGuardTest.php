@@ -97,6 +97,9 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('Running Composer installability parity check...', $strictHook);
     $this->assertStringContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $strictHook);
     $this->assertStringContainsString("mirrors the GitHub 'Install Composer dependencies' step", $strictHook);
+    $this->assertStringContainsString('Running PHPUnit pure-unit parity gate (VC-PURE)...', $strictHook);
+    $this->assertStringContainsString('vendor/bin/phpunit -c phpunit.pure.xml --colors=always', $strictHook);
+    $this->assertStringContainsString("mirrors the GitHub 'Run PHPUnit pure-unit tests (VC-PURE)' step", $strictHook);
     $this->assertStringContainsString('run-quality-gate.sh', $strictHook);
     $this->assertStringContainsString('resolve_promptfoo_branch', $strictHook);
     $this->assertStringContainsString('is_effective_target_branch', $strictHook);
@@ -122,6 +125,8 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('npm run git:finish', $installer);
     $this->assertStringContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $installer);
     $this->assertStringContainsString("mirroring the GitHub 'Install Composer dependencies' step", $installer);
+    $this->assertStringContainsString('vendor/bin/phpunit -c phpunit.pure.xml --colors=always', $installer);
+    $this->assertStringContainsString("mirroring the GitHub 'Run PHPUnit pure-unit tests (VC-PURE)' step", $installer);
     $this->assertStringContainsString('using the pushed target branch for blocking/advisory policy', $installer);
     $this->assertStringContainsString('requires local DDEV exact-code evals for synced origin/master deploy pushes', $installer);
     $this->assertStringContainsString('Do not wait on stale PR numbers from earlier publishes.', $installer);
