@@ -1,0 +1,54 @@
+name: GitGuardian CI
+
+on:
+  pull_request:
+    branches:
+      - master
+      - 'release/**'
+  push:
+    branches:
+      - master
+      - 'release/**'
+
+permissions:
+  contents: read
+
+jobs:
+  gitguardian:
+    name: GitGuardian CI Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Skip fork pull requests
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          echo "::notice::Skipping ggshield GitHub Actions scan for a fork pull request because repository secrets are not exposed to fork-origin pull_request workflows."
+          echo "::notice::Native GitGuardian monitoring remains the visibility path for fork pull requests."
+
+      - name: Checkout repository
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # Full history lets ggshield compute the correct commit range for multi-commit PRs and protected pushes.
+          fetch-depth: 0
+
+      - name: Verify GitGuardian authentication secret
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+        run: |
+          if [[ -z "${GITGUARDIAN_API_KEY:-}" ]]; then
+            echo "::error::GITGUARDIAN_API_KEY must be configured in GitHub Actions secrets before GitGuardian CI can run."
+            exit 1
+          fi
+
+      - name: Scan new commits for secrets
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: GitGuardian/ggshield/actions/secret@ca3f7d65b17b7c3dcbec98b870299754adf7ff0e # v1.48.0
+        env:
+          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
+          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}

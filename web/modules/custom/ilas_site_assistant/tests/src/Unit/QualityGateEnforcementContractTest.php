@@ -143,17 +143,18 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $prPos = strpos($workflow, 'pull_request:');
     $this->assertNotFalse($prPos, 'pull_request trigger must exist in workflow');
 
-    $pushSection = substr($workflow, (int) $pushPos, (int) $prPos - (int) $pushPos);
-    $this->assertStringContainsString('- master', $pushSection, 'push trigger must include master');
-    $this->assertStringContainsString('- main', $pushSection, 'push trigger must include main');
-    $this->assertStringContainsString("'release/**'", $pushSection, 'push trigger must include release/**');
+    $dispatchPos = strpos($workflow, 'workflow_dispatch:');
+    $this->assertNotFalse($dispatchPos, 'workflow_dispatch trigger must exist in workflow');
 
-    // Find release/** after the pull_request: declaration.
-    $releasePos = strpos($workflow, "release/**", $prPos);
-    $this->assertNotFalse(
-      $releasePos,
-      'pull_request trigger must include release/** for blocking branch coverage'
-    );
+    $pushSection = substr($workflow, (int) $pushPos, (int) $prPos - (int) $pushPos);
+    $pullRequestSection = substr($workflow, (int) $prPos, (int) $dispatchPos - (int) $prPos);
+    $this->assertStringContainsString('- master', $pushSection, 'push trigger must include master');
+    $this->assertStringContainsString("'release/**'", $pushSection, 'push trigger must include release/**');
+    $this->assertStringNotContainsString('- main', $pushSection, 'push trigger must not include main');
+
+    $this->assertStringContainsString('- master', $pullRequestSection, 'pull_request trigger must include master');
+    $this->assertStringContainsString("'release/**'", $pullRequestSection, 'pull_request trigger must include release/**');
+    $this->assertStringNotContainsString('- main', $pullRequestSection, 'pull_request trigger must not include main');
 
     // Concurrency control must exist to prevent stale-run races.
     $this->assertStringContainsString(
