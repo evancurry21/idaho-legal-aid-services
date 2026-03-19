@@ -60,6 +60,12 @@ These are used by CI/release workflows, not by Drupal runtime.
 
 - `SENTRY_AUTH_TOKEN`
   - Used for Sentry release creation and source-map upload.
+- `GITGUARDIAN_API_KEY`
+  - Used by the dedicated GitHub Actions `GitGuardian CI` workflow for
+    `ggshield` secret scanning.
+  - Prefer a GitGuardian service-account token when the workspace is on the
+    Business plan; otherwise use a personal access token from the GitGuardian
+    API section.
 
 ### GitHub Actions variables
 

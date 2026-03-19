@@ -713,7 +713,47 @@ class TestFaqIndex extends FaqIndex {
    * {@inheritdoc}
    */
   protected function searchVector(string $query, int $limit, ?string $type = NULL): array {
-    return $this->testVectorItems;
+    if (array_key_exists('status', $this->testVectorItems) && array_key_exists('items', $this->testVectorItems)) {
+      $vector_outcome = $this->testVectorItems;
+      $vector_outcome['items'] = array_map(
+        fn(array $item): array => $this->normalizeVectorFixtureItem($item),
+        $vector_outcome['items'],
+      );
+      return $vector_outcome;
+    }
+
+    return array_map(
+      fn(array $item): array => $this->normalizeVectorFixtureItem($item),
+      $this->testVectorItems,
+    );
+  }
+
+  /**
+   * Aligns minimal test fixtures with the production FAQ vector item shape.
+   */
+  private function normalizeVectorFixtureItem(array $item): array {
+    $item['source'] = $item['source'] ?? 'vector';
+
+    $raw_id = $item['paragraph_id'] ?? $item['id'] ?? 'unknown';
+    $safe_id = preg_replace('/[^a-z0-9]+/i', '-', (string) $raw_id) ?: 'unknown';
+    $default_parent_url = '/resources/faq-' . trim($safe_id, '-');
+    $default_url = $default_parent_url . '#faq-' . trim($safe_id, '-');
+
+    if (!isset($item['parent_url']) && !isset($item['url'])) {
+      $item['parent_url'] = $default_parent_url;
+      $item['url'] = $default_url;
+      return $item;
+    }
+
+    if (!isset($item['parent_url']) && isset($item['url']) && is_string($item['url'])) {
+      $item['parent_url'] = (string) (parse_url($item['url'], PHP_URL_PATH) ?? '');
+    }
+
+    if (!isset($item['url']) && isset($item['parent_url']) && is_string($item['parent_url'])) {
+      $item['url'] = $item['parent_url'] . '#faq-' . trim($safe_id, '-');
+    }
+
+    return $item;
   }
 
   /**
