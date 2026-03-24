@@ -83,6 +83,16 @@ class AssistantApiController extends ControllerBase {
   const OFFICE_FOLLOWUP_MAX_TURNS = 2;
 
   /**
+   * Public API allowlist for FAQ search results.
+   */
+  private const FAQ_SEARCH_PUBLIC_FIELDS = ['id', 'question', 'answer', 'url', 'score', 'source'];
+
+  /**
+   * Public API allowlist for FAQ ID lookup results.
+   */
+  private const FAQ_ID_PUBLIC_FIELDS = ['id', 'question', 'answer', 'url'];
+
+  /**
    * Safe fallback for post-generation safety replacement.
    */
   private const POST_GENERATION_SAFE_FALLBACK = 'I found some information that may help. For guidance specific to your situation, please contact our Legal Advice Line or apply for help.';
@@ -2690,7 +2700,11 @@ class AssistantApiController extends ControllerBase {
       if ($id) {
         $faq = $this->faqIndex->getById($id);
         if ($faq) {
-          $response = new CacheableJsonResponse(['faq' => $faq], 200, self::SECURITY_HEADERS);
+          $response = new CacheableJsonResponse(
+            ['faq' => $this->filterFaqForPublicApi($faq, self::FAQ_ID_PUBLIC_FIELDS)],
+            200,
+            self::SECURITY_HEADERS,
+          );
           $cache_meta->setCacheMaxAge(300);
           $response->addCacheableDependency($cache_meta);
           return $this->monitoredCacheableResponse(
@@ -2716,8 +2730,12 @@ class AssistantApiController extends ControllerBase {
       if (strlen($query) >= 2) {
         $query = $this->sanitizeInput($query);
         $results = $this->faqIndex->search($query, 5);
+        $filtered = array_map(
+          fn(array $item) => $this->filterFaqForPublicApi($item, self::FAQ_SEARCH_PUBLIC_FIELDS),
+          $results,
+        );
         $response = new CacheableJsonResponse([
-          'results' => $results,
+          'results' => $filtered,
           'count' => count($results),
         ], 200, self::SECURITY_HEADERS);
         $cache_meta->setCacheMaxAge(300);
@@ -2795,6 +2813,13 @@ class AssistantApiController extends ControllerBase {
         TRUE,
       );
     }
+  }
+
+  /**
+   * Strips internal fields from a FAQ result for public serialization.
+   */
+  private function filterFaqForPublicApi(array $item, array $allowed_fields): array {
+    return array_intersect_key($item, array_flip($allowed_fields));
   }
 
   /**

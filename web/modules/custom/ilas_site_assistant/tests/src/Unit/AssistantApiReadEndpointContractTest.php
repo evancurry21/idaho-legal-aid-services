@@ -515,6 +515,166 @@ final class AssistantApiReadEndpointContractTest extends TestCase {
   }
 
   /**
+   * FAQ search responses contain only the public field allowlist.
+   */
+  public function testFaqSearchResponseContainsOnlyPublicFields(): void {
+    $faqIndex = $this->createStub(FaqIndex::class);
+    $faqIndex->method('search')->willReturn([$this->fullFaqResult()]);
+
+    $controller = $this->buildController(
+      faqIndex: $faqIndex,
+      readEndpointGuard: $this->buildReadGuard(),
+    );
+
+    $response = $controller->faq(Request::create('/assistant/api/faq?q=eviction', 'GET'));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $body = json_decode($response->getContent(), TRUE);
+    $this->assertSame(1, $body['count']);
+    $result = $body['results'][0];
+    $keys = array_keys($result);
+    sort($keys);
+    $this->assertSame(['answer', 'id', 'question', 'score', 'source', 'url'], $keys);
+    foreach (self::DENIED_FAQ_FIELDS as $field) {
+      $this->assertArrayNotHasKey($field, $result, "Internal field '{$field}' leaked into search response");
+    }
+  }
+
+  /**
+   * FAQ ID lookup responses contain only the public field allowlist.
+   */
+  public function testFaqIdResponseContainsOnlyPublicFields(): void {
+    $faqIndex = $this->createStub(FaqIndex::class);
+    $faqIndex->method('getById')->willReturn($this->fullFaqResult());
+
+    $controller = $this->buildController(
+      faqIndex: $faqIndex,
+      readEndpointGuard: $this->buildReadGuard(),
+    );
+
+    $response = $controller->faq(Request::create('/assistant/api/faq?id=faq_123', 'GET'));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $body = json_decode($response->getContent(), TRUE);
+    $faq = $body['faq'];
+    $keys = array_keys($faq);
+    sort($keys);
+    $this->assertSame(['answer', 'id', 'question', 'url'], $keys);
+    foreach (['score', 'source', ...self::DENIED_FAQ_FIELDS] as $field) {
+      $this->assertArrayNotHasKey($field, $faq, "Field '{$field}' should not appear in ID lookup response");
+    }
+  }
+
+  /**
+   * Each denied internal field is individually stripped from search results.
+   */
+  #[DataProvider('deniedFaqFieldProvider')]
+  public function testFaqSearchResponseDeniesInternalFields(string $field, mixed $value): void {
+    $result = [
+      'id' => 'faq_123',
+      'question' => 'Test?',
+      'answer' => 'Yes.',
+      'url' => '/test',
+      'score' => 0.95,
+      'source' => 'lexical',
+      $field => $value,
+    ];
+
+    $faqIndex = $this->createStub(FaqIndex::class);
+    $faqIndex->method('search')->willReturn([$result]);
+
+    $controller = $this->buildController(
+      faqIndex: $faqIndex,
+      readEndpointGuard: $this->buildReadGuard(),
+    );
+
+    $response = $controller->faq(Request::create('/assistant/api/faq?q=test', 'GET'));
+
+    $body = json_decode($response->getContent(), TRUE);
+    $this->assertArrayNotHasKey(
+      $field,
+      $body['results'][0],
+      "Internal field '{$field}' must not appear in public FAQ search response",
+    );
+  }
+
+  /**
+   * Provider for denied FAQ fields with representative values.
+   */
+  public static function deniedFaqFieldProvider(): array {
+    return [
+      'paragraph_id' => ['paragraph_id', 42],
+      'type' => ['type', 'faq_item'],
+      'full_answer' => ['full_answer', 'Full answer text'],
+      'title' => ['title', 'FAQ Title'],
+      'body' => ['body', 'Body text'],
+      'anchor' => ['anchor', 'section-anchor'],
+      'category' => ['category', 'Housing'],
+      'parent_url' => ['parent_url', '/legal-topics/housing'],
+      'source_url' => ['source_url', '/node/123'],
+      'updated_at' => ['updated_at', '2026-01-15'],
+      'answer_snippet' => ['answer_snippet', 'Snippet...'],
+      'vector_score' => ['vector_score', 0.87],
+      'source_class' => ['source_class', 'authoritative'],
+      'provenance' => ['provenance', ['origin' => 'manual', 'verified' => TRUE]],
+      'freshness' => ['freshness', ['score' => 0.9, 'last_checked' => '2026-01-01']],
+      'governance_flags' => ['governance_flags', ['needs_review']],
+    ];
+  }
+
+  /**
+   * Denied field names for negative assertions.
+   */
+  private const DENIED_FAQ_FIELDS = [
+    'paragraph_id', 'type', 'full_answer', 'title', 'body', 'anchor',
+    'category', 'parent_url', 'source_url', 'updated_at', 'answer_snippet',
+    'vector_score', 'source_class', 'provenance', 'freshness', 'governance_flags',
+  ];
+
+  /**
+   * Returns a FAQ result with all known fields populated.
+   */
+  private function fullFaqResult(): array {
+    return [
+      'id' => 'faq_123',
+      'paragraph_id' => 42,
+      'type' => 'faq_item',
+      'question' => 'What do I do about eviction?',
+      'answer' => 'Contact legal aid immediately.',
+      'full_answer' => 'Contact legal aid immediately for assistance.',
+      'title' => 'Eviction Help',
+      'body' => 'Contact legal aid immediately.',
+      'anchor' => 'eviction-help',
+      'category' => 'Housing',
+      'parent_url' => '/legal-topics/housing',
+      'url' => '/legal-topics/housing/eviction',
+      'source_url' => '/node/55',
+      'updated_at' => '2026-01-15T10:00:00+00:00',
+      'source' => 'vector',
+      'source_class' => 'authoritative',
+      'score' => 0.95,
+      'answer_snippet' => 'Contact legal aid...',
+      'vector_score' => 0.87,
+      'provenance' => [
+        'origin' => 'manual',
+        'author' => 'staff',
+        'verified' => TRUE,
+        'verified_at' => '2026-01-10',
+        'source_node' => 55,
+        'paragraph_bundle' => 'faq_item',
+        'content_type' => 'legal_topic',
+      ],
+      'freshness' => [
+        'score' => 0.9,
+        'last_checked' => '2026-01-01',
+        'days_since_update' => 14,
+        'freshness_class' => 'current',
+      ],
+      'governance_flags' => ['needs_review'],
+    ];
+  }
+
+  /**
    * Runs the response-monitor subscriber around a controller response.
    */
   private function dispatchMonitoredResponse(
