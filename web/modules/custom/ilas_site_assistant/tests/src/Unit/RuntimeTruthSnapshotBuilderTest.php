@@ -51,6 +51,7 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
         ],
       ],
       'ilas_gemini_api_key' => 'gemini-secret-value',
+      'ilas_voyage_api_key' => 'voyage-secret-value',
       'ilas_vertex_sa_json' => '{"private_key":"vertex-secret-value"}',
       'ilas_site_assistant_legalserver_online_application_url' => 'https://idoi.legalserver.org/modules/matter/extern_intake.php?pid=60&h=secret',
       'ilas_assistant_diagnostics_token' => 'diag-secret-token',
@@ -81,6 +82,30 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
         'key_value' => '',
       ],
     ]);
+    $syncStorage->write('key.key.voyage_ai_api_key', [
+      'key_provider' => 'ilas_runtime_site_setting',
+      'key_provider_settings' => [
+        'settings_key' => 'ilas_voyage_api_key',
+      ],
+    ]);
+    $syncStorage->write('ai.settings', [
+      'default_providers' => [
+        'embeddings' => [
+          'provider_id' => 'ilas_voyage',
+          'model_id' => 'voyage-law-2',
+        ],
+      ],
+    ]);
+    $syncStorage->write('search_api.server.pinecone_vector_faq', [
+      'backend_config' => [
+        'embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+    ]);
+    $syncStorage->write('search_api.server.pinecone_vector_resources', [
+      'backend_config' => [
+        'embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+    ]);
 
     $builder = new RuntimeTruthSnapshotBuilder($this->buildConfigFactory([
       'ilas_site_assistant.settings' => [
@@ -108,6 +133,20 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
           'key_value' => 'pinecone-secret-value',
         ],
       ],
+      'key.key.voyage_ai_api_key' => [
+        'key_provider' => 'ilas_runtime_site_setting',
+        'key_provider_settings.settings_key' => 'ilas_voyage_api_key',
+      ],
+      'ai.settings' => [
+        'default_providers.embeddings.provider_id' => 'ilas_voyage',
+        'default_providers.embeddings.model_id' => 'voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_faq' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_resources' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
     ]), $syncStorage);
 
     $snapshot = $builder->buildSnapshot();
@@ -129,21 +168,29 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
     $this->assertSame(160, $snapshot['effective_runtime']['langfuse']['redacted_preview_max_chars']);
     $this->assertTrue($snapshot['effective_runtime']['sentry']['client_key_present']);
     $this->assertArrayHasKey('conversation_logging', $snapshot['exported_storage']);
+    $this->assertArrayHasKey('embeddings', $snapshot['exported_storage']);
     $this->assertArrayHasKey('retrieval', $snapshot['exported_storage']);
     $this->assertArrayHasKey('voyage', $snapshot['exported_storage']);
     $this->assertArrayHasKey('conversation_logging', $snapshot['effective_runtime']);
+    $this->assertArrayHasKey('embeddings', $snapshot['effective_runtime']);
     $this->assertArrayHasKey('retrieval', $snapshot['effective_runtime']);
     $this->assertArrayHasKey('voyage', $snapshot['effective_runtime']);
-    $this->assertTrue($snapshot['runtime_site_settings']['gemini_api_key_present']);
-    $this->assertFalse($snapshot['exported_storage']['llm']['gemini_api_key_present']);
-    $this->assertTrue($snapshot['effective_runtime']['llm']['gemini_api_key_present']);
+    $this->assertArrayNotHasKey('gemini_api_key_present', $snapshot['runtime_site_settings']);
+    $this->assertArrayNotHasKey('vertex_service_account_present', $snapshot['runtime_site_settings']);
+    $this->assertArrayNotHasKey('provider', $snapshot['exported_storage']['llm']);
+    $this->assertArrayNotHasKey('model', $snapshot['exported_storage']['llm']);
+    $this->assertArrayNotHasKey('provider', $snapshot['effective_runtime']['llm']);
+    $this->assertArrayNotHasKey('model', $snapshot['effective_runtime']['llm']);
+    $this->assertTrue($snapshot['effective_runtime']['llm']['request_time_retired']);
+    $this->assertFalse($snapshot['effective_runtime']['llm']['google_generation_reachable']);
     $this->assertFalse($snapshot['exported_storage']['retrieval']['legalserver_online_application_url']['present']);
     $this->assertTrue($snapshot['effective_runtime']['retrieval']['legalserver_online_application_url']['present']);
+    $this->assertFalse($snapshot['effective_runtime']['pinecone']['runtime_ready']);
     $this->assertTrue($snapshot['browser_expected']['google_analytics']['loader_expected']);
     $this->assertTrue($snapshot['browser_expected']['google_analytics']['assistant_page_suppressed']);
     $this->assertFalse($snapshot['browser_expected']['google_analytics']['assistant_page_loader_expected']);
     $this->assertFalse($snapshot['browser_expected']['google_analytics']['assistant_page_data_layer_expected']);
-    $this->assertSame('settings.php live branch', $snapshot['override_channels']['vector_search.enabled']);
+    $this->assertSame('config export', $snapshot['override_channels']['vector_search.enabled']);
     $this->assertSame('settings.php secret -> getenv/pantheon_get_secret', $snapshot['override_channels']['langfuse.enabled']);
     $this->assertSame('config export', $snapshot['override_channels']['langfuse.redacted_preview_enabled']);
     $this->assertSame('config export', $snapshot['override_channels']['langfuse.redacted_preview_max_chars']);
@@ -151,7 +198,10 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
     $this->assertSame('RetrievalConfigurationService runtime resolution', $snapshot['override_channels']['retrieval.legalserver_online_application_url.status']);
 
     $divergenceFields = array_column($snapshot['divergences'], 'field');
-    $this->assertContains('llm.gemini_api_key_present', $divergenceFields);
+    $this->assertNotContains('llm.provider', $divergenceFields);
+    $this->assertNotContains('llm.model', $divergenceFields);
+    $this->assertNotContains('llm.gemini_api_key_present', $divergenceFields);
+    $this->assertNotContains('llm.vertex_service_account_present', $divergenceFields);
     $this->assertContains('retrieval.legalserver_online_application_url.present', $divergenceFields);
     $this->assertContains('langfuse.enabled', $divergenceFields);
     $this->assertContains('langfuse.public_key_present', $divergenceFields);
@@ -159,11 +209,14 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
     $this->assertContains('raven.settings.client_key_present', $divergenceFields);
     $this->assertContains('key.key.pinecone_api_key.key_present', $divergenceFields);
     $this->assertContains('google_tag_id', $divergenceFields);
+    $this->assertNotContains('llm.request_time_retired', $divergenceFields);
+    $this->assertNotContains('llm.google_generation_reachable', $divergenceFields);
 
     $json = json_encode($snapshot, JSON_THROW_ON_ERROR);
     $this->assertStringNotContainsString('gemini-secret-value', $json);
     $this->assertStringNotContainsString('vertex-secret-value', $json);
     $this->assertStringNotContainsString('diag-secret-token', $json);
+    $this->assertStringNotContainsString('voyage-secret-value', $json);
     $this->assertStringNotContainsString('extern_intake.php?pid=60&h=secret', $json);
     $this->assertStringNotContainsString('pk-live-secret', $json);
     $this->assertStringNotContainsString('sk-live-secret', $json);
@@ -188,15 +241,17 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
   }
 
   /**
-   * Vector runtime enablement reports the runtime toggle as authoritative.
+   * Live vector runtime enablement reports the runtime toggle as
+   * authoritative while leaving stored config default-off.
    */
-  public function testBuildSnapshotReportsVectorRuntimeToggleOverride(): void {
+  public function testBuildSnapshotReportsLiveVectorRuntimeToggleOverride(): void {
     new Settings([
       'ilas_observability' => [
-        'environment' => 'dev',
-        'pantheon_environment' => 'dev',
+        'environment' => 'pantheon-live',
+        'pantheon_environment' => 'live',
       ],
       'ilas_vector_search_override_channel' => 'settings.php runtime toggle -> getenv/pantheon_get_secret',
+      'ilas_voyage_api_key' => 'voyage-secret-value',
     ]);
 
     $syncStorage = new MemoryStorage();
@@ -206,6 +261,10 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
       ],
       'vector_search' => [
         'enabled' => FALSE,
+      ],
+      'retrieval' => [
+        'faq_vector_index_id' => 'faq_accordion_vector',
+        'resource_vector_index_id' => 'assistant_resources_vector',
       ],
       'langfuse' => [
         'enabled' => FALSE,
@@ -222,11 +281,37 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
         'key_value' => '',
       ],
     ]);
+    $syncStorage->write('key.key.voyage_ai_api_key', [
+      'key_provider' => 'ilas_runtime_site_setting',
+      'key_provider_settings' => [
+        'settings_key' => 'ilas_voyage_api_key',
+      ],
+    ]);
+    $syncStorage->write('ai.settings', [
+      'default_providers' => [
+        'embeddings' => [
+          'provider_id' => 'ilas_voyage',
+          'model_id' => 'voyage-law-2',
+        ],
+      ],
+    ]);
+    $syncStorage->write('search_api.server.pinecone_vector_faq', [
+      'backend_config' => [
+        'embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+    ]);
+    $syncStorage->write('search_api.server.pinecone_vector_resources', [
+      'backend_config' => [
+        'embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+    ]);
 
     $builder = new RuntimeTruthSnapshotBuilder($this->buildConfigFactory([
       'ilas_site_assistant.settings' => [
         'llm.enabled' => FALSE,
         'vector_search.enabled' => TRUE,
+        'retrieval.faq_vector_index_id' => 'faq_accordion_vector',
+        'retrieval.resource_vector_index_id' => 'assistant_resources_vector',
         'langfuse.enabled' => FALSE,
         'langfuse.public_key' => '',
         'langfuse.secret_key' => '',
@@ -238,8 +323,22 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
       'raven.settings' => [],
       'key.key.pinecone_api_key' => [
         'key_provider_settings' => [
-          'key_value' => '',
+          'key_value' => 'pinecone-secret-value',
         ],
+      ],
+      'key.key.voyage_ai_api_key' => [
+        'key_provider' => 'ilas_runtime_site_setting',
+        'key_provider_settings.settings_key' => 'ilas_voyage_api_key',
+      ],
+      'ai.settings' => [
+        'default_providers.embeddings.provider_id' => 'ilas_voyage',
+        'default_providers.embeddings.model_id' => 'voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_faq' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_resources' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
       ],
     ]), $syncStorage);
 
@@ -249,6 +348,15 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
       'settings.php runtime toggle -> getenv/pantheon_get_secret',
       $snapshot['override_channels']['vector_search.enabled'],
     );
+    $this->assertSame(
+      'settings.php runtime toggle -> getenv/pantheon_get_secret',
+      $snapshot['effective_runtime']['vector_search']['override_channel'],
+    );
+    $this->assertTrue($snapshot['effective_runtime']['embeddings']['runtime_ready']);
+    $this->assertTrue($snapshot['effective_runtime']['pinecone']['key_present']);
+    $this->assertTrue($snapshot['effective_runtime']['pinecone']['runtime_ready']);
+    $this->assertTrue($snapshot['effective_runtime']['llm']['request_time_retired']);
+    $this->assertFalse($snapshot['effective_runtime']['llm']['google_generation_reachable']);
 
     $vectorDivergence = array_values(array_filter(
       $snapshot['divergences'],
@@ -261,6 +369,14 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
       'settings.php runtime toggle -> getenv/pantheon_get_secret',
       $vectorDivergence[0]['authoritative_source'],
     );
+
+    $pineconeDivergence = array_values(array_filter(
+      $snapshot['divergences'],
+      static fn(array $divergence): bool => $divergence['field'] === 'pinecone.runtime_ready',
+    ));
+    $this->assertCount(1, $pineconeDivergence);
+    $this->assertSame(FALSE, $pineconeDivergence[0]['stored_value']);
+    $this->assertSame(TRUE, $pineconeDivergence[0]['effective_value']);
   }
 
   /**
@@ -335,6 +451,156 @@ class RuntimeTruthSnapshotBuilderTest extends TestCase {
       'settings.php runtime toggle -> private flag file',
       $vectorDivergence[0]['authoritative_source'],
     );
+  }
+
+  /**
+   * Live Voyage runtime truth reports the explicit toggle and readiness state.
+   */
+  public function testBuildSnapshotReportsLiveVoyageRuntimeToggleReadiness(): void {
+    new Settings([
+      'ilas_observability' => [
+        'environment' => 'pantheon-live',
+        'pantheon_environment' => 'live',
+      ],
+      'ilas_voyage_api_key' => 'voyage-secret-value',
+    ]);
+
+    $syncStorage = new MemoryStorage();
+    $syncStorage->write('ilas_site_assistant.settings', [
+      'llm' => [
+        'enabled' => FALSE,
+      ],
+      'vector_search' => [
+        'enabled' => FALSE,
+      ],
+      'voyage' => [
+        'enabled' => FALSE,
+        'rerank_model' => 'rerank-2',
+        'api_timeout' => 3.0,
+        'max_candidates' => 20,
+        'top_k' => 5,
+        'min_results_to_rerank' => 2,
+        'fallback_on_error' => TRUE,
+        'circuit_breaker' => [
+          'failure_threshold' => 3,
+          'cooldown_seconds' => 300,
+        ],
+      ],
+      'langfuse' => [
+        'enabled' => FALSE,
+        'public_key' => '',
+        'secret_key' => '',
+        'environment' => '',
+        'sample_rate' => 0.0,
+        'redacted_preview_enabled' => FALSE,
+        'redacted_preview_max_chars' => 160,
+      ],
+    ]);
+    $syncStorage->write('key.key.pinecone_api_key', [
+      'key_provider_settings' => [
+        'key_value' => '',
+      ],
+    ]);
+
+    $builder = new RuntimeTruthSnapshotBuilder($this->buildConfigFactory([
+      'ilas_site_assistant.settings' => [
+        'llm.enabled' => FALSE,
+        'vector_search.enabled' => FALSE,
+        'voyage.enabled' => TRUE,
+        'voyage.rerank_model' => 'rerank-2',
+        'voyage.api_timeout' => 3.0,
+        'voyage.max_candidates' => 20,
+        'voyage.top_k' => 5,
+        'voyage.min_results_to_rerank' => 2,
+        'voyage.fallback_on_error' => TRUE,
+        'voyage.circuit_breaker.failure_threshold' => 3,
+        'voyage.circuit_breaker.cooldown_seconds' => 300,
+        'langfuse.enabled' => FALSE,
+        'langfuse.public_key' => '',
+        'langfuse.secret_key' => '',
+        'langfuse.environment' => '',
+        'langfuse.sample_rate' => 0.0,
+        'langfuse.redacted_preview_enabled' => FALSE,
+        'langfuse.redacted_preview_max_chars' => 160,
+      ],
+      'raven.settings' => [],
+      'key.key.pinecone_api_key' => [
+        'key_provider_settings' => [
+          'key_value' => '',
+        ],
+      ],
+      'key.key.voyage_ai_api_key' => [
+        'key_provider' => 'ilas_runtime_site_setting',
+        'key_provider_settings.settings_key' => 'ilas_voyage_api_key',
+      ],
+      'ai.settings' => [
+        'default_providers.embeddings.provider_id' => 'ilas_voyage',
+        'default_providers.embeddings.model_id' => 'voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_faq' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_resources' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+    ]), $syncStorage);
+
+    $snapshot = $builder->buildSnapshot();
+
+    $this->assertSame('ilas_voyage', $snapshot['effective_runtime']['embeddings']['provider_id']);
+    $this->assertSame('voyage-law-2', $snapshot['effective_runtime']['embeddings']['model_id']);
+    $this->assertTrue($snapshot['effective_runtime']['embeddings']['api_key_present']);
+    $this->assertTrue($snapshot['effective_runtime']['embeddings']['runtime_ready']);
+    $this->assertTrue($snapshot['effective_runtime']['voyage']['enabled']);
+    $this->assertTrue($snapshot['effective_runtime']['voyage']['api_key_present']);
+    $this->assertTrue($snapshot['effective_runtime']['voyage']['runtime_ready']);
+    $this->assertSame(
+      'settings.php runtime site setting ILAS_VOYAGE_API_KEY via key.key.voyage_ai_api_key',
+      $snapshot['override_channels']['embeddings.api_key_present'],
+    );
+    $this->assertSame(
+      'ai.settings + search_api.server.pinecone_vector_* + runtime Voyage key',
+      $snapshot['override_channels']['embeddings.runtime_ready'],
+    );
+    $this->assertSame(
+      'settings.php runtime toggle ILAS_VOYAGE_ENABLED -> getenv/pantheon_get_secret',
+      $snapshot['override_channels']['voyage.enabled'],
+    );
+    $this->assertSame(
+      'settings.php runtime site setting ILAS_VOYAGE_API_KEY',
+      $snapshot['override_channels']['voyage.api_key_present'],
+    );
+
+    $embeddingsReadyDivergence = array_values(array_filter(
+      $snapshot['divergences'],
+      static fn(array $divergence): bool => $divergence['field'] === 'embeddings.runtime_ready',
+    ));
+    $this->assertCount(1, $embeddingsReadyDivergence);
+    $this->assertSame(FALSE, $embeddingsReadyDivergence[0]['stored_value']);
+    $this->assertSame(TRUE, $embeddingsReadyDivergence[0]['effective_value']);
+
+    $voyageEnabledDivergence = array_values(array_filter(
+      $snapshot['divergences'],
+      static fn(array $divergence): bool => $divergence['field'] === 'voyage.enabled',
+    ));
+    $this->assertCount(1, $voyageEnabledDivergence);
+    $this->assertSame(FALSE, $voyageEnabledDivergence[0]['stored_value']);
+    $this->assertSame(TRUE, $voyageEnabledDivergence[0]['effective_value']);
+    $this->assertSame(
+      'settings.php runtime toggle ILAS_VOYAGE_ENABLED -> getenv/pantheon_get_secret',
+      $voyageEnabledDivergence[0]['authoritative_source'],
+    );
+
+    $voyageReadyDivergence = array_values(array_filter(
+      $snapshot['divergences'],
+      static fn(array $divergence): bool => $divergence['field'] === 'voyage.runtime_ready',
+    ));
+    $this->assertCount(1, $voyageReadyDivergence);
+    $this->assertSame(FALSE, $voyageReadyDivergence[0]['stored_value']);
+    $this->assertSame(TRUE, $voyageReadyDivergence[0]['effective_value']);
+
+    $json = json_encode($snapshot, JSON_THROW_ON_ERROR);
+    $this->assertStringNotContainsString('voyage-secret-value', $json);
   }
 
   /**

@@ -52,7 +52,7 @@ final class Tovr14AiProviderFootprintContractTest extends TestCase {
     $coreExtension = self::readYaml('config/core.extension.yml');
     $modules = $coreExtension['module'] ?? [];
 
-    foreach (['ai', 'ai_search', 'ai_vdb_provider_pinecone', 'gemini_provider', 'key'] as $module) {
+    foreach (['ai', 'ai_search', 'ai_vdb_provider_pinecone', 'gemini_provider', 'ilas_voyage_ai_provider', 'key'] as $module) {
       $this->assertArrayHasKey($module, $modules);
     }
 

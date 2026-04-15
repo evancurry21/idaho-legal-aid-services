@@ -143,9 +143,9 @@ final class PhaseThreeNoNetNewAssistantChannelsOrModelExpansionGuardTest extends
   }
 
   /**
-   * Provider allowlist anchors must remain limited to audited Gemini/Vertex.
+   * Request-time provider selection anchors must stay retired from the UI/config contract.
    */
-  public function testProviderAllowlistAnchorsRemainPresent(): void {
+  public function testRequestTimeProviderAnchorsStayRetired(): void {
     $enhancer = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php');
     $form = self::readFile('web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php');
     $schema = self::readFile('web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml');
@@ -153,16 +153,15 @@ final class PhaseThreeNoNetNewAssistantChannelsOrModelExpansionGuardTest extends
 
     $this->assertStringContainsString('const GEMINI_API_ENDPOINT =', $enhancer);
     $this->assertStringContainsString('const VERTEX_AI_ENDPOINT =', $enhancer);
-    $this->assertStringContainsString('if ($provider === \'gemini_api\') {', $enhancer);
-    $this->assertStringContainsString('if ($provider === \'vertex_ai\') {', $enhancer);
-    $this->assertStringContainsString("'x-goog-api-key' => \$apiKey", $enhancer);
-    $this->assertStringContainsString("'Authorization' => 'Bearer ' . \$accessToken", $enhancer);
+    $this->assertStringContainsString('public function isEnabled(): bool {', $enhancer);
+    $this->assertStringContainsString('return FALSE;', $enhancer);
 
-    $this->assertStringContainsString("'gemini_api' => \$this->t('Gemini API (API Key)')", $form);
-    $this->assertStringContainsString("'vertex_ai' => \$this->t('Vertex AI (Google Cloud)')", $form);
+    $this->assertStringNotContainsString("'gemini_api' => \$this->t('Gemini API (API Key)')", $form);
+    $this->assertStringNotContainsString("'vertex_ai' => \$this->t('Vertex AI (Google Cloud)')", $form);
+    $this->assertStringContainsString('Request-time assistant LLM fallback is retired', $form);
 
-    $this->assertStringContainsString('LLM provider (gemini_api or vertex_ai)', $schema);
-    $this->assertStringContainsString("provider: 'gemini_api'  # 'gemini_api' or 'vertex_ai'", $install);
+    $this->assertStringNotContainsString('LLM provider (gemini_api or vertex_ai)', $schema);
+    $this->assertStringNotContainsString("provider: 'gemini_api'  # 'gemini_api' or 'vertex_ai'", $install);
   }
 
   /**

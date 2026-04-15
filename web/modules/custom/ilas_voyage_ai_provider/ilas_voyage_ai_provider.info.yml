@@ -1,0 +1,8 @@
+name: 'ILAS Voyage AI Provider'
+type: module
+description: 'Voyage AI embeddings provider for Pinecone-backed legal retrieval.'
+package: Custom
+core_version_requirement: ^11
+dependencies:
+  - ai:ai
+  - key:key

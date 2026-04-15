@@ -2414,6 +2414,12 @@ ddev drush php:eval '$r=Drupal::service("ilas_site_assistant.retrieval_configura
 /usr/bin/time -p ddev drush search-api:search assistant_resources_vector eviction
 ```
 
+- `ilas:vector-status --probe-now` only runs a live semantic queryability probe
+  when vector search is enabled. When the gate is off, use the direct
+  `search-api:search faq_accordion_vector custody` and
+  `search-api:search assistant_resources_vector eviction` checks above to
+  validate the backend without changing assistant behavior.
+
 - Canonical Pantheon read-only checks:
 
 ```bash
@@ -2433,6 +2439,11 @@ for ENV in dev test live; do
   /usr/bin/time -p terminus remote:drush "idaho-legal-aid-services.${ENV}" -- search-api:search assistant_resources_vector eviction
 done
 ```
+
+- On `dev` / `test` / `live`, `ilas:vector-status --probe-now` reports actual
+  queryability only when vector search is enabled for that environment. When
+  the gate is off, rely on the paired `search-api:search` commands for safe
+  backend validation.
 
 - Scope and decision rules:
   - Hosted Pantheon remains read-only in TOVR-10; do not reset trackers or run
@@ -2478,15 +2489,18 @@ done
     by default, and is safe to rerun until the tracker reaches zero remaining
     items.
   - Full rebuild is explicit and requires `--clear-first`.
+  - For embeddings-provider migrations or dimension changes, the canonical
+    rebuild path is `ilas:vector-backfill <index> --clear-first --until-complete`
+    with semantic retrieval still disabled.
 
-1. Inspect status and live queryability.
+1. Inspect status and direct backend readiness.
 
 ```bash
 cd /home/evancurry/idaho-legal-aid-services
 
 ddev drush ilas:vector-status
-ddev drush ilas:vector-status faq_vector --probe-now
-ddev drush ilas:vector-status resource_vector --probe-now
+ddev drush search-api:search faq_accordion_vector custody
+ddev drush search-api:search assistant_resources_vector eviction
 ```
 
 2. Resume a partial backfill without clearing.
@@ -2505,23 +2519,34 @@ ddev drush ilas:vector-backfill resource_vector --batch-size=2 --until-complete 
 
 4. Full rebuild only when explicitly intended.
 
+- Before any `--clear-first` rebuild:
+  - keep `vector_search.enabled = FALSE` for the environment
+  - take an out-of-band Pinecone snapshot of `ilas-assistant / faq_accordion_vector`
+    and `ilas-assistant / assistant_resources_vector`
+  - use `--until-complete` so the collection does not linger in a partial state
+
 ```bash
-ddev drush ilas:vector-backfill faq_vector --clear-first --until-complete --sleep-seconds=65
-ddev drush ilas:vector-backfill resource_vector --clear-first --until-complete --sleep-seconds=65
+ddev drush ilas:vector-backfill faq_vector --clear-first --until-complete
+ddev drush ilas:vector-backfill resource_vector --clear-first --until-complete
 ```
 
-5. Verify completion and queryability afterward.
+5. Verify completion and backend contract afterward.
 
 ```bash
-ddev drush ilas:vector-status faq_vector --probe-now
-ddev drush ilas:vector-status resource_vector --probe-now
+ddev drush search-api:status faq_accordion_vector
+ddev drush search-api:status assistant_resources_vector
+ddev drush ilas:vector-status faq_vector
+ddev drush ilas:vector-status resource_vector
+ddev drush search-api:search faq_accordion_vector custody
+ddev drush search-api:search assistant_resources_vector eviction
 ```
 
 - Hosted Pantheon use:
-  - `ilas:vector-status` with `--probe-now` is safe for `dev` / `test` / `live`
-    read-only verification.
-  - Do not run `ilas:vector-backfill --clear-first` on hosted environments
-    unless the change window explicitly approves a rebuild.
+  - `ilas:vector-status` with `--probe-now` is a queryability check only when
+    vector search is enabled for that environment.
+  - `ilas:vector-backfill --clear-first --until-complete` is allowed on hosted
+    environments only during an approved change window, after a Pinecone
+    snapshot, and with semantic retrieval still disabled.
 
 ### TOVR-11 Pinecone retrieval integration hardening verification
 

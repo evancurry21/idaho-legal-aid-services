@@ -32,15 +32,10 @@ faq_node_path: '/faq'
 welcome_message: 'Hello! I can help you find information on our website. What are you looking for today?'
 escalation_message: 'For personalized legal assistance, please contact our Legal Advice Line or apply for help.'
 
-# LLM Enhancement Settings (Option 2)
-# Disabled by default - enable after configuring API credentials
+# Request-time assistant LLM settings.
+# The assistant path stays deterministic; request-time LLM fallback is retired.
 llm:
   enabled: false
-  provider: 'gemini_api'  # 'gemini_api' or 'vertex_ai'
-  model: 'gemini-1.5-flash'
-  api_key: ''  # Runtime-only via ILAS_GEMINI_API_KEY; config export must stay blank.
-  project_id: ''  # For vertex_ai provider
-  location: 'us-central1'  # For vertex_ai provider
   max_tokens: 150
   temperature: 0.3
   enhance_greetings: false  # Generate personalized greetings
@@ -80,13 +75,13 @@ conversation_logging:
   show_user_notice: true      # Display notice in widget about review
 
 # Fallback Gate Configuration
-# Controls when to use built-in answers vs LLM (Gemini) fallback
+# Controls when to use built-in answers vs clarification or hard-route behavior.
 fallback_gate:
   thresholds:
     # Intent confidence thresholds (0-1)
     intent_high_conf: 0.85       # High confidence = answer directly
     intent_medium_conf: 0.65     # Medium confidence = answer with lower certainty
-    intent_low_conf: 0.40        # Below this = consider fallback
+    intent_low_conf: 0.40        # Below this = consider clarification
 
     # Retrieval score thresholds (0-1)
     retrieval_high_score: 0.75   # High retrieval = confident answer
@@ -102,7 +97,7 @@ fallback_gate:
 
     # Combined confidence thresholds
     combined_high_conf: 0.80         # High combined = confident answer
-    combined_fallback_threshold: 0.50 # Below this = consider LLM fallback
+    combined_fallback_threshold: 0.50 # Below this = consider clarification
 
     # Message characteristics
     short_message_words: 3      # Messages this short get lower confidence
@@ -297,7 +292,8 @@ vector_index_hygiene:
       owner_role: 'Content Operations Lead'
       expected_server_id: 'pinecone_vector_faq'
       expected_metric: 'cosine_similarity'
-      expected_dimensions: 3072
+      expected_embeddings_engine: 'ilas_voyage__voyage-law-2'
+      expected_dimensions: 1024
       queryability_probes:
         -
           label: 'faq_custody_canary'
@@ -309,7 +305,8 @@ vector_index_hygiene:
       owner_role: 'Content Operations Lead'
       expected_server_id: 'pinecone_vector_resources'
       expected_metric: 'cosine_similarity'
-      expected_dimensions: 3072
+      expected_embeddings_engine: 'ilas_voyage__voyage-law-2'
+      expected_dimensions: 1024
       queryability_probes:
         -
           label: 'resource_eviction_canary'

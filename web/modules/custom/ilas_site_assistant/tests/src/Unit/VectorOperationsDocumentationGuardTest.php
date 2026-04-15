@@ -48,6 +48,11 @@ final class VectorOperationsDocumentationGuardTest extends TestCase {
     $this->assertStringContainsString('ilas-assistant', $currentState);
     $this->assertStringContainsString('ilas:vector-status', $runbook);
     $this->assertStringContainsString('ilas:vector-backfill', $runbook);
+    $this->assertStringContainsString('ilas:vector-backfill faq_vector --clear-first --until-complete', $runbook);
+    $this->assertStringContainsString('only runs a live semantic queryability probe', $runbook);
+    $this->assertStringContainsString('vector search is enabled', $runbook);
+    $this->assertStringContainsString('search-api:search faq_accordion_vector custody', $runbook);
+    $this->assertStringContainsString('search-api:search assistant_resources_vector eviction', $runbook);
     $this->assertStringContainsString('queryability', $currentState);
     $this->assertStringContainsString('queryability', $runbook);
     $this->assertStringContainsString('queryability', $promptPack);

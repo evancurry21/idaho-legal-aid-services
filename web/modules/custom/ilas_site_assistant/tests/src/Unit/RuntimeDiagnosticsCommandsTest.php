@@ -62,10 +62,14 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
           'llm' => [
             'enabled' => FALSE,
             'runtime_ready' => FALSE,
-            'gemini_api_key_present' => FALSE,
-            'vertex_service_account_present' => FALSE,
+            'request_time_retired' => TRUE,
+            'google_generation_reachable' => FALSE,
           ],
           'vector_search' => ['enabled' => FALSE],
+          'embeddings' => [
+            'runtime_ready' => TRUE,
+            'api_key_present' => TRUE,
+          ],
           'langfuse' => [
             'enabled' => TRUE,
             'public_key_present' => TRUE,
@@ -80,7 +84,10 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
             'client_key_present' => FALSE,
             'public_dsn_present' => FALSE,
           ],
-          'pinecone' => ['key_present' => FALSE],
+          'pinecone' => [
+            'key_present' => FALSE,
+            'runtime_ready' => FALSE,
+          ],
         ],
         'runtime_site_settings' => [
           'diagnostics_token_present' => FALSE,
@@ -124,7 +131,13 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
     $decoded = json_decode($output->fetch(), TRUE, 512, JSON_THROW_ON_ERROR);
     $this->assertIsArray($decoded);
     $this->assertNotEmpty($decoded);
+    $this->assertContains('embeddings.runtime_ready', array_column($decoded, 'fact_key'));
+    $this->assertContains('pinecone.runtime_ready', array_column($decoded, 'fact_key'));
+    $this->assertContains('llm.request_time_retired', array_column($decoded, 'fact_key'));
+    $this->assertContains('llm.google_generation_reachable', array_column($decoded, 'fact_key'));
     $this->assertContains('langfuse.enabled', array_column($decoded, 'fact_key'));
+    $this->assertNotContains('llm.gemini_api_key_present', array_column($decoded, 'fact_key'));
+    $this->assertNotContains('llm.vertex_service_account_present', array_column($decoded, 'fact_key'));
   }
 
   /**

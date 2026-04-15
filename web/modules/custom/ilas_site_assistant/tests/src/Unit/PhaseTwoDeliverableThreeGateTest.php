@@ -162,12 +162,14 @@ final class PhaseTwoDeliverableThreeGateTest extends TestCase {
       $this->assertSame('Content Operations Lead', $managed['faq_vector']['owner_role']);
       $this->assertSame('pinecone_vector_faq', $managed['faq_vector']['expected_server_id']);
       $this->assertSame('cosine_similarity', $managed['faq_vector']['expected_metric']);
-      $this->assertSame(3072, $managed['faq_vector']['expected_dimensions']);
+      $this->assertSame('ilas_voyage__voyage-law-2', $managed['faq_vector']['expected_embeddings_engine']);
+      $this->assertSame(1024, $managed['faq_vector']['expected_dimensions']);
 
       $this->assertSame('Content Operations Lead', $managed['resource_vector']['owner_role']);
       $this->assertSame('pinecone_vector_resources', $managed['resource_vector']['expected_server_id']);
       $this->assertSame('cosine_similarity', $managed['resource_vector']['expected_metric']);
-      $this->assertSame(3072, $managed['resource_vector']['expected_dimensions']);
+      $this->assertSame('ilas_voyage__voyage-law-2', $managed['resource_vector']['expected_embeddings_engine']);
+      $this->assertSame(1024, $managed['resource_vector']['expected_dimensions']);
       $this->assertNotSame($managed['faq_vector']['expected_server_id'], $managed['resource_vector']['expected_server_id']);
 
       $this->assertSame('faq_accordion_vector', $config['retrieval']['faq_vector_index_id']);
@@ -182,6 +184,8 @@ final class PhaseTwoDeliverableThreeGateTest extends TestCase {
     $this->assertArrayHasKey('alert_cooldown_minutes', $schemaMapping);
     $managedMapping = $schemaMapping['managed_indexes']['mapping'] ?? [];
     $this->assertSame(['faq_vector', 'resource_vector'], array_keys($managedMapping));
+    $this->assertArrayHasKey('expected_embeddings_engine', $managedMapping['faq_vector']['mapping'] ?? []);
+    $this->assertArrayHasKey('expected_embeddings_engine', $managedMapping['resource_vector']['mapping'] ?? []);
 
     $faqVectorIndex = self::readYaml('config/search_api.index.faq_accordion_vector.yml');
     $resourceVectorIndex = self::readYaml('config/search_api.index.assistant_resources_vector.yml');

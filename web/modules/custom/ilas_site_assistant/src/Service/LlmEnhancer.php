@@ -290,32 +290,12 @@ PROMPT,
    * Checks if LLM enhancement is enabled.
    *
    * @return bool
-   *   TRUE if LLM is enabled and configured.
+   *   FALSE because the assistant request-time LLM path is retired.
    */
   public function isEnabled(): bool {
-    // Defense-in-depth: never allow LLM enablement on Pantheon live.
-    if ($this->isLiveEnvironment()) {
-      return FALSE;
-    }
-
-    $config = $this->configFactory->get('ilas_site_assistant.settings');
-
-    if (!$config->get('llm.enabled')) {
-      return FALSE;
-    }
-
-    // Check for required configuration.
-    $provider = $config->get('llm.provider');
-
-    if ($provider === 'gemini_api') {
-      return $this->getGeminiApiKey() !== '';
-    }
-
-    if ($provider === 'vertex_ai') {
-      return !empty($config->get('llm.project_id')) &&
-             !empty($config->get('llm.location'));
-    }
-
+    // Request-time Gemini/Vertex enhancement is retired for the live
+    // assistant path. Transport helpers remain available for later cleanup
+    // and focused unit tests, but runtime routing never enables them.
     return FALSE;
   }
 

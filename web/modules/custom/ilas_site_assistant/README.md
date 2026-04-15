@@ -10,6 +10,7 @@ A site-scoped chatbot assistant for Idaho Legal Aid Services that helps users fi
 - **Policy Enforcement**: Automatically detects and refuses legal advice requests and PII collection
 - **Privacy-First Analytics**: Logs only aggregated, non-PII event metadata
 - **Accessible UI**: WCAG 2.1 compliant with keyboard navigation, focus management, and ARIA labels
+- **Vector Retrieval Plumbing** (Feature-gated): Pinecone embeddings are configured for Voyage `voyage-law-2`; live vector retrieval remains disabled until the indexes are rebuilt and backfilled at the new dimension
 - **LLM Enhancement** (Optional): Uses Google Gemini/Vertex AI for ambiguous intent classification and optional greeting variation
 
 ## Hard Constraints (Non-Negotiable)
@@ -83,6 +84,12 @@ Admin Menu:
 ```
 
 ## LLM Enhancement (Optional)
+
+Current runtime note: the live assistant request path is deterministic-first,
+and Pinecone embeddings now run through the custom `ilas_voyage` embeddings
+provider with Voyage `voyage-law-2`. This README section is historical context
+for the older Google-backed assistant enhancement flow, not the active
+embeddings path.
 
 The assistant can optionally use Google Gemini or Vertex AI for ambiguous intent classification and optional greeting variation. This is **disabled by default** and requires configuration.
 

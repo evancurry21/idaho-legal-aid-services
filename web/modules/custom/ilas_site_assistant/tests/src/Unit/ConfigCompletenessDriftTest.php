@@ -331,21 +331,27 @@ class ConfigCompletenessDriftTest extends TestCase {
   public function testTrackedSecretBearingConfigValuesRemainEmpty(): void {
     $active = self::activeConfig();
     $geminiKey = Yaml::parseFile(self::repoRoot() . '/config/key.key.gemini_api_key.yml');
+    $voyageKey = Yaml::parseFile(self::repoRoot() . '/config/key.key.voyage_ai_api_key.yml');
     $pineconeKey = Yaml::parseFile(self::repoRoot() . '/config/key.key.pinecone_api_key.yml');
     $turnstileKey = Yaml::parseFile(self::repoRoot() . '/config/key.key.cloudflare_turnstile_keys.yml');
     $translator = Yaml::parseFile(self::repoRoot() . '/config/tmgmt.translator.google.yml');
     $donationInquiry = Yaml::parseFile(self::repoRoot() . '/config/ilas_donation_inquiry.settings.yml');
 
-    $this->assertSame(
-      '',
-      $active['llm']['api_key'] ?? NULL,
-      'Active config export must keep llm.api_key empty; provide Gemini secrets via runtime injection only.',
+    $this->assertArrayNotHasKey(
+      'api_key',
+      $active['llm'] ?? [],
+      'Active config export must not define llm.api_key after request-time LLM retirement.',
     );
 
     $this->assertSame('ilas_runtime_site_setting', $geminiKey['key_provider'] ?? NULL);
     $this->assertSame('ilas_gemini_api_key', $geminiKey['key_provider_settings']['settings_key'] ?? NULL);
     $this->assertArrayNotHasKey('key_value', $geminiKey['key_provider_settings'] ?? []);
     $this->assertSame('none', $geminiKey['key_input'] ?? NULL);
+
+    $this->assertSame('ilas_runtime_site_setting', $voyageKey['key_provider'] ?? NULL);
+    $this->assertSame('ilas_voyage_api_key', $voyageKey['key_provider_settings']['settings_key'] ?? NULL);
+    $this->assertArrayNotHasKey('key_value', $voyageKey['key_provider_settings'] ?? []);
+    $this->assertSame('none', $voyageKey['key_input'] ?? NULL);
 
     $this->assertSame('', $pineconeKey['key_provider_settings']['key_value'] ?? NULL);
     $this->assertSame('', $translator['settings']['api_key'] ?? NULL);

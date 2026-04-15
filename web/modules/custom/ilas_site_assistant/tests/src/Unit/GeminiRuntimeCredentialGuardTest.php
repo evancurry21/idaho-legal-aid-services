@@ -98,8 +98,20 @@ class GeminiRuntimeCredentialGuardTest extends TestCase {
     $form = self::readFile('web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php');
 
     $this->assertStringNotContainsString("['llm']['gemini_settings']['llm_api_key'] = [", $form);
-    $this->assertStringContainsString('llm_api_key_runtime_notice', $form);
-    $this->assertStringContainsString('Runtime-only. Set <code>ILAS_GEMINI_API_KEY</code>', $form);
+    $this->assertStringNotContainsString('Gemini API Settings', $form);
+    $this->assertStringNotContainsString('ILAS_GEMINI_API_KEY', $form);
+    $this->assertStringContainsString('Request-time assistant LLM fallback is retired', $form);
+  }
+
+  /**
+   * Live vector rollout copy must point operators at the runtime-only toggle.
+   */
+  public function testSettingsFormLiveVectorCopyUsesRuntimeOnlyToggleLanguage(): void {
+    $form = self::readFile('web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php');
+
+    $this->assertStringContainsString('ILAS_VECTOR_SEARCH_ENABLED', $form);
+    $this->assertStringContainsString('rollout and rollback stay runtime-only', $form);
+    $this->assertStringNotContainsString('before TOVR-13 closes the live rollout gate', $form);
   }
 
   /**
@@ -200,9 +212,10 @@ class GeminiRuntimeCredentialGuardTest extends TestCase {
     $form->submitForm($builtForm, $formState);
 
     $this->assertIsArray($savedLlmConfig, 'Expected llm config to be saved.');
-    $this->assertSame('', $savedLlmConfig['api_key']);
-    $this->assertSame('gemini_api', $savedLlmConfig['provider']);
-    $this->assertSame('gemini-1.5-flash', $savedLlmConfig['model']);
+    $this->assertFalse($savedLlmConfig['enabled'] ?? TRUE);
+    $this->assertArrayNotHasKey('api_key', $savedLlmConfig);
+    $this->assertArrayNotHasKey('provider', $savedLlmConfig);
+    $this->assertArrayNotHasKey('model', $savedLlmConfig);
   }
 
   /**
@@ -316,6 +329,8 @@ class GeminiRuntimeCredentialGuardTest extends TestCase {
     $this->assertFalse($savedVectorConfig['enabled']);
     $this->assertIsArray($savedLlmConfig, 'Expected llm config to be saved.');
     $this->assertFalse($savedLlmConfig['enabled']);
+    $this->assertArrayNotHasKey('provider', $savedLlmConfig);
+    $this->assertArrayNotHasKey('model', $savedLlmConfig);
   }
 
   /**
@@ -328,6 +343,24 @@ class GeminiRuntimeCredentialGuardTest extends TestCase {
     $this->assertStringContainsString("\$settings['ilas_gemini_api_key'] = \$ilas_gemini_key;", $settings);
     $this->assertStringNotContainsString("\$config['ilas_site_assistant.settings']['llm.api_key'] = \$ilas_gemini_key;", $settings);
     $this->assertStringNotContainsString("\$config['key.key.gemini_api_key']['key_provider_settings']['key_value']", $settings);
+  }
+
+  /**
+   * The assistant request path must not retain a request-time Google fallback
+   * branch after retirement.
+   */
+  public function testAssistantControllerHasNoRequestTimeGoogleFallbackBranch(): void {
+    $controller = self::readFile('web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php');
+    $enhancer = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php');
+
+    $this->assertStringNotContainsString('llm_fallback', $controller);
+    $this->assertStringNotContainsString('DECISION_FALLBACK_LLM', $controller);
+    $this->assertStringNotContainsString("startGeneration('llm", $controller);
+    $this->assertStringNotContainsString('classifyIntent(', $controller);
+    $this->assertStringContainsString('rerank.voyage', $controller);
+    $this->assertStringContainsString('response.ground', $controller);
+    $this->assertStringContainsString('public function isEnabled(): bool', $enhancer);
+    $this->assertStringContainsString('return FALSE;', $enhancer);
   }
 
   /**

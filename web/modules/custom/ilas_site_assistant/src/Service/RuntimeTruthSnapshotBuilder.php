@@ -80,7 +80,11 @@ class RuntimeTruthSnapshotBuilder {
    */
   public function buildExportedStorage(): array {
     $assistant = $this->readRequiredSyncConfig('ilas_site_assistant.settings');
+    $aiSettings = $this->readOptionalSyncConfig('ai.settings');
     $pinecone = $this->readRequiredSyncConfig('key.key.pinecone_api_key');
+    $voyageKey = $this->readOptionalSyncConfig('key.key.voyage_ai_api_key');
+    $faqVectorServer = $this->readOptionalSyncConfig('search_api.server.pinecone_vector_faq');
+    $resourceVectorServer = $this->readOptionalSyncConfig('search_api.server.pinecone_vector_resources');
     $raven = $this->readOptionalSyncConfig('raven.settings');
     $conversationLogging = is_array($assistant['conversation_logging'] ?? NULL) ? $assistant['conversation_logging'] : [];
     $llm = is_array($assistant['llm'] ?? NULL) ? $assistant['llm'] : [];
@@ -117,23 +121,14 @@ class RuntimeTruthSnapshotBuilder {
       ],
       'llm' => [
         'enabled' => (bool) ($llm['enabled'] ?? FALSE),
-        'provider' => $this->stringValue($llm['provider'] ?? ''),
-        'model' => $this->stringValue($llm['model'] ?? ''),
-        'fallback_on_error' => (bool) ($llm['fallback_on_error'] ?? TRUE),
-        'global_rate_limit' => [
-          'max_per_hour' => (int) (($llm['global_rate_limit']['max_per_hour'] ?? 0)),
-          'window_seconds' => (int) (($llm['global_rate_limit']['window_seconds'] ?? 0)),
-        ],
-        'cost_control' => $this->sanitizeCostControlConfig($costControl),
-        'gemini_api_key_present' => $this->valuePresent($llm['api_key'] ?? NULL),
-        'vertex_project_id_present' => $this->valuePresent($llm['project_id'] ?? NULL),
-        'vertex_location_present' => $this->valuePresent($llm['location'] ?? NULL),
-        'vertex_service_account_present' => FALSE,
         'runtime_ready' => $this->buildStoredLlmRuntimeReady($llm),
+        'request_time_retired' => TRUE,
+        'google_generation_reachable' => FALSE,
       ],
       'vector_search' => [
         'enabled' => (bool) ($assistant['vector_search']['enabled'] ?? FALSE),
       ],
+      'embeddings' => $this->buildStoredEmbeddingsSummary($aiSettings, $voyageKey, $faqVectorServer, $resourceVectorServer),
       'retrieval' => [
         'faq_index_id' => $this->stringValue($retrieval['faq_index_id'] ?? ''),
         'resource_index_id' => $this->stringValue($retrieval['resource_index_id'] ?? ''),
@@ -177,6 +172,7 @@ class RuntimeTruthSnapshotBuilder {
       ],
       'pinecone' => [
         'key_present' => $this->keyValuePresent($pinecone['key_provider_settings'] ?? []),
+        'runtime_ready' => FALSE,
       ],
       'google_analytics' => [
         'tag_present' => FALSE,
@@ -192,14 +188,21 @@ class RuntimeTruthSnapshotBuilder {
    */
   public function buildEffectiveRuntime(): array {
     $assistant = $this->configFactory->get('ilas_site_assistant.settings');
+    $aiSettings = $this->configFactory->get('ai.settings');
     $raven = $this->configFactory->get('raven.settings');
     $pinecone = $this->configFactory->get('key.key.pinecone_api_key');
+    $voyageKey = $this->configFactory->get('key.key.voyage_ai_api_key');
+    $faqVectorServer = $this->configFactory->get('search_api.server.pinecone_vector_faq');
+    $resourceVectorServer = $this->configFactory->get('search_api.server.pinecone_vector_resources');
     $retrieval = $this->buildEffectiveRetrievalSummary($assistant);
     $sessionBootstrap = $this->buildEffectiveSessionBootstrapSummary($assistant);
     $readEndpointRateLimits = $this->buildEffectiveReadEndpointRateLimitSummary($assistant);
     $conversationLogging = $this->buildEffectiveConversationLoggingSummary($assistant);
     $llm = $this->buildEffectiveLlmSummary($assistant);
     $voyage = $this->buildEffectiveVoyageSummary($assistant);
+    $embeddings = $this->buildEffectiveEmbeddingsSummary($aiSettings, $voyageKey, $faqVectorServer, $resourceVectorServer);
+    $vectorSearchEnabled = (bool) $assistant->get('vector_search.enabled');
+    $vectorSearchOverrideChannel = $this->resolveVectorSearchOverrideChannel();
     $publicDsn = $this->stringValue($raven->get('public_dsn') ?? '');
     $browserEnabled = $publicDsn !== '' && (
       (bool) $raven->get('javascript_error_handler')
@@ -214,25 +217,16 @@ class RuntimeTruthSnapshotBuilder {
       'conversation_logging' => $conversationLogging,
       'retrieval' => $retrieval,
       'voyage' => $voyage,
+      'embeddings' => $embeddings,
       'llm' => [
         'enabled' => (bool) $assistant->get('llm.enabled'),
-        'provider' => $this->stringValue($assistant->get('llm.provider')),
-        'model' => $this->stringValue($assistant->get('llm.model')),
-        'fallback_on_error' => (bool) ($assistant->get('llm.fallback_on_error') ?? TRUE),
-        'global_rate_limit' => [
-          'max_per_hour' => (int) ($assistant->get('llm.global_rate_limit.max_per_hour') ?? 0),
-          'window_seconds' => (int) ($assistant->get('llm.global_rate_limit.window_seconds') ?? 0),
-        ],
-        'cost_control' => $this->sanitizeCostControlConfig($assistant->get('cost_control')),
-        'gemini_api_key_present' => $this->valuePresent(Settings::get('ilas_gemini_api_key')) || $this->valuePresent($assistant->get('llm.api_key')),
-        'vertex_project_id_present' => $this->valuePresent($assistant->get('llm.project_id')),
-        'vertex_location_present' => $this->valuePresent($assistant->get('llm.location')),
-        'vertex_service_account_present' => $this->valuePresent(Settings::get('ilas_vertex_sa_json')),
         'runtime_ready' => $llm['runtime_ready'] ?? FALSE,
-        'cost_control_summary' => $llm['cost_control_summary'] ?? [],
+        'request_time_retired' => $llm['request_time_retired'] ?? TRUE,
+        'google_generation_reachable' => $llm['google_generation_reachable'] ?? FALSE,
       ],
       'vector_search' => [
-        'enabled' => (bool) $assistant->get('vector_search.enabled'),
+        'enabled' => $vectorSearchEnabled,
+        'override_channel' => $vectorSearchOverrideChannel,
       ],
       'langfuse' => [
         'enabled' => (bool) $assistant->get('langfuse.enabled'),
@@ -254,6 +248,12 @@ class RuntimeTruthSnapshotBuilder {
       ],
       'pinecone' => [
         'key_present' => $this->keyValuePresent($pinecone->get('key_provider_settings') ?? []),
+        'runtime_ready' => $this->buildEffectivePineconeRuntimeReady(
+          $vectorSearchEnabled,
+          $this->keyValuePresent($pinecone->get('key_provider_settings') ?? []),
+          $retrieval,
+          $embeddings,
+        ),
       ],
       'google_analytics' => [
         'tag_present' => $this->valuePresent(Settings::get('google_tag_id')),
@@ -269,8 +269,6 @@ class RuntimeTruthSnapshotBuilder {
    */
   public function buildRuntimeSiteSettings(): array {
     return [
-      'gemini_api_key_present' => $this->valuePresent(Settings::get('ilas_gemini_api_key')),
-      'vertex_service_account_present' => $this->valuePresent(Settings::get('ilas_vertex_sa_json')),
       'legalserver_online_application_url_present' => $this->valuePresent(Settings::get('ilas_site_assistant_legalserver_online_application_url')),
       'voyage_api_key_present' => $this->valuePresent(Settings::get('ilas_voyage_api_key')),
       'diagnostics_token_present' => $this->valuePresent(Settings::get('ilas_assistant_diagnostics_token')),
@@ -342,26 +340,11 @@ class RuntimeTruthSnapshotBuilder {
       'conversation_logging.redact_pii' => 'ConversationLogger privacy invariants',
       'conversation_logging.show_user_notice' => 'ConversationLogger privacy invariants',
       'llm.enabled' => 'settings.php live branch',
-      'llm.provider' => 'config export',
-      'llm.model' => 'config export',
-      'llm.fallback_on_error' => 'config export',
-      'llm.global_rate_limit.max_per_hour' => 'config export',
-      'llm.global_rate_limit.window_seconds' => 'config export',
-      'llm.cost_control.daily_call_limit' => 'config export',
-      'llm.cost_control.monthly_call_limit' => 'config export',
-      'llm.cost_control.per_ip_hourly_call_limit' => 'config export',
-      'llm.cost_control.per_ip_window_seconds' => 'config export',
-      'llm.cost_control.sample_rate' => 'config export',
-      'llm.cost_control.cache_hit_rate_target' => 'config export',
-      'llm.cost_control.cache_stats_window_seconds' => 'config export',
-      'llm.cost_control.manual_kill_switch' => 'state + CostControlPolicy summary',
-      'llm.cost_control.alert_cooldown_minutes' => 'config export',
-      'llm.gemini_api_key_present' => 'settings.php runtime site setting',
-      'llm.vertex_project_id_present' => 'config export',
-      'llm.vertex_location_present' => 'config export',
-      'llm.vertex_service_account_present' => 'settings.php runtime site setting',
       'llm.runtime_ready' => 'LlmEnhancer::isEnabled()',
+      'llm.request_time_retired' => 'Assistant request-time LLM retirement contract',
+      'llm.google_generation_reachable' => 'Assistant request-time LLM retirement contract',
       'vector_search.enabled' => $vectorSearchOverrideChannel,
+      'vector_search.override_channel' => $vectorSearchOverrideChannel,
       'retrieval.faq_index_id' => 'config export',
       'retrieval.resource_index_id' => 'config export',
       'retrieval.resource_fallback_index_id' => 'config export',
@@ -371,8 +354,8 @@ class RuntimeTruthSnapshotBuilder {
       'retrieval.legalserver_online_application_url.present' => 'settings.php runtime site setting',
       'retrieval.legalserver_online_application_url.status' => 'RetrievalConfigurationService runtime resolution',
       'retrieval.health.status' => 'RetrievalConfigurationService runtime resolution',
-      'voyage.enabled' => 'settings.php runtime toggle -> getenv/pantheon_get_secret',
-      'voyage.api_key_present' => 'settings.php runtime site setting',
+      'voyage.enabled' => 'settings.php runtime toggle ILAS_VOYAGE_ENABLED -> getenv/pantheon_get_secret',
+      'voyage.api_key_present' => 'settings.php runtime site setting ILAS_VOYAGE_API_KEY',
       'voyage.runtime_ready' => 'VoyageReranker::isEnabled()',
       'voyage.rerank_model' => 'config export',
       'voyage.api_timeout' => 'config export',
@@ -380,6 +363,10 @@ class RuntimeTruthSnapshotBuilder {
       'voyage.top_k' => 'config export',
       'voyage.min_results_to_rerank' => 'config export',
       'voyage.fallback_on_error' => 'config export',
+      'embeddings.provider_id' => 'ai.settings config export',
+      'embeddings.model_id' => 'ai.settings config export',
+      'embeddings.api_key_present' => 'settings.php runtime site setting ILAS_VOYAGE_API_KEY via key.key.voyage_ai_api_key',
+      'embeddings.runtime_ready' => 'ai.settings + search_api.server.pinecone_vector_* + runtime Voyage key',
       'langfuse.enabled' => 'settings.php secret -> getenv/pantheon_get_secret',
       'langfuse.public_key_present' => 'settings.php secret -> getenv/pantheon_get_secret',
       'langfuse.secret_key_present' => 'settings.php secret -> getenv/pantheon_get_secret',
@@ -392,8 +379,7 @@ class RuntimeTruthSnapshotBuilder {
       'raven.settings.environment' => 'settings.php secret -> getenv/pantheon_get_secret',
       'raven.settings.release' => 'settings.php secret -> getenv/pantheon_get_secret',
       'key.key.pinecone_api_key.key_present' => 'settings.php secret -> getenv/pantheon_get_secret',
-      'ilas_gemini_api_key' => 'settings.php runtime site setting',
-      'ilas_vertex_sa_json' => 'settings.php runtime site setting',
+      'pinecone.runtime_ready' => 'vector_search.enabled + key.key.pinecone_api_key + RetrievalConfigurationService runtime resolution',
       'ilas_site_assistant_legalserver_online_application_url' => 'settings.php runtime site setting',
       'ilas_assistant_diagnostics_token' => 'settings.php runtime site setting',
       'google_tag_id' => 'settings.php live branch',
@@ -470,85 +456,37 @@ class RuntimeTruthSnapshotBuilder {
         'stored' => $exportedStorage['llm']['enabled'] ?? FALSE,
         'effective' => $effectiveRuntime['llm']['enabled'] ?? FALSE,
       ],
-      'llm.provider' => [
-        'stored' => $exportedStorage['llm']['provider'] ?? '',
-        'effective' => $effectiveRuntime['llm']['provider'] ?? '',
-      ],
-      'llm.model' => [
-        'stored' => $exportedStorage['llm']['model'] ?? '',
-        'effective' => $effectiveRuntime['llm']['model'] ?? '',
-      ],
-      'llm.fallback_on_error' => [
-        'stored' => $exportedStorage['llm']['fallback_on_error'] ?? TRUE,
-        'effective' => $effectiveRuntime['llm']['fallback_on_error'] ?? TRUE,
-      ],
-      'llm.global_rate_limit.max_per_hour' => [
-        'stored' => $exportedStorage['llm']['global_rate_limit']['max_per_hour'] ?? 0,
-        'effective' => $effectiveRuntime['llm']['global_rate_limit']['max_per_hour'] ?? 0,
-      ],
-      'llm.global_rate_limit.window_seconds' => [
-        'stored' => $exportedStorage['llm']['global_rate_limit']['window_seconds'] ?? 0,
-        'effective' => $effectiveRuntime['llm']['global_rate_limit']['window_seconds'] ?? 0,
-      ],
-      'llm.cost_control.daily_call_limit' => [
-        'stored' => $exportedStorage['llm']['cost_control']['daily_call_limit'] ?? 0,
-        'effective' => $effectiveRuntime['llm']['cost_control']['daily_call_limit'] ?? 0,
-      ],
-      'llm.cost_control.monthly_call_limit' => [
-        'stored' => $exportedStorage['llm']['cost_control']['monthly_call_limit'] ?? 0,
-        'effective' => $effectiveRuntime['llm']['cost_control']['monthly_call_limit'] ?? 0,
-      ],
-      'llm.cost_control.per_ip_hourly_call_limit' => [
-        'stored' => $exportedStorage['llm']['cost_control']['per_ip_hourly_call_limit'] ?? 0,
-        'effective' => $effectiveRuntime['llm']['cost_control']['per_ip_hourly_call_limit'] ?? 0,
-      ],
-      'llm.cost_control.per_ip_window_seconds' => [
-        'stored' => $exportedStorage['llm']['cost_control']['per_ip_window_seconds'] ?? 0,
-        'effective' => $effectiveRuntime['llm']['cost_control']['per_ip_window_seconds'] ?? 0,
-      ],
-      'llm.cost_control.sample_rate' => [
-        'stored' => $exportedStorage['llm']['cost_control']['sample_rate'] ?? 0.0,
-        'effective' => $effectiveRuntime['llm']['cost_control']['sample_rate'] ?? 0.0,
-      ],
-      'llm.cost_control.cache_hit_rate_target' => [
-        'stored' => $exportedStorage['llm']['cost_control']['cache_hit_rate_target'] ?? 0.0,
-        'effective' => $effectiveRuntime['llm']['cost_control']['cache_hit_rate_target'] ?? 0.0,
-      ],
-      'llm.cost_control.cache_stats_window_seconds' => [
-        'stored' => $exportedStorage['llm']['cost_control']['cache_stats_window_seconds'] ?? 0,
-        'effective' => $effectiveRuntime['llm']['cost_control']['cache_stats_window_seconds'] ?? 0,
-      ],
-      'llm.cost_control.manual_kill_switch' => [
-        'stored' => $exportedStorage['llm']['cost_control']['manual_kill_switch'] ?? FALSE,
-        'effective' => $effectiveRuntime['llm']['cost_control']['manual_kill_switch'] ?? FALSE,
-      ],
-      'llm.cost_control.alert_cooldown_minutes' => [
-        'stored' => $exportedStorage['llm']['cost_control']['alert_cooldown_minutes'] ?? 0,
-        'effective' => $effectiveRuntime['llm']['cost_control']['alert_cooldown_minutes'] ?? 0,
-      ],
-      'llm.gemini_api_key_present' => [
-        'stored' => $exportedStorage['llm']['gemini_api_key_present'] ?? FALSE,
-        'effective' => $effectiveRuntime['llm']['gemini_api_key_present'] ?? FALSE,
-      ],
-      'llm.vertex_project_id_present' => [
-        'stored' => $exportedStorage['llm']['vertex_project_id_present'] ?? FALSE,
-        'effective' => $effectiveRuntime['llm']['vertex_project_id_present'] ?? FALSE,
-      ],
-      'llm.vertex_location_present' => [
-        'stored' => $exportedStorage['llm']['vertex_location_present'] ?? FALSE,
-        'effective' => $effectiveRuntime['llm']['vertex_location_present'] ?? FALSE,
-      ],
-      'llm.vertex_service_account_present' => [
-        'stored' => $exportedStorage['llm']['vertex_service_account_present'] ?? FALSE,
-        'effective' => $effectiveRuntime['llm']['vertex_service_account_present'] ?? FALSE,
-      ],
       'llm.runtime_ready' => [
         'stored' => $exportedStorage['llm']['runtime_ready'] ?? FALSE,
         'effective' => $effectiveRuntime['llm']['runtime_ready'] ?? FALSE,
       ],
+      'llm.request_time_retired' => [
+        'stored' => $exportedStorage['llm']['request_time_retired'] ?? TRUE,
+        'effective' => $effectiveRuntime['llm']['request_time_retired'] ?? TRUE,
+      ],
+      'llm.google_generation_reachable' => [
+        'stored' => $exportedStorage['llm']['google_generation_reachable'] ?? FALSE,
+        'effective' => $effectiveRuntime['llm']['google_generation_reachable'] ?? FALSE,
+      ],
       'vector_search.enabled' => [
         'stored' => $exportedStorage['vector_search']['enabled'] ?? FALSE,
         'effective' => $effectiveRuntime['vector_search']['enabled'] ?? FALSE,
+      ],
+      'embeddings.provider_id' => [
+        'stored' => $exportedStorage['embeddings']['provider_id'] ?? '',
+        'effective' => $effectiveRuntime['embeddings']['provider_id'] ?? '',
+      ],
+      'embeddings.model_id' => [
+        'stored' => $exportedStorage['embeddings']['model_id'] ?? '',
+        'effective' => $effectiveRuntime['embeddings']['model_id'] ?? '',
+      ],
+      'embeddings.api_key_present' => [
+        'stored' => $exportedStorage['embeddings']['api_key_present'] ?? FALSE,
+        'effective' => $effectiveRuntime['embeddings']['api_key_present'] ?? FALSE,
+      ],
+      'embeddings.runtime_ready' => [
+        'stored' => $exportedStorage['embeddings']['runtime_ready'] ?? FALSE,
+        'effective' => $effectiveRuntime['embeddings']['runtime_ready'] ?? FALSE,
       ],
       'retrieval.faq_index_id' => [
         'stored' => $exportedStorage['retrieval']['faq_index_id'] ?? '',
@@ -670,6 +608,10 @@ class RuntimeTruthSnapshotBuilder {
         'stored' => $exportedStorage['pinecone']['key_present'] ?? FALSE,
         'effective' => $effectiveRuntime['pinecone']['key_present'] ?? FALSE,
       ],
+      'pinecone.runtime_ready' => [
+        'stored' => $exportedStorage['pinecone']['runtime_ready'] ?? FALSE,
+        'effective' => $effectiveRuntime['pinecone']['runtime_ready'] ?? FALSE,
+      ],
       'google_tag_id' => [
         'stored' => $exportedStorage['google_analytics']['tag_present'] ?? FALSE,
         'effective' => $effectiveRuntime['google_analytics']['tag_present'] ?? FALSE,
@@ -719,12 +661,6 @@ class RuntimeTruthSnapshotBuilder {
     $overrideChannel = Settings::get('ilas_vector_search_override_channel');
     if (is_string($overrideChannel) && $overrideChannel !== '') {
       return $overrideChannel;
-    }
-
-    $observability = $this->getObservabilitySettings();
-    $pantheonEnvironment = $this->stringValue($observability['pantheon_environment'] ?? getenv('PANTHEON_ENVIRONMENT') ?: '');
-    if ($pantheonEnvironment === 'live') {
-      return 'settings.php live branch';
     }
 
     return 'config export';
@@ -914,6 +850,8 @@ class RuntimeTruthSnapshotBuilder {
   protected function buildEffectiveLlmSummary(object $assistant): array {
     return [
       'runtime_ready' => $this->llmEnhancer?->isEnabled() ?? $this->buildFallbackLlmRuntimeReady($assistant),
+      'request_time_retired' => TRUE,
+      'google_generation_reachable' => FALSE,
       'cost_control_summary' => $this->llmEnhancer?->getCostControlSummary() ?? [],
     ];
   }
@@ -1003,6 +941,105 @@ class RuntimeTruthSnapshotBuilder {
         'consecutive_failures' => 0,
       ],
     ];
+  }
+
+  /**
+   * Builds the stored embeddings summary.
+   */
+  protected function buildStoredEmbeddingsSummary(array $aiSettings, array $voyageKey, array $faqVectorServer, array $resourceVectorServer): array {
+    $providerId = $this->stringValue($aiSettings['default_providers']['embeddings']['provider_id'] ?? '');
+    $modelId = $this->stringValue($aiSettings['default_providers']['embeddings']['model_id'] ?? '');
+    $expectedEngine = $providerId !== '' && $modelId !== '' ? $providerId . '__' . $modelId : '';
+    $faqEngine = $this->stringValue($faqVectorServer['backend_config']['embeddings_engine'] ?? '');
+    $resourceEngine = $this->stringValue($resourceVectorServer['backend_config']['embeddings_engine'] ?? '');
+    $apiKeyConfigured = ($voyageKey['key_provider'] ?? NULL) === 'ilas_runtime_site_setting'
+      && ($voyageKey['key_provider_settings']['settings_key'] ?? NULL) === 'ilas_voyage_api_key';
+    $serverAligned = $expectedEngine !== '' && $faqEngine === $expectedEngine && $resourceEngine === $expectedEngine;
+
+    return [
+      'provider_id' => $providerId,
+      'model_id' => $modelId,
+      'api_key_present' => FALSE,
+      'api_key_configured' => $apiKeyConfigured,
+      'faq_server_engine' => $faqEngine,
+      'resource_server_engine' => $resourceEngine,
+      'server_alignment_ok' => $serverAligned,
+      'runtime_ready' => FALSE,
+    ];
+  }
+
+  /**
+   * Builds the effective embeddings summary.
+   */
+  protected function buildEffectiveEmbeddingsSummary(object $aiSettings, object $voyageKey, object $faqVectorServer, object $resourceVectorServer): array {
+    $providerId = $this->stringValue($aiSettings->get('default_providers.embeddings.provider_id'));
+    $modelId = $this->stringValue($aiSettings->get('default_providers.embeddings.model_id'));
+    $expectedEngine = $providerId !== '' && $modelId !== '' ? $providerId . '__' . $modelId : '';
+    $faqEngine = $this->stringValue($faqVectorServer->get('backend_config.embeddings_engine'));
+    $resourceEngine = $this->stringValue($resourceVectorServer->get('backend_config.embeddings_engine'));
+    $apiKeyConfigured = $this->stringValue($voyageKey->get('key_provider')) === 'ilas_runtime_site_setting'
+      && $this->stringValue($voyageKey->get('key_provider_settings.settings_key')) === 'ilas_voyage_api_key';
+    $apiKeyPresent = $apiKeyConfigured && $this->valuePresent(Settings::get('ilas_voyage_api_key'));
+    $serverAligned = $expectedEngine !== '' && $faqEngine === $expectedEngine && $resourceEngine === $expectedEngine;
+
+    return [
+      'provider_id' => $providerId,
+      'model_id' => $modelId,
+      'api_key_present' => $apiKeyPresent,
+      'api_key_configured' => $apiKeyConfigured,
+      'faq_server_engine' => $faqEngine,
+      'resource_server_engine' => $resourceEngine,
+      'server_alignment_ok' => $serverAligned,
+      'runtime_ready' => $apiKeyPresent
+        && $providerId === 'ilas_voyage'
+        && $modelId === 'voyage-law-2'
+        && $serverAligned,
+    ];
+  }
+
+  /**
+   * Builds the effective Pinecone summary.
+   */
+  protected function buildEffectivePineconeRuntimeReady(
+    bool $vectorSearchEnabled,
+    bool $keyPresent,
+    array $retrieval,
+    array $embeddings,
+  ): bool {
+    if (!$vectorSearchEnabled || !$keyPresent) {
+      return FALSE;
+    }
+
+    $retrievalChecks = $retrieval['health']['retrieval'] ?? [];
+    $requiredChecks = [
+      'faq_vector_index',
+      'resource_vector_index',
+      'pinecone_vector_faq_server',
+      'pinecone_vector_resources_server',
+    ];
+
+    $haveExplicitHealthChecks = is_array($retrievalChecks);
+    foreach ($requiredChecks as $checkKey) {
+      if (!is_array($retrievalChecks[$checkKey] ?? NULL)) {
+        $haveExplicitHealthChecks = FALSE;
+        break;
+      }
+    }
+
+    if ($haveExplicitHealthChecks) {
+      foreach ($requiredChecks as $checkKey) {
+        $check = $retrievalChecks[$checkKey];
+        if (($check['status'] ?? 'degraded') !== 'healthy' || !($check['active'] ?? FALSE)) {
+          return FALSE;
+        }
+      }
+
+      return TRUE;
+    }
+
+    return (bool) ($embeddings['runtime_ready'] ?? FALSE)
+      && $this->valuePresent($retrieval['faq_vector_index_id'] ?? NULL)
+      && $this->valuePresent($retrieval['resource_vector_index_id'] ?? NULL);
   }
 
   /**
@@ -1197,20 +1234,6 @@ class RuntimeTruthSnapshotBuilder {
    * Returns TRUE when stored LLM config alone looks runtime-ready.
    */
   protected function buildStoredLlmRuntimeReady(array $llm): bool {
-    if (empty($llm['enabled'])) {
-      return FALSE;
-    }
-
-    $provider = $this->stringValue($llm['provider'] ?? '');
-    if ($provider === 'gemini_api') {
-      return $this->valuePresent($llm['api_key'] ?? NULL);
-    }
-    if ($provider === 'vertex_ai') {
-      return $this->valuePresent($llm['project_id'] ?? NULL)
-        && $this->valuePresent($llm['location'] ?? NULL)
-        && FALSE;
-    }
-
     return FALSE;
   }
 
@@ -1218,26 +1241,6 @@ class RuntimeTruthSnapshotBuilder {
    * Fallback runtime-ready check when the real service is unavailable.
    */
   protected function buildFallbackLlmRuntimeReady(object $assistant): bool {
-    if ((bool) ($assistant->get('llm.enabled') ?? FALSE) === FALSE) {
-      return FALSE;
-    }
-
-    $observability = $this->getObservabilitySettings();
-    $pantheonEnvironment = $this->stringValue($observability['pantheon_environment'] ?? getenv('PANTHEON_ENVIRONMENT') ?: '');
-    if ($pantheonEnvironment === 'live') {
-      return FALSE;
-    }
-
-    $provider = $this->stringValue($assistant->get('llm.provider'));
-    if ($provider === 'gemini_api') {
-      return $this->valuePresent(Settings::get('ilas_gemini_api_key')) || $this->valuePresent($assistant->get('llm.api_key'));
-    }
-    if ($provider === 'vertex_ai') {
-      return $this->valuePresent($assistant->get('llm.project_id'))
-        && $this->valuePresent($assistant->get('llm.location'))
-        && $this->valuePresent(Settings::get('ilas_vertex_sa_json'));
-    }
-
     return FALSE;
   }
 

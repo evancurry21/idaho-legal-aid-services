@@ -68,8 +68,10 @@ class VertexRuntimeCredentialGuardTest extends TestCase {
 
     $this->assertStringNotContainsString("['llm']['vertex_settings']['llm_service_account'] = [", $form);
     $this->assertStringNotContainsString('Service Account JSON', $form);
-    $this->assertStringContainsString('llm_service_account_runtime_notice', $form);
-    $this->assertStringContainsString('Runtime-only. Set <code>ILAS_VERTEX_SA_JSON</code>', $form);
+    $this->assertStringNotContainsString('Vertex AI Settings', $form);
+    $this->assertStringNotContainsString('Google Cloud Project ID', $form);
+    $this->assertStringNotContainsString('ILAS_VERTEX_SA_JSON', $form);
+    $this->assertStringContainsString('Request-time assistant LLM fallback is retired', $form);
   }
 
   /**
@@ -171,9 +173,12 @@ class VertexRuntimeCredentialGuardTest extends TestCase {
     $form->submitForm($builtForm, $formState);
 
     $this->assertIsArray($savedLlmConfig, 'Expected llm config to be saved.');
+    $this->assertFalse($savedLlmConfig['enabled'] ?? TRUE);
     $this->assertArrayNotHasKey('service_account_json', $savedLlmConfig);
-    $this->assertSame('project-123', $savedLlmConfig['project_id']);
-    $this->assertSame('us-central1', $savedLlmConfig['location']);
+    $this->assertArrayNotHasKey('project_id', $savedLlmConfig);
+    $this->assertArrayNotHasKey('location', $savedLlmConfig);
+    $this->assertArrayNotHasKey('provider', $savedLlmConfig);
+    $this->assertArrayNotHasKey('model', $savedLlmConfig);
   }
 
   /**

@@ -158,26 +158,11 @@ ilas_site_assistant.settings:
           label: 'Show user notice about conversation review'
     llm:
       type: mapping
-      label: 'LLM Enhancement Settings'
+      label: 'Request-time LLM settings'
       mapping:
         enabled:
           type: boolean
-          label: 'Enable LLM enhancement'
-        provider:
-          type: string
-          label: 'LLM provider (gemini_api or vertex_ai)'
-        model:
-          type: string
-          label: 'Model name'
-        api_key:
-          type: string
-          label: 'Gemini API key'
-        project_id:
-          type: string
-          label: 'Google Cloud project ID'
-        location:
-          type: string
-          label: 'Vertex AI location'
+          label: 'Enable request-time LLM enhancement'
         max_tokens:
           type: integer
           label: 'Maximum output tokens'
@@ -192,7 +177,7 @@ ilas_site_assistant.settings:
           label: 'Fallback to rule-based on LLM error'
         safety_threshold:
           type: string
-          label: 'Gemini safety filter threshold'
+          label: 'Retired LLM safety filter threshold'
         cache_ttl:
           type: integer
           label: 'Response cache TTL in seconds (0 = disabled)'
@@ -654,6 +639,9 @@ ilas_site_assistant.settings:
                 expected_metric:
                   type: string
                   label: 'Expected vector similarity metric'
+                expected_embeddings_engine:
+                  type: string
+                  label: 'Expected embeddings engine id'
                 expected_dimensions:
                   type: integer
                   label: 'Expected embedding dimensions'
@@ -692,6 +680,9 @@ ilas_site_assistant.settings:
                 expected_metric:
                   type: string
                   label: 'Expected vector similarity metric'
+                expected_embeddings_engine:
+                  type: string
+                  label: 'Expected embeddings engine id'
                 expected_dimensions:
                   type: integer
                   label: 'Expected embedding dimensions'

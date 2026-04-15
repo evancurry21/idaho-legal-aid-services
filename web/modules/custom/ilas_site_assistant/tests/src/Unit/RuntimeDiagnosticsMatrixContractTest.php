@@ -130,6 +130,7 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
         'pantheon_environment' => 'dev',
       ],
       'ilas_gemini_api_key' => 'gemini-secret-value',
+      'ilas_voyage_api_key' => 'voyage-secret-value',
       'ilas_vertex_sa_json' => '{"private_key":"vertex-secret-value"}',
       'ilas_site_assistant_legalserver_online_application_url' => 'https://example.com/intake?pid=60&h=secret-token',
       'ilas_assistant_diagnostics_token' => 'diag-secret-token',
@@ -154,6 +155,20 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
           'key_value' => 'pinecone-secret',
         ],
       ],
+      'key.key.voyage_ai_api_key' => [
+        'key_provider' => 'ilas_runtime_site_setting',
+        'key_provider_settings.settings_key' => 'ilas_voyage_api_key',
+      ],
+      'ai.settings' => [
+        'default_providers.embeddings.provider_id' => 'ilas_voyage',
+        'default_providers.embeddings.model_id' => 'voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_faq' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_resources' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
     ]);
 
     $json = json_encode($diagnostics, JSON_THROW_ON_ERROR);
@@ -161,6 +176,7 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     $this->assertStringNotContainsString('vertex-secret-value', $json);
     $this->assertStringNotContainsString('diag-secret-token', $json);
     $this->assertStringNotContainsString('secret-token', $json);
+    $this->assertStringNotContainsString('voyage-secret-value', $json);
     $this->assertStringNotContainsString('pk-live-secret', $json);
     $this->assertStringNotContainsString('sk-live-secret', $json);
     $this->assertStringNotContainsString('sentry-secret@', $json);
@@ -189,6 +205,19 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     foreach ($diagnostics['credential_inventory'] as $key => $value) {
       $this->assertIsBool($value, "Credential inventory key '{$key}' must be boolean");
     }
+  }
+
+  /**
+   * Retired assistant LLM provider and credential facts stay out of diagnostics.
+   */
+  public function testRetiredAssistantLlmFactsAreAbsent(): void {
+    $diagnostics = $this->buildHealthyDiagnostics();
+    $factKeys = array_column($diagnostics['diagnostics_matrix'], 'fact_key');
+
+    $this->assertNotContains('llm.gemini_api_key_present', $factKeys);
+    $this->assertNotContains('llm.vertex_service_account_present', $factKeys);
+    $this->assertArrayNotHasKey('gemini_api_key', $diagnostics['credential_inventory']);
+    $this->assertArrayNotHasKey('vertex_service_account', $diagnostics['credential_inventory']);
   }
 
   /**
@@ -307,7 +336,7 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     $diagnostics = $this->buildHealthyDiagnostics();
     $integrations = $diagnostics['integration_status'];
 
-    foreach (['sentry', 'langfuse', 'pinecone', 'voyage'] as $integration) {
+    foreach (['sentry', 'langfuse', 'pinecone', 'embeddings', 'voyage'] as $integration) {
       $this->assertArrayHasKey($integration, $integrations, "Integration status must include {$integration}");
       $this->assertArrayHasKey('enabled', $integrations[$integration]);
       $this->assertArrayHasKey('credential_present', $integrations[$integration]);
@@ -315,6 +344,102 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
       $this->assertArrayHasKey('proof_ceiling', $integrations[$integration]);
       $this->assertArrayHasKey('verification_command', $integrations[$integration]);
     }
+
+    $this->assertArrayHasKey('runtime_ready', $integrations['pinecone']);
+  }
+
+  /**
+   * Live-like diagnostics show Voyage as the active assistant-path integration.
+   */
+  public function testLiveVoyageRolloutAppearsInDiagnosticsWithoutVectorEnablement(): void {
+    $diagnostics = $this->buildLiveVoyageDiagnostics();
+    $matrix = $diagnostics['diagnostics_matrix'];
+
+    $llmRetiredRow = $this->findMatrixRow($matrix, 'llm.request_time_retired');
+    $llmGoogleReachableRow = $this->findMatrixRow($matrix, 'llm.google_generation_reachable');
+    $embeddingsReadyRow = $this->findMatrixRow($matrix, 'embeddings.runtime_ready');
+    $embeddingsKeyRow = $this->findMatrixRow($matrix, 'embeddings.api_key_present');
+    $voyageEnabledRow = $this->findMatrixRow($matrix, 'voyage.enabled');
+    $voyageReadyRow = $this->findMatrixRow($matrix, 'voyage.runtime_ready');
+    $voyageKeyRow = $this->findMatrixRow($matrix, 'voyage.api_key_present');
+    $llmReadyRow = $this->findMatrixRow($matrix, 'llm.runtime_ready');
+    $vectorRow = $this->findMatrixRow($matrix, 'vector_search.enabled');
+    $pineconeReadyRow = $this->findMatrixRow($matrix, 'pinecone.runtime_ready');
+
+    $this->assertNotNull($llmRetiredRow);
+    $this->assertNotNull($llmGoogleReachableRow);
+    $this->assertNotNull($embeddingsReadyRow);
+    $this->assertNotNull($embeddingsKeyRow);
+    $this->assertNotNull($voyageEnabledRow);
+    $this->assertNotNull($voyageReadyRow);
+    $this->assertNotNull($voyageKeyRow);
+    $this->assertNotNull($llmReadyRow);
+    $this->assertNotNull($vectorRow);
+    $this->assertNotNull($pineconeReadyRow);
+
+    $this->assertTrue($llmRetiredRow['current_value']);
+    $this->assertFalse($llmGoogleReachableRow['current_value']);
+    $this->assertTrue($embeddingsReadyRow['current_value']);
+    $this->assertTrue($embeddingsKeyRow['current_value']);
+    $this->assertTrue($voyageEnabledRow['current_value']);
+    $this->assertTrue($voyageReadyRow['current_value']);
+    $this->assertTrue($voyageKeyRow['current_value']);
+    $this->assertFalse($llmReadyRow['current_value']);
+    $this->assertFalse($vectorRow['current_value']);
+    $this->assertFalse($pineconeReadyRow['current_value']);
+
+    $this->assertSame(
+      'settings.php runtime toggle ILAS_VOYAGE_ENABLED -> getenv/pantheon_get_secret',
+      $voyageEnabledRow['source'],
+    );
+    $this->assertSame(
+      'settings.php runtime site setting ILAS_VOYAGE_API_KEY',
+      $voyageKeyRow['source'],
+    );
+
+    $this->assertTrue($diagnostics['integration_status']['embeddings']['enabled']);
+    $this->assertTrue($diagnostics['integration_status']['embeddings']['credential_present']);
+    $this->assertTrue($diagnostics['integration_status']['voyage']['enabled']);
+    $this->assertTrue($diagnostics['integration_status']['voyage']['credential_present']);
+    $this->assertFalse($diagnostics['integration_status']['pinecone']['enabled']);
+    $this->assertFalse($diagnostics['integration_status']['pinecone']['runtime_ready']);
+    $this->assertTrue($diagnostics['credential_inventory']['embeddings_api_key']);
+    $this->assertTrue($diagnostics['credential_inventory']['voyage_api_key']);
+  }
+
+  /**
+   * Live vector runtime enablement should present Pinecone as ready while
+   * assistant Google generation remains retired.
+   */
+  public function testLiveVectorRuntimeGateAppearsAsPineconeReadyWithVoyageEmbeddings(): void {
+    $diagnostics = $this->buildLiveVectorEnabledDiagnostics();
+    $matrix = $diagnostics['diagnostics_matrix'];
+
+    $vectorRow = $this->findMatrixRow($matrix, 'vector_search.enabled');
+    $pineconeReadyRow = $this->findMatrixRow($matrix, 'pinecone.runtime_ready');
+    $embeddingsReadyRow = $this->findMatrixRow($matrix, 'embeddings.runtime_ready');
+    $llmRetiredRow = $this->findMatrixRow($matrix, 'llm.request_time_retired');
+    $llmGoogleReachableRow = $this->findMatrixRow($matrix, 'llm.google_generation_reachable');
+
+    $this->assertNotNull($vectorRow);
+    $this->assertNotNull($pineconeReadyRow);
+    $this->assertNotNull($embeddingsReadyRow);
+    $this->assertNotNull($llmRetiredRow);
+    $this->assertNotNull($llmGoogleReachableRow);
+
+    $this->assertTrue($vectorRow['current_value']);
+    $this->assertTrue($pineconeReadyRow['current_value']);
+    $this->assertTrue($embeddingsReadyRow['current_value']);
+    $this->assertTrue($llmRetiredRow['current_value']);
+    $this->assertFalse($llmGoogleReachableRow['current_value']);
+    $this->assertSame(
+      'settings.php runtime toggle -> getenv/pantheon_get_secret',
+      $vectorRow['source'],
+    );
+
+    $this->assertTrue($diagnostics['integration_status']['pinecone']['enabled']);
+    $this->assertTrue($diagnostics['integration_status']['pinecone']['runtime_ready']);
+    $this->assertTrue($diagnostics['integration_status']['embeddings']['enabled']);
   }
 
   // -- Builders ----------------------------------------------------------
@@ -337,6 +462,58 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
 
     return $this->buildDiagnosticsWithSettings(
       $this->healthyConfigValues(),
+      $this->healthySyncData(),
+      $this->buildEntityTypeManager($this->allHealthyIndexes(), $this->allHealthyServers()),
+      TRUE,
+    );
+  }
+
+  /**
+   * Builds diagnostics for a live-like Voyage-enabled environment.
+   */
+  private function buildLiveVoyageDiagnostics(): array {
+    new Settings([
+      'ilas_observability' => [
+        'environment' => 'pantheon-live',
+        'pantheon_environment' => 'live',
+      ],
+      'ilas_site_assistant_legalserver_online_application_url' => 'https://example.com/intake?pid=60&h=test',
+      'ilas_assistant_diagnostics_token' => 'test-diag-token',
+      'ilas_voyage_api_key' => 'test-voyage-key',
+    ]);
+
+    $config = $this->healthyConfigValues();
+    $config['ilas_site_assistant.settings']['vector_search.enabled'] = FALSE;
+    $config['ilas_site_assistant.settings']['voyage.enabled'] = TRUE;
+
+    return $this->buildDiagnosticsWithSettings(
+      $config,
+      $this->healthySyncData(),
+      $this->buildEntityTypeManager($this->allHealthyIndexes(), $this->allHealthyServers()),
+      FALSE,
+    );
+  }
+
+  /**
+   * Builds diagnostics for a live-like vector-enabled environment.
+   */
+  private function buildLiveVectorEnabledDiagnostics(): array {
+    new Settings([
+      'ilas_observability' => [
+        'environment' => 'pantheon-live',
+        'pantheon_environment' => 'live',
+      ],
+      'ilas_vector_search_override_channel' => 'settings.php runtime toggle -> getenv/pantheon_get_secret',
+      'ilas_site_assistant_legalserver_online_application_url' => 'https://example.com/intake?pid=60&h=test',
+      'ilas_assistant_diagnostics_token' => 'test-diag-token',
+      'ilas_voyage_api_key' => 'test-voyage-key',
+    ]);
+
+    $config = $this->healthyConfigValues();
+    $config['ilas_site_assistant.settings']['vector_search.enabled'] = TRUE;
+
+    return $this->buildDiagnosticsWithSettings(
+      $config,
       $this->healthySyncData(),
       $this->buildEntityTypeManager($this->allHealthyIndexes(), $this->allHealthyServers()),
       TRUE,
@@ -483,11 +660,6 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     return [
       'ilas_site_assistant.settings' => [
         'llm.enabled' => FALSE,
-        'llm.provider' => 'gemini',
-        'llm.model' => 'gemini-2.0-flash',
-        'llm.api_key' => '',
-        'llm.project_id' => '',
-        'llm.location' => '',
         'llm.fallback_on_error' => TRUE,
         'llm.global_rate_limit.max_per_hour' => 100,
         'llm.global_rate_limit.window_seconds' => 3600,
@@ -543,6 +715,20 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
           'key_value' => 'test-pinecone-key',
         ],
       ],
+      'key.key.voyage_ai_api_key' => [
+        'key_provider' => 'ilas_runtime_site_setting',
+        'key_provider_settings.settings_key' => 'ilas_voyage_api_key',
+      ],
+      'ai.settings' => [
+        'default_providers.embeddings.provider_id' => 'ilas_voyage',
+        'default_providers.embeddings.model_id' => 'voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_faq' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
+      'search_api.server.pinecone_vector_resources' => [
+        'backend_config.embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      ],
     ];
   }
 
@@ -564,6 +750,30 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
       ],
       'key.key.pinecone_api_key' => [
         'key_provider_settings' => ['key_value' => ''],
+      ],
+      'key.key.voyage_ai_api_key' => [
+        'key_provider' => 'ilas_runtime_site_setting',
+        'key_provider_settings' => [
+          'settings_key' => 'ilas_voyage_api_key',
+        ],
+      ],
+      'ai.settings' => [
+        'default_providers' => [
+          'embeddings' => [
+            'provider_id' => 'ilas_voyage',
+            'model_id' => 'voyage-law-2',
+          ],
+        ],
+      ],
+      'search_api.server.pinecone_vector_faq' => [
+        'backend_config' => [
+          'embeddings_engine' => 'ilas_voyage__voyage-law-2',
+        ],
+      ],
+      'search_api.server.pinecone_vector_resources' => [
+        'backend_config' => [
+          'embeddings_engine' => 'ilas_voyage__voyage-law-2',
+        ],
       ],
     ];
   }

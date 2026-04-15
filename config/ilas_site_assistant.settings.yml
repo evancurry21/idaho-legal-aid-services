@@ -53,11 +53,6 @@ conversation_logging:
   show_user_notice: true
 llm:
   enabled: false
-  provider: gemini_api
-  model: gemini-1.5-flash
-  api_key: ''
-  project_id: ''
-  location: us-central1
   max_tokens: 150
   temperature: 0.3
   enhance_greetings: false
@@ -217,7 +212,8 @@ vector_index_hygiene:
       owner_role: 'Content Operations Lead'
       expected_server_id: pinecone_vector_faq
       expected_metric: cosine_similarity
-      expected_dimensions: 3072
+      expected_embeddings_engine: ilas_voyage__voyage-law-2
+      expected_dimensions: 1024
       queryability_probes:
         -
           label: faq_custody_canary
@@ -229,7 +225,8 @@ vector_index_hygiene:
       owner_role: 'Content Operations Lead'
       expected_server_id: pinecone_vector_resources
       expected_metric: cosine_similarity
-      expected_dimensions: 3072
+      expected_embeddings_engine: ilas_voyage__voyage-law-2
+      expected_dimensions: 1024
       queryability_probes:
         -
           label: resource_eviction_canary

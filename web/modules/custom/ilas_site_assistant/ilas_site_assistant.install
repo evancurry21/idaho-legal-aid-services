@@ -937,6 +937,35 @@ function ilas_site_assistant_update_10012() {
 }
 
 /**
+ * Removes retired assistant request-time LLM provider fields from config.
+ */
+function ilas_site_assistant_update_10013() {
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $llm = $config->get('llm');
+  $llm = is_array($llm) ? $llm : [];
+  $changed = FALSE;
+
+  foreach (['provider', 'model', 'api_key', 'project_id', 'location'] as $key) {
+    if (array_key_exists($key, $llm)) {
+      unset($llm[$key]);
+      $changed = TRUE;
+    }
+  }
+
+  if (($llm['enabled'] ?? NULL) !== FALSE) {
+    $llm['enabled'] = FALSE;
+    $changed = TRUE;
+  }
+
+  if (!$changed) {
+    return t('Retired assistant request-time LLM provider fields were already absent.');
+  }
+
+  $config->set('llm', $llm)->save(TRUE);
+  return t('Removed retired assistant request-time LLM provider fields from assistant config.');
+}
+
+/**
  * Creates a lexical Search API index from canonical config when missing.
  *
  * @param string $index_id

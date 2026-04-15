@@ -5,6 +5,7 @@ dependencies:
   module:
     - ai_search
     - ai_vdb_provider_pinecone
+    - ilas_voyage_ai_provider
 id: pinecone_vector_faq
 name: 'Pinecone Vector Search (FAQ)'
 description: 'AI Search backend using Pinecone for FAQ semantic vector search.'
@@ -16,10 +17,10 @@ backend_config:
     database_name: ilas-assistant
     collection: faq_accordion_vector
     metric: cosine_similarity
-  embeddings_engine: gemini__models/gemini-embedding-001
+  embeddings_engine: ilas_voyage__voyage-law-2
   embeddings_engine_configuration:
     set_dimensions: true
-    dimensions: 3072
+    dimensions: 1024
   embedding_strategy: contextual_chunks
   embedding_strategy_configuration:
     chunk_size: '500'

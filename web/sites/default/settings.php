@@ -553,8 +553,8 @@ if ($pinecone_key) {
  *
  * Runtime-only toggle. Sync config remains disabled-by-default so enablement
  * can be staged per environment without changing exported config. Pantheon
- * non-live environments may also use a private flag file when secrets do not
- * propagate to the PHP runtime.
+ * environments use the runtime secret; dev/test may also use a private flag
+ * file when secrets do not propagate to the PHP runtime.
  */
 $ilas_vector_search_raw = _ilas_get_secret('ILAS_VECTOR_SEARCH_ENABLED');
 $ilas_vector_search_enabled = _ilas_read_boolean($ilas_vector_search_raw);
@@ -582,11 +582,10 @@ if ($ilas_vector_search_enabled && $ilas_vector_search_override_channel === NULL
   $ilas_vector_search_override_channel = 'settings.php runtime toggle -> getenv/pantheon_get_secret';
 }
 
-if ($ilas_vector_search_environment === 'live') {
-  $config['ilas_site_assistant.settings']['vector_search']['enabled'] = FALSE;
-  $settings['ilas_vector_search_override_channel'] = 'settings.php live branch';
-}
-elseif (in_array($ilas_vector_search_environment, ['local', 'dev', 'test'], TRUE) && $ilas_vector_search_enabled) {
+if (
+  $ilas_vector_search_enabled
+  && in_array($ilas_vector_search_environment, ['local', 'dev', 'test', 'live'], TRUE)
+) {
   $config['ilas_site_assistant.settings']['vector_search']['enabled'] = TRUE;
   $settings['ilas_vector_search_override_channel'] = $ilas_vector_search_override_channel;
 }
@@ -605,19 +604,15 @@ if ($voyage_key) {
 /**
  * Voyage AI reranking rollout toggle.
  *
- * Runtime-only toggle. Like vector search, disabled by default in config
- * and gated by environment in settings.php.
+ * Runtime-only toggle. Disabled by default in config and enabled only when
+ * ILAS_VOYAGE_ENABLED resolves truthy for an approved environment.
  */
 $voyage_enabled_raw = _ilas_get_secret('ILAS_VOYAGE_ENABLED');
 if (
   _ilas_read_boolean($voyage_enabled_raw)
-  && in_array($ilas_vector_search_environment, ['local', 'dev', 'test'], TRUE)
+  && in_array($ilas_vector_search_environment, ['local', 'dev', 'test', 'live'], TRUE)
 ) {
   $config['ilas_site_assistant.settings']['voyage']['enabled'] = TRUE;
-}
-// Live hard-gate: force disabled until explicit live rollout approval.
-if ($ilas_vector_search_environment === 'live') {
-  $config['ilas_site_assistant.settings']['voyage']['enabled'] = FALSE;
 }
 
 /**

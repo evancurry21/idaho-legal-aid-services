@@ -8,7 +8,6 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxy;
 use Drupal\Core\Session\AccountProxyInterface;
-use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
 use Drupal\ilas_site_assistant\Service\RetrievalConfigurationService;
 use Psr\Log\LoggerInterface;
@@ -103,22 +102,6 @@ class AssistantSettingsForm extends ConfigFormBase {
   }
 
   /**
-   * Returns TRUE when a Vertex runtime secret is available.
-   */
-  protected function isVertexRuntimeSecretConfigured(): bool {
-    $serviceAccountJson = Settings::get('ilas_vertex_sa_json');
-    return is_string($serviceAccountJson) && $serviceAccountJson !== '';
-  }
-
-  /**
-   * Returns TRUE when a Gemini runtime secret is available.
-   */
-  protected function isGeminiRuntimeSecretConfigured(): bool {
-    $apiKey = Settings::get('ilas_gemini_api_key');
-    return is_string($apiKey) && $apiKey !== '';
-  }
-
-  /**
    * Builds the non-secret LegalServer runtime notice.
    */
   protected function buildLegalServerRuntimeNotice(bool $runtimeConfigured, ?array $check): string {
@@ -171,7 +154,6 @@ class AssistantSettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('ilas_site_assistant.settings');
     $is_live_environment = $this->isLiveEnvironment();
-    $gemini_runtime_configured = $this->isGeminiRuntimeSecretConfigured();
     $canonical_urls = $this->retrievalConfiguration
       ? $this->retrievalConfiguration->getCanonicalUrls()
       : (is_array($config->get('canonical_urls')) ? $config->get('canonical_urls') : []);
@@ -482,7 +464,7 @@ class AssistantSettingsForm extends ConfigFormBase {
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Vector Search Fallback'),
       '#description' => $is_live_environment
-        ? $this->t('Disabled in live: vector retrieval rollout must remain controlled by runtime-only non-live toggles until TOVR-13 closes the live gate.')
+        ? $this->t('Disabled on this form in live: rollout and rollback stay runtime-only via <code>ILAS_VECTOR_SEARCH_ENABLED</code> while stored Drupal config remains false.')
         : $this->t('When enabled, sparse lexical results will be supplemented with semantic vector search results from Pinecone.'),
       '#default_value' => $is_live_environment ? FALSE : ($vector_config['enabled'] ?? FALSE),
       '#disabled' => $is_live_environment,
@@ -545,169 +527,17 @@ class AssistantSettingsForm extends ConfigFormBase {
       ],
     ];
 
-    // LLM Enhancement Settings.
+    // Request-time LLM settings are retired for the assistant path.
     $form['llm'] = [
       '#type' => 'details',
-      '#title' => $this->t('LLM Enhancement (Gemini / Vertex AI)'),
-      '#description' => $this->t('Optional: Use Google Gemini or Vertex AI for ambiguous intent classification and optional greeting variation. The LLM does not search the web or provide legal advice.'),
+      '#title' => $this->t('Request-time LLM Status'),
+      '#description' => $this->t('Assistant responses remain deterministic, safety-gated, and limited to legal information from site content.'),
       '#open' => FALSE,
     ];
 
-    $llm_config = $config->get('llm') ?? [];
-    $vertex_runtime_configured = $this->isVertexRuntimeSecretConfigured();
-
-    $form['llm']['llm_enabled'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable LLM Enhancement'),
-      '#description' => $is_live_environment
-        ? $this->t('Disabled in live: LLM enablement is out of scope through Phase 2 and requires a later readiness review.')
-        : $this->t('When enabled, the assistant may use Gemini AI for ambiguous intent classification and optional greeting responses. Requires API credentials below.'),
-      '#default_value' => $is_live_environment ? FALSE : ($llm_config['enabled'] ?? FALSE),
-      '#disabled' => $is_live_environment,
-    ];
-
-    $form['llm']['llm_provider'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Provider'),
-      '#options' => [
-        'gemini_api' => $this->t('Gemini API (API Key)'),
-        'vertex_ai' => $this->t('Vertex AI (Google Cloud)'),
-      ],
-      '#default_value' => $llm_config['provider'] ?? 'gemini_api',
-      '#description' => $this->t('Gemini API is simpler to set up. Vertex AI is recommended for production.'),
-      '#states' => [
-        'visible' => [
-          ':input[name="llm_enabled"]' => ['checked' => TRUE],
-        ],
-      ],
-    ];
-
-    $form['llm']['llm_model'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Model'),
-      '#options' => [
-        'gemini-1.5-flash' => $this->t('Gemini 1.5 Flash (Fast, cheapest)'),
-        'gemini-1.5-pro' => $this->t('Gemini 1.5 Pro (Best quality)'),
-        'gemini-1.0-pro' => $this->t('Gemini 1.0 Pro (Legacy)'),
-      ],
-      '#default_value' => $llm_config['model'] ?? 'gemini-1.5-flash',
-      '#description' => $this->t('Flash is recommended for most use cases. Pro provides better quality at higher cost.'),
-      '#states' => [
-        'visible' => [
-          ':input[name="llm_enabled"]' => ['checked' => TRUE],
-        ],
-      ],
-    ];
-
-    $form['llm']['gemini_settings'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Gemini API Settings'),
-      '#states' => [
-        'visible' => [
-          ':input[name="llm_enabled"]' => ['checked' => TRUE],
-          ':input[name="llm_provider"]' => ['value' => 'gemini_api'],
-        ],
-      ],
-    ];
-
-    $form['llm']['gemini_settings']['llm_api_key_runtime_notice'] = [
+    $form['llm']['llm_retired_notice'] = [
       '#type' => 'item',
-      '#title' => $this->t('Gemini API Key'),
-      '#markup' => $gemini_runtime_configured
-        ? $this->t('Configured via runtime secret injection. Drupal will not display or store the Gemini API key.')
-        : $this->t('Runtime-only. Set <code>ILAS_GEMINI_API_KEY</code> in Pantheon runtime secrets or local DDEV environment settings. Drupal will not accept or export the Gemini API key.'),
-    ];
-
-    $form['llm']['vertex_settings'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Vertex AI Settings'),
-      '#states' => [
-        'visible' => [
-          ':input[name="llm_enabled"]' => ['checked' => TRUE],
-          ':input[name="llm_provider"]' => ['value' => 'vertex_ai'],
-        ],
-      ],
-    ];
-
-    $form['llm']['vertex_settings']['llm_project_id'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Google Cloud Project ID'),
-      '#default_value' => $llm_config['project_id'] ?? '',
-      '#description' => $this->t('Your Google Cloud project ID (e.g., "my-project-123456").'),
-    ];
-
-    $form['llm']['vertex_settings']['llm_location'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Location'),
-      '#options' => [
-        'us-central1' => 'us-central1 (Iowa)',
-        'us-east1' => 'us-east1 (South Carolina)',
-        'us-west1' => 'us-west1 (Oregon)',
-        'europe-west1' => 'europe-west1 (Belgium)',
-      ],
-      '#default_value' => $llm_config['location'] ?? 'us-central1',
-    ];
-
-    $form['llm']['vertex_settings']['llm_service_account_runtime_notice'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Service Account Credentials'),
-      '#markup' => $vertex_runtime_configured
-        ? $this->t('Configured via runtime secret injection. Drupal will not display or store the Vertex service-account JSON.')
-        : $this->t('Runtime-only. Set <code>ILAS_VERTEX_SA_JSON</code> in Pantheon runtime secrets or local DDEV environment settings. Drupal will not accept or export the Vertex service-account JSON.'),
-    ];
-
-    $form['llm']['llm_options'] = [
-      '#type' => 'fieldset',
-      '#title' => $this->t('Enhancement Options'),
-      '#states' => [
-        'visible' => [
-          ':input[name="llm_enabled"]' => ['checked' => TRUE],
-        ],
-      ],
-    ];
-
-    $form['llm']['llm_options']['llm_enhance_greetings'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enhance Greetings'),
-      '#description' => $this->t('Generate varied, personalized greeting responses.'),
-      '#default_value' => $llm_config['enhance_greetings'] ?? FALSE,
-    ];
-
-    $form['llm']['llm_advanced'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Advanced Settings'),
-      '#open' => FALSE,
-      '#states' => [
-        'visible' => [
-          ':input[name="llm_enabled"]' => ['checked' => TRUE],
-        ],
-      ],
-    ];
-
-    $form['llm']['llm_advanced']['llm_max_tokens'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Max Output Tokens'),
-      '#default_value' => $llm_config['max_tokens'] ?? 150,
-      '#min' => 50,
-      '#max' => 500,
-      '#description' => $this->t('Maximum length of generated responses. Lower = faster/cheaper.'),
-    ];
-
-    $form['llm']['llm_advanced']['llm_temperature'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Temperature'),
-      '#default_value' => $llm_config['temperature'] ?? 0.3,
-      '#min' => 0,
-      '#max' => 1,
-      '#step' => 0.1,
-      '#description' => $this->t('Creativity level (0 = deterministic, 1 = creative). Lower is safer for factual content.'),
-    ];
-
-    $form['llm']['llm_advanced']['llm_fallback_on_error'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Fallback on Error'),
-      '#description' => $this->t('If LLM fails, use the rule-based response instead of showing an error.'),
-      '#default_value' => $llm_config['fallback_on_error'] ?? TRUE,
+      '#markup' => '<p>' . $this->t('Request-time assistant LLM fallback is retired and forced off at runtime in all environments. Provider, model, and credential controls have been removed from this form. Embeddings and vector infrastructure are managed separately and are unchanged by this screen.') . '</p>',
     ];
 
     return parent::buildForm($form, $form_state);
@@ -717,16 +547,10 @@ class AssistantSettingsForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
-    if ($this->isLiveEnvironment() && (bool) $form_state->getValue('llm_enabled')) {
-      $form_state->setErrorByName(
-        'llm_enabled',
-        $this->t('LLM enhancement cannot be enabled in the live environment through Phase 2.'),
-      );
-    }
     if ($this->isLiveEnvironment() && (bool) $form_state->getValue('vector_search_enabled')) {
       $form_state->setErrorByName(
         'vector_search_enabled',
-        $this->t('Vector search fallback cannot be enabled in the live environment before TOVR-13 closes the live rollout gate.'),
+        $this->t('Live vector search rollout is runtime-only. Set <code>ILAS_VECTOR_SEARCH_ENABLED</code> and clear caches instead of saving this checkbox.'),
       );
     }
 
@@ -782,7 +606,6 @@ class AssistantSettingsForm extends ConfigFormBase {
     'rate_limit_per_minute',
     'rate_limit_per_hour',
     'llm.enabled',
-    'llm.provider',
     'vector_search.enabled',
     'conversation_logging.enabled',
     'conversation_logging.retention_hours',
@@ -825,6 +648,7 @@ class AssistantSettingsForm extends ConfigFormBase {
     // Build vector search config array.
     $vector_search_enabled = (bool) $form_state->getValue('vector_search_enabled');
     if ($this->isLiveEnvironment()) {
+      // Live rollout stays runtime-only so synced Drupal config remains false.
       $vector_search_enabled = FALSE;
     }
 
@@ -844,24 +668,18 @@ class AssistantSettingsForm extends ConfigFormBase {
       'resource_vector_index_id' => trim((string) $form_state->getValue('retrieval_resource_vector_index_id')),
     ];
 
-    $llm_enabled = (bool) $form_state->getValue('llm_enabled');
-    if ($this->isLiveEnvironment()) {
-      $llm_enabled = FALSE;
-    }
-
-    // Build LLM config array.
-    $llm_config = [
-      'enabled' => $llm_enabled,
-      'provider' => $form_state->getValue('llm_provider'),
-      'model' => $form_state->getValue('llm_model'),
-      'api_key' => '',
-      'project_id' => $form_state->getValue('llm_project_id'),
-      'location' => $form_state->getValue('llm_location'),
-      'max_tokens' => (int) $form_state->getValue('llm_max_tokens'),
-      'temperature' => (float) $form_state->getValue('llm_temperature'),
-      'enhance_greetings' => (bool) $form_state->getValue('llm_enhance_greetings'),
-      'fallback_on_error' => (bool) $form_state->getValue('llm_fallback_on_error'),
-    ];
+    // Preserve the remaining LLM config block while retiring request-time
+    // provider/model/credential fields from the assistant contract.
+    $llm_config = $config->get('llm');
+    $llm_config = is_array($llm_config) ? $llm_config : [];
+    unset(
+      $llm_config['provider'],
+      $llm_config['model'],
+      $llm_config['api_key'],
+      $llm_config['project_id'],
+      $llm_config['location'],
+    );
+    $llm_config['enabled'] = FALSE;
 
     // Build conversation logging config array.
     $conversation_logging_config = [
