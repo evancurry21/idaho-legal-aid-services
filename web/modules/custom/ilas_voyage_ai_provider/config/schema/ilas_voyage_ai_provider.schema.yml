@@ -1,0 +1,7 @@
+ilas_voyage_ai_provider.settings:
+  type: config_object
+  label: 'ILAS Voyage AI provider settings'
+  mapping:
+    api_key:
+      type: string
+      label: 'Voyage API key config entity ID'

@@ -95,20 +95,25 @@ final class RuntimeDiagnosticsMatrixBuilder {
 
     // -- Toggle facts --
     $rows[] = $this->toggleFact('llm.enabled', $effective['llm']['enabled'] ?? FALSE, $overrides['llm.enabled'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
+    $rows[] = $this->valueFact('llm.provider', (string) ($effective['llm']['provider'] ?? 'cohere'), $overrides['llm.provider'] ?? 'Cohere-first request-time transport contract', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
+    $rows[] = $this->valueFact('llm.model', (string) ($effective['llm']['model'] ?? ''), $overrides['llm.model'] ?? 'Cohere-first request-time transport contract', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->toggleFact('llm.runtime_ready', $effective['llm']['runtime_ready'] ?? FALSE, $overrides['llm.runtime_ready'] ?? 'LlmEnhancer::isEnabled()', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
+    $rows[] = $this->toggleFact('llm.request_time_generation_reachable', $effective['llm']['request_time_generation_reachable'] ?? FALSE, $overrides['llm.request_time_generation_reachable'] ?? 'LlmEnhancer::isEnabled()', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->toggleFact('vector_search.enabled', $effective['vector_search']['enabled'] ?? FALSE, $overrides['vector_search.enabled'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
+    $rows[] = $this->toggleFact('pinecone.runtime_ready', $effective['pinecone']['runtime_ready'] ?? FALSE, $overrides['pinecone.runtime_ready'] ?? 'vector_search.enabled + key.key.pinecone_api_key + RetrievalConfigurationService runtime resolution', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
+    $rows[] = $this->toggleFact('embeddings.runtime_ready', $effective['embeddings']['runtime_ready'] ?? FALSE, $overrides['embeddings.runtime_ready'] ?? 'ai.settings + search_api.server.pinecone_vector_* + runtime Voyage key', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->toggleFact('langfuse.enabled', $effective['langfuse']['enabled'] ?? FALSE, $overrides['langfuse.enabled'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE, 'VC-LANGFUSE-PROBE-DIRECT');
     $rows[] = $this->toggleFact('voyage.enabled', $effective['voyage']['enabled'] ?? FALSE, $overrides['voyage.enabled'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->toggleFact('voyage.runtime_ready', $effective['voyage']['runtime_ready'] ?? FALSE, $overrides['voyage.runtime_ready'] ?? 'VoyageReranker::isEnabled()', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
 
     // -- Credential facts --
-    $rows[] = $this->credentialFact('llm.gemini_api_key_present', $effective['llm']['gemini_api_key_present'] ?? FALSE, $overrides['llm.gemini_api_key_present'] ?? 'settings.php runtime site setting', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
-    $rows[] = $this->credentialFact('llm.vertex_service_account_present', $effective['llm']['vertex_service_account_present'] ?? FALSE, $overrides['llm.vertex_service_account_present'] ?? 'settings.php runtime site setting', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->credentialFact('langfuse.public_key_present', $effective['langfuse']['public_key_present'] ?? FALSE, $overrides['langfuse.public_key_present'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE, 'VC-LANGFUSE-PROBE-DIRECT');
     $rows[] = $this->credentialFact('langfuse.secret_key_present', $effective['langfuse']['secret_key_present'] ?? FALSE, $overrides['langfuse.secret_key_present'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE, 'VC-LANGFUSE-PROBE-DIRECT');
     $rows[] = $this->credentialFact('sentry.client_key_present', $effective['sentry']['client_key_present'] ?? FALSE, $overrides['raven.settings.client_key_present'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L1_TRANSPORT, 'VC-SENTRY-PROBE');
     $rows[] = $this->credentialFact('sentry.public_dsn_present', $effective['sentry']['public_dsn_present'] ?? FALSE, $overrides['raven.settings.public_dsn_present'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L1_TRANSPORT, 'VC-SENTRY-PROBE');
     $rows[] = $this->credentialFact('pinecone.api_key_present', $effective['pinecone']['key_present'] ?? FALSE, $overrides['key.key.pinecone_api_key.key_present'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L1_TRANSPORT, 'VC-SEARCHAPI-INVENTORY');
+    $rows[] = $this->credentialFact('llm.cohere_api_key_present', $runtimeSettings['cohere_api_key_present'] ?? FALSE, 'settings.php runtime site setting ILAS_COHERE_API_KEY', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
+    $rows[] = $this->credentialFact('embeddings.api_key_present', $effective['embeddings']['api_key_present'] ?? FALSE, $overrides['embeddings.api_key_present'] ?? 'settings.php runtime site setting', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->credentialFact('voyage.api_key_present', $effective['voyage']['api_key_present'] ?? FALSE, $overrides['voyage.api_key_present'] ?? 'settings.php runtime site setting', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->credentialFact('diagnostics_token_present', $runtimeSettings['diagnostics_token_present'] ?? FALSE, $overrides['ilas_assistant_diagnostics_token'] ?? 'settings.php runtime site setting', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
 
@@ -148,6 +153,23 @@ final class RuntimeDiagnosticsMatrixBuilder {
       'static_proof_ceiling' => $proofCeiling,
       'verification_command' => $verificationCommand,
       'assertion' => ObservabilityProofTaxonomy::ASSERTION_PASS,
+    ];
+  }
+
+  /**
+   * Builds a scalar runtime fact row.
+   */
+  private function valueFact(string $factKey, string $value, string $source, string $proofCeiling, string $verificationCommand): array {
+    return [
+      'fact_key' => $factKey,
+      'category' => 'metadata',
+      'current_value' => $value,
+      'source' => $source,
+      'proof_level' => ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED,
+      'proof_level_label' => ObservabilityProofTaxonomy::proofStrengthLabel(ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED),
+      'static_proof_ceiling' => $proofCeiling,
+      'verification_command' => $verificationCommand,
+      'assertion' => $value !== '' ? ObservabilityProofTaxonomy::ASSERTION_PASS : ObservabilityProofTaxonomy::ASSERTION_DEGRADED,
     ];
   }
 
@@ -281,9 +303,17 @@ final class RuntimeDiagnosticsMatrixBuilder {
       'pinecone' => [
         'enabled' => (bool) ($effective['vector_search']['enabled'] ?? FALSE),
         'credential_present' => (bool) ($effective['pinecone']['key_present'] ?? FALSE),
+        'runtime_ready' => (bool) ($effective['pinecone']['runtime_ready'] ?? FALSE),
         'achieved_proof_level' => ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED,
         'proof_ceiling' => ObservabilityProofTaxonomy::LEVEL_L1_TRANSPORT,
         'verification_command' => 'VC-SEARCHAPI-INVENTORY',
+      ],
+      'embeddings' => [
+        'enabled' => (bool) ($effective['embeddings']['runtime_ready'] ?? FALSE),
+        'credential_present' => (bool) ($effective['embeddings']['api_key_present'] ?? FALSE),
+        'achieved_proof_level' => ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED,
+        'proof_ceiling' => ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED,
+        'verification_command' => 'VC-RUNTIME-TRUTH',
       ],
       'voyage' => [
         'enabled' => (bool) ($effective['voyage']['enabled'] ?? FALSE),
@@ -303,13 +333,13 @@ final class RuntimeDiagnosticsMatrixBuilder {
     $runtimeSettings = $snapshot['runtime_site_settings'] ?? [];
 
     return [
-      'gemini_api_key' => (bool) ($effective['llm']['gemini_api_key_present'] ?? FALSE),
-      'vertex_service_account' => (bool) ($effective['llm']['vertex_service_account_present'] ?? FALSE),
+      'cohere_api_key' => (bool) ($runtimeSettings['cohere_api_key_present'] ?? FALSE),
       'langfuse_public_key' => (bool) ($effective['langfuse']['public_key_present'] ?? FALSE),
       'langfuse_secret_key' => (bool) ($effective['langfuse']['secret_key_present'] ?? FALSE),
       'sentry_client_key' => (bool) ($effective['sentry']['client_key_present'] ?? FALSE),
       'sentry_public_dsn' => (bool) ($effective['sentry']['public_dsn_present'] ?? FALSE),
       'pinecone_api_key' => (bool) ($effective['pinecone']['key_present'] ?? FALSE),
+      'embeddings_api_key' => (bool) ($effective['embeddings']['api_key_present'] ?? FALSE),
       'voyage_api_key' => (bool) ($effective['voyage']['api_key_present'] ?? FALSE),
       'diagnostics_token' => (bool) ($runtimeSettings['diagnostics_token_present'] ?? FALSE),
       'legalserver_url' => (bool) ($runtimeSettings['legalserver_online_application_url_present'] ?? FALSE),

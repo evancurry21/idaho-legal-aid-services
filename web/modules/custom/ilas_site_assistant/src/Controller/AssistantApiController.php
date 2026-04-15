@@ -2413,7 +2413,7 @@ class AssistantApiController extends ControllerBase {
     $top_score = !empty($early_retrieval) ? ($early_retrieval[0]['score'] ?? NULL) : NULL;
     $this->langfuseTracer?->endSpan(['result_count' => count($early_retrieval), 'top_score' => $top_score]);
 
-    // Evaluate fallback gate to decide: answer, clarify, or use LLM.
+    // Evaluate fallback gate to decide: answer, clarify, or hard-route.
     $this->langfuseTracer?->startSpan('gate.evaluate');
     $gate_context = [
       'message' => $user_message,
@@ -2473,29 +2473,6 @@ class AssistantApiController extends ControllerBase {
         $debug_meta['processing_stages'][] = 'hard_route_forced';
       }
     }
-    elseif (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_FALLBACK_LLM && $this->llmEnhancer->isEnabled()) {
-      // Try LLM classification for low-confidence cases.
-      $llm_model = $config->get('llm.model') ?? 'gemini-1.5-flash';
-      $this->langfuseTracer?->startGeneration('llm.classify', $llm_model, [
-        'temperature' => $config->get('llm.temperature') ?? 0.3,
-        'max_tokens' => $config->get('llm.max_tokens') ?? 150,
-      ], $langfuse_input['metadata']);
-      $llm_intent = $this->llmEnhancer->classifyIntent($user_message, $intent['type'], $ip);
-      $this->langfuseTracer?->endGeneration(
-        'intent=' . ($llm_intent !== '' ? $llm_intent : 'unknown'),
-        $this->llmEnhancer->getLastUsage() ?? []
-      );
-      if ($llm_intent !== 'unknown' && $llm_intent !== $intent['type']) {
-        $intent = ['type' => $llm_intent, 'source' => 'llm', 'extraction' => $intent['extraction'] ?? []];
-
-        if ($debug_mode) {
-          $debug_meta['intent_selected'] = $llm_intent;
-          $debug_meta['intent_source'] = 'llm_fallback';
-          $debug_meta['llm_used'] = TRUE;
-          $debug_meta['processing_stages'][] = 'llm_classification';
-        }
-      }
-    }
     elseif (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_CLARIFY) {
       // Force clarification response.
       $intent = ['type' => 'clarify', 'original_intent' => $intent['type'], 'extraction' => $intent['extraction'] ?? []];
@@ -2503,6 +2480,38 @@ class AssistantApiController extends ControllerBase {
       if ($debug_mode) {
         $debug_meta['intent_selected'] = 'clarify';
         $debug_meta['processing_stages'][] = 'clarification_forced';
+      }
+    }
+    elseif (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_FALLBACK_LLM) {
+      $llm_classification = $this->llmEnhancer->classifyIntent($user_message, (string) ($intent['type'] ?? 'unknown'), $ip ?: NULL);
+
+      if ($llm_classification !== 'unknown' && $llm_classification !== 'clarify') {
+        $intent = [
+          'type' => $llm_classification,
+          'confidence' => max(0.65, (float) ($gate_decision['confidence'] ?? 0.65)),
+          'source' => 'fallback_llm',
+          'extraction' => $intent['extraction'] ?? [],
+        ];
+
+        if ($debug_mode) {
+          $debug_meta['intent_selected'] = $intent['type'];
+          $debug_meta['intent_source'] = 'fallback_llm';
+          $debug_meta['llm_used'] = TRUE;
+          $debug_meta['llm_provider'] = $this->llmEnhancer->getProviderId();
+          $debug_meta['processing_stages'][] = 'fallback_llm_classified';
+        }
+      }
+      else {
+        $intent = [
+          'type' => 'clarify',
+          'original_intent' => $intent['type'] ?? 'unknown',
+          'extraction' => $intent['extraction'] ?? [],
+        ];
+
+        if ($debug_mode) {
+          $debug_meta['intent_selected'] = 'clarify';
+          $debug_meta['processing_stages'][] = 'fallback_llm_clarify';
+        }
       }
     }
 
@@ -3282,7 +3291,7 @@ class AssistantApiController extends ControllerBase {
    *   The response type.
    *
    * @return string
-   *   One of: answer, clarify, fallback_llm, hard_route.
+   *   One of: answer, clarify, or hard_route.
    */
   protected function determineFinalAction(string $response_type): string {
     $answer_types = ['faq', 'resources', 'topic', 'eligibility', 'services_overview'];

@@ -62,6 +62,16 @@ class FaqIndex {
   const VECTOR_BACKOFF_CACHE_ID = 'ilas_site_assistant.vector_backoff.faq';
 
   /**
+   * Required embeddings engine for Pinecone-backed FAQ vector queries.
+   */
+  const EXPECTED_VECTOR_EMBEDDINGS_ENGINE = 'ilas_voyage__voyage-law-2';
+
+  /**
+   * Required embedding dimensions for Pinecone-backed FAQ vector queries.
+   */
+  const EXPECTED_VECTOR_DIMENSIONS = 1024;
+
+  /**
    * The entity type manager.
    *
    * @var \Drupal\Core\Entity\EntityTypeManagerInterface
@@ -953,17 +963,17 @@ class FaqIndex {
   }
 
   /**
-   * Validates that a vector index uses cosine similarity metric.
+   * Validates the vector backend contract for FAQ semantic queries.
    *
-   * Our score thresholds (min_vector_score) and normalization assume cosine
-   * similarity scores in the 0-1 range. Other metrics (euclidean, dotproduct)
-   * have different score ranges and semantics that would break scoring logic.
+   * Score thresholds and normalization assume cosine similarity, and the
+   * Pinecone collection must stay aligned with the active embeddings engine
+   * and dimensions to avoid mixed-vector retrieval.
    *
    * @param \Drupal\search_api\Entity\Index $vector_index
    *   The Search API vector index to validate.
    *
    * @return bool
-   *   TRUE if the index uses cosine similarity, FALSE otherwise.
+   *   TRUE if the index matches the required backend contract, FALSE otherwise.
    */
   protected function validateVectorMetric($vector_index): bool {
     try {
@@ -980,11 +990,35 @@ class FaqIndex {
         );
         return FALSE;
       }
+      $embeddings_engine = $backend_config['embeddings_engine'] ?? '';
+      if ($embeddings_engine !== self::EXPECTED_VECTOR_EMBEDDINGS_ENGINE) {
+        \Drupal::logger('ilas_site_assistant')->warning(
+          'Vector search embeddings engine mismatch: expected @expected, got @actual.',
+          [
+            '@expected' => self::EXPECTED_VECTOR_EMBEDDINGS_ENGINE,
+            '@actual' => $embeddings_engine,
+          ]
+        );
+        return FALSE;
+      }
+      $dimensions = isset($backend_config['embeddings_engine_configuration']['dimensions'])
+        ? (int) $backend_config['embeddings_engine_configuration']['dimensions']
+        : NULL;
+      if ($dimensions !== self::EXPECTED_VECTOR_DIMENSIONS) {
+        \Drupal::logger('ilas_site_assistant')->warning(
+          'Vector search dimensions mismatch: expected @expected, got @actual.',
+          [
+            '@expected' => self::EXPECTED_VECTOR_DIMENSIONS,
+            '@actual' => $dimensions === NULL ? 'missing' : (string) $dimensions,
+          ]
+        );
+        return FALSE;
+      }
       return TRUE;
     }
     catch (\Exception $e) {
       \Drupal::logger('ilas_site_assistant')->warning(
-        'Could not validate vector search metric: @class @error_signature',
+        'Could not validate vector search backend contract: @class @error_signature',
         [
           '@class' => get_class($e),
           '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),

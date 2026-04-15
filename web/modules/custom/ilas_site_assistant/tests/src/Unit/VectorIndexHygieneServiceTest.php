@@ -78,7 +78,8 @@ final class VectorIndexHygieneServiceTest extends TestCase {
           'owner_role' => 'Content Operations Lead',
           'expected_server_id' => 'pinecone_vector_faq',
           'expected_metric' => 'cosine_similarity',
-          'expected_dimensions' => 3072,
+          'expected_embeddings_engine' => 'ilas_voyage__voyage-law-2',
+          'expected_dimensions' => 1024,
           'queryability_probes' => [
             [
               'label' => 'faq_custody_canary',
@@ -93,7 +94,8 @@ final class VectorIndexHygieneServiceTest extends TestCase {
           'owner_role' => 'Content Operations Lead',
           'expected_server_id' => 'pinecone_vector_resources',
           'expected_metric' => 'cosine_similarity',
-          'expected_dimensions' => 3072,
+          'expected_embeddings_engine' => 'ilas_voyage__voyage-law-2',
+          'expected_dimensions' => 1024,
           'queryability_probes' => [
             [
               'label' => 'resource_eviction_canary',
@@ -190,7 +192,8 @@ final class VectorIndexHygieneServiceTest extends TestCase {
     int $remainingItems = 20,
     string $serverId = 'pinecone_vector_faq',
     string $metric = 'cosine_similarity',
-    int $dimensions = 3072,
+    string $embeddingsEngine = 'ilas_voyage__voyage-law-2',
+    int $dimensions = 1024,
     array $probeScores = [0.91],
     ?TrackerInterface $trackerOverride = NULL,
     ?QueryInterface $queryOverride = NULL,
@@ -205,6 +208,7 @@ final class VectorIndexHygieneServiceTest extends TestCase {
     $server = $this->createMock(ServerInterface::class);
     $server->method('getBackendConfig')->willReturn([
       'database_settings' => ['metric' => $metric],
+      'embeddings_engine' => $embeddingsEngine,
       'embeddings_engine_configuration' => ['dimensions' => $dimensions],
     ]);
 
@@ -266,6 +270,8 @@ final class VectorIndexHygieneServiceTest extends TestCase {
     $this->assertArrayHasKey('resource_vector', $snapshot['indexes']);
     $this->assertSame('faq_accordion_vector', $snapshot['indexes']['faq_vector']['index_id']);
     $this->assertSame('assistant_resources_vector', $snapshot['indexes']['resource_vector']['index_id']);
+    $this->assertSame('ilas_voyage__voyage-law-2', $snapshot['indexes']['faq_vector']['expected']['embeddings_engine']);
+    $this->assertSame('ilas_voyage__voyage-law-2', $snapshot['indexes']['resource_vector']['expected']['embeddings_engine']);
   }
 
   public function testRunScheduledRefreshProcessesDueIndexesIncrementally(): void {
@@ -379,7 +385,8 @@ final class VectorIndexHygieneServiceTest extends TestCase {
       remainingItems: 10,
       serverId: 'wrong_server',
       metric: 'dot_product',
-      dimensions: 1024
+      embeddingsEngine: 'gemini__models/gemini-embedding-001',
+      dimensions: 1536
     );
     $resourceIndex = $this->buildCompliantIndexMock(serverId: 'pinecone_vector_resources');
 
@@ -410,7 +417,9 @@ final class VectorIndexHygieneServiceTest extends TestCase {
     $this->assertSame('drift', $snapshot['indexes']['faq_vector']['metadata_status']);
     $this->assertContains('server_id', $snapshot['indexes']['faq_vector']['drift_fields']);
     $this->assertContains('metric', $snapshot['indexes']['faq_vector']['drift_fields']);
+    $this->assertContains('embeddings_engine', $snapshot['indexes']['faq_vector']['drift_fields']);
     $this->assertContains('dimensions', $snapshot['indexes']['faq_vector']['drift_fields']);
+    $this->assertSame('gemini__models/gemini-embedding-001', $snapshot['indexes']['faq_vector']['observed']['embeddings_engine']);
   }
 
   public function testOverdueDetectionUsesGraceWindow(): void {

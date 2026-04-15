@@ -400,8 +400,9 @@ if (isset($_ENV['PANTHEON_ENVIRONMENT']) && $_ENV['PANTHEON_ENVIRONMENT'] === 'l
   $config['ilas_site_assistant.settings']['rate_limit_per_minute'] = 15;
   $config['ilas_site_assistant.settings']['rate_limit_per_hour'] = 120;
 
-  // Governance guardrail: live LLM must remain disabled through Phase 2.
-  $config['ilas_site_assistant.settings']['llm.enabled'] = FALSE;
+  // Governance guardrail: live vector search stays hard-disabled until
+  // rollout evidence explicitly approves production enablement.
+  $config['ilas_site_assistant.settings']['vector_search']['enabled'] = FALSE;
 
   // Hard live guard: never allow assistant response debug metadata on live.
   $settings['ilas_site_assistant_debug_metadata_force_disable'] = TRUE;
@@ -487,7 +488,20 @@ if ($tmgmt_google_key) {
 }
 
 /**
- * ILAS Site Assistant Gemini API key override.
+ * ILAS Site Assistant Cohere API key override.
+ *
+ * On Pantheon: type "runtime", scope "web", key "ILAS_COHERE_API_KEY".
+ * Locally (DDEV): add ILAS_COHERE_API_KEY=<value> to .ddev/.env, then
+ * ddev restart.
+ */
+$ilas_cohere_key = _ilas_get_secret('ILAS_COHERE_API_KEY');
+if ($ilas_cohere_key) {
+  $settings['ilas_cohere_api_key'] = $ilas_cohere_key;
+}
+
+/**
+ * Residual Gemini API key override for Search API / vector integrations that
+ * still resolve the exported runtime key entity.
  *
  * On Pantheon: type "runtime", scope "web", key "ILAS_GEMINI_API_KEY".
  * Locally (DDEV): add ILAS_GEMINI_API_KEY=<value> to .ddev/.env, then ddev restart.
@@ -495,17 +509,6 @@ if ($tmgmt_google_key) {
 $ilas_gemini_key = _ilas_get_secret('ILAS_GEMINI_API_KEY');
 if ($ilas_gemini_key) {
   $settings['ilas_gemini_api_key'] = $ilas_gemini_key;
-}
-
-/**
- * ILAS Site Assistant Vertex AI service account JSON override.
- *
- * On Pantheon: type "runtime", scope "web", key "ILAS_VERTEX_SA_JSON".
- * Locally (DDEV): add ILAS_VERTEX_SA_JSON=<json> to .ddev/.env, then ddev restart.
- */
-$ilas_vertex_sa = _ilas_get_secret('ILAS_VERTEX_SA_JSON');
-if ($ilas_vertex_sa) {
-  $settings['ilas_vertex_sa_json'] = $ilas_vertex_sa;
 }
 
 /**
@@ -553,8 +556,8 @@ if ($pinecone_key) {
  *
  * Runtime-only toggle. Sync config remains disabled-by-default so enablement
  * can be staged per environment without changing exported config. Pantheon
- * non-live environments may also use a private flag file when secrets do not
- * propagate to the PHP runtime.
+ * environments use the runtime secret; dev/test may also use a private flag
+ * file when secrets do not propagate to the PHP runtime.
  */
 $ilas_vector_search_raw = _ilas_get_secret('ILAS_VECTOR_SEARCH_ENABLED');
 $ilas_vector_search_enabled = _ilas_read_boolean($ilas_vector_search_raw);
@@ -563,6 +566,22 @@ $ilas_vector_search_environment = _ilas_raw_pantheon_environment();
 $ilas_vector_search_environment = $ilas_vector_search_environment !== FALSE
   ? mb_strtolower(trim($ilas_vector_search_environment))
   : 'local';
+
+/**
+ * ILAS Site Assistant request-time LLM rollout toggle.
+ *
+ * Runtime-only toggle. Exported config remains conservative. Hosted
+ * environments opt in by providing ILAS_LLM_ENABLED together with the Cohere
+ * runtime secret.
+ */
+$ilas_llm_enabled_raw = _ilas_get_secret('ILAS_LLM_ENABLED');
+if (
+  _ilas_read_boolean($ilas_llm_enabled_raw)
+  && in_array($ilas_vector_search_environment, ['local', 'dev', 'test', 'live'], TRUE)
+) {
+  $config['ilas_site_assistant.settings']['llm']['enabled'] = TRUE;
+  $settings['ilas_llm_override_channel'] = 'settings.php runtime toggle ILAS_LLM_ENABLED -> getenv/pantheon_get_secret';
+}
 
 if (
   !$ilas_vector_search_enabled &&
@@ -582,11 +601,10 @@ if ($ilas_vector_search_enabled && $ilas_vector_search_override_channel === NULL
   $ilas_vector_search_override_channel = 'settings.php runtime toggle -> getenv/pantheon_get_secret';
 }
 
-if ($ilas_vector_search_environment === 'live') {
-  $config['ilas_site_assistant.settings']['vector_search']['enabled'] = FALSE;
-  $settings['ilas_vector_search_override_channel'] = 'settings.php live branch';
-}
-elseif (in_array($ilas_vector_search_environment, ['local', 'dev', 'test'], TRUE) && $ilas_vector_search_enabled) {
+if (
+  $ilas_vector_search_enabled
+  && in_array($ilas_vector_search_environment, ['local', 'dev', 'test'], TRUE)
+) {
   $config['ilas_site_assistant.settings']['vector_search']['enabled'] = TRUE;
   $settings['ilas_vector_search_override_channel'] = $ilas_vector_search_override_channel;
 }
@@ -605,19 +623,15 @@ if ($voyage_key) {
 /**
  * Voyage AI reranking rollout toggle.
  *
- * Runtime-only toggle. Like vector search, disabled by default in config
- * and gated by environment in settings.php.
+ * Runtime-only toggle. Disabled by default in config and enabled only when
+ * ILAS_VOYAGE_ENABLED resolves truthy for an approved environment.
  */
 $voyage_enabled_raw = _ilas_get_secret('ILAS_VOYAGE_ENABLED');
 if (
   _ilas_read_boolean($voyage_enabled_raw)
-  && in_array($ilas_vector_search_environment, ['local', 'dev', 'test'], TRUE)
+  && in_array($ilas_vector_search_environment, ['local', 'dev', 'test', 'live'], TRUE)
 ) {
   $config['ilas_site_assistant.settings']['voyage']['enabled'] = TRUE;
-}
-// Live hard-gate: force disabled until explicit live rollout approval.
-if ($ilas_vector_search_environment === 'live') {
-  $config['ilas_site_assistant.settings']['voyage']['enabled'] = FALSE;
 }
 
 /**

@@ -524,6 +524,7 @@ final class VectorIndexHygieneService {
     $observed = [
       'server_id' => $index->getServerId(),
       'metric' => NULL,
+      'embeddings_engine' => NULL,
       'dimensions' => NULL,
     ];
 
@@ -536,6 +537,7 @@ final class VectorIndexHygieneService {
     if ($server instanceof ServerInterface) {
       $backend = $server->getBackendConfig();
       $observed['metric'] = $backend['database_settings']['metric'] ?? NULL;
+      $observed['embeddings_engine'] = $backend['embeddings_engine'] ?? NULL;
       $observed['dimensions'] = isset($backend['embeddings_engine_configuration']['dimensions'])
         ? (int) $backend['embeddings_engine_configuration']['dimensions']
         : NULL;
@@ -547,6 +549,11 @@ final class VectorIndexHygieneService {
     $expected_metric = (string) ($index_policy['expected_metric'] ?? '');
     if ($expected_metric !== '' && $observed['metric'] !== $expected_metric) {
       $drift_fields[] = 'metric';
+    }
+
+    $expected_embeddings_engine = (string) ($index_policy['expected_embeddings_engine'] ?? '');
+    if ($expected_embeddings_engine !== '' && $observed['embeddings_engine'] !== $expected_embeddings_engine) {
+      $drift_fields[] = 'embeddings_engine';
     }
 
     $expected_dimensions = isset($index_policy['expected_dimensions'])
@@ -648,7 +655,8 @@ final class VectorIndexHygieneService {
           'owner_role' => 'Content Operations Lead',
           'expected_server_id' => 'pinecone_vector_faq',
           'expected_metric' => 'cosine_similarity',
-          'expected_dimensions' => 3072,
+          'expected_embeddings_engine' => 'ilas_voyage__voyage-law-2',
+          'expected_dimensions' => 1024,
           'queryability_probes' => [
             [
               'label' => 'faq_custody_canary',
@@ -663,7 +671,8 @@ final class VectorIndexHygieneService {
           'owner_role' => 'Content Operations Lead',
           'expected_server_id' => 'pinecone_vector_resources',
           'expected_metric' => 'cosine_similarity',
-          'expected_dimensions' => 3072,
+          'expected_embeddings_engine' => 'ilas_voyage__voyage-law-2',
+          'expected_dimensions' => 1024,
           'queryability_probes' => [
             [
               'label' => 'resource_eviction_canary',
@@ -772,11 +781,13 @@ final class VectorIndexHygieneService {
       'expected' => [
         'server_id' => (string) ($index_policy['expected_server_id'] ?? ''),
         'metric' => (string) ($index_policy['expected_metric'] ?? ''),
+        'embeddings_engine' => (string) ($index_policy['expected_embeddings_engine'] ?? ''),
         'dimensions' => isset($index_policy['expected_dimensions']) ? (int) $index_policy['expected_dimensions'] : NULL,
       ],
       'observed' => [
         'server_id' => NULL,
         'metric' => NULL,
+        'embeddings_engine' => NULL,
         'dimensions' => NULL,
       ],
       'tracker_available' => FALSE,

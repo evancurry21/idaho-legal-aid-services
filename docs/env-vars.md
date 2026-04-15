@@ -25,9 +25,16 @@ on hosted environments.
 
 ### ILAS Site Assistant
 
+- `ILAS_COHERE_API_KEY`
+  - Runtime-only request-time Cohere API key for bounded ambiguous-intent
+    classification.
+- `ILAS_LLM_ENABLED`
+  - Runtime-only rollout toggle for request-time assistant classification.
+  - Honored on `local`, `dev`, `test`, and `live` when set truthy.
 - `ILAS_GEMINI_API_KEY`
-  - Required runtime API key for Gemini-backed assistant and Pinecone
-    embedding/query operations when Gemini is the active provider path.
+  - Optional runtime API key retained only for residual Search API AI paths
+    that still prove a Gemini dependency.
+  - The active Pinecone embeddings path no longer reads Gemini.
 - `ILAS_PINECONE_API_KEY`
   - Required runtime Pinecone API key for vector index queries and refreshes.
 - `ILAS_VECTOR_SEARCH_ENABLED`
@@ -40,11 +47,11 @@ on hosted environments.
     effectively disabled, including the case where a site-level falsey secret
     masks an env-level enablement override.
 - `ILAS_VOYAGE_API_KEY`
-  - Runtime Voyage AI API key for second-stage reranking.
+  - Runtime Voyage AI API key for Pinecone embeddings and second-stage
+    reranking.
 - `ILAS_VOYAGE_ENABLED`
   - Runtime-only rollout toggle for Voyage reranking.
-  - Same gating pattern as `ILAS_VECTOR_SEARCH_ENABLED`: honored on
-    `local`, `dev`, `test`; hard-forced to `false` on `live`.
+  - Honored on `local`, `dev`, `test`, and `live` when set truthy.
 - `ILAS_LEGALSERVER_ONLINE_APPLICATION_URL`
   - Required runtime-only LegalServer intake URL for assistant health checks.
   - Must be an absolute `https` URL and include the LegalServer `pid` and `h`
@@ -104,8 +111,13 @@ Use local-only files for local values. Do not commit real credentials.
 
 - Use `.ddev/.env` or `.ddev/.env.local`
 - Start from `.ddev/.env.example`
-- Put `ILAS_GEMINI_API_KEY` and `ILAS_PINECONE_API_KEY` only in local env
+- Put `ILAS_COHERE_API_KEY`, `ILAS_GEMINI_API_KEY`, and
+  `ILAS_PINECONE_API_KEY` only in local env
   files, never in committed config.
+- Put `ILAS_VOYAGE_API_KEY` only in local env files, never in committed
+  config.
+- Keep `ILAS_LLM_ENABLED=0` by default and only set it to `1` when
+  intentionally verifying request-time Cohere rollout behavior.
 - Keep `ILAS_VECTOR_SEARCH_ENABLED=0` by default and only set it to `1` when
   intentionally verifying non-live vector rollout behavior.
 - Set `ILAS_LOCAL_BROWSER_OBSERVABILITY=1` only if you intentionally want local

@@ -85,7 +85,8 @@ final class VectorMaintenanceCommandsTest extends TestCase {
               'owner_role' => 'Content Operations Lead',
               'expected_server_id' => 'pinecone_vector_faq',
               'expected_metric' => 'cosine_similarity',
-              'expected_dimensions' => 3072,
+              'expected_embeddings_engine' => 'ilas_voyage__voyage-law-2',
+              'expected_dimensions' => 1024,
               'queryability_probes' => [[
                 'label' => 'faq_custody_canary',
                 'query' => 'custody',
@@ -98,7 +99,8 @@ final class VectorMaintenanceCommandsTest extends TestCase {
               'owner_role' => 'Content Operations Lead',
               'expected_server_id' => 'pinecone_vector_resources',
               'expected_metric' => 'cosine_similarity',
-              'expected_dimensions' => 3072,
+              'expected_embeddings_engine' => 'ilas_voyage__voyage-law-2',
+              'expected_dimensions' => 1024,
               'queryability_probes' => [[
                 'label' => 'resource_eviction_canary',
                 'query' => 'eviction',
@@ -210,7 +212,8 @@ final class VectorMaintenanceCommandsTest extends TestCase {
     $server = $this->createMock(ServerInterface::class);
     $server->method('getBackendConfig')->willReturn([
       'database_settings' => ['metric' => 'cosine_similarity'],
-      'embeddings_engine_configuration' => ['dimensions' => 3072],
+      'embeddings_engine' => 'ilas_voyage__voyage-law-2',
+      'embeddings_engine_configuration' => ['dimensions' => 1024],
     ]);
 
     $index = $this->createMock(IndexInterface::class);

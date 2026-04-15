@@ -7,5 +7,5 @@ default_providers:
     provider_id: gemini
     model_id: models/gemini-2.0-flash
   embeddings:
-    provider_id: gemini
-    model_id: models/text-embedding-004
+    provider_id: ilas_voyage
+    model_id: voyage-law-2

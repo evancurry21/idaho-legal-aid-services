@@ -5,7 +5,7 @@ namespace Drupal\ilas_site_assistant\Service;
 use Drupal\Core\Config\ConfigFactoryInterface;
 
 /**
- * Service for determining when to fallback to LLM (Gemini).
+ * Service for determining answer, clarify, and hard-route outcomes.
  *
  * This service implements a measurable, tunable confidence model that combines:
  * - Intent confidence (rule-based pattern match strength)
@@ -16,7 +16,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
  * The gate decides one of four outcomes:
  * 1. ANSWER - Built-in response with high confidence
  * 2. CLARIFY - Ask for clarification before proceeding
- * 3. FALLBACK_LLM - Route to Gemini for help
+ * 3. FALLBACK_LLM - Use bounded request-time LLM classification, then reroute
  * 4. HARD_ROUTE - Safety/policy override to specific resource
  *
  * Reason codes explain WHY a decision was made for debugging and tuning.
@@ -61,6 +61,13 @@ class FallbackGate {
    * @var \Drupal\ilas_site_assistant\Service\EnvironmentDetector
    */
   protected EnvironmentDetector $environmentDetector;
+
+  /**
+   * Optional request-time LLM coordinator.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\LlmEnhancer|null
+   */
+  protected ?LlmEnhancer $llmEnhancer;
 
   /**
    * Default thresholds.
@@ -170,9 +177,11 @@ class FallbackGate {
   public function __construct(
     ConfigFactoryInterface $config_factory,
     ?EnvironmentDetector $environment_detector = NULL,
+    ?LlmEnhancer $llm_enhancer = NULL,
   ) {
     $this->configFactory = $config_factory;
     $this->environmentDetector = $environment_detector ?? new EnvironmentDetector();
+    $this->llmEnhancer = $llm_enhancer;
   }
 
   /**
@@ -186,16 +195,15 @@ class FallbackGate {
    * Returns whether LLM is effectively enabled for gate decisions.
    */
   protected function isLlmEffectivelyEnabled(): bool {
-    if ($this->isLiveEnvironment()) {
-      return FALSE;
+    if ($this->llmEnhancer !== NULL) {
+      return $this->llmEnhancer->isEnabled();
     }
 
-    $config = $this->configFactory->get('ilas_site_assistant.settings');
-    return (bool) $config->get('llm.enabled');
+    return (bool) $this->configFactory->get('ilas_site_assistant.settings')->get('llm.enabled');
   }
 
   /**
-   * Evaluates whether to answer, clarify, or fallback to LLM.
+   * Evaluates whether to answer, clarify, or hard-route.
    *
    * @param array $intent
    *   The detected intent from IntentRouter.
@@ -381,11 +389,12 @@ class FallbackGate {
       );
     }
 
-    // Unknown intent with sufficient message length - try LLM.
+    // Unknown intent with sufficient message length can take a bounded
+    // request-time classification detour before falling back to clarify.
     return $this->buildDecision(
       self::DECISION_FALLBACK_LLM,
-      self::REASON_LOW_INTENT_CONF,
-      0.2,
+      self::REASON_BORDERLINE_CONF,
+      0.45,
       $details
     );
   }
@@ -425,16 +434,7 @@ class FallbackGate {
         );
       }
 
-      // Low confidence with no results - try LLM or clarify.
-      if ($this->isLlmEffectivelyEnabled()) {
-        return $this->buildDecision(
-          self::DECISION_FALLBACK_LLM,
-          self::REASON_NO_RESULTS,
-          0.3,
-          $details
-        );
-      }
-
+      // Low confidence with no results - clarify.
       return $this->buildDecision(
         self::DECISION_CLARIFY,
         self::REASON_NO_RESULTS,
@@ -472,27 +472,17 @@ class FallbackGate {
       );
     }
 
-    // Medium confidence - still answer but may want LLM enhancement.
+    // Medium confidence - still answer, but mark the result as borderline.
     if ($combined_conf >= $thresholds['combined_fallback_threshold']) {
       return $this->buildDecision(
         self::DECISION_ANSWER,
         self::REASON_BORDERLINE_CONF,
         $combined_conf,
-        array_merge($details, ['suggest_llm_enhancement' => TRUE])
+        array_merge($details, ['borderline_retrieval_confidence' => TRUE])
       );
     }
 
-    // Low confidence - fallback to LLM.
-    if ($this->isLlmEffectivelyEnabled()) {
-      return $this->buildDecision(
-        self::DECISION_FALLBACK_LLM,
-        self::REASON_LOW_RETRIEVAL_SCORE,
-        $combined_conf,
-        $details
-      );
-    }
-
-    // LLM disabled - clarify instead.
+    // Low confidence - clarify instead.
     return $this->buildDecision(
       self::DECISION_CLARIFY,
       self::REASON_LOW_RETRIEVAL_SCORE,
@@ -525,15 +515,6 @@ class FallbackGate {
     $has_conjunctions = preg_match('/\b(and|also|plus|or)\b/i', $message);
 
     if ($word_count > 10 && $has_conjunctions && $intent_conf < $thresholds['intent_high_conf']) {
-      if ($this->isLlmEffectivelyEnabled()) {
-        return $this->buildDecision(
-          self::DECISION_FALLBACK_LLM,
-          self::REASON_AMBIGUOUS_MULTI_INTENT,
-          $intent_conf,
-          array_merge($details, ['multi_intent_indicators' => TRUE])
-        );
-      }
-
       return $this->buildDecision(
         self::DECISION_CLARIFY,
         self::REASON_AMBIGUOUS_MULTI_INTENT,
@@ -801,7 +782,7 @@ class FallbackGate {
       self::REASON_LARGE_SCORE_GAP => 'Large score gap between top results indicates clear match',
       self::REASON_BORDERLINE_CONF => 'Borderline confidence - answer may benefit from enhancement',
       self::REASON_GREETING => 'Simple greeting detected',
-      self::REASON_LLM_DISABLED => 'LLM fallback unavailable - using clarification',
+      self::REASON_LLM_DISABLED => 'Request-time LLM fallback is unavailable - using clarification',
     ];
   }
 

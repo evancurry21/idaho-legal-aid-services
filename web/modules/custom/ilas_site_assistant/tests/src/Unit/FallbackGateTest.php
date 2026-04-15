@@ -39,7 +39,7 @@ class FallbackGateTest extends TestCase {
     $config->method('get')
       ->willReturnCallback(function ($key) {
         $values = [
-          'llm.enabled' => TRUE,
+          'llm.enabled' => FALSE,
           'fallback_gate.thresholds' => [],
         ];
         return $values[$key] ?? NULL;
@@ -74,9 +74,9 @@ class FallbackGateTest extends TestCase {
   }
 
   /**
-   * Tests unknown intent triggers fallback.
+   * Tests unknown intent now clarifies instead of using LLM fallback.
    */
-  public function testUnknownIntentFallback(): void {
+  public function testUnknownIntentClarifiesWhenFallbackRetired(): void {
     $intent = [
       'type' => 'unknown',
       'extraction' => [
@@ -89,8 +89,8 @@ class FallbackGateTest extends TestCase {
 
     $decision = $this->fallbackGate->evaluate($intent, [], [], ['message' => $message]);
 
-    $this->assertEquals(FallbackGate::DECISION_FALLBACK_LLM, $decision['decision']);
-    $this->assertEquals(FallbackGate::REASON_LOW_INTENT_CONF, $decision['reason_code']);
+    $this->assertEquals(FallbackGate::DECISION_CLARIFY, $decision['decision']);
+    $this->assertEquals(FallbackGate::REASON_LLM_DISABLED, $decision['reason_code']);
     $this->assertLessThan(0.50, $decision['confidence']);
   }
 
@@ -357,10 +357,10 @@ class FallbackGateTest extends TestCase {
 
     $decision = $this->fallbackGate->evaluate($intent, [], [], ['message' => $message]);
 
-    // Should still answer since we detected an intent, but may suggest LLM enhancement.
+    // Should still answer or clarify, but must never emit LLM fallback.
     $this->assertContains($decision['decision'], [
       FallbackGate::DECISION_ANSWER,
-      FallbackGate::DECISION_FALLBACK_LLM,
+      FallbackGate::DECISION_CLARIFY,
     ]);
   }
 
