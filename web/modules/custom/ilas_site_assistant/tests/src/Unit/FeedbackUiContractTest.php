@@ -50,6 +50,8 @@ class FeedbackUiContractTest extends TestCase {
     $source = self::readModuleFile('js/assistant-widget.js');
     $this->assertStringContainsString("'feedback_helpful'", $source);
     $this->assertStringContainsString("'feedback_not_helpful'", $source);
+    $this->assertStringContainsString('response_request_id', $source);
+    $this->assertStringContainsString('conversation_id', $source);
   }
 
   /**
@@ -82,6 +84,15 @@ class FeedbackUiContractTest extends TestCase {
     $this->assertStringContainsString('aria-label', $source);
     $this->assertStringContainsString("Drupal.t('Helpful')", $source);
     $this->assertStringContainsString("Drupal.t('Not helpful')", $source);
+  }
+
+  /**
+   * Tests that widget state carries the latest traced response request ID.
+   */
+  public function testWidgetJsPersistsLastResponseRequestId(): void {
+    $source = self::readModuleFile('js/assistant-widget.js');
+    $this->assertStringContainsString('lastResponseRequestId', $source);
+    $this->assertStringContainsString('response.request_id', $source);
   }
 
 }

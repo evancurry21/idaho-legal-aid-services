@@ -26,7 +26,7 @@ final class LangfusePayloadContract {
   /**
    * Required body keys for trace-create events.
    */
-  const REQUIRED_TRACE_BODY_KEYS = ['id', 'name'];
+  const REQUIRED_TRACE_BODY_KEYS = ['id', 'name', 'sessionId'];
 
   /**
    * Required body keys for span-create events.

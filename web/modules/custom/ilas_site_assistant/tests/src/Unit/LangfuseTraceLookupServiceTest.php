@@ -67,6 +67,8 @@ class LangfuseTraceLookupServiceTest extends TestCase {
         'createdAt' => '2026-03-18T00:00:01.000Z',
         'updatedAt' => '2026-03-18T00:00:02.000Z',
         'environment' => 'local',
+        'sessionId' => 'session-001',
+        'tags' => ['assistant', 'aila', 'message'],
         'input' => 'preview="My email is [REDACTED-EMAIL]" hash=abc len=25-99 redact=email',
         'output' => 'type=navigation reason=navigation_page_match preview="Call [REDACTED-PHONE] for help." hash=def len=25-99 redact=phone',
         'metadata' => [
@@ -90,6 +92,8 @@ class LangfuseTraceLookupServiceTest extends TestCase {
     $this->assertSame(200, $result['http_status']);
     $this->assertSame('assistant.message', $result['trace']['name']);
     $this->assertSame(2, $result['trace']['observation_count']);
+    $this->assertSame('session-001', $result['trace']['session_id']);
+    $this->assertSame(['assistant', 'aila', 'message'], $result['trace']['tags']);
     $this->assertSame('preview="My email is [REDACTED-EMAIL]" hash=abc len=25-99 redact=email', $result['trace']['input']);
     $this->assertTrue($result['trace']['request_path_fields']['vector_status']['present']);
     $this->assertSame('enabled_not_needed', $result['trace']['request_path_fields']['vector_status']['value']);

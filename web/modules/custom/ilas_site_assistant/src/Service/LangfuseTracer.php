@@ -81,6 +81,41 @@ class LangfuseTracer {
   protected array $traceMetadata = [];
 
   /**
+   * Stable Langfuse session identifier for the current trace.
+   *
+   * @var string
+   */
+  protected string $traceSessionId = '';
+
+  /**
+   * Optional Langfuse user identifier for the current trace.
+   *
+   * @var string
+   */
+  protected string $traceUserId = '';
+
+  /**
+   * Optional Langfuse tags for the current trace.
+   *
+   * @var array
+   */
+  protected array $traceTags = [];
+
+  /**
+   * Optional release label for the current trace.
+   *
+   * @var string
+   */
+  protected string $traceRelease = '';
+
+  /**
+   * Optional version or git SHA for the current trace.
+   *
+   * @var string
+   */
+  protected string $traceVersion = '';
+
+  /**
    * Optional trace input summary.
    *
    * @var mixed
@@ -227,7 +262,17 @@ class LangfuseTracer {
    * @param mixed $input
    *   Optional trace-level input summary.
    */
-  public function startTrace(string $traceId, string $name, array $metadata = [], mixed $input = NULL): void {
+  public function startTrace(
+    string $traceId,
+    string $name,
+    array $metadata = [],
+    mixed $input = NULL,
+    ?string $sessionId = NULL,
+    array $tags = [],
+    ?string $userId = NULL,
+    ?string $release = NULL,
+    ?string $version = NULL,
+  ): void {
     if (!$this->isEnabled()) {
       return;
     }
@@ -239,6 +284,14 @@ class LangfuseTracer {
       $this->traceTimestamp = $this->isoNow();
       $this->traceMetadata = $metadata;
       $this->traceInput = $input;
+      $this->traceSessionId = $sessionId ?? $traceId;
+      $this->traceTags = array_values(array_filter(array_map(
+        static fn($tag) => is_scalar($tag) ? trim((string) $tag) : '',
+        $tags,
+      )));
+      $this->traceUserId = $userId !== NULL ? trim($userId) : '';
+      $this->traceRelease = $release !== NULL ? trim($release) : '';
+      $this->traceVersion = $version !== NULL ? trim($version) : '';
       $this->traceFinalized = FALSE;
       $this->batch = [];
       $this->spanStack = [];
@@ -250,6 +303,87 @@ class LangfuseTracer {
         '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
       ]);
       $this->active = FALSE;
+    }
+  }
+
+  /**
+   * Merges additional metadata into the active trace.
+   *
+   * @param array $metadata
+   *   Additional metadata to merge.
+   */
+  public function appendTraceMetadata(array $metadata): void {
+    if (!$this->active || $metadata === []) {
+      return;
+    }
+
+    try {
+      $this->traceMetadata = array_merge($this->traceMetadata, $metadata);
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('Langfuse: appendTraceMetadata failed: @class @error_signature', [
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
+      ]);
+    }
+  }
+
+  /**
+   * Replaces the trace input summary after startTrace().
+   *
+   * @param mixed $input
+   *   Updated input summary.
+   */
+  public function setTraceInput(mixed $input): void {
+    if (!$this->active) {
+      return;
+    }
+
+    $this->traceInput = $input;
+  }
+
+  /**
+   * Updates trace context fields after startTrace().
+   *
+   * @param string|null $sessionId
+   *   Updated session ID.
+   * @param array|null $tags
+   *   Updated tags.
+   * @param string|null $userId
+   *   Updated user ID.
+   * @param string|null $release
+   *   Updated release label.
+   * @param string|null $version
+   *   Updated version label.
+   */
+  public function setTraceContext(
+    ?string $sessionId = NULL,
+    ?array $tags = NULL,
+    ?string $userId = NULL,
+    ?string $release = NULL,
+    ?string $version = NULL,
+  ): void {
+    if (!$this->active) {
+      return;
+    }
+
+    if ($sessionId !== NULL && trim($sessionId) !== '') {
+      $this->traceSessionId = trim($sessionId);
+    }
+    if ($tags !== NULL) {
+      $this->traceTags = array_values(array_filter(array_map(
+        static fn($tag) => is_scalar($tag) ? trim((string) $tag) : '',
+        $tags,
+      )));
+    }
+    if ($userId !== NULL) {
+      $this->traceUserId = trim($userId);
+    }
+    if ($release !== NULL) {
+      $this->traceRelease = trim($release);
+    }
+    if ($version !== NULL) {
+      $this->traceVersion = trim($version);
     }
   }
 
@@ -482,6 +616,63 @@ class LangfuseTracer {
   }
 
   /**
+   * Adds an event directly to an existing trace without creating a new trace.
+   *
+   * @param string $traceId
+   *   Existing trace ID to attach the event to.
+   * @param string $name
+   *   The event name.
+   * @param array $metadata
+   *   Event metadata.
+   * @param string $level
+   *   Event level.
+   */
+  public function recordEventForTrace(string $traceId, string $name, array $metadata = [], string $level = 'DEFAULT'): void {
+    if (!$this->isEnabled()) {
+      return;
+    }
+
+    try {
+      $timestamp = $this->isoNow();
+      $this->active = TRUE;
+      $this->traceId = $traceId;
+      $this->traceName = $name;
+      $this->traceTimestamp = $timestamp;
+      $this->traceMetadata = [];
+      $this->traceInput = NULL;
+      $this->traceSessionId = '';
+      $this->traceUserId = '';
+      $this->traceTags = [];
+      $this->traceRelease = '';
+      $this->traceVersion = '';
+      $this->spanStack = [];
+      $this->activeGeneration = NULL;
+      $this->batch = [[
+        'id' => $this->uuidGenerator->generate(),
+        'type' => 'event-create',
+        'timestamp' => $timestamp,
+        'body' => array_filter([
+          'id' => $this->uuidGenerator->generate(),
+          'traceId' => $traceId,
+          'name' => $name,
+          'level' => $level,
+          'metadata' => $metadata ?: NULL,
+          'startTime' => $timestamp,
+        ], fn($value) => $value !== NULL),
+      ]];
+      $this->traceFinalized = TRUE;
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('Langfuse: recordEventForTrace(@name) failed: @class @error_signature', [
+        '@name' => $name,
+        '@class' => get_class($e),
+        '@error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
+      ]);
+      $this->active = FALSE;
+    }
+  }
+
+  /**
    * Ends the trace and finalizes all accumulated data.
    *
    * Closes any open spans/generations. After this call, getTracePayload()
@@ -522,6 +713,11 @@ class LangfuseTracer {
         'id' => $this->traceId,
         'timestamp' => $this->traceTimestamp,
         'name' => $this->traceName,
+        'sessionId' => $this->traceSessionId,
+        'userId' => $this->traceUserId !== '' ? $this->traceUserId : NULL,
+        'tags' => $this->traceTags ?: NULL,
+        'release' => $this->traceRelease !== '' ? $this->traceRelease : NULL,
+        'version' => $this->traceVersion !== '' ? $this->traceVersion : NULL,
         'input' => $normalizedInput['display'],
         'output' => $normalizedOutput['display'],
         'metadata' => $mergedMetadata ?: NULL,

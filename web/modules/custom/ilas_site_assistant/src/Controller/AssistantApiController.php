@@ -630,11 +630,230 @@ class AssistantApiController extends ControllerBase {
    */
   private function resolveCorrelationId(Request $request): string {
     $header = $request->headers->get('X-Correlation-ID', '');
-    if ($header !== '' && preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i', $header)) {
+    if ($this->isUuidV4($header)) {
       return $header;
     }
     $uuid_generator = new UuidGenerator();
     return $uuid_generator->generate();
+  }
+
+  /**
+   * Returns TRUE when the provided value is a UUID v4.
+   */
+  private function isUuidV4(?string $value): bool {
+    return is_string($value) && (bool) preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i', $value);
+  }
+
+  /**
+   * Builds trace-level runtime metadata shared across Langfuse exits.
+   */
+  protected function buildLangfuseRuntimeContext(): array {
+    $config = $this->configFactory->get('ilas_site_assistant.settings');
+    $observability = Settings::get('ilas_observability', []);
+
+    return [
+      'environment' => (string) ($config->get('langfuse.environment') ?? 'production'),
+      'release' => is_array($observability) ? (string) ($observability['release'] ?? '') : '',
+      'git_sha' => is_array($observability) ? (string) ($observability['git_sha'] ?? '') : '',
+    ];
+  }
+
+  /**
+   * Builds the Langfuse session identifier for the current turn trace.
+   */
+  protected function buildLangfuseSessionId(?string $conversation_id, string $request_id): string {
+    if ($conversation_id !== NULL && $conversation_id !== '') {
+      return ObservabilityPayloadMinimizer::hashIdentifier($conversation_id);
+    }
+
+    return ObservabilityPayloadMinimizer::hashIdentifier($request_id);
+  }
+
+  /**
+   * Builds the default Langfuse tags for assistant traces.
+   */
+  protected function buildLangfuseTraceTags(string $endpoint, array $extra = []): array {
+    $tags = array_merge(['assistant', 'aila', $endpoint], $extra);
+
+    return array_values(array_unique(array_filter(array_map(static function ($tag): string {
+      return is_scalar($tag) ? trim((string) $tag) : '';
+    }, $tags))));
+  }
+
+  /**
+   * Builds base Langfuse metadata shared across endTrace() paths.
+   */
+  protected function buildLangfuseBaseTraceMetadata(string $request_id, ?string $conversation_id = NULL, array $extra = []): array {
+    $runtime = $this->buildLangfuseRuntimeContext();
+
+    $metadata = [
+      'request_id' => $request_id,
+      'surface' => 'assistant',
+      'conversation_hash' => $conversation_id !== NULL && $conversation_id !== ''
+        ? ObservabilityPayloadMinimizer::hashIdentifier($conversation_id)
+        : NULL,
+      'session_hash' => $this->buildLangfuseSessionId($conversation_id, $request_id),
+      'environment' => $runtime['environment'],
+      'release' => $runtime['release'],
+      'git_sha' => $runtime['git_sha'],
+    ];
+
+    return array_filter(array_merge($metadata, $extra), static fn($value) => $value !== NULL && $value !== '');
+  }
+
+  /**
+   * Returns flattened request-context metadata safe for Langfuse.
+   */
+  protected function buildLangfuseRequestContextMetadata(array $context): array {
+    $metadata = [];
+
+    if (!empty($context['quickAction']) && is_string($context['quickAction'])) {
+      $metadata['quick_action'] = $context['quickAction'];
+    }
+
+    if (!empty($context['selection']) && is_array($context['selection'])) {
+      $metadata['selection_button_id'] = trim((string) ($context['selection']['button_id'] ?? ''));
+      $metadata['selection_label'] = trim((string) ($context['selection']['label'] ?? ''));
+      $metadata['selection_parent_button_id'] = trim((string) ($context['selection']['parent_button_id'] ?? ''));
+      $metadata['selection_source'] = trim((string) ($context['selection']['source'] ?? ''));
+    }
+
+    return array_filter($metadata, static fn($value) => $value !== '');
+  }
+
+  /**
+   * Returns a bounded, redacted text string safe for Langfuse metadata.
+   */
+  protected function buildLangfuseBoundedRedactedText(string $text, int $maxLength = 1200): string {
+    return mb_substr(PiiRedactor::redactForStorage($text, max(1, $maxLength)), 0, max(1, $maxLength));
+  }
+
+  /**
+   * Extracts stable retrieval IDs for rerank and grounding evidence.
+   */
+  protected function extractRetrievalResultIds(array $results, int $limit = 10): array {
+    $ids = [];
+    foreach (array_slice($results, 0, max(1, $limit)) as $result) {
+      if (!is_array($result)) {
+        continue;
+      }
+      $id = (string) ($result['id'] ?? $result['paragraph_id'] ?? '');
+      if ($id !== '') {
+        $ids[] = $id;
+      }
+    }
+
+    return $ids;
+  }
+
+  /**
+   * Builds bounded retrieval evidence for Langfuse metadata/spans.
+   */
+  protected function buildRetrievalArtifactSummaries(array $results, int $limit = 5): array {
+    $artifacts = [];
+    foreach (array_slice($results, 0, max(1, $limit)) as $result) {
+      if (!is_array($result)) {
+        continue;
+      }
+
+      $artifact = [
+        'id' => $result['id'] ?? $result['paragraph_id'] ?? NULL,
+        'title' => trim((string) ($result['title'] ?? $result['question'] ?? '')),
+        'url' => trim((string) ($result['url'] ?? $result['source_url'] ?? '')),
+        'source_class' => trim((string) ($result['source_class'] ?? '')),
+        'source' => trim((string) ($result['source'] ?? '')),
+      ];
+      if (isset($result['score'])) {
+        $artifact['score'] = $result['score'];
+      }
+      $snippet = trim((string) ($result['snippet'] ?? $result['summary'] ?? $result['answer'] ?? ''));
+      if ($snippet !== '') {
+        $artifact['snippet'] = $this->buildLangfuseBoundedRedactedText($snippet, 320);
+      }
+
+      $artifacts[] = array_filter($artifact, static fn($value) => $value !== NULL && $value !== '');
+    }
+
+    return $artifacts;
+  }
+
+  /**
+   * Builds grounded source evidence attached to the response.
+   */
+  protected function buildGroundingSourceSummaries(array $response, int $limit = 5): array {
+    $sources = [];
+
+    foreach (array_slice((array) ($response['sources'] ?? []), 0, max(1, $limit)) as $source) {
+      if (!is_array($source)) {
+        continue;
+      }
+
+      $sources[] = array_filter([
+        'id' => $source['id'] ?? $source['paragraph_id'] ?? NULL,
+        'title' => trim((string) ($source['title'] ?? $source['label'] ?? '')),
+        'url' => trim((string) ($source['url'] ?? $source['source_url'] ?? '')),
+      ], static fn($value) => $value !== NULL && $value !== '');
+    }
+
+    foreach (array_slice((array) ($response['citations'] ?? []), 0, max(1, $limit)) as $citation) {
+      if (!is_array($citation)) {
+        continue;
+      }
+
+      $sources[] = array_filter([
+        'id' => $citation['id'] ?? $citation['paragraph_id'] ?? NULL,
+        'title' => trim((string) ($citation['title'] ?? $citation['label'] ?? '')),
+        'url' => trim((string) ($citation['url'] ?? $citation['source_url'] ?? '')),
+      ], static fn($value) => $value !== NULL && $value !== '');
+    }
+
+    return array_slice($sources, 0, max(1, $limit));
+  }
+
+  /**
+   * Builds rerank evidence safe for Langfuse spans and final trace metadata.
+   */
+  protected function buildRerankTraceMetadata(array $before_results, array $after_results, ?array $rerank_meta): array {
+    if ($rerank_meta === NULL) {
+      return [];
+    }
+
+    return array_filter([
+      'rerank_candidate_ids_before' => $this->extractRetrievalResultIds($before_results),
+      'rerank_candidate_ids_after' => $this->extractRetrievalResultIds($after_results),
+      'rerank_order_changed' => $rerank_meta['order_changed'] ?? NULL,
+      'rerank_score_delta' => $rerank_meta['score_delta'] ?? NULL,
+      'rerank_model' => $rerank_meta['model'] ?? NULL,
+      'rerank_latency_ms' => $rerank_meta['latency_ms'] ?? NULL,
+      'rerank_fallback_reason' => $rerank_meta['fallback_reason'] ?? NULL,
+    ], static function ($value): bool {
+      if (is_array($value)) {
+        return $value !== [];
+      }
+
+      return $value !== NULL && $value !== '';
+    });
+  }
+
+  /**
+   * Builds grounding evidence safe for Langfuse spans and final trace metadata.
+   */
+  protected function buildGroundingTraceMetadata(array $response): array {
+    return array_filter([
+      'grounding_sources' => $this->buildGroundingSourceSummaries($response),
+      '_grounding_weak' => !empty($response['_grounding_weak']) ? TRUE : NULL,
+      '_grounding_weak_reason' => $response['_grounding_weak_reason'] ?? NULL,
+      'freshness_enforcement_level' => $response['_freshness_enforcement'] ?? NULL,
+      'freshness_profile' => is_array($response['freshness_profile'] ?? NULL)
+        ? $response['freshness_profile']
+        : NULL,
+    ], static function ($value): bool {
+      if (is_array($value)) {
+        return $value !== [];
+      }
+
+      return $value !== NULL && $value !== '';
+    });
   }
 
   /**
@@ -1541,6 +1760,53 @@ class AssistantApiController extends ControllerBase {
     // Resolve correlation ID: accept inbound header or generate new UUID.
     $request_id = $this->resolveCorrelationId($request);
     $this->primePerformanceMonitoring($request, PerformanceMonitor::ENDPOINT_MESSAGE);
+    $start_time = microtime(TRUE);
+    $runtime_context = $this->buildLangfuseRuntimeContext();
+    $langfuse_base_metadata = $this->buildLangfuseBaseTraceMetadata($request_id, NULL, [
+      'endpoint' => 'message',
+      'turn_type' => 'unknown',
+      'history_length' => 0,
+    ]);
+    $langfuse_tags = $this->buildLangfuseTraceTags('message', ['turn']);
+    $this->langfuseTracer?->startTrace(
+      $request_id,
+      'assistant.message',
+      $langfuse_base_metadata,
+      NULL,
+      $this->buildLangfuseSessionId(NULL, $request_id),
+      $langfuse_tags,
+      NULL,
+      $runtime_context['release'] !== '' ? $runtime_context['release'] : NULL,
+      $runtime_context['git_sha'] !== '' ? $runtime_context['git_sha'] : NULL,
+    );
+    $this->langfuseTracer?->addEvent('request.entry', $langfuse_base_metadata);
+
+    $finish_validation_trace = function (array $response_body, int $status_code, string $reason_code, array $extra_metadata = []) use (&$langfuse_base_metadata, $start_time): void {
+      $response_type = (string) ($response_body['type'] ?? 'validation');
+      $this->langfuseTracer?->addEvent('request.validation_failed', array_merge(
+        $langfuse_base_metadata,
+        [
+          'status_code' => $status_code,
+          'reason_code' => $reason_code,
+          'response_type' => $response_type,
+        ],
+        $extra_metadata,
+      ), $status_code >= 500 ? 'ERROR' : 'WARNING');
+      $this->langfuseTracer?->endTrace(
+        output: NULL,
+        metadata: array_merge(
+          $langfuse_base_metadata,
+          [
+            'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
+            'success' => FALSE,
+            'status_code' => $status_code,
+            'response_type' => $response_type,
+            'reason_code' => $reason_code,
+          ],
+          $extra_metadata,
+        ),
+      );
+    };
 
     // Rate limiting — keyed by client IP.
     $config = $this->configFactory->get('ilas_site_assistant.settings');
@@ -1551,6 +1817,9 @@ class AssistantApiController extends ControllerBase {
     $per_hr = (int) ($config->get('rate_limit_per_hour') ?? 120);
 
     if (!$this->flood->isAllowed('ilas_assistant_min', $per_min, 60, $flood_id)) {
+      $finish_validation_trace([
+        'type' => 'rate_limit',
+      ], 429, 'rate_limit_minute');
       return $this->monitoredJsonResponse($request, PerformanceMonitor::ENDPOINT_MESSAGE, [
         'error' => 'Too many requests. Please wait a moment before trying again.',
         'type' => 'rate_limit',
@@ -1558,6 +1827,9 @@ class AssistantApiController extends ControllerBase {
       ], 429, ['Retry-After' => '60'], $request_id, FALSE, 'message.rate_limit_minute', TRUE);
     }
     if (!$this->flood->isAllowed('ilas_assistant_hr', $per_hr, 3600, $flood_id)) {
+      $finish_validation_trace([
+        'type' => 'rate_limit',
+      ], 429, 'rate_limit_hour');
       return $this->monitoredJsonResponse($request, PerformanceMonitor::ENDPOINT_MESSAGE, [
         'error' => 'You have reached the hourly limit. Please try again later.',
         'type' => 'rate_limit',
@@ -1570,6 +1842,7 @@ class AssistantApiController extends ControllerBase {
     // Validate content type.
     $content_type = (string) $request->headers->get('Content-Type', '');
     if (strpos($content_type, 'application/json') === FALSE) {
+      $finish_validation_trace([], 400, 'invalid_content_type');
       return $this->monitoredJsonResponse(
         $request,
         PerformanceMonitor::ENDPOINT_MESSAGE,
@@ -1586,6 +1859,7 @@ class AssistantApiController extends ControllerBase {
     // Parse request body.
     $content = $request->getContent();
     if (strlen($content) > 2000) {
+      $finish_validation_trace([], 413, 'request_too_large');
       return $this->monitoredJsonResponse(
         $request,
         PerformanceMonitor::ENDPOINT_MESSAGE,
@@ -1601,6 +1875,7 @@ class AssistantApiController extends ControllerBase {
 
     $data = json_decode($content, TRUE);
     if (json_last_error() !== JSON_ERROR_NONE || empty($data['message'])) {
+      $finish_validation_trace([], 400, 'invalid_request');
       return $this->monitoredJsonResponse(
         $request,
         PerformanceMonitor::ENDPOINT_MESSAGE,
@@ -1614,10 +1889,71 @@ class AssistantApiController extends ControllerBase {
       );
     }
 
+    // Parse ephemeral conversation ID (client-generated UUID).
+    $conversation_id = NULL;
+    $server_history = [];
+    $clarify_meta = [
+      'clarify_count' => 0,
+      'prior_question_hash' => '',
+      'updated_at' => 0,
+    ];
+    $selection_state = [
+      'active_selection' => NULL,
+      'last_menu_signature' => '',
+    ];
+    $active_selection = NULL;
+    $resolved_selection = NULL;
+    $selection_back_navigation = FALSE;
+
+    // Compute session fingerprint for conversation cache binding.
+    $session_fingerprint = '';
+    if ($request->hasSession() && $request->getSession()->isStarted()) {
+      $session_fingerprint = hash('sha256', $request->getSession()->getId());
+    }
+
+    if ($this->isUuidV4($data['conversation_id'] ?? NULL)) {
+      $conversation_id = $data['conversation_id'];
+      $cache_key = 'ilas_conv:' . $conversation_id;
+      $cached = $this->conversationCache->get($cache_key);
+      if ($cached) {
+        $cached_data = $cached->data;
+        $stored_fp = $cached_data['_session_fp'] ?? '';
+        if ($stored_fp !== '' && $session_fingerprint !== '' && $stored_fp !== $session_fingerprint) {
+          $this->logger->warning(
+            '[@request_id] Conversation cache session mismatch for @conv_id — treating as new conversation.',
+            ['@request_id' => $request_id, '@conv_id' => $conversation_id]
+          );
+        }
+        else {
+          $server_history = is_array($cached_data) ? array_filter($cached_data, 'is_int', ARRAY_FILTER_USE_KEY) : [];
+        }
+      }
+      $clarify_meta = $this->loadClarifyMeta($conversation_id);
+      $selection_state = $this->selectionStateStore->load($conversation_id, $session_fingerprint);
+      $active_selection = $this->normalizePersistedSelection($selection_state['active_selection'] ?? NULL);
+    }
+
+    $langfuse_base_metadata = $this->buildLangfuseBaseTraceMetadata($request_id, $conversation_id, [
+      'endpoint' => 'message',
+      'turn_type' => 'unknown',
+      'history_length' => count($server_history),
+    ]);
+    $this->langfuseTracer?->appendTraceMetadata($langfuse_base_metadata);
+    $this->langfuseTracer?->setTraceContext(
+      $this->buildLangfuseSessionId($conversation_id, $request_id),
+      $langfuse_tags,
+      NULL,
+      $runtime_context['release'] !== '' ? $runtime_context['release'] : NULL,
+      $runtime_context['git_sha'] !== '' ? $runtime_context['git_sha'] : NULL,
+    );
+
     try {
       $context = $this->normalizeRequestContext($data['context'] ?? NULL);
     }
     catch (\InvalidArgumentException $e) {
+      $finish_validation_trace([
+        'type' => 'validation',
+      ], 400, 'invalid_context');
       return $this->monitoredJsonResponse($request, PerformanceMonitor::ENDPOINT_MESSAGE, [
         'error' => 'Invalid request',
         'error_code' => 'invalid_context',
@@ -1632,13 +1968,19 @@ class AssistantApiController extends ControllerBase {
     $previous_time_limit = (int) ini_get('max_execution_time');
     set_time_limit(25);
 
-    // Start performance tracking.
-    $start_time = microtime(TRUE);
-
     try {
+
+    $context_trace_metadata = $this->buildLangfuseRequestContextMetadata($context);
+    if ($context_trace_metadata !== []) {
+      $langfuse_base_metadata = array_merge($langfuse_base_metadata, $context_trace_metadata);
+      $this->langfuseTracer?->appendTraceMetadata($context_trace_metadata);
+    }
 
     $user_message = $this->sanitizeInput($data['message']);
     if ($user_message === '') {
+      $finish_validation_trace([
+        'type' => 'validation',
+      ], 400, 'invalid_message', $context_trace_metadata);
       return $this->monitoredJsonResponse($request, PerformanceMonitor::ENDPOINT_MESSAGE, [
         'error' => 'Invalid request',
         'error_code' => 'invalid_message',
@@ -1651,19 +1993,14 @@ class AssistantApiController extends ControllerBase {
     // $user_message is kept intact for display, intent routing, and retrieval.
     $normalized_message = InputNormalizer::normalize($user_message);
     $langfuse_input = $this->buildLangfuseInputPayload($user_message);
-
-    // Start Langfuse trace (if enabled and sampled) after sanitization.
-    $this->langfuseTracer?->startTrace(
-      $request_id,
-      'assistant.message',
-      array_merge(
-        [
-          'environment' => $config->get('langfuse.environment') ?? 'production',
-        ],
-        $langfuse_input['metadata'],
-      ),
-      $langfuse_input['display'],
-    );
+    $this->langfuseTracer?->setTraceInput($langfuse_input['display']);
+    $this->langfuseTracer?->appendTraceMetadata(array_merge(
+      $langfuse_input['metadata'],
+      $context_trace_metadata,
+      [
+        'history_length' => count($server_history),
+      ],
+    ));
 
     // Check for DEBUG mode (server-side env var only).
     $debug_mode = $this->isDebugMode($request);
@@ -1689,94 +2026,47 @@ class AssistantApiController extends ControllerBase {
       'processing_stages' => [],
     ] : NULL;
 
-    // Parse ephemeral conversation ID (client-generated UUID).
-    $conversation_id = NULL;
-    $server_history = [];
-    $clarify_meta = [
-      'clarify_count' => 0,
-      'prior_question_hash' => '',
-      'updated_at' => 0,
-    ];
-    $selection_state = [
-      'active_selection' => NULL,
-      'last_menu_signature' => '',
-    ];
-    $active_selection = NULL;
-    $resolved_selection = NULL;
-    $selection_back_navigation = FALSE;
-
-    // Compute session fingerprint for conversation cache binding.
-    // Defense-in-depth: prevents UUID-based cache poisoning if a
-    // conversation ID leaks (logs, shared computers, Langfuse traces).
-    $session_fingerprint = '';
-    if ($request->hasSession() && $request->getSession()->isStarted()) {
-      $session_fingerprint = hash('sha256', $request->getSession()->getId());
-    }
-
-    if (!empty($data['conversation_id']) && preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i', $data['conversation_id'])) {
-      $conversation_id = $data['conversation_id'];
-      $cache_key = 'ilas_conv:' . $conversation_id;
-      $cached = $this->conversationCache->get($cache_key);
-      if ($cached) {
-        $cached_data = $cached->data;
-        // Verify session ownership. If the cache entry has a stored
-        // fingerprint and it differs from the current session, treat
-        // the conversation as new (do not load stale/foreign history).
-        $stored_fp = $cached_data['_session_fp'] ?? '';
-        if ($stored_fp !== '' && $session_fingerprint !== '' && $stored_fp !== $session_fingerprint) {
-          $this->logger->warning(
-            '[@request_id] Conversation cache session mismatch for @conv_id — treating as new conversation.',
-            ['@request_id' => $request_id, '@conv_id' => $conversation_id]
-          );
-        }
-        else {
-          $server_history = is_array($cached_data) ? array_filter($cached_data, 'is_int', ARRAY_FILTER_USE_KEY) : [];
-        }
-      }
-      $clarify_meta = $this->loadClarifyMeta($conversation_id);
-      $selection_state = $this->selectionStateStore->load($conversation_id, $session_fingerprint);
-      $active_selection = $this->normalizePersistedSelection($selection_state['active_selection'] ?? NULL);
-
-      // Abuse detection: repeated identical messages.
-      if (count($server_history) >= 3) {
-        $recent_messages = array_column(array_slice($server_history, -3), 'text');
-        if (count(array_unique($recent_messages)) === 1 && $recent_messages[0] === PiiRedactor::redactForStorage($user_message, 200)) {
-          $response_data = [
-            'type' => 'escalation',
-            'escalation_type' => 'repeated',
-            'message' => (string) $this->t('It looks like you may be having trouble. Please call our Legal Advice Line for direct assistance.'),
-            'actions' => $this->getEscalationActions(),
-            'request_id' => $request_id,
-          ];
-          $langfuse_output = $this->buildLangfuseOutputPayload(
-            (string) ($response_data['message'] ?? ''),
-            (string) ($response_data['type'] ?? 'unknown'),
-            'repeated_message_escalation',
-          );
-          $this->langfuseTracer?->endTrace(
-            output: $langfuse_output['display'],
-            metadata: array_merge(
-              [
-                'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
-                'success' => TRUE,
-                'response_type' => $response_data['type'] ?? 'unknown',
-                'reason_code' => 'repeated_message_escalation',
-              ],
-              $langfuse_output['metadata'],
-            ),
-          );
-          $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
-          return $this->monitoredJsonResponse(
-            $request,
-            PerformanceMonitor::ENDPOINT_MESSAGE,
-            $response_data,
-            200,
-            [],
-            $request_id,
-            TRUE,
-            'message.repeated_message_escalation',
-          );
-        }
+    // Abuse detection: repeated identical messages.
+    if ($conversation_id && count($server_history) >= 3) {
+      $recent_messages = array_column(array_slice($server_history, -3), 'text');
+      if (count(array_unique($recent_messages)) === 1 && $recent_messages[0] === PiiRedactor::redactForStorage($user_message, 200)) {
+        $response_data = [
+          'type' => 'escalation',
+          'escalation_type' => 'repeated',
+          'message' => (string) $this->t('It looks like you may be having trouble. Please call our Legal Advice Line for direct assistance.'),
+          'actions' => $this->getEscalationActions(),
+          'request_id' => $request_id,
+        ];
+        $langfuse_output = $this->buildLangfuseOutputPayload(
+          (string) ($response_data['message'] ?? ''),
+          (string) ($response_data['type'] ?? 'unknown'),
+          'repeated_message_escalation',
+        );
+        $this->langfuseTracer?->endTrace(
+          output: $langfuse_output['display'],
+          metadata: array_merge(
+            $langfuse_base_metadata,
+            [
+              'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
+              'success' => TRUE,
+              'response_type' => $response_data['type'] ?? 'unknown',
+              'reason_code' => 'repeated_message_escalation',
+              'fallback_path' => 'repeated_message_escalation',
+            ],
+            $langfuse_output['metadata'],
+          ),
+        );
+        $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
+        return $this->monitoredJsonResponse(
+          $request,
+          PerformanceMonitor::ENDPOINT_MESSAGE,
+          $response_data,
+          200,
+          [],
+          $request_id,
+          TRUE,
+          'message.repeated_message_escalation',
+        );
       }
     }
 
@@ -1914,9 +2204,11 @@ class AssistantApiController extends ControllerBase {
       $this->langfuseTracer?->endTrace(
         output: $langfuse_output['display'],
         metadata: array_merge(
+          $langfuse_base_metadata,
           [
             'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
             'success' => TRUE,
+            'fallback_path' => 'safety_exit',
           ],
           $safety_telemetry,
           $langfuse_output['metadata'],
@@ -2005,9 +2297,11 @@ class AssistantApiController extends ControllerBase {
       $this->langfuseTracer?->endTrace(
         output: $langfuse_output['display'],
         metadata: array_merge(
+          $langfuse_base_metadata,
           [
             'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
             'success' => TRUE,
+            'fallback_path' => 'out_of_scope_exit',
           ],
           $oos_telemetry,
           $langfuse_output['metadata'],
@@ -2081,9 +2375,11 @@ class AssistantApiController extends ControllerBase {
       $this->langfuseTracer?->endTrace(
         output: $langfuse_output['display'],
         metadata: array_merge(
+          $langfuse_base_metadata,
           [
             'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
             'success' => TRUE,
+            'fallback_path' => 'policy_exit',
           ],
           $policy_telemetry,
           $langfuse_output['metadata'],
@@ -2113,6 +2409,9 @@ class AssistantApiController extends ControllerBase {
     // Pending follow-up slot-fill: the runner owns state and flow-policy
     // decisions while the controller still owns response construction.
     if ($conversation_id) {
+      $this->langfuseTracer?->startSpan('flow.pending.evaluate', [
+        'history_length' => count($server_history),
+      ]);
       $pending_flow_decision = $this->assistantFlowRunner->evaluatePending([
         'conversation_id' => $conversation_id,
         'user_message' => $user_message,
@@ -2120,16 +2419,29 @@ class AssistantApiController extends ControllerBase {
         'is_explicit_office_followup' => $this->isExplicitOfficeFollowupTurn($user_message),
         'session_fingerprint' => $session_fingerprint,
       ]);
+      $pending_action = (string) ($pending_flow_decision['action'] ?? 'none');
+      $pending_status = (string) ($pending_flow_decision['status'] ?? 'continue');
+      $this->langfuseTracer?->endSpan([
+        'status' => $pending_status,
+        'action' => $pending_action,
+        'state_operation' => $pending_flow_decision['state_operation'] ?? NULL,
+      ]);
+      $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+        'pending_flow_action' => $pending_action,
+      ]);
+      $this->langfuseTracer?->appendTraceMetadata([
+        'pending_flow_action' => $pending_action,
+      ]);
 
       if (($pending_flow_decision['status'] ?? 'continue') === 'handled') {
         $this->applyOfficeFollowupStateDecision($conversation_id, $session_fingerprint, $pending_flow_decision);
 
         if (($pending_flow_decision['action'] ?? 'none') === 'resolve' && !empty($pending_flow_decision['office'])) {
-          return $this->handleOfficeFollowUp($request, $pending_flow_decision['office'], $user_message, $conversation_id, $server_history, $request_id, $debug_mode, $debug_meta, $start_time);
+          return $this->handleOfficeFollowUp($request, $pending_flow_decision['office'], $user_message, $conversation_id, $server_history, $request_id, $debug_mode, $debug_meta, $start_time, $langfuse_base_metadata);
         }
 
         if (($pending_flow_decision['action'] ?? 'none') === 'clarify' && !empty($pending_flow_decision['offices'])) {
-          return $this->handleOfficeFollowUpClarify($request, $pending_flow_decision['offices'], $user_message, $conversation_id, $server_history, $request_id, $debug_mode, $debug_meta, $start_time);
+          return $this->handleOfficeFollowUpClarify($request, $pending_flow_decision['offices'], $user_message, $conversation_id, $server_history, $request_id, $debug_mode, $debug_meta, $start_time, $langfuse_base_metadata);
         }
       }
 
@@ -2141,6 +2453,14 @@ class AssistantApiController extends ControllerBase {
     $this->langfuseTracer?->startSpan('intent.route');
     // Turn classification: determine NEW/FOLLOW_UP/INVENTORY/RESET before routing.
     $turn_type = TurnClassifier::classifyTurn($user_message, $server_history, time());
+    $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+      'turn_type' => $turn_type,
+      'history_length' => count($server_history),
+    ]);
+    $this->langfuseTracer?->appendTraceMetadata([
+      'turn_type' => $turn_type,
+      'history_length' => count($server_history),
+    ]);
     $this->langfuseTracer?->addEvent('turn.classified', [
       'turn_type' => $turn_type,
       'history_length' => count($server_history),
@@ -2161,6 +2481,12 @@ class AssistantApiController extends ControllerBase {
 
     $quick_action = $context['quickAction'] ?? NULL;
     if ($resolved_selection !== NULL) {
+      $this->langfuseTracer?->addEvent('selection.short_circuit', [
+        'selection_button_id' => $resolved_selection['button_id'] ?? NULL,
+        'selection_label' => $resolved_selection['label'] ?? NULL,
+        'selection_source' => $resolved_selection['source'] ?? NULL,
+        'selection_back_navigation' => $selection_back_navigation,
+      ]);
       $intent = $this->buildSelectionIntent($resolved_selection, $user_message, $selection_back_navigation);
 
       if ($debug_mode) {
@@ -2173,6 +2499,9 @@ class AssistantApiController extends ControllerBase {
       }
     }
     elseif ($quick_action && isset(self::REQUEST_CONTEXT_QUICK_ACTIONS[$quick_action])) {
+      $this->langfuseTracer?->addEvent('quick_action.short_circuit', [
+        'quick_action' => $quick_action,
+      ]);
       $intent = [
         'type' => self::REQUEST_CONTEXT_QUICK_ACTIONS[$quick_action],
         'confidence' => 1.0,
@@ -2394,6 +2723,16 @@ class AssistantApiController extends ControllerBase {
     }
 
     $topic_context = HistoryIntentResolver::extractTopicContext($server_history);
+    $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+      'intent_type' => $intent['type'] ?? 'unknown',
+      'intent_source' => $intent['source'] ?? 'direct',
+      'history_fallback_used' => ($intent['source'] ?? '') === 'history_fallback',
+    ]);
+    $this->langfuseTracer?->appendTraceMetadata([
+      'intent_type' => $intent['type'] ?? 'unknown',
+      'intent_source' => $intent['source'] ?? 'direct',
+      'history_fallback_used' => ($intent['source'] ?? '') === 'history_fallback',
+    ]);
     $this->langfuseTracer?->endSpan([
       'type' => $intent['type'] ?? 'unknown',
       'confidence' => $intent['confidence'] ?? NULL,
@@ -2411,7 +2750,11 @@ class AssistantApiController extends ControllerBase {
       $early_retrieval = $this->faqIndex->search($user_message, 3);
     }
     $top_score = !empty($early_retrieval) ? ($early_retrieval[0]['score'] ?? NULL) : NULL;
-    $this->langfuseTracer?->endSpan(['result_count' => count($early_retrieval), 'top_score' => $top_score]);
+    $this->langfuseTracer?->endSpan([
+      'result_count' => count($early_retrieval),
+      'top_score' => $top_score,
+      'retrieval_artifacts' => $this->buildRetrievalArtifactSummaries($early_retrieval, 3),
+    ]);
 
     // Evaluate fallback gate to decide: answer, clarify, or hard-route.
     $this->langfuseTracer?->startSpan('gate.evaluate');
@@ -2483,7 +2826,53 @@ class AssistantApiController extends ControllerBase {
       }
     }
     elseif (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_FALLBACK_LLM) {
-      $llm_classification = $this->llmEnhancer->classifyIntent($user_message, (string) ($intent['type'] ?? 'unknown'), $ip ?: NULL);
+      $llm_provider = $this->llmEnhancer->getProviderId();
+      $llm_model = $this->llmEnhancer->getModelId();
+      $llm_current_intent = (string) ($intent['type'] ?? 'unknown');
+      $llm_params = [
+        'temperature' => max(0.0, min(0.4, (float) ($config->get('llm.temperature') ?? 0.3))),
+        'max_tokens' => max(32, min(128, (int) ($config->get('llm.max_tokens') ?? 150))),
+      ];
+      $this->langfuseTracer?->startGeneration(
+        'llm.intent_classification',
+        $llm_model,
+        $llm_params + ['provider' => $llm_provider],
+        [
+          'provider' => $llm_provider,
+          'model' => $llm_model,
+          'current_intent' => $llm_current_intent,
+          'messages_redacted' => [
+            [
+              'role' => 'system',
+              'content' => $this->buildLangfuseBoundedRedactedText('You classify incoming messages for a public legal aid assistant.', 200),
+            ],
+            [
+              'role' => 'user',
+              'content' => $this->buildLangfuseBoundedRedactedText("User message:\n" . $user_message, 600),
+            ],
+          ],
+        ],
+      );
+      $llm_classification = $this->llmEnhancer->classifyIntent($user_message, $llm_current_intent, $ip ?: NULL);
+      $llm_route_resolution = ($llm_classification !== 'unknown' && $llm_classification !== 'clarify')
+        ? 'rerouted'
+        : 'clarify';
+      $this->langfuseTracer?->endGeneration([
+        'provider' => $llm_provider,
+        'model' => $llm_model,
+        'classification' => $llm_classification,
+        'route_resolution' => $llm_route_resolution,
+        'changed_route' => $llm_classification !== $llm_current_intent,
+      ], $this->llmEnhancer->getLastUsage() ?? []);
+      $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+        'llm_provider' => $llm_provider,
+        'llm_model' => $llm_model,
+      ]);
+      $this->langfuseTracer?->appendTraceMetadata([
+        'llm_provider' => $llm_provider,
+        'llm_model' => $llm_model,
+        'llm_route_resolution' => $llm_route_resolution,
+      ]);
 
       if ($llm_classification !== 'unknown' && $llm_classification !== 'clarify') {
         $intent = [
@@ -2542,14 +2931,31 @@ class AssistantApiController extends ControllerBase {
 
     // Apply Voyage AI reranking (if enabled, after retrieval, before grounding).
     $rerank_meta = NULL;
+    $rerank_trace = [];
     if ($this->voyageReranker && !empty($response['results'])
         && count($response['results']) >= 2
         && in_array($response['type'] ?? '', ResponseGrounder::CITATION_REQUIRED_TYPES, TRUE)) {
-      $this->langfuseTracer?->startSpan('rerank.voyage');
+      $rerank_results_before = $response['results'];
+      $this->langfuseTracer?->startSpan('rerank.voyage', [
+        'candidate_count_before' => count($rerank_results_before),
+      ], [
+        'candidate_ids_before' => $this->extractRetrievalResultIds($rerank_results_before),
+      ]);
       $rerank_result = $this->voyageReranker->rerank($user_message, $response['results']);
       $response['results'] = $rerank_result['items'];
       $rerank_meta = $rerank_result['meta'];
-      $this->langfuseTracer?->endSpan($rerank_meta);
+      $rerank_trace = $this->buildRerankTraceMetadata($rerank_results_before, $response['results'], $rerank_meta);
+      $this->langfuseTracer?->endSpan([
+        'applied' => $rerank_meta['applied'] ?? FALSE,
+        'order_changed' => $rerank_meta['order_changed'] ?? FALSE,
+        'score_delta' => $rerank_meta['score_delta'] ?? NULL,
+        'model' => $rerank_meta['model'] ?? NULL,
+        'latency_ms' => $rerank_meta['latency_ms'] ?? NULL,
+        'fallback_reason' => $rerank_meta['fallback_reason'] ?? NULL,
+      ], $rerank_trace);
+      if ($rerank_trace !== []) {
+        $this->langfuseTracer?->appendTraceMetadata($rerank_trace);
+      }
       if ($debug_mode) {
         $debug_meta['processing_stages'][] = ($rerank_meta['applied'] ?? FALSE)
           ? 'voyage_reranked' : 'voyage_skipped';
@@ -2558,12 +2964,25 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Apply response grounding (add citations, validate info).
+    $grounding_trace = [];
     if ($this->responseGrounder && !empty($response['results'])) {
-      $this->langfuseTracer?->startSpan('response.ground');
+      $this->langfuseTracer?->startSpan('response.ground', [
+        'result_count' => count($response['results']),
+      ], [
+        'result_ids' => $this->extractRetrievalResultIds($response['results']),
+      ]);
       $response = $this->responseGrounder->groundResponse($response, $response['results']);
+      $grounding_trace = $this->buildGroundingTraceMetadata($response);
       $this->langfuseTracer?->endSpan([
         'citations_added' => !empty($response['sources']),
-      ]);
+        'grounding_source_count' => count($grounding_trace['grounding_sources'] ?? []),
+        '_grounding_weak' => !empty($response['_grounding_weak']),
+        '_grounding_weak_reason' => $response['_grounding_weak_reason'] ?? NULL,
+        'freshness_enforcement_level' => $response['_freshness_enforcement'] ?? NULL,
+      ], $grounding_trace);
+      if ($grounding_trace !== []) {
+        $this->langfuseTracer?->appendTraceMetadata($grounding_trace);
+      }
       if ($debug_mode) {
         $debug_meta['processing_stages'][] = 'response_grounded';
       }
@@ -2613,6 +3032,14 @@ class AssistantApiController extends ControllerBase {
     // times in a conversation, force a deterministic loop-break response.
     if ($conversation_id) {
       $response = $this->applyClarifyLoopGuard($response, $conversation_id, $request_id, $clarify_meta);
+      if (($response['type'] ?? '') === 'clarify_loop_break') {
+        $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+          'clarify_loop_break' => TRUE,
+        ]);
+        $this->langfuseTracer?->appendTraceMetadata([
+          'clarify_loop_break' => TRUE,
+        ]);
+      }
       if ($debug_mode) {
         $debug_meta['clarify_loop_meta'] = $this->loadClarifyMeta($conversation_id);
       }
@@ -2633,14 +3060,21 @@ class AssistantApiController extends ControllerBase {
     $response_menu_signature = $this->buildMenuSignature($response);
 
     // Log the interaction.
+    $analytics_events = [];
+    $this->langfuseTracer?->startSpan('analytics.persist', [
+      'intent_type' => $intent['type'] ?? 'unknown',
+    ]);
     $this->analyticsLogger->log($intent['type'], $intent['value'] ?? '');
+    $analytics_events[] = (string) ($intent['type'] ?? 'unknown');
     if (($intent['type'] ?? '') === 'disambiguation') {
       $this->analyticsLogger->logDisambiguation($intent, $user_message);
+      $analytics_events[] = 'disambiguation';
     }
 
     // Log history fallback usage for observability.
     if (($intent['source'] ?? '') === 'history_fallback') {
       $this->analyticsLogger->log('history_fallback_used', $intent['type']);
+      $analytics_events[] = 'history_fallback_used';
     }
 
     $gap_item_id = NULL;
@@ -2668,16 +3102,31 @@ class AssistantApiController extends ControllerBase {
     // Check if we found any results.
     if (empty($response['results']) && $response['type'] !== 'navigation') {
       $gap_item_id = $this->analyticsLogger->logNoAnswer($user_message, $governance_context);
+      $analytics_events[] = 'no_answer';
 
       if ($debug_mode) {
         $debug_meta['reason_code'] = 'no_results_found';
       }
     }
+    $this->langfuseTracer?->endSpan([
+      'event_count' => count($analytics_events),
+      'gap_item_id' => $gap_item_id,
+      'no_answer_logged' => $gap_item_id !== NULL,
+    ], [
+      'events' => $analytics_events,
+    ]);
 
     // Attach debug metadata if enabled.
     if ($debug_mode) {
       $debug_meta['processing_stages'][] = 'response_complete';
       $response['_debug'] = $debug_meta;
+    }
+
+    $conversation_logger_written = FALSE;
+    if ($conversation_id || $this->conversationLogger) {
+      $this->langfuseTracer?->startSpan('conversation.persist', [
+        'has_conversation_id' => !empty($conversation_id),
+      ]);
     }
 
     if ($conversation_id) {
@@ -2762,6 +3211,17 @@ class AssistantApiController extends ControllerBase {
           'is_no_answer' => $gap_item_id !== NULL,
         ],
       );
+      $conversation_logger_written = TRUE;
+    }
+
+    if ($conversation_id || $this->conversationLogger) {
+      $this->langfuseTracer?->endSpan([
+        'conversation_persisted' => !empty($conversation_id),
+        'history_length_saved' => $conversation_id ? count($server_history) : 0,
+        'selection_state_saved' => !empty($conversation_id),
+        'conversation_logger_written' => $conversation_logger_written,
+        'ab_assignments_saved' => !empty($ab_assignments),
+      ]);
     }
 
     // Attach A/B variant assignments to response for frontend consumption.
@@ -2785,6 +3245,11 @@ class AssistantApiController extends ControllerBase {
 
     $duration_ms = (microtime(TRUE) - $start_time) * 1000;
     $response['request_id'] = $request_id;
+    if (($response['type'] ?? '') === 'clarify_no_grounding') {
+      $this->langfuseTracer?->appendTraceMetadata([
+        'grounding_refusal_reason' => $response['decision_reason'] ?? $response['reason_code'] ?? 'clarify_no_grounding',
+      ]);
+    }
     // Include turn_type in response metadata when not a default NEW turn.
     if ($turn_type !== TurnClassifier::TURN_NEW) {
       $response['turn_type'] = $turn_type;
@@ -2813,30 +3278,47 @@ class AssistantApiController extends ControllerBase {
     }
 
     $retrieval_trace = $this->collectRetrievalTraceMetadata($response);
-    $this->langfuseTracer?->addEvent('request.complete', [
-      'intent_type' => $intent['type'] ?? 'unknown',
-      'response_type' => $response['type'] ?? 'unknown',
-      'is_quick_action' => $is_quick_action,
-    ] + $retrieval_trace);
+    $this->langfuseTracer?->addEvent('request.complete', array_merge(
+      $langfuse_base_metadata,
+      [
+        'intent_type' => $intent['type'] ?? 'unknown',
+        'response_type' => $response['type'] ?? 'unknown',
+        'is_quick_action' => $is_quick_action,
+      ],
+      $retrieval_trace,
+      $rerank_trace,
+      $grounding_trace,
+    ));
     $langfuse_output = $this->buildLangfuseOutputPayload(
       (string) ($response['message'] ?? ''),
       (string) ($response['type'] ?? 'unknown'),
       $response['reason_code'] ?? NULL,
     );
+    $this->langfuseTracer?->addEvent('response.finalize', array_merge(
+      $langfuse_base_metadata,
+      [
+        'status_code' => 200,
+        'response_type' => $response['type'] ?? 'unknown',
+        'reason_code' => $response['reason_code'] ?? NULL,
+      ],
+      $langfuse_output['metadata'],
+    ));
     $this->langfuseTracer?->endTrace(
       output: $langfuse_output['display'],
       metadata: array_merge(
+        $langfuse_base_metadata,
         [
           'duration_ms' => $duration_ms,
           'success' => TRUE,
           'intent_type' => $intent['type'] ?? 'unknown',
           'response_type' => $response['type'] ?? 'unknown',
           'is_quick_action' => $is_quick_action,
-          'conversation_hash' => $conversation_id ? hash('sha256', $conversation_id) : NULL,
           'turn_type' => $turn_type,
           'fallback_level' => $response['fallback_level'] ?? NULL,
         ],
         $retrieval_trace,
+        $rerank_trace,
+        $grounding_trace,
         $success_telemetry,
         $langfuse_output['metadata'],
       )
@@ -2877,22 +3359,42 @@ class AssistantApiController extends ControllerBase {
       }
 
       $retrieval_trace = $this->collectRetrievalTraceMetadata($response);
-      $this->langfuseTracer?->addEvent('retrieval.unavailable', [
-        'service' => $e->getService(),
-        'reason_code' => $e->getReasonCode(),
-      ] + $retrieval_trace, 'WARNING');
+      $this->langfuseTracer?->addEvent('retrieval.unavailable', array_merge(
+        $langfuse_base_metadata,
+        [
+          'service' => $e->getService(),
+          'reason_code' => $e->getReasonCode(),
+          'response_type' => $response['type'] ?? 'navigation',
+          'fallback_path' => 'retrieval_unavailable',
+        ],
+        $retrieval_trace,
+      ), 'WARNING');
       $langfuse_output = $this->buildLangfuseOutputPayload(
         (string) ($response['message'] ?? ''),
         (string) ($response['type'] ?? 'navigation'),
         $response['reason_code'] ?? NULL,
       );
+      $this->langfuseTracer?->addEvent('response.finalize', array_merge(
+        $langfuse_base_metadata,
+        [
+          'status_code' => 200,
+          'response_type' => $response['type'] ?? 'navigation',
+          'reason_code' => $response['reason_code'] ?? NULL,
+          'fallback_path' => 'retrieval_unavailable',
+        ],
+        $langfuse_output['metadata'],
+      ), 'WARNING');
       $this->langfuseTracer?->endTrace(
         output: $langfuse_output['display'],
         metadata: array_merge(
+          $langfuse_base_metadata,
           [
             'success' => FALSE,
             'degraded' => TRUE,
             'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
+            'response_type' => $response['type'] ?? 'navigation',
+            'reason_code' => $response['reason_code'] ?? NULL,
+            'fallback_path' => 'retrieval_unavailable',
           ],
           $retrieval_trace,
           $langfuse_output['metadata'],
@@ -2944,18 +3446,35 @@ class AssistantApiController extends ControllerBase {
 
       // End Langfuse trace on error.
       $retrieval_trace = $this->collectRetrievalTraceMetadata([]);
-      $this->langfuseTracer?->addEvent('error', [
-        'class' => get_class($e),
-        'error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
-      ] + $retrieval_trace, 'ERROR');
+      $this->langfuseTracer?->addEvent('error', array_merge(
+        $langfuse_base_metadata,
+        [
+          'class' => get_class($e),
+          'error_signature' => ObservabilityPayloadMinimizer::exceptionSignature($e),
+          'fallback_path' => 'error',
+          'response_type' => 'internal_error',
+        ],
+        $retrieval_trace,
+      ), 'ERROR');
       $langfuse_output = $this->buildLangfuseOutputPayload(
         'Something went wrong. Please try again or contact us directly.',
         'internal_error',
         'internal_error',
       );
+      $this->langfuseTracer?->addEvent('response.finalize', array_merge(
+        $langfuse_base_metadata,
+        [
+          'status_code' => 500,
+          'response_type' => 'internal_error',
+          'reason_code' => 'internal_error',
+          'fallback_path' => 'error',
+        ],
+        $langfuse_output['metadata'],
+      ), 'ERROR');
       $this->langfuseTracer?->endTrace(
         output: $langfuse_output['display'],
         metadata: array_merge(
+          $langfuse_base_metadata,
           [
             'success' => FALSE,
             'error' => get_class($e),
@@ -3089,6 +3608,9 @@ class AssistantApiController extends ControllerBase {
 
     $event_type = $this->sanitizeInput($data['event_type'] ?? '');
     $event_value = $this->sanitizeInput($data['event_value'] ?? '');
+    $conversation_id = $this->sanitizeInput($data['conversation_id'] ?? '');
+    $response_request_id = $this->sanitizeInput($data['response_request_id'] ?? '');
+    $response_type = $this->sanitizeInput($data['response_type'] ?? '');
 
     if (empty($event_type)) {
       return $this->monitoredJsonResponse(
@@ -3115,6 +3637,30 @@ class AssistantApiController extends ControllerBase {
 
     if (in_array($event_type, $allowed_types)) {
       $this->analyticsLogger->log($event_type, $event_value);
+
+      if (
+        in_array($event_type, ['feedback_helpful', 'feedback_not_helpful'], TRUE)
+        && $this->isUuidV4($response_request_id)
+      ) {
+        $feedback_metadata = $this->buildLangfuseBaseTraceMetadata(
+          $response_request_id,
+          $this->isUuidV4($conversation_id) ? $conversation_id : NULL,
+          [
+            'surface' => 'assistant',
+            'feedback_value' => $event_type === 'feedback_helpful' ? 'helpful' : 'not_helpful',
+            'feedback_response_request_id' => $response_request_id,
+            'response_type' => $response_type !== '' ? $response_type : NULL,
+            'track_request_id' => $request_id,
+            'track_event_type' => $event_type,
+          ],
+        );
+        $this->langfuseTracer?->recordEventForTrace(
+          $response_request_id,
+          'feedback.received',
+          $feedback_metadata,
+        );
+      }
+
       return $this->monitoredJsonResponse(
         $request,
         PerformanceMonitor::ENDPOINT_TRACK,
@@ -3483,6 +4029,8 @@ class AssistantApiController extends ControllerBase {
       ))),
       'degraded_reason' => $degraded_reason,
       'retrieval_operations' => array_slice($operations, 0, 6),
+      'retrieval_artifacts' => $this->buildRetrievalArtifactSummaries($results),
+      'grounding_sources' => $this->buildGroundingSourceSummaries($response),
     ];
   }
 
@@ -5213,6 +5761,7 @@ class AssistantApiController extends ControllerBase {
   protected function buildLangfuseInputPayload(string $text): array {
     $metadata = ObservabilityPayloadMinimizer::buildTextMetadata($text);
     $preview = $this->buildLangfuseRedactedPreview($text);
+    $normalized_redacted = ObservabilityPayloadMinimizer::normalizeRedactedText($text);
 
     $display = sprintf(
       'hash=%s len=%s redact=%s',
@@ -5237,6 +5786,8 @@ class AssistantApiController extends ControllerBase {
         'input_length_bucket' => $metadata['length_bucket'],
         'input_redaction_profile' => $metadata['redaction_profile'],
         'input_preview_redacted' => $preview,
+        'user_text_redacted' => $this->buildLangfuseBoundedRedactedText($text),
+        'user_text_normalized_redacted' => mb_substr($normalized_redacted, 0, 1200),
       ],
     ];
   }
@@ -5277,6 +5828,7 @@ class AssistantApiController extends ControllerBase {
         'output_length_bucket' => $metadata['length_bucket'],
         'output_redaction_profile' => $metadata['redaction_profile'],
         'output_preview_redacted' => $preview,
+        'assistant_text_redacted' => $this->buildLangfuseBoundedRedactedText($text),
       ],
     ];
   }
@@ -5573,11 +6125,13 @@ class AssistantApiController extends ControllerBase {
    *   Whether debug mode is enabled.
    * @param array|null $debug_meta
    *   Debug metadata array or NULL.
+   * @param array $langfuse_base_metadata
+   *   Shared Langfuse trace metadata accumulated before the follow-up branch.
    *
    * @return \Symfony\Component\HttpFoundation\JsonResponse
    *   JSON response with office details.
    */
-  protected function handleOfficeFollowUp(Request $request, array $office, string $user_message, string $conversation_id, array $server_history, string $request_id, bool $debug_mode, ?array $debug_meta, float $start_time): JsonResponse {
+  protected function handleOfficeFollowUp(Request $request, array $office, string $user_message, string $conversation_id, array $server_history, string $request_id, bool $debug_mode, ?array $debug_meta, float $start_time, array $langfuse_base_metadata = []): JsonResponse {
     $response = [
       'type' => 'office_location',
       'response_mode' => 'navigate',
@@ -5616,9 +6170,21 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Log analytics.
+    $this->langfuseTracer?->startSpan('analytics.persist', [
+      'intent_type' => 'office_location_followup',
+    ]);
     $this->analyticsLogger->log('office_location_followup', (string) ($office['url'] ?? ''));
+    $this->langfuseTracer?->endSpan([
+      'event_count' => 1,
+      'no_answer_logged' => FALSE,
+    ], [
+      'events' => ['office_location_followup'],
+    ]);
 
     // Store conversation turn.
+    $this->langfuseTracer?->startSpan('conversation.persist', [
+      'has_conversation_id' => TRUE,
+    ]);
     $server_history[] = [
       'role' => 'user',
       'text' => PiiRedactor::redactForStorage($user_message, 200),
@@ -5638,6 +6204,7 @@ class AssistantApiController extends ControllerBase {
     );
 
     // Conversation logger.
+    $conversation_logger_written = FALSE;
     if ($this->conversationLogger) {
       $this->conversationLogger->logExchange(
         $conversation_id,
@@ -5647,22 +6214,50 @@ class AssistantApiController extends ControllerBase {
         'office_location',
         $request_id
       );
+      $conversation_logger_written = TRUE;
     }
+    $this->langfuseTracer?->endSpan([
+      'conversation_persisted' => TRUE,
+      'history_length_saved' => count($server_history),
+      'selection_state_saved' => FALSE,
+      'conversation_logger_written' => $conversation_logger_written,
+      'ab_assignments_saved' => FALSE,
+    ]);
 
     $langfuse_output = $this->buildLangfuseOutputPayload(
       (string) ($response['message'] ?? ''),
       (string) ($response['type'] ?? 'unknown'),
       $response['reason_code'] ?? NULL,
     );
+    $office_trace_metadata = array_merge($langfuse_base_metadata, [
+      'intent_type' => 'office_location_followup',
+      'intent_source' => 'followup_slot_fill',
+      'turn_type' => TurnClassifier::classifyTurn($user_message, $server_history, time()),
+      'history_length' => count($server_history),
+      'response_type' => $response['type'] ?? 'unknown',
+      'reason_code' => $response['reason_code'] ?? NULL,
+      'followup_type' => 'office_location',
+      'office_followup_branch' => 'resolved',
+      'fallback_path' => 'office_followup_resolved',
+    ]);
+    $this->langfuseTracer?->addEvent('request.complete', array_merge(
+      $office_trace_metadata,
+      $langfuse_output['metadata'],
+    ));
+    $this->langfuseTracer?->addEvent('response.finalize', array_merge(
+      $office_trace_metadata,
+      [
+        'status_code' => 200,
+      ],
+      $langfuse_output['metadata'],
+    ));
     $this->langfuseTracer?->endTrace(
       output: $langfuse_output['display'],
       metadata: array_merge(
+        $office_trace_metadata,
         [
           'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
           'success' => TRUE,
-          'response_type' => $response['type'] ?? 'unknown',
-          'reason_code' => $response['reason_code'] ?? NULL,
-          'followup_type' => 'office_location',
         ],
         $langfuse_output['metadata'],
       ),
@@ -5697,11 +6292,13 @@ class AssistantApiController extends ControllerBase {
    *   Whether debug mode is enabled.
    * @param array|null $debug_meta
    *   Debug metadata array or NULL.
+   * @param array $langfuse_base_metadata
+   *   Shared Langfuse trace metadata accumulated before the follow-up branch.
    *
    * @return \Symfony\Component\HttpFoundation\JsonResponse
    *   JSON response with all offices for clarification.
    */
-  protected function handleOfficeFollowUpClarify(Request $request, array $all_offices, string $user_message, string $conversation_id, array $server_history, string $request_id, bool $debug_mode, ?array $debug_meta, float $start_time): JsonResponse {
+  protected function handleOfficeFollowUpClarify(Request $request, array $all_offices, string $user_message, string $conversation_id, array $server_history, string $request_id, bool $debug_mode, ?array $debug_meta, float $start_time, array $langfuse_base_metadata = []): JsonResponse {
     $offices_list = [];
     foreach ($all_offices as $office) {
       $offices_list[] = [
@@ -5735,9 +6332,21 @@ class AssistantApiController extends ControllerBase {
     }
 
     // Log analytics.
+    $this->langfuseTracer?->startSpan('analytics.persist', [
+      'intent_type' => 'office_location_followup',
+    ]);
     $this->analyticsLogger->log('office_location_followup_miss', 'unresolved');
+    $this->langfuseTracer?->endSpan([
+      'event_count' => 1,
+      'no_answer_logged' => FALSE,
+    ], [
+      'events' => ['office_location_followup_miss'],
+    ]);
 
     // Store conversation turn.
+    $this->langfuseTracer?->startSpan('conversation.persist', [
+      'has_conversation_id' => TRUE,
+    ]);
     $server_history[] = [
       'role' => 'user',
       'text' => PiiRedactor::redactForStorage($user_message, 200),
@@ -5757,6 +6366,7 @@ class AssistantApiController extends ControllerBase {
     );
 
     // Conversation logger.
+    $conversation_logger_written = FALSE;
     if ($this->conversationLogger) {
       $this->conversationLogger->logExchange(
         $conversation_id,
@@ -5766,22 +6376,50 @@ class AssistantApiController extends ControllerBase {
         'office_location_clarify',
         $request_id
       );
+      $conversation_logger_written = TRUE;
     }
+    $this->langfuseTracer?->endSpan([
+      'conversation_persisted' => TRUE,
+      'history_length_saved' => count($server_history),
+      'selection_state_saved' => FALSE,
+      'conversation_logger_written' => $conversation_logger_written,
+      'ab_assignments_saved' => FALSE,
+    ]);
 
     $langfuse_output = $this->buildLangfuseOutputPayload(
       (string) ($response['message'] ?? ''),
       (string) ($response['type'] ?? 'unknown'),
       $response['reason_code'] ?? NULL,
     );
+    $office_trace_metadata = array_merge($langfuse_base_metadata, [
+      'intent_type' => 'office_location_followup',
+      'intent_source' => 'followup_slot_fill',
+      'turn_type' => TurnClassifier::classifyTurn($user_message, $server_history, time()),
+      'history_length' => count($server_history),
+      'response_type' => $response['type'] ?? 'unknown',
+      'reason_code' => $response['reason_code'] ?? NULL,
+      'followup_type' => 'office_location_clarify',
+      'office_followup_branch' => 'clarify',
+      'fallback_path' => 'office_followup_clarify',
+    ]);
+    $this->langfuseTracer?->addEvent('request.complete', array_merge(
+      $office_trace_metadata,
+      $langfuse_output['metadata'],
+    ));
+    $this->langfuseTracer?->addEvent('response.finalize', array_merge(
+      $office_trace_metadata,
+      [
+        'status_code' => 200,
+      ],
+      $langfuse_output['metadata'],
+    ));
     $this->langfuseTracer?->endTrace(
       output: $langfuse_output['display'],
       metadata: array_merge(
+        $office_trace_metadata,
         [
           'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
           'success' => TRUE,
-          'response_type' => $response['type'] ?? 'unknown',
-          'reason_code' => $response['reason_code'] ?? NULL,
-          'followup_type' => 'office_location_clarify',
         ],
         $langfuse_output['metadata'],
       ),

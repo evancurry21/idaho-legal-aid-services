@@ -125,7 +125,8 @@ class LangfuseTracerTest extends TestCase {
       'input_length_bucket' => '25-99',
       'input_redaction_profile' => 'email',
       'input_preview_redacted' => 'My email is [REDACTED-EMAIL]',
-    ], 'preview="My email is [REDACTED-EMAIL]" hash=aaaaaaaaaaaa len=25-99 redact=email');
+      'user_text_redacted' => 'My email is [REDACTED-EMAIL]',
+    ], 'preview="My email is [REDACTED-EMAIL]" hash=aaaaaaaaaaaa len=25-99 redact=email', 'session-002', ['assistant', 'aila', 'message'], NULL, 'release-2026.04.21', 'git-sha-abc123');
     $tracer->endTrace('type=faq reason=none preview="Call [REDACTED-PHONE] for help." hash=bbbbbbbbbbbb len=25-99 redact=phone', [
       'output_hash' => str_repeat('b', 64),
       'output_length_bucket' => '25-99',
@@ -142,13 +143,19 @@ class LangfuseTracerTest extends TestCase {
     $this->assertSame('trace-create', $traceCreate['type']);
     $this->assertSame('trace-002', $traceCreate['body']['id']);
     $this->assertSame('assistant.message', $traceCreate['body']['name']);
+    $this->assertSame('session-002', $traceCreate['body']['sessionId']);
+    $this->assertSame(['assistant', 'aila', 'message'], $traceCreate['body']['tags']);
+    $this->assertSame('release-2026.04.21', $traceCreate['body']['release']);
+    $this->assertSame('git-sha-abc123', $traceCreate['body']['version']);
     $this->assertSame('preview="My email is [REDACTED-EMAIL]" hash=aaaaaaaaaaaa len=25-99 redact=email', $traceCreate['body']['input']);
     $this->assertSame('type=faq reason=none preview="Call [REDACTED-PHONE] for help." hash=bbbbbbbbbbbb len=25-99 redact=phone', $traceCreate['body']['output']);
     $this->assertSame('test', $traceCreate['body']['metadata']['env']);
     $this->assertSame('faq', $traceCreate['body']['metadata']['response_type']);
     $this->assertSame('My email is [REDACTED-EMAIL]', $traceCreate['body']['metadata']['input_preview_redacted']);
+    $this->assertSame('My email is [REDACTED-EMAIL]', $traceCreate['body']['metadata']['user_text_redacted']);
     $this->assertSame('Call [REDACTED-PHONE] for help.', $traceCreate['body']['metadata']['output_preview_redacted']);
     $this->assertArrayHasKey('timestamp', $traceCreate['body']);
+    $this->assertStringNotContainsString('help@example.com', json_encode($payload, JSON_THROW_ON_ERROR));
   }
 
   /**
@@ -267,6 +274,26 @@ class LangfuseTracerTest extends TestCase {
     $types = $this->extractEventTypes($payload);
 
     $this->assertSame(['trace-create', 'event-create'], $types);
+  }
+
+  /**
+   * Tests that detached event recording targets an existing trace ID.
+   */
+  public function testRecordEventForTraceCreatesStandaloneEventBatch(): void {
+    $tracer = $this->buildTracer();
+
+    $tracer->recordEventForTrace('trace-feedback-001', 'feedback.received', [
+      'feedback_value' => 'helpful',
+      'feedback_response_request_id' => '11111111-1111-4111-8111-111111111111',
+    ]);
+
+    $payload = $tracer->getTracePayload();
+    $this->assertNotNull($payload);
+    $this->assertCount(1, $payload['batch']);
+    $this->assertSame('event-create', $payload['batch'][0]['type']);
+    $this->assertSame('trace-feedback-001', $payload['batch'][0]['body']['traceId']);
+    $this->assertSame('feedback.received', $payload['batch'][0]['body']['name']);
+    $this->assertSame('helpful', $payload['batch'][0]['body']['metadata']['feedback_value']);
   }
 
   /**
