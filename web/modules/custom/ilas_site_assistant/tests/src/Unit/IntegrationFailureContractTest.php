@@ -22,6 +22,7 @@ use Drupal\ilas_site_assistant\Service\FaqIndex;
 use Drupal\ilas_site_assistant\Service\IntentRouter;
 use Drupal\ilas_site_assistant\Service\LangfuseTracer;
 use Drupal\ilas_site_assistant\Service\LlmEnhancer;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 use Drupal\ilas_site_assistant\Service\PerformanceMonitor;
 use Drupal\ilas_site_assistant\Service\PolicyFilter;
 use Drupal\ilas_site_assistant\Service\PreRoutingDecisionEngine;
@@ -136,6 +137,7 @@ class IntegrationFailureContractTest extends TestCase {
     ?ResourceFinder $resourceFinder = NULL,
     ?CacheBackendInterface $cache = NULL,
     ?AssistantFlowRunner $assistantFlowRunner = NULL,
+    ?LangfuseTracer $langfuseTracer = NULL,
     ?\Exception $processIntentException = NULL,
   ): ContractTestableController {
     $configStub = $this->createStub(ImmutableConfig::class);
@@ -218,6 +220,7 @@ class IntegrationFailureContractTest extends TestCase {
       $cache,
       $logger,
       assistant_flow_runner: $assistantFlowRunner,
+      langfuse_tracer: $langfuseTracer,
       selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
       selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
       pre_routing_decision_engine: new PreRoutingDecisionEngine($policyFilter),
@@ -228,6 +231,27 @@ class IntegrationFailureContractTest extends TestCase {
     }
 
     return $controller;
+  }
+
+  /**
+   * Builds an enabled Langfuse tracer suitable for controller contract tests.
+   */
+  private function buildActiveLangfuseTracer(): LangfuseTracer {
+    $configStub = $this->createStub(ImmutableConfig::class);
+    $configStub->method('get')->willReturnCallback(function (string $key) {
+      return match ($key) {
+        'langfuse.enabled' => TRUE,
+        'langfuse.public_key' => 'pk-test',
+        'langfuse.secret_key' => 'sk-test',
+        'langfuse.sample_rate' => 1.0,
+        default => NULL,
+      };
+    });
+
+    $configFactory = $this->createStub(ConfigFactoryInterface::class);
+    $configFactory->method('get')->willReturn($configStub);
+
+    return new LangfuseTracer($configFactory, $this->createStub(LoggerInterface::class));
   }
 
   /**
@@ -276,17 +300,26 @@ class IntegrationFailureContractTest extends TestCase {
    * Controller catch-all returns HTTP 500 with error.code = internal_error.
    */
   public function testCatchAllReturns500WithInternalErrorCode(): void {
+    $langfuseTracer = $this->buildActiveLangfuseTracer();
+    $conversationId = '123e4567-e89b-42d3-a456-426614174122';
     $controller = $this->buildController(
+      langfuseTracer: $langfuseTracer,
       processIntentException: new \RuntimeException('Simulated pipeline failure'),
     );
 
-    $response = $controller->message($this->buildJsonRequest());
+    $response = $controller->message($this->buildJsonRequest('test message', [], ['conversation_id' => $conversationId]));
 
     $this->assertEquals(500, $response->getStatusCode());
     $body = json_decode($response->getContent(), TRUE);
     $this->assertIsArray($body['error'] ?? NULL, 'Body must contain error object');
     $this->assertEquals('internal_error', $body['error']['code']);
     $this->assertArrayHasKey('request_id', $body);
+    $payload = $langfuseTracer->getTracePayload();
+    $this->assertNotNull($payload);
+    $traceBody = $payload['batch'][0]['body'];
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $traceBody['sessionId']);
+    $this->assertSame('error', $traceBody['metadata']['fallback_path']);
+    $this->assertSame('internal_error', $traceBody['metadata']['response_type']);
   }
 
   // ─── Test 2: Catch-all includes X-Correlation-ID header ───────────────
@@ -495,6 +528,7 @@ class IntegrationFailureContractTest extends TestCase {
    */
   public function testPendingOfficeFollowupUsesRunnerDecision(): void {
     $conversationId = '123e4567-e89b-42d3-a456-426614174111';
+    $langfuseTracer = $this->buildActiveLangfuseTracer();
     $intentRouter = $this->createMock(IntentRouter::class);
     $intentRouter->expects($this->never())->method('route');
 
@@ -531,6 +565,7 @@ class IntegrationFailureContractTest extends TestCase {
     $controller = $this->buildController(
       intentRouter: $intentRouter,
       assistantFlowRunner: $assistantFlowRunner,
+      langfuseTracer: $langfuseTracer,
       processIntentException: new \RuntimeException('Pending flow should have returned before routing'),
     );
 
@@ -541,6 +576,66 @@ class IntegrationFailureContractTest extends TestCase {
     $this->assertSame('office_location', $body['type'] ?? NULL);
     $this->assertSame('office_followup_resolved', $body['reason_code'] ?? NULL);
     $this->assertSame('Boise', $body['office']['name'] ?? NULL);
+    $payload = $langfuseTracer->getTracePayload();
+    $this->assertNotNull($payload);
+    $traceBody = $payload['batch'][0]['body'];
+    $this->assertSame('resolved', $traceBody['metadata']['office_followup_branch']);
+    $this->assertSame('office_followup_resolved', $traceBody['metadata']['fallback_path']);
+    $this->assertSame('office_location_followup', $traceBody['metadata']['intent_type']);
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $traceBody['sessionId']);
+  }
+
+  /**
+   * Pending office follow-up clarify exits retain branch metadata.
+   */
+  public function testPendingOfficeFollowupClarifyTraceCarriesBranchMetadata(): void {
+    $conversationId = '123e4567-e89b-42d3-a456-426614174119';
+    $langfuseTracer = $this->buildActiveLangfuseTracer();
+    $intentRouter = $this->createMock(IntentRouter::class);
+    $intentRouter->expects($this->never())->method('route');
+
+    $assistantFlowRunner = $this->createMock(AssistantFlowRunner::class);
+    $assistantFlowRunner->expects($this->once())
+      ->method('evaluatePending')
+      ->willReturn([
+        'status' => 'handled',
+        'flow_id' => 'office_followup',
+        'action' => 'clarify',
+        'state_operation' => 'save',
+        'state_payload' => [],
+        'offices' => [
+          [
+            'name' => 'Boise',
+            'phone' => '(208) 345-0106',
+            'url' => '/contact/offices/boise',
+          ],
+          [
+            'name' => 'Caldwell',
+            'phone' => '(208) 454-2591',
+            'url' => '/contact/offices/caldwell',
+          ],
+        ],
+      ]);
+    $assistantFlowRunner->expects($this->never())->method('evaluatePostResponse');
+
+    $controller = $this->buildController(
+      intentRouter: $intentRouter,
+      assistantFlowRunner: $assistantFlowRunner,
+      langfuseTracer: $langfuseTracer,
+      processIntentException: new \RuntimeException('Pending flow should have returned before routing'),
+    );
+
+    $response = $controller->message($this->buildJsonRequest('near boise maybe', [], ['conversation_id' => $conversationId]));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $body = json_decode($response->getContent(), TRUE);
+    $this->assertSame('office_location_clarify', $body['type'] ?? NULL);
+    $payload = $langfuseTracer->getTracePayload();
+    $this->assertNotNull($payload);
+    $traceBody = $payload['batch'][0]['body'];
+    $this->assertSame('clarify', $traceBody['metadata']['office_followup_branch']);
+    $this->assertSame('office_followup_clarify', $traceBody['metadata']['fallback_path']);
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $traceBody['sessionId']);
   }
 
   /**
@@ -634,14 +729,71 @@ class IntegrationFailureContractTest extends TestCase {
   }
 
   /**
+   * Validation failures emit metadata-only traces with request-derived session IDs.
+   */
+  public function testInvalidJsonMessageProducesMetadataOnlyTrace(): void {
+    $langfuseTracer = $this->buildActiveLangfuseTracer();
+    $controller = $this->buildController(langfuseTracer: $langfuseTracer);
+
+    $request = Request::create(
+      '/assistant/api/message',
+      'POST',
+      [],
+      [],
+      [],
+      ['CONTENT_TYPE' => 'application/json'],
+      '{"message":',
+    );
+
+    $response = $controller->message($request);
+
+    $this->assertSame(400, $response->getStatusCode());
+    $body = json_decode((string) $response->getContent(), TRUE);
+    $payload = $langfuseTracer->getTracePayload();
+    $this->assertNotNull($payload);
+    $traceBody = $payload['batch'][0]['body'];
+    $this->assertSame($body['request_id'], $traceBody['id']);
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($body['request_id']), $traceBody['sessionId']);
+    $this->assertSame(400, $traceBody['metadata']['status_code']);
+    $this->assertSame('invalid_request', $traceBody['metadata']['reason_code']);
+    $this->assertArrayNotHasKey('input', $traceBody);
+  }
+
+  /**
+   * Successful turns keep stable hashed conversation/session trace metadata.
+   */
+  public function testMessageSuccessTraceCarriesSharedConversationSessionMetadata(): void {
+    $conversationId = '123e4567-e89b-42d3-a456-426614174120';
+    $langfuseTracer = $this->buildActiveLangfuseTracer();
+    $controller = $this->buildController(langfuseTracer: $langfuseTracer);
+
+    $response = $controller->message($this->buildJsonRequest('housing help', [], ['conversation_id' => $conversationId]));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $body = json_decode((string) $response->getContent(), TRUE);
+    $payload = $langfuseTracer->getTracePayload();
+    $this->assertNotNull($payload);
+    $traceBody = $payload['batch'][0]['body'];
+    $this->assertSame($body['request_id'], $traceBody['id']);
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $traceBody['sessionId']);
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $traceBody['metadata']['conversation_hash']);
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $traceBody['metadata']['session_hash']);
+    $this->assertSame('assistant', $traceBody['metadata']['surface']);
+    $this->assertArrayHasKey('user_text_redacted', $traceBody['metadata']);
+  }
+
+  /**
    * Message retrieval dependency loss degrades explicitly instead of 500ing.
    */
   public function testMessageRetrievalDependencyUnavailableReturnsDegradedNavigation(): void {
+    $langfuseTracer = $this->buildActiveLangfuseTracer();
+    $conversationId = '123e4567-e89b-42d3-a456-426614174121';
     $controller = $this->buildController(
+      langfuseTracer: $langfuseTracer,
       processIntentException: new RetrievalDependencyUnavailableException('resource', 'resource_retrieval_unavailable'),
     );
 
-    $response = $controller->message($this->buildJsonRequest());
+    $response = $controller->message($this->buildJsonRequest('test message', [], ['conversation_id' => $conversationId]));
 
     $this->assertSame(200, $response->getStatusCode());
     $body = json_decode($response->getContent(), TRUE);
@@ -652,6 +804,12 @@ class IntegrationFailureContractTest extends TestCase {
     $this->assertSame('resource_retrieval_unavailable', $body['decision_reason'] ?? NULL);
     $this->assertArrayHasKey('request_id', $body);
     $this->assertNotEmpty($body['actions'] ?? []);
+    $payload = $langfuseTracer->getTracePayload();
+    $this->assertNotNull($payload);
+    $traceBody = $payload['batch'][0]['body'];
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $traceBody['sessionId']);
+    $this->assertSame('retrieval_unavailable', $traceBody['metadata']['fallback_path']);
+    $this->assertSame('navigation', $traceBody['metadata']['response_type']);
   }
 
   /**
@@ -968,6 +1126,47 @@ class IntegrationFailureContractTest extends TestCase {
     $this->assertSame(200, $response->getStatusCode());
     $body = json_decode((string) $response->getContent(), TRUE);
     $this->assertTrue($body['ok']);
+  }
+
+  /**
+   * Feedback /track events link to the traced assistant turn only with valid IDs.
+   */
+  public function testTrackFeedbackLinksLangfuseEventOnlyForValidResponseRequestId(): void {
+    $langfuseTracer = $this->buildActiveLangfuseTracer();
+    $controller = $this->buildController(langfuseTracer: $langfuseTracer);
+    $conversationId = '123e4567-e89b-42d3-a456-426614174123';
+    $responseRequestId = '123e4567-e89b-42d3-a456-426614174124';
+
+    $response = $controller->track($this->buildTrackRequest([
+      'event_type' => 'feedback_helpful',
+      'event_value' => 'faq',
+      'conversation_id' => $conversationId,
+      'response_request_id' => $responseRequestId,
+      'response_type' => 'faq',
+    ], ['Origin' => 'http://localhost']));
+
+    $this->assertSame(200, $response->getStatusCode());
+    $payload = $langfuseTracer->getTracePayload();
+    $this->assertNotNull($payload);
+    $this->assertCount(1, $payload['batch']);
+    $eventBody = $payload['batch'][0]['body'];
+    $this->assertSame('event-create', $payload['batch'][0]['type']);
+    $this->assertSame($responseRequestId, $eventBody['traceId']);
+    $this->assertSame('feedback.received', $eventBody['name']);
+    $this->assertSame('helpful', $eventBody['metadata']['feedback_value']);
+    $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $eventBody['metadata']['conversation_hash']);
+
+    $invalidTracer = $this->buildActiveLangfuseTracer();
+    $invalidController = $this->buildController(langfuseTracer: $invalidTracer);
+    $invalidController->track($this->buildTrackRequest([
+      'event_type' => 'feedback_not_helpful',
+      'event_value' => 'faq',
+      'conversation_id' => $conversationId,
+      'response_request_id' => 'not-a-uuid',
+      'response_type' => 'faq',
+    ], ['Origin' => 'http://localhost']));
+
+    $this->assertNull($invalidTracer->getTracePayload());
   }
 
   // ─── Test 12: LangfuseTracer internal catch swallows exception ────────

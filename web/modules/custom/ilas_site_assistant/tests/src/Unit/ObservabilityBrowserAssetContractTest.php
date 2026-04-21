@@ -55,7 +55,7 @@ class ObservabilityBrowserAssetContractTest extends TestCase {
     $this->assertIsString($script);
     $this->assertStringNotContainsString('window.dataLayer.push', $script);
     $this->assertStringContainsString('this.emitAssistantAction(eventType, eventValue, metadata);', $script);
-    $this->assertStringContainsString('return this.callTrackApi({', $script);
+    $this->assertStringContainsString('return this.callTrackApi(payload)', $script);
   }
 
   /**

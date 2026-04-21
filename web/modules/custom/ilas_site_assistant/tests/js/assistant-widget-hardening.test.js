@@ -237,6 +237,11 @@ window._assistantWidgetTestDone = (async function () {
       return value;
     },
 
+    isUuidV4: function (value) {
+      return typeof value === 'string'
+        && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value);
+    },
+
     normalizeTrackPath: function (value) {
       value = String(value || '').trim();
       if (!value) return '';
@@ -308,10 +313,24 @@ window._assistantWidgetTestDone = (async function () {
     trackEvent: function (deps, eventType, eventValue, metadata) {
       eventValue = SA.normalizeTrackValue(eventType, eventValue);
       SA.emitAssistantAction(deps, eventType, eventValue, metadata);
-      return deps.callTrackApi({
+      var payload = {
         event_type: eventType,
         event_value: eventValue || '',
-      }).catch(function () {
+      };
+      var isFeedbackEvent = eventType === 'feedback_helpful' || eventType === 'feedback_not_helpful';
+      var responseRequestId = metadata && SA.isUuidV4(metadata.responseRequestId || '')
+        ? metadata.responseRequestId
+        : '';
+
+      if (isFeedbackEvent && responseRequestId) {
+        payload.conversation_id = deps && SA.isUuidV4(deps.conversationId || '')
+          ? deps.conversationId
+          : '';
+        payload.response_request_id = responseRequestId;
+        payload.response_type = SA.normalizeTrackToken(metadata && metadata.responseType ? metadata.responseType : '');
+      }
+
+      return deps.callTrackApi(payload).catch(function () {
         // Silent fail for tracking.
       });
     },
@@ -1059,6 +1078,50 @@ window._assistantWidgetTestDone = (async function () {
     assert(events[0].detail.path === '/assistant', 'observability metadata keeps pathname only');
   });
 
+  suite('Feedback tracking includes trace-link payload only when response request ID is valid', async function () {
+    var payloads = [];
+
+    await SA.trackEvent({
+      conversationId: '11111111-1111-4111-8111-111111111111',
+      emitObservabilityEvent: function () {},
+      callTrackApi: function (payload) {
+        payloads.push(payload);
+        return Promise.resolve({ ok: true });
+      },
+    }, 'feedback_helpful', 'faq', {
+      responseType: 'faq',
+      responseRequestId: '22222222-2222-4222-8222-222222222222',
+    });
+
+    assert(payloads.length === 1, 'feedback tracking posts one payload');
+    assert(payloads[0].event_type === 'feedback_helpful', 'feedback payload preserves event_type');
+    assert(payloads[0].event_value === 'faq', 'feedback payload preserves normalized response type event value');
+    assert(payloads[0].conversation_id === '11111111-1111-4111-8111-111111111111', 'feedback payload includes conversation_id');
+    assert(payloads[0].response_request_id === '22222222-2222-4222-8222-222222222222', 'feedback payload includes response_request_id');
+    assert(payloads[0].response_type === 'faq', 'feedback payload includes response_type');
+  });
+
+  suite('Feedback tracking omits trace-link payload when response request ID is missing or invalid', async function () {
+    var payloads = [];
+
+    await SA.trackEvent({
+      conversationId: '11111111-1111-4111-8111-111111111111',
+      emitObservabilityEvent: function () {},
+      callTrackApi: function (payload) {
+        payloads.push(payload);
+        return Promise.resolve({ ok: true });
+      },
+    }, 'feedback_not_helpful', 'faq', {
+      responseType: 'faq',
+      responseRequestId: 'not-a-uuid',
+    });
+
+    assert(payloads.length === 1, 'invalid feedback tracking still posts local analytics payload');
+    assert(!Object.prototype.hasOwnProperty.call(payloads[0], 'conversation_id'), 'invalid feedback payload omits conversation_id');
+    assert(!Object.prototype.hasOwnProperty.call(payloads[0], 'response_request_id'), 'invalid feedback payload omits response_request_id');
+    assert(!Object.prototype.hasOwnProperty.call(payloads[0], 'response_type'), 'invalid feedback payload omits response_type');
+  });
+
   // ===================================================================
   // 15. Chip render fallback telemetry
   // ===================================================================
@@ -1202,7 +1265,14 @@ window._assistantWidgetTestDone = (async function () {
     controls.appendChild(notHelpfulBtn);
 
     function handleClick(eventType, responseType) {
-      trackCalls.push({ event: eventType, value: responseType });
+      trackCalls.push({
+        event: eventType,
+        value: responseType,
+        metadata: {
+          responseType: responseType,
+          responseRequestId: '22222222-2222-4222-8222-222222222222',
+        }
+      });
       helpfulBtn.disabled = true;
       notHelpfulBtn.disabled = true;
       label.textContent = 'Thanks for your feedback';
@@ -1224,6 +1294,7 @@ window._assistantWidgetTestDone = (async function () {
     assert(trackCalls.length === 1, 'trackEvent called once');
     assert(trackCalls[0].event === 'feedback_helpful', 'trackEvent called with feedback_helpful');
     assert(trackCalls[0].value === 'faq', 'trackEvent called with response type');
+    assert(trackCalls[0].metadata.responseRequestId === '22222222-2222-4222-8222-222222222222', 'trackEvent keeps the traced response request ID');
     assert(
       label.textContent === 'Thanks for your feedback',
       'label text changed to thank-you message'

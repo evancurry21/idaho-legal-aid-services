@@ -162,10 +162,13 @@ class LangfuseProbeCommands extends DrushCommands {
           'id' => $traceId,
           'timestamp' => $timestamp,
           'name' => 'phard-02.synthetic_probe',
+          'sessionId' => hash('sha256', 'synthetic-probe-session'),
+          'tags' => ['assistant', 'probe', 'synthetic'],
           'input' => 'hash=synthetic0001 len=1-24 redact=none',
           'output' => 'type=probe_complete reason=none hash=synthetic9999 len=1-24',
           'metadata' => [
             'environment' => $environment,
+            'surface' => 'assistant',
             'probe_timestamp' => $timestamp,
             'input_hash' => str_repeat('1', 64),
             'input_length_bucket' => '1-24',

@@ -1892,7 +1892,7 @@ class EmploymentApplicationController extends ControllerBase {
       $rows[] = [
         date('M j, Y', $app->submitted),
         ['data' => ['#markup' => '<a href="' . htmlspecialchars($detailUrl, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($formData['full_name'] ?? '', ENT_QUOTES, 'UTF-8') . '</a>']],
-        htmlspecialchars($positionDisplay, ENT_QUOTES, 'UTF-8'),
+        $positionDisplay,
         ['data' => ['#markup' => '<span class="application-status application-status--' . htmlspecialchars($app->status, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') . '</span>']],
         $fileCount . ' file' . ($fileCount !== 1 ? 's' : ''),
         ['data' => ['#markup' => $actions]],
@@ -1938,9 +1938,9 @@ class EmploymentApplicationController extends ControllerBase {
 
     // Build personal info rows.
     $personalRows = [];
-    $personalRows[] = ['Full Name', htmlspecialchars($formData['full_name'] ?? '', ENT_QUOTES, 'UTF-8')];
+    $personalRows[] = ['Full Name', $formData['full_name'] ?? ''];
     $personalRows[] = ['Email', ['data' => ['#markup' => '<a href="mailto:' . htmlspecialchars($formData['email'] ?? '', ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($formData['email'] ?? '', ENT_QUOTES, 'UTF-8') . '</a>']]];
-    $personalRows[] = ['Phone', htmlspecialchars($formData['phone'] ?? '', ENT_QUOTES, 'UTF-8')];
+    $personalRows[] = ['Phone', $formData['phone'] ?? ''];
 
     if (!empty($formData['address'])) {
       $addr = $formData['address'];
@@ -1950,42 +1950,42 @@ class EmploymentApplicationController extends ControllerBase {
         $addr['state_province'] ?? '',
         $addr['postal_code'] ?? '',
       ]));
-      $personalRows[] = ['Address', htmlspecialchars($fullAddress, ENT_QUOTES, 'UTF-8')];
+      $personalRows[] = ['Address', $fullAddress];
     }
 
     // Build position info rows.
     $positionRows = [];
-    $positionRows[] = ['Position', htmlspecialchars($positionDisplay, ENT_QUOTES, 'UTF-8')];
-    $positionRows[] = ['Category', htmlspecialchars($formData['job_category'] ?? '', ENT_QUOTES, 'UTF-8')];
-    $positionRows[] = ['Position Family', htmlspecialchars($positionFamilyLabel, ENT_QUOTES, 'UTF-8')];
-    $positionRows[] = ['Available Start Date', htmlspecialchars($formData['available_start_date'] ?? '', ENT_QUOTES, 'UTF-8')];
+    $positionRows[] = ['Position', $positionDisplay];
+    $positionRows[] = ['Category', $formData['job_category'] ?? ''];
+    $positionRows[] = ['Position Family', $positionFamilyLabel];
+    $positionRows[] = ['Available Start Date', $formData['available_start_date'] ?? ''];
     if (!empty($formData['salary_requirements'])) {
-      $positionRows[] = ['Salary Requirements', htmlspecialchars($formData['salary_requirements'], ENT_QUOTES, 'UTF-8')];
+      $positionRows[] = ['Salary Requirements', $formData['salary_requirements']];
     }
 
     // Build qualifications rows.
     $qualRows = [];
     if ($positionFamily === 'managing_attorney' || $positionFamily === 'staff_attorney') {
       if (!empty($formData['idaho_bar_licensed'])) {
-        $qualRows[] = ['Idaho Bar Licensed', htmlspecialchars($this->validator->formatYesNoOption($formData['idaho_bar_licensed']), ENT_QUOTES, 'UTF-8')];
+        $qualRows[] = ['Idaho Bar Licensed', $this->validator->formatYesNoOption($formData['idaho_bar_licensed'])];
       }
       if (!empty($formData['aba_law_school'])) {
-        $qualRows[] = ['ABA Law School', htmlspecialchars($this->validator->formatYesNoOption($formData['aba_law_school']), ENT_QUOTES, 'UTF-8')];
+        $qualRows[] = ['ABA Law School', $this->validator->formatYesNoOption($formData['aba_law_school'])];
       }
       if (!empty($formData['bar_discipline'])) {
-        $qualRows[] = ['Bar Discipline', htmlspecialchars($this->validator->formatYesNoOption($formData['bar_discipline']), ENT_QUOTES, 'UTF-8')];
+        $qualRows[] = ['Bar Discipline', $this->validator->formatYesNoOption($formData['bar_discipline'])];
       }
     }
 
     $screeningRows = [];
     if (!empty($formData['criminal_conviction'])) {
-      $screeningRows[] = ['Criminal Conviction', htmlspecialchars($this->validator->formatYesNoOption($formData['criminal_conviction']), ENT_QUOTES, 'UTF-8')];
+      $screeningRows[] = ['Criminal Conviction', $this->validator->formatYesNoOption($formData['criminal_conviction'])];
     }
     if (!empty($formData['protection_order'])) {
-      $screeningRows[] = ['Protection Order', htmlspecialchars($this->validator->formatYesNoOption($formData['protection_order']), ENT_QUOTES, 'UTF-8')];
+      $screeningRows[] = ['Protection Order', $this->validator->formatYesNoOption($formData['protection_order'])];
     }
     if (!empty($formData['sexual_harassment'])) {
-      $screeningRows[] = ['Sexual Harassment', htmlspecialchars($this->validator->formatYesNoOption($formData['sexual_harassment']), ENT_QUOTES, 'UTF-8')];
+      $screeningRows[] = ['Sexual Harassment', $this->validator->formatYesNoOption($formData['sexual_harassment'])];
     }
 
     // Build file download links.
@@ -2065,16 +2065,16 @@ class EmploymentApplicationController extends ControllerBase {
     // Additional info.
     $additionalRows = [];
     if (!empty($formData['referral_source'])) {
-      $additionalRows[] = ['Referral Source', htmlspecialchars(ucwords(str_replace('_', ' ', $formData['referral_source'])), ENT_QUOTES, 'UTF-8')];
+      $additionalRows[] = ['Referral Source', ucwords(str_replace('_', ' ', $formData['referral_source']))];
     }
     if (!empty($formData['referral_details'])) {
-      $additionalRows[] = ['Referral Details', htmlspecialchars($formData['referral_details'], ENT_QUOTES, 'UTF-8')];
+      $additionalRows[] = ['Referral Details', $formData['referral_details']];
     }
     if (!empty($formData['additional_comments'])) {
-      $additionalRows[] = ['Additional Comments', htmlspecialchars($formData['additional_comments'], ENT_QUOTES, 'UTF-8')];
+      $additionalRows[] = ['Additional Comments', $formData['additional_comments']];
     }
     if (!empty($formData['accommodation_request'])) {
-      $additionalRows[] = ['Accommodation Request', htmlspecialchars($formData['accommodation_request'], ENT_QUOTES, 'UTF-8')];
+      $additionalRows[] = ['Accommodation Request', $formData['accommodation_request']];
     }
 
     if (!empty($additionalRows)) {

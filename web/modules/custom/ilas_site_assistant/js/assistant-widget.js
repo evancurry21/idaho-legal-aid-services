@@ -205,6 +205,7 @@
     isSending: false,
     messageHistory: [],
     conversationId: null,
+    lastResponseRequestId: null,
     activeSelection: null,
     csrfTokenPromise: null,
     _displayMessages: [],
@@ -228,6 +229,14 @@
     },
 
     /**
+     * Returns true when the value is a UUID v4 string.
+     */
+    isUuidV4: function (value) {
+      return typeof value === 'string'
+        && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value);
+    },
+
+    /**
      * Save widget state to sessionStorage for cross-navigation persistence.
      *
      * Stores conversation ID, display messages, and panel open/close state.
@@ -238,6 +247,7 @@
         var state = {
           v: 2,
           conversationId: this.conversationId,
+          lastResponseRequestId: this.lastResponseRequestId,
           activeSelection: this.activeSelection,
           messages: this._displayMessages || [],
           isOpen: this.isOpen,
@@ -280,6 +290,10 @@
 
         // Validate messages is an array.
         if (!Array.isArray(state.messages)) return null;
+
+        if (state.lastResponseRequestId && !this.isUuidV4(state.lastResponseRequestId)) {
+          state.lastResponseRequestId = null;
+        }
 
         if (state.v >= 2 && state.activeSelection) {
           state.activeSelection = this.normalizeSelection(state.activeSelection);
@@ -384,9 +398,11 @@
 
       if (restored) {
         this.conversationId = restored.conversationId;
+        this.lastResponseRequestId = restored.lastResponseRequestId || null;
         this.activeSelection = restored.activeSelection || null;
       } else {
         this.conversationId = this.generateConversationId();
+        this.lastResponseRequestId = null;
         this.activeSelection = null;
       }
 
@@ -1048,15 +1064,29 @@
     handleResponse: function (response) {
       if (!response) return;
 
+      var didUpdateState = false;
+
+      if (this.isUuidV4(response.request_id || '')) {
+        this.lastResponseRequestId = response.request_id;
+        didUpdateState = true;
+      } else if (this.lastResponseRequestId !== null) {
+        this.lastResponseRequestId = null;
+        didUpdateState = true;
+      }
+
       if (Object.prototype.hasOwnProperty.call(response, 'active_selection')) {
         this.activeSelection = this.normalizeSelection(response.active_selection);
-        this.saveState();
+        didUpdateState = true;
       } else {
         var inferredSelection = this.inferActiveSelectionFromResponse(response);
         if (inferredSelection) {
           this.activeSelection = inferredSelection;
-          this.saveState();
+          didUpdateState = true;
         }
+      }
+
+      if (didUpdateState) {
+        this.saveState();
       }
 
       // Track topic if present.
@@ -1685,7 +1715,10 @@
       controls.appendChild(notHelpfulBtn);
 
       function handleFeedback(eventType, clickedBtn) {
-        self.trackEvent(eventType, responseType);
+        self.trackEvent(eventType, responseType, {
+          responseType: responseType,
+          responseRequestId: self.lastResponseRequestId,
+        });
         helpfulBtn.disabled = true;
         notHelpfulBtn.disabled = true;
         clickedBtn.classList.add('feedback-btn--selected');
@@ -2210,11 +2243,25 @@
     trackEvent: function (eventType, eventValue, metadata) {
       eventValue = this.normalizeTrackValue(eventType, eventValue);
       this.emitAssistantAction(eventType, eventValue, metadata);
-      // Assistant-originated telemetry must stay inside Drupal-owned analytics.
-      return this.callTrackApi({
+      var payload = {
         event_type: eventType,
         event_value: eventValue,
-      }).catch(function () {
+      };
+      var isFeedbackEvent = eventType === 'feedback_helpful' || eventType === 'feedback_not_helpful';
+      var responseRequestId = metadata && this.isUuidV4(metadata.responseRequestId || '')
+        ? metadata.responseRequestId
+        : '';
+
+      if (isFeedbackEvent && responseRequestId) {
+        payload.conversation_id = this.isUuidV4(this.conversationId || '')
+          ? this.conversationId
+          : '';
+        payload.response_request_id = responseRequestId;
+        payload.response_type = this.normalizeTrackToken(metadata && metadata.responseType ? metadata.responseType : '');
+      }
+
+      // Assistant-originated telemetry must stay inside Drupal-owned analytics.
+      return this.callTrackApi(payload).catch(function () {
         // Silent fail for tracking.
       });
     },

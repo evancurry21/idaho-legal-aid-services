@@ -22,6 +22,29 @@ window._assistantWidgetSelectionTestDone = (async function () {
     await new Promise(function (resolve) { setTimeout(resolve, 0); });
   }
 
+  async function waitForSelector(selector, attempts) {
+    attempts = attempts || 10;
+    for (var i = 0; i < attempts; i++) {
+      var element = document.querySelector(selector);
+      if (element) {
+        return element;
+      }
+      await tick();
+    }
+    return null;
+  }
+
+  async function waitFor(check, attempts) {
+    attempts = attempts || 20;
+    for (var i = 0; i < attempts; i++) {
+      if (check()) {
+        return true;
+      }
+      await tick();
+    }
+    return false;
+  }
+
   function resetEnvironment() {
     document.body.innerHTML = '';
     window.sessionStorage.clear();
@@ -90,6 +113,8 @@ window._assistantWidgetSelectionTestDone = (async function () {
     element.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }));
     await tick();
     await tick();
+    await tick();
+    await tick();
   }
 
   console.log('\n=== assistant-widget structured selection ===');
@@ -98,50 +123,9 @@ window._assistantWidgetSelectionTestDone = (async function () {
   var calls = [];
   installFetchQueue([
     okText('csrf-token'),
+    okJson({ ok: true }),
     okJson({
-      type: 'forms_inventory',
-      message: 'We have forms and resources organized by legal topic. Choose a category:',
-      topic_suggestions: [
-        {
-          label: 'Family & Custody',
-          action: 'forms_family',
-          selection: {
-            button_id: 'forms_family',
-            label: 'Family & Custody',
-            parent_button_id: 'forms',
-            source: 'response'
-          }
-        }
-      ],
-      primary_action: { label: 'Browse All Forms', url: '/forms' },
-      active_selection: {
-        button_id: 'forms',
-        label: 'Forms',
-        parent_button_id: '',
-        source: 'selection'
-      }
-    })
-  ], calls);
-
-  attachWidget();
-  await click(document.querySelector('.quick-action-btn[data-action="forms"]'));
-
-  var firstBody = JSON.parse(String(getMessageCalls(calls)[0].options.body || '{}'));
-  var savedState = JSON.parse(String(window.sessionStorage.getItem('ilas_assistant_state') || '{}'));
-  var lastUserMessage = document.querySelectorAll('.chat-message--user .message-content');
-  var lastUserText = lastUserMessage[lastUserMessage.length - 1].textContent.trim();
-
-  assert(firstBody.context.quickAction === 'forms', 'top-level quick action still sends quickAction');
-  assert(firstBody.context.selection.button_id === 'forms', 'top-level quick action sends structured selection button_id');
-  assert(firstBody.context.selection.label === 'Forms', 'top-level quick action preserves clicked label');
-  assert(savedState.activeSelection.button_id === 'forms', 'session state persists active selection from response');
-  assert(lastUserText === 'Forms', 'visible user message preserves exact clicked label');
-
-  resetEnvironment();
-  calls = [];
-  installFetchQueue([
-    okText('csrf-token'),
-    okJson({
+      request_id: '11111111-1111-4111-8111-111111111111',
       type: 'forms_inventory',
       message: 'We have forms and resources organized by legal topic. Choose a category:',
       topic_suggestions: [
@@ -164,7 +148,9 @@ window._assistantWidgetSelectionTestDone = (async function () {
         source: 'selection'
       }
     }),
+    okJson({ ok: true }),
     okJson({
+      request_id: '22222222-2222-4222-8222-222222222222',
       type: 'form_finder_clarify',
       message: 'What type of family law issue are you dealing with?',
       primary_action: { label: 'Browse All Forms', url: '/forms' },
@@ -179,7 +165,26 @@ window._assistantWidgetSelectionTestDone = (async function () {
 
   attachWidget();
   await click(document.querySelector('.quick-action-btn[data-action="forms"]'));
-  await click(document.querySelector('.topic-suggestion-btn[data-action="forms_family"]'));
+  await waitFor(function () {
+    return getMessageCalls(calls).length >= 1;
+  }, 20);
+
+  var firstBody = JSON.parse(String(getMessageCalls(calls)[0].options.body || '{}'));
+  var savedState = JSON.parse(String(window.sessionStorage.getItem('ilas_assistant_state') || '{}'));
+  var lastUserMessage = document.querySelectorAll('.chat-message--user .message-content');
+  var lastUserText = lastUserMessage[lastUserMessage.length - 1].textContent.trim();
+
+  assert(firstBody.context.quickAction === 'forms', 'top-level quick action still sends quickAction');
+  assert(firstBody.context.selection.button_id === 'forms', 'top-level quick action sends structured selection button_id');
+  assert(firstBody.context.selection.label === 'Forms', 'top-level quick action preserves clicked label');
+  assert(savedState.activeSelection.button_id === 'forms', 'session state persists active selection from response');
+  assert(savedState.lastResponseRequestId === '11111111-1111-4111-8111-111111111111', 'session state persists the last assistant request ID after first reply');
+  assert(lastUserText === 'Forms', 'visible user message preserves exact clicked label');
+  var childSuggestion = await waitForSelector('.topic-suggestion-btn[data-action="forms_family"]', 20);
+  await click(childSuggestion);
+  await waitFor(function () {
+    return getMessageCalls(calls).length >= 2;
+  }, 20);
 
   var secondBody = JSON.parse(String(getMessageCalls(calls)[1].options.body || '{}'));
   savedState = JSON.parse(String(window.sessionStorage.getItem('ilas_assistant_state') || '{}'));
@@ -190,7 +195,64 @@ window._assistantWidgetSelectionTestDone = (async function () {
   assert(secondBody.context.selection.parent_button_id === 'forms', 'rendered suggestion click preserves parent_button_id');
   assert(secondBody.context.selection.label === 'Family & Custody', 'rendered suggestion click preserves exact clicked label');
   assert(savedState.activeSelection.button_id === 'forms_family', 'session state updates to latest active child selection');
+  assert(savedState.lastResponseRequestId === '22222222-2222-4222-8222-222222222222', 'session state updates to the latest assistant request ID');
   assert(lastUserText === 'Family & Custody', 'child click displays exact suggestion label as the user turn');
+
+  await tick();
+  await tick();
+  await tick();
+  await tick();
+
+  var restoredState = JSON.stringify({
+    v: 2,
+    conversationId: '44444444-4444-4444-8444-444444444444',
+    lastResponseRequestId: '55555555-5555-4555-8555-555555555555',
+    activeSelection: {
+      button_id: 'forms_family',
+      label: 'Family & Custody',
+      parent_button_id: 'forms',
+      source: 'selection'
+    },
+    messages: [
+      { role: 'assistant', content: 'Restored conversation', isHtml: false }
+    ],
+    isOpen: false,
+    savedAt: Date.now()
+  });
+
+  resetEnvironment();
+  window.sessionStorage.setItem('ilas_assistant_state', restoredState);
+  calls = [];
+  installFetchQueue([
+    okText('csrf-token'),
+    okJson({ ok: true }),
+    okJson({
+      request_id: '66666666-6666-4666-8666-666666666666',
+      type: 'forms_inventory',
+      message: 'Restored turn',
+      active_selection: {
+        button_id: 'forms',
+        label: 'Forms',
+        parent_button_id: '',
+        source: 'selection'
+      }
+    })
+  ], calls);
+
+  attachWidget();
+  await click(document.querySelector('.quick-action-btn[data-action="forms"]'));
+  await waitFor(function () {
+    return getMessageCalls(calls).length >= 1;
+  }, 20);
+  await waitFor(function () {
+    var state = JSON.parse(String(window.sessionStorage.getItem('ilas_assistant_state') || '{}'));
+    return state.lastResponseRequestId === '66666666-6666-4666-8666-666666666666';
+  }, 20);
+
+  var restoredBody = JSON.parse(String(getMessageCalls(calls)[0].options.body || '{}'));
+  savedState = JSON.parse(String(window.sessionStorage.getItem('ilas_assistant_state') || '{}'));
+  assert(restoredBody.conversation_id === '44444444-4444-4444-8444-444444444444', 'restored widget state preserves conversationId across reload');
+  assert(Object.prototype.hasOwnProperty.call(savedState, 'lastResponseRequestId'), 'restored widget state keeps request ID tracking live after reload');
 
   window._assistantWidgetSelectionTestResults = results;
 })();
