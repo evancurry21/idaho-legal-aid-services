@@ -344,10 +344,99 @@
      * @return {string} Human-readable fallback text.
      */
     extractLegacyAssistantText: function (html) {
-      var text = String(html || '')
-        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
-        .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
-        .replace(/<[^>]+>/g, ' ')
+      var input = String(html || '');
+      var output = '';
+      var suppressedTag = '';
+      var whitespaceChars = ' \t\r\n\f';
+      var tagNameChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:-';
+
+      function isWhitespace(char) {
+        return whitespaceChars.indexOf(char) !== -1;
+      }
+
+      function isClosingTag(tagText) {
+        var index = 0;
+        while (index < tagText.length && isWhitespace(tagText.charAt(index))) {
+          index++;
+        }
+        return tagText.charAt(index) === '/';
+      }
+
+      function readTagName(tagText) {
+        var index = 0;
+        while (index < tagText.length && isWhitespace(tagText.charAt(index))) {
+          index++;
+        }
+        if (tagText.charAt(index) === '/') {
+          index++;
+        }
+        while (index < tagText.length && isWhitespace(tagText.charAt(index))) {
+          index++;
+        }
+
+        var start = index;
+        while (index < tagText.length && tagNameChars.indexOf(tagText.charAt(index)) !== -1) {
+          index++;
+        }
+
+        return tagText.slice(start, index).toLowerCase();
+      }
+
+      function appendSpace() {
+        if (output && output.charAt(output.length - 1) !== ' ') {
+          output += ' ';
+        }
+      }
+
+      for (var i = 0; i < input.length; i++) {
+        if (input.charAt(i) === '<') {
+          var tagEnd = i + 1;
+          var quote = '';
+
+          while (tagEnd < input.length) {
+            var tagChar = input.charAt(tagEnd);
+            if (quote) {
+              if (tagChar === quote) {
+                quote = '';
+              }
+            } else if (tagChar === '"' || tagChar === '\'') {
+              quote = tagChar;
+            } else if (tagChar === '>') {
+              break;
+            }
+            tagEnd++;
+          }
+
+          if (tagEnd >= input.length) {
+            break;
+          }
+
+          var tagText = input.slice(i + 1, tagEnd);
+          var tagName = readTagName(tagText);
+          var closingTag = isClosingTag(tagText);
+
+          if (suppressedTag) {
+            if (closingTag && tagName === suppressedTag) {
+              suppressedTag = '';
+            }
+          } else if (tagName === 'script' || tagName === 'style') {
+            if (!closingTag) {
+              suppressedTag = tagName;
+            }
+          } else {
+            appendSpace();
+          }
+
+          i = tagEnd;
+          continue;
+        }
+
+        if (!suppressedTag) {
+          output += input.charAt(i);
+        }
+      }
+
+      var text = output
         .replace(/&nbsp;|&#160;/gi, ' ')
         .replace(/\s+/g, ' ')
         .trim();
