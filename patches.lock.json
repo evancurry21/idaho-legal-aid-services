@@ -1,5 +1,5 @@
 {
-    "_hash": "fe2ccbd14b39a6fbd2ff2f8d8eb74e202ed7d2d5cdcc08c9e98c14067eeeaf98",
+    "_hash": "1e627efba7fb45e120644c6d39b12b58e7a026a6c3d15ccb1ac3c1a115f07b11",
     "patches": {
         "drupal/core": [
             {
@@ -42,7 +42,7 @@
                 "package": "drupal/ai_vdb_provider_pinecone",
                 "description": "Add query-only Pinecone timeout client and config controls",
                 "url": "patches/ai-vdb-provider-pinecone-query-timeouts.patch",
-                "sha256": "935462ab509b34f9549d9f3b70c65956d73d580fe5c966fc03804d2cc3ba4f92",
+                "sha256": "6eb8f289b7cb75e9fc1d3f5f08c74553de2e2ef0e5f6efd5f8eb6ca8066d357d",
                 "depth": 1,
                 "extra": {
                     "provenance": "root"
