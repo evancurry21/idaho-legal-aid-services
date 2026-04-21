@@ -338,23 +338,6 @@
     },
 
     /**
-     * Decode common HTML entities without reparsing markup into the DOM.
-     *
-     * @param {string} text - Encoded string.
-     * @return {string} Decoded text.
-     */
-    decodeBasicHtmlEntities: function (text) {
-      return String(text || '')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&#160;/gi, ' ')
-        .replace(/&amp;/gi, '&')
-        .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>')
-        .replace(/&quot;/gi, '"')
-        .replace(/&#39;|&#x27;/gi, '\'');
-    },
-
-    /**
      * Convert legacy rich assistant HTML into a readable text fallback.
      *
      * @param {string} html - Legacy stored assistant markup.
@@ -362,13 +345,12 @@
      */
     extractLegacyAssistantText: function (html) {
       var text = String(html || '')
-        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
         .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;|&#160;/gi, ' ')
         .replace(/\s+/g, ' ')
         .trim();
-
-      text = this.decodeBasicHtmlEntities(text);
 
       if (text) {
         return text;

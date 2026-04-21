@@ -158,26 +158,14 @@ window._assistantWidgetTestDone = (async function () {
       return null;
     },
 
-    decodeBasicHtmlEntities: function (text) {
-      return String(text || '')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&#160;/gi, ' ')
-        .replace(/&amp;/gi, '&')
-        .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>')
-        .replace(/&quot;/gi, '"')
-        .replace(/&#39;|&#x27;/gi, '\'');
-    },
-
     extractLegacyAssistantText: function (html) {
       var text = String(html || '')
-        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
         .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;|&#160;/gi, ' ')
         .replace(/\s+/g, ' ')
         .trim();
-
-      text = SA.decodeBasicHtmlEntities(text);
 
       return text || Drupal.t('Previous assistant response restored as text.');
     },
@@ -646,8 +634,8 @@ window._assistantWidgetTestDone = (async function () {
   // 4d. legacy assistant HTML migration
   // ===================================================================
   suite('legacy assistant HTML migration', function () {
-    var migrated = SA.extractLegacyAssistantText('<p>Restored <strong>message</strong> &amp; more</p><script>alert(1)</script>');
-    assert(migrated === 'Restored message & more', 'legacy assistant HTML is reduced to safe readable text');
+    var migrated = SA.extractLegacyAssistantText('<p>Restored <strong>message</strong> more</p><script >alert(1)</script >');
+    assert(migrated === 'Restored message more', 'legacy assistant HTML is reduced to safe readable text');
   });
 
   // ===================================================================
