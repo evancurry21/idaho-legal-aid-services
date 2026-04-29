@@ -966,6 +966,33 @@ function ilas_site_assistant_update_10013() {
 }
 
 /**
+ * Restores non-secret Cohere provider/model config for bounded generation.
+ */
+function ilas_site_assistant_update_10014() {
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $llm = $config->get('llm');
+  $llm = is_array($llm) ? $llm : [];
+  $changed = FALSE;
+
+  if (trim((string) ($llm['provider'] ?? '')) === '') {
+    $llm['provider'] = 'cohere';
+    $changed = TRUE;
+  }
+
+  if (trim((string) ($llm['model'] ?? '')) === '') {
+    $llm['model'] = 'command-a-03-2025';
+    $changed = TRUE;
+  }
+
+  if (!$changed) {
+    return t('Cohere provider and model were already explicit in assistant config.');
+  }
+
+  $config->set('llm', $llm)->save(TRUE);
+  return t('Added explicit non-secret Cohere provider and model to assistant config.');
+}
+
+/**
  * Creates a lexical Search API index from canonical config when missing.
  *
  * @param string $index_id

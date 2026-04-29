@@ -180,8 +180,10 @@ final class CrossPhaseDependencyRowFiveBehaviorTest extends BehavioralDependency
     }
 
     foreach ([
-      'langfuse_public_key=present' => 3,
-      'langfuse_secret_key=present' => 3,
+      'langfuse_public_key=present' => 1,
+      'langfuse_secret_key=present' => 1,
+      'langfuse_public_key=not_injected' => 2,
+      'langfuse_secret_key=not_injected' => 2,
       'raven_client_key=present' => 3,
     ] as $marker => $expectedCount) {
       if (substr_count($runtimeArtifact, $marker) !== $expectedCount) {

@@ -29,6 +29,7 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
       'ilas_voyage_api_key' => 'voyage-secret-value',
+      'ilas_langfuse_override_channel' => 'settings.php live-only default + runtime secrets',
       'ilas_observability' => ['environment' => 'local'],
       'hash_salt' => 'test-salt',
     ]);
@@ -60,7 +61,18 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
     $this->assertSame('cohere', $snapshot['effective_runtime']['llm']['provider'] ?? NULL);
     $this->assertTrue($snapshot['runtime_site_settings']['cohere_api_key_present'] ?? FALSE);
     $this->assertTrue($snapshot['effective_runtime']['llm']['runtime_ready'] ?? FALSE);
-    $this->assertTrue($snapshot['effective_runtime']['llm']['request_time_generation_reachable'] ?? FALSE);
+    $this->assertFalse($snapshot['effective_runtime']['llm']['request_time_generation_reachable'] ?? TRUE);
+    $this->assertFalse($snapshot['effective_runtime']['llm']['generation_probe_passed'] ?? TRUE);
+    $this->assertFalse($snapshot['effective_runtime']['llm']['generation_attempted'] ?? TRUE);
+    $this->assertArrayHasKey('sources', $snapshot['effective_runtime']['llm'] ?? []);
+    $this->assertSame(
+      'CohereGenerationProbe last explicit probe state',
+      $snapshot['override_channels']['llm.generation_attempted'] ?? NULL,
+    );
+    $this->assertSame(
+      'settings.php live-only default + runtime secrets',
+      $snapshot['override_channels']['langfuse.enabled'] ?? NULL,
+    );
 
     $divergenceFields = array_column($snapshot['divergences'] ?? [], 'field');
     $this->assertContains('llm.enabled', $divergenceFields);
@@ -70,6 +82,29 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
     $this->assertStringNotContainsString('voyage-secret-value', $json);
     $this->assertStringNotContainsString('gemini-secret-value', $json);
     $this->assertStringNotContainsString('vertex-secret-value', $json);
+  }
+
+  public function testLangfuseOverrideChannelDefaultsToLiveOnlyTogglePolicy(): void {
+    new Settings([
+      'ilas_observability' => ['environment' => 'local'],
+      'hash_salt' => 'test-salt',
+    ]);
+
+    $builder = new RuntimeTruthSnapshotBuilder(
+      $this->buildConfigFactory(FALSE),
+      $this->buildStorage(FALSE),
+    );
+
+    $snapshot = $builder->buildSnapshot();
+
+    $this->assertSame(
+      'settings.php live-only default + ILAS_LANGFUSE_ENABLED -> getenv/pantheon_get_secret',
+      $snapshot['override_channels']['langfuse.enabled'] ?? NULL,
+    );
+    $this->assertSame(
+      'settings.php observability environment',
+      $snapshot['override_channels']['langfuse.environment'] ?? NULL,
+    );
   }
 
   public function testFallbackRuntimeReadyUsesCohereSettingWhenEnhancerUnavailable(): void {
@@ -88,13 +123,19 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
 
     $this->assertSame('cohere', $snapshot['effective_runtime']['llm']['provider'] ?? NULL);
     $this->assertTrue($snapshot['effective_runtime']['llm']['runtime_ready'] ?? FALSE);
-    $this->assertTrue($snapshot['effective_runtime']['llm']['request_time_generation_reachable'] ?? FALSE);
+    $this->assertFalse($snapshot['effective_runtime']['llm']['request_time_generation_reachable'] ?? TRUE);
+    $this->assertSame(
+      'explicit Cohere probe only',
+      $snapshot['effective_runtime']['llm']['sources']['generation_attempted'] ?? NULL,
+    );
   }
 
   private function buildConfigFactory(bool $llmEnabled): ConfigFactoryInterface {
     $assistant = [
       'llm' => [
         'enabled' => $llmEnabled,
+        'provider' => 'cohere',
+        'model' => 'command-a-03-2025',
         'max_tokens' => 150,
         'temperature' => 0.3,
         'safety_threshold' => 'BLOCK_MEDIUM_AND_ABOVE',
@@ -192,6 +233,8 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
           'ilas_site_assistant.settings' => [
             'llm' => [
               'enabled' => $llmEnabled,
+              'provider' => 'cohere',
+              'model' => 'command-a-03-2025',
               'fallback_on_error' => TRUE,
               'safety_threshold' => 'BLOCK_MEDIUM_AND_ABOVE',
               'cache_ttl' => 3600,

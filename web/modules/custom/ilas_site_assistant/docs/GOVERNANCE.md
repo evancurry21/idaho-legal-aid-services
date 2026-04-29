@@ -24,8 +24,10 @@
    - **Add synonym:** Existing intent needs better keyword coverage
    - **Out of scope:** Add to out-of-scope classifier patterns
 
-4. **Golden transcript review:** Run `vendor/bin/phpunit --filter=GoldenTranscriptTest`
-   to verify regressions haven't been introduced.
+4. **Conversation intent fixture review:** Run
+   `vendor/bin/phpunit --filter=ConversationIntentFixtureUnitTest` to verify
+   classifier, resolver, and chip fixture regressions haven't been introduced.
+   This unit test does not prove public API response quality.
 
 ## Intent Pack Update Process
 
@@ -33,17 +35,22 @@
 2. Run unit tests: `vendor/bin/phpunit --group=ilas_site_assistant --no-configuration --bootstrap=vendor/autoload.php web/modules/custom/ilas_site_assistant/tests/src/Unit/`
 3. If adding a new intent:
    - Add to `TopIntentsPackTest` if it represents a significant category
-   - Add a golden transcript turn if it covers a new conversation pattern
+   - Add a conversation intent fixture turn if it covers new classifier,
+     resolver, or chip behavior
 4. Clear cache on deployment: `drush cr` (TopIntentsPack caches for 1 hour)
 
-## Golden Transcript Maintenance
+## Conversation Intent Fixture Maintenance
 
-- **When to add a transcript:** When a new conversation pattern is discovered
-  in production that is not covered by existing transcripts.
+- **When to add a fixture:** When a new classifier, resolver, or chip pattern is
+  discovered in production that is not covered by existing fixtures.
 - **When to update:** When intent routing logic changes in a way that affects
   expected turn types or intent assignments.
-- **File:** `tests/goldens/golden-transcripts.yml`
-- **Test:** `tests/src/Unit/GoldenTranscriptTest.php`
+- **File:** `tests/goldens/conversation-intent-fixtures.yml`
+- **Test:** `tests/src/Unit/ConversationIntentFixtureUnitTest.php`
+- **Boundary:** This is unit-level fixture coverage only. API-level golden
+  conversation quality belongs in
+  `tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php` and
+  Promptfoo multi-turn suites.
 
 ## Threshold Tuning
 

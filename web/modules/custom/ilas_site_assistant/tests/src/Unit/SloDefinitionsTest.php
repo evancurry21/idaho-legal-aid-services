@@ -58,7 +58,7 @@ class SloDefinitionsTest extends TestCase {
     $this->assertSame(7200, $slo->getCronMaxAgeSeconds());
     $this->assertSame(3600, $slo->getCronExpectedCadenceSeconds());
     $this->assertSame(10000, $slo->getQueueMaxDepth());
-    $this->assertSame(3600, $slo->getQueueMaxAgeSeconds());
+    $this->assertSame(7200, $slo->getQueueMaxAgeSeconds());
   }
 
   /**

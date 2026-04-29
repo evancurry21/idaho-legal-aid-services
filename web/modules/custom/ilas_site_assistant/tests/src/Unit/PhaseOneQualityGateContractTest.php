@@ -124,7 +124,7 @@ class PhaseOneQualityGateContractTest extends TestCase {
     $this->assertStringContainsString('Kernel runtime regression suite (VC-KERNEL)', $qualityGate);
     $this->assertStringContainsString('FaqSearchRuntimeRegressionKernelTest.php', $qualityGate);
     $this->assertStringContainsString('run-host-phpunit.sh', $qualityGate);
-    $this->assertStringContainsString('GoldenTranscriptTest.php', $qualityGate);
+    $this->assertStringContainsString('ConversationIntentFixtureUnitTest.php', $qualityGate);
     $this->assertStringContainsString('phpunit-summary.txt', $qualityGate);
 
     $this->assertStringContainsString('tests/run-quality-gate.sh', $externalGate);

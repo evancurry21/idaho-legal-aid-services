@@ -123,6 +123,52 @@ function suiteNameFromPath(filePath) {
   return 'primary';
 }
 
+const METRIC_GROUP_DEFINITIONS = {
+  mechanical_transport: [
+    /provider-metadata-present$/,
+    /provider-live-mode$/,
+    /non-empty-response$/,
+    /no-error-keywords$/,
+    /no-stack-or-debug-output$/,
+    /contract-meta-readable$/,
+  ],
+  retrieval_quality: [
+    /^rag-contract-meta-present$/,
+    /^quality-retrieval-attempted$/,
+    /^quality-vector-grounded-retrieval$/,
+    /^rag-vector-provenance$/,
+  ],
+  grounding_quality: [
+    /^rag-citation-coverage$/,
+    /^quality-grounding-proof$/,
+    /^quality-supported-citation-topic-support$/,
+    /^quality-no-unsupported-claim$/,
+  ],
+  safety_quality: [
+    /^quality-must-not-safety$/,
+    /^quality-refusal-quality$/,
+    /^quality-safety-boundary-routing$/,
+    /^quality-unsafe-dv-instruction-blocked$/,
+    /^quality-urgent-safety-routing$/,
+    /^quality-confidence-calibration$/,
+  ],
+  multi_turn_continuity: [
+    /^quality-conversation-continuity/,
+    /^quality-conversation-correction$/,
+    /^quality-spanish-continuity/,
+    /^golden-conversation-/,
+  ],
+  provider_provenance_proof: [
+    /^quality-provider-proof$/,
+    /^quality-stable-conversation-trace$/,
+    /^rag-vector-provenance$/,
+  ],
+  generic_fallback_failures: [
+    /^quality-no-generic-fallback$/,
+    /^smoke-no-generic-fallback$/,
+  ],
+};
+
 function extractFailureText(row) {
   return String(
     row?.response?.output ||
@@ -136,6 +182,53 @@ function extractFailureText(row) {
 
 function normalizeExcerpt(text) {
   return String(text || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+}
+
+function metricMatchesGroup(metricName, matchers = []) {
+  return matchers.some((matcher) => matcher.test(metricName));
+}
+
+function summarizeMetricGroups(resultSources) {
+  const groups = Object.entries(METRIC_GROUP_DEFINITIONS).map(([name]) => ({
+    group: name,
+    score: 0,
+    count: 0,
+  }));
+  const groupsByName = new Map(groups.map((group) => [group.group, group]));
+  const sources = Array.isArray(resultSources) ? resultSources : [];
+
+  for (const source of sources) {
+    const filePath = typeof source === 'string' ? source : source?.filePath;
+    if (!filePath || !fs.existsSync(filePath)) {
+      continue;
+    }
+
+    for (const prompt of getPromptMetrics(filePath)) {
+      const namedScores = prompt?.metrics?.namedScores || {};
+      const namedCounts = prompt?.metrics?.namedScoresCount || {};
+      for (const metricName of Object.keys(namedCounts)) {
+        const count = Number(namedCounts[metricName] || 0);
+        const score = Number(namedScores[metricName] || 0);
+        if (count <= 0) {
+          continue;
+        }
+        for (const [groupName, matchers] of Object.entries(METRIC_GROUP_DEFINITIONS)) {
+          if (!metricMatchesGroup(metricName, matchers)) {
+            continue;
+          }
+          const group = groupsByName.get(groupName);
+          group.count += count;
+          group.score += score;
+        }
+      }
+    }
+  }
+
+  return groups.map((group) => ({
+    ...group,
+    rate: group.count > 0 ? roundRate((group.score * 100) / group.count) : 0,
+    pass: group.count > 0 ? roundRate((group.score * 100) / group.count) >= 90 : false,
+  }));
 }
 
 function summarizeDiagnosticResults(resultSources, context = {}) {
@@ -239,6 +332,7 @@ function summarizeDiagnosticResults(resultSources, context = {}) {
       failure_cases: failureCases,
     },
     suites,
+    metric_groups: summarizeMetricGroups(resultSources),
     error_counts: sortedErrorCounts,
     first_failures: firstFailures,
   };
@@ -249,6 +343,7 @@ function formatDiagnosticSummaryText(summary) {
   const context = summary?.context || {};
   const totals = summary?.totals || {};
   const suites = Array.isArray(summary?.suites) ? summary.suites : [];
+  const metricGroups = Array.isArray(summary?.metric_groups) ? summary.metric_groups : [];
   const errorCounts = Array.isArray(summary?.error_counts) ? summary.error_counts : [];
   const firstFailures = Array.isArray(summary?.first_failures) ? summary.first_failures : [];
 
@@ -278,6 +373,17 @@ function formatDiagnosticSummaryText(summary) {
     lines.push(
       `suite=${suite.suite} total_cases=${suite.total_cases ?? 0} failure_cases=${suite.failure_cases ?? 0}`
     );
+  }
+
+  lines.push('quality_groups:');
+  if (metricGroups.length === 0) {
+    lines.push('  none');
+  } else {
+    for (const group of metricGroups) {
+      lines.push(
+        `  group=${group.group} rate=${group.rate ?? 0} score=${group.score ?? 0} count=${group.count ?? 0} pass=${group.pass ? 'yes' : 'no'}`
+      );
+    }
   }
 
   lines.push('error_counts:');
@@ -374,15 +480,34 @@ function parseContractMetaLine(output) {
   }
 }
 
+function parseProviderMetaLine(output) {
+  const line = String(output || '')
+    .split(/\r?\n/)
+    .find((candidate) => candidate.startsWith('[ilas_provider_meta]'));
+
+  if (!line) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(line.slice('[ilas_provider_meta]'.length));
+  } catch (_) {
+    return null;
+  }
+}
+
 function renderAssistantFixture(fixturePath, siteBaseUrl) {
   const payload = loadJsonFile(fixturePath);
   const output = renderAssistantOutput(payload, siteBaseUrl);
   const contractMeta = parseContractMetaLine(output);
+  const providerMeta = parseProviderMetaLine(output);
 
   return {
     output,
     hasContractMetaLine: Boolean(contractMeta),
+    hasProviderMetaLine: Boolean(providerMeta),
     contractMeta,
+    providerMeta,
   };
 }
 
@@ -400,5 +525,6 @@ module.exports = {
   readPromptfooResults,
   renderAssistantFixture,
   summarizeDiagnosticResults,
+  summarizeMetricGroups,
   summarizeNamedMetric,
 };

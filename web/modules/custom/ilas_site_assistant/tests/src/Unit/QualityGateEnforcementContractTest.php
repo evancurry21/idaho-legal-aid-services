@@ -42,8 +42,13 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('--group ilas_site_assistant', $script);
     $this->assertStringContainsString('tests/src/Unit', $script);
     $this->assertStringContainsString('--testsuite drupal-unit', $script);
+    $this->assertStringContainsString('--profile', $script);
+    $this->assertStringContainsString('assistant-pr', $script);
     $this->assertStringContainsString('FaqSearchRuntimeRegressionKernelTest.php', $script);
+    $this->assertStringContainsString('AssistantRetrievalGroundingKernelTest.php', $script);
+    $this->assertStringContainsString('AssistantMessageRuntimeBehaviorFunctionalTest.php', $script);
     $this->assertStringContainsString('vc_kernel', $script);
+    $this->assertStringContainsString('assistant_functional', $script);
     $this->assertStringContainsString('run-host-phpunit.sh', $script);
     $this->assertStringContainsString('npm run test:promptfoo:runtime', $script);
     $this->assertStringContainsString('promptfoo_runtime', $script);
@@ -63,6 +68,10 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('--simulate-pass-rate', $script);
     $this->assertStringContainsString('--threshold', $script);
     $this->assertStringContainsString('--config', $script);
+
+    $promptfooGate = self::readFile('scripts/ci/run-promptfoo-gate.sh');
+    $this->assertStringContainsString('simulated_blocking_disallowed', $promptfooGate);
+    $this->assertStringContainsString('--allow-simulated-blocking', $promptfooGate);
   }
 
   /**
@@ -80,6 +89,7 @@ final class QualityGateEnforcementContractTest extends TestCase {
     $this->assertStringContainsString('promptfooconfig.deploy.yaml', $script);
     $this->assertStringContainsString('promptfooconfig.protected-push.yaml', $script);
     $this->assertStringContainsString('promptfooconfig.deep.yaml', $script);
+    $this->assertStringContainsString('simulated_blocking_allowed=', $script);
     $this->assertStringContainsString('promptfooconfig.abuse.yaml', $script);
     $this->assertStringContainsString('config_file=', $script);
     $this->assertStringContainsString('eval_execution_mode=', $script);
@@ -90,47 +100,80 @@ final class QualityGateEnforcementContractTest extends TestCase {
   }
 
   /**
-   * GitHub Actions workflow must wire both quality gate jobs.
+   * GitHub Actions workflow must wire quality gate and assistant smoke jobs.
    */
   public function testGitHubActionsWorkflowWiresQualityGateJobs(): void {
     $workflow = self::readFile('.github/workflows/quality-gate.yml');
 
-    // Job 1: PHPUnit quality gate references.
+    // Job 1: Basic quality gate references.
+    $this->assertStringContainsString('detect-assistant-changes', $workflow);
+    $this->assertStringContainsString('Assistant PR Quality Gate', $workflow);
+    $this->assertStringContainsString('assistant_changed', $workflow);
+    $this->assertStringContainsString('web/modules/custom/ilas_site_assistant/', $workflow);
+    $this->assertStringContainsString('promptfoo-evals/', $workflow);
     $this->assertStringContainsString('phpunit.pure.xml', $workflow);
-    $this->assertStringContainsString('Run PHPUnit pure-unit tests (VC-PURE)', $workflow);
+    $this->assertStringContainsString('Run PHPUnit pure/unit classifier and safety tests', $workflow);
     $this->assertStringContainsString('phpunit.xml', $workflow);
     $this->assertStringContainsString('--testsuite drupal-unit', $workflow);
-    $this->assertStringContainsString('VC-KERNEL', $workflow);
-    $this->assertStringContainsString('run-quality-gate.sh', $workflow);
+    $this->assertStringContainsString('--profile basic --skip-phpunit', $workflow);
     $this->assertStringContainsString('upload-artifact', $workflow);
 
-    // Job 2: Promptfoo gate references.
+    // Assistant-path PR gate references.
     $this->assertStringContainsString(
       'run-assistant-widget-hardening.mjs',
       $workflow,
-      'Promptfoo gate must run the UX/a11y JS hardening suite'
+      'Basic gate must run the UX/a11y JS hardening suite'
     );
-    $this->assertStringContainsString(
-      'Run UX/a11y widget hardening suite (P3-EXT-01)',
-      $workflow,
-      'Promptfoo gate must include the explicit P3-EXT-01 step name'
-    );
-    $this->assertStringContainsString('Run promptfoo transport/runtime tests', $workflow);
+    $this->assertStringContainsString('Run provider/runtime harness and golden checks', $workflow);
+    $this->assertStringContainsString('--profile assistant-pr --skip-phpunit', $workflow);
     $this->assertStringContainsString('run-promptfoo-gate.sh', $workflow);
+    $this->assertStringContainsString('promptfooconfig.quality.yaml', $workflow);
     $this->assertStringContainsString('promptfooconfig.hosted.yaml', $workflow);
-    $this->assertStringContainsString('promptfooconfig.protected-push.yaml', $workflow);
     $this->assertStringContainsString('--no-deep-eval', $workflow);
-    $this->assertStringContainsString('CI_PROMPTFOO_ENV: dev', $workflow);
-    $this->assertStringContainsString('TARGET_ENV="${CI_PROMPTFOO_ENV}"', $workflow);
+    $this->assertStringContainsString('ASSISTANT_BASE_URL', $workflow);
+    $this->assertStringContainsString('ILAS_ASSISTANT_URL', $workflow);
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE', $workflow);
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR', $workflow);
-    $this->assertStringContainsString('publish/master-active', $workflow);
-    $this->assertStringContainsString('promptfoo-gate-artifacts', $workflow);
+    $this->assertStringContainsString('test:assistant:smoke', $workflow);
+    $this->assertStringContainsString('assistant-playwright-smoke:', $workflow);
+    $this->assertStringContainsString('Assistant Mocked Playwright Smoke', $workflow);
+    $this->assertStringContainsString("require.resolve('@playwright/test')", $workflow);
+    $this->assertStringContainsString('npx playwright install --with-deps chromium', $workflow);
+    $this->assertStringContainsString('test:assistant:playwright:mocked-smoke', $workflow);
+    $this->assertStringContainsString('assistant-playwright-smoke-artifacts', $workflow);
+    $this->assertStringContainsString('run-vector-provenance-smoke.js', $workflow);
+    $this->assertStringContainsString('assistant-pr-quality-artifacts', $workflow);
+    $this->assertStringContainsString('hosted-manual-gate-artifacts', $workflow);
     $this->assertStringContainsString('structured-error-summary.txt', $workflow);
 
-    // Branch-aware policy annotation.
-    $this->assertStringContainsString('BLOCKING', $workflow);
-    $this->assertStringContainsString('ADVISORY', $workflow);
+    $nightly = self::readFile('.github/workflows/assistant-nightly-quality.yml');
+    $this->assertStringContainsString('cron:', $nightly);
+    $this->assertStringContainsString('promptfooconfig.deep.yaml', $nightly);
+    $this->assertStringContainsString('test:assistant:playwright:journeys', $nightly);
+    $this->assertStringContainsString('AssistantRetrievalGroundingKernelTest.php', $nightly);
+
+    $playwright = self::readFile('.github/workflows/assistant-playwright.yml');
+    $this->assertStringContainsString('schedule:', $playwright);
+    $this->assertStringContainsString('workflow_dispatch:', $playwright);
+    $this->assertStringContainsString('base_url:', $playwright);
+    $this->assertStringContainsString('ILAS_PLAYWRIGHT_BASE_URL', $playwright);
+    $this->assertStringContainsString('PLAYWRIGHT_BASE_URL', $playwright);
+    $this->assertStringContainsString('npx playwright install --with-deps chromium', $playwright);
+    $this->assertStringContainsString('npm run test:assistant:playwright:journeys', $playwright);
+    $this->assertStringContainsString('assistant-playwright-artifacts', $playwright);
+    $this->assertStringContainsString('Skipping full assistant Playwright journeys', $playwright);
+  }
+
+  /**
+   * Package scripts must expose mocked smoke and full journey commands.
+   */
+  public function testPackageScriptsExposeAssistantPlaywrightSmokeAndJourneys(): void {
+    $package = self::readFile('package.json');
+
+    $this->assertStringContainsString('"test:assistant:playwright:smoke"', $package);
+    $this->assertStringContainsString('assistant.pr-smoke.spec.js', $package);
+    $this->assertStringContainsString('"test:assistant:playwright:journeys"', $package);
+    $this->assertStringContainsString('journeys/', $package);
   }
 
   /**
@@ -172,11 +215,9 @@ final class QualityGateEnforcementContractTest extends TestCase {
       'Workflow must include cancel-in-progress for concurrency control'
     );
 
-    $this->assertStringContainsString(
-      'needs: quality-gate',
-      $workflow,
-      'Promptfoo gate must explicitly depend on quality-gate job'
-    );
+    $this->assertStringContainsString('quality-gate', $workflow);
+    $this->assertStringContainsString('assistant-pr-gate', $workflow);
+    $this->assertStringContainsString('hosted-manual-gate', $workflow);
   }
 
   /**

@@ -43,8 +43,24 @@ class TelemetryCredentialGateTest extends TestCase {
 
     $this->assertStringContainsString('LANGFUSE_PUBLIC_KEY', $settings);
     $this->assertStringContainsString('LANGFUSE_SECRET_KEY', $settings);
+    $this->assertStringContainsString('ILAS_LANGFUSE_ENABLED', $settings);
     $this->assertStringContainsString("langfuse']['public_key']", $settings);
     $this->assertStringContainsString("langfuse']['secret_key']", $settings);
+  }
+
+  /**
+   * Settings.php must keep Langfuse export live-only by default.
+   */
+  public function testSettingsPhpLangfusePolicyIsLiveOnlyWithExplicitToggle(): void {
+    $settings = self::readFile('web/sites/default/settings.php');
+
+    $this->assertStringContainsString("_ilas_get_secret('ILAS_LANGFUSE_ENABLED')", $settings);
+    $this->assertStringContainsString(
+      '_ilas_read_boolean($langfuse_enabled_raw, $langfuse_environment === \'live\')',
+      $settings,
+    );
+    $this->assertStringContainsString('if ($langfuse_enabled && $langfuse_pk && $langfuse_sk)', $settings);
+    $this->assertStringNotContainsString('if ($langfuse_pk && $langfuse_sk)', $settings);
   }
 
   /**
@@ -92,27 +108,37 @@ class TelemetryCredentialGateTest extends TestCase {
   }
 
   /**
-   * Runtime gates artifact must confirm credentials present on all three
-   * Pantheon environments with llm.enabled=false preserved.
+   * Runtime gates artifact must confirm live-only Langfuse export policy.
    */
   public function testRuntimeGatesArtifactShowsCredentialsPresentOnAllEnvironments(): void {
     $gates = self::readFile('docs/aila/runtime/phase1-observability-gates.txt');
 
     $this->assertSame(
-      3,
+      1,
       substr_count($gates, 'langfuse_public_key=present'),
-      'Expected 3 environments with langfuse_public_key=present',
+      'Expected only live to inject langfuse_public_key into effective config',
     );
     $this->assertSame(
-      3,
+      1,
       substr_count($gates, 'langfuse_secret_key=present'),
-      'Expected 3 environments with langfuse_secret_key=present',
+      'Expected only live to inject langfuse_secret_key into effective config',
+    );
+    $this->assertSame(
+      2,
+      substr_count($gates, 'langfuse_public_key=not_injected'),
+      'Expected dev/test to keep Langfuse credentials out of effective config',
+    );
+    $this->assertSame(
+      2,
+      substr_count($gates, 'langfuse_enabled=false'),
+      'Expected dev/test Langfuse exports disabled by default',
     );
     $this->assertSame(
       3,
       substr_count($gates, 'raven_client_key=present'),
       'Expected 3 environments with raven_client_key=present',
     );
+    $this->assertStringContainsString('langfuse_policy=live_only_default', $gates);
     $this->assertStringContainsString("llm.enabled': false", $gates);
   }
 

@@ -228,6 +228,8 @@ class OutOfScopeClassifier {
           // Commercial contracts.
           '/\b(business\s*contract|commercial\s*(contract|agreement|lease))\b/i' => 'oos_business_contract',
           '/\b((negotiate|draft|review)\s*(a\s*)?(business|commercial)\s*(contract|deal|agreement))\b/i' => 'oos_business_contract_draft',
+          '/\b((negotiate|draft|review)\s*(my|a|an|the)?\s*(llc|company|corporate)\s*(contract|deal|agreement))\b/i' => 'oos_business_contract_draft',
+          '/\b((llc|company|corporate)\s*(contract|agreement))\b/i' => 'oos_business_contract',
           '/\b(vendor\s*agreement|supplier\s*contract|distribution\s*agreement)\b/i' => 'oos_business_vendor',
           // Corporate matters.
           '/\b(shareholder\s*(dispute|agreement|rights)|corporate\s*governance)\b/i' => 'oos_business_corporate',

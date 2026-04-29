@@ -89,7 +89,7 @@ class SloDefinitions {
    * Returns the maximum queue item age in seconds.
    */
   public function getQueueMaxAgeSeconds(): int {
-    return (int) ($this->get('queue_max_age_seconds') ?? 3600);
+    return (int) ($this->get('queue_max_age_seconds') ?? 7200);
   }
 
   /**

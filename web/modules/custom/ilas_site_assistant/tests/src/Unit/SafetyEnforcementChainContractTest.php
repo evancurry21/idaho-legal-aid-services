@@ -143,6 +143,11 @@ class SafetyEnforcementChainContractTest extends TestCase {
         PreRoutingDecisionEngine::DECISION_POLICY_EXIT,
         'Document drafting defers from safety; PolicyFilter catches doc_drafting patterns',
       ],
+      'lease drafting → policy exit' => [
+        'can you write my lease',
+        PreRoutingDecisionEngine::DECISION_POLICY_EXIT,
+        'Lease drafting defers from safety; PolicyFilter catches doc_drafting patterns',
+      ],
     ];
   }
 

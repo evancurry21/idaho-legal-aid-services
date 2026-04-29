@@ -1,5 +1,9 @@
 # ILAS Chatbot Coverage Gap Report - Final Summary
 
+> **Historical legacy report.** This report was produced by deprecated
+> `scripts/chatbot-eval` tooling. Use Promptfoo, assistant smoke tests,
+> PHPUnit/functional tests, and Playwright for current Site Assistant coverage.
+
 **Generated:** 2026-01-23
 **Baseline Evaluation:** 185 test cases from golden dataset
 

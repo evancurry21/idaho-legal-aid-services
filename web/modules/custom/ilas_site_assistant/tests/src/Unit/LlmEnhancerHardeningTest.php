@@ -71,6 +71,38 @@ final class LlmEnhancerHardeningTest extends TestCase {
     $this->assertSame('cohere', $enhancer->getProviderId());
     $this->assertSame('command-a-03-2025', $enhancer->getModelId());
     $this->assertStringContainsString('Return exactly one canonical intent label', (string) ($transport->messages[0]['content'] ?? ''));
+    $this->assertTrue($enhancer->getLastRequestMeta()['success'] ?? FALSE);
+    $this->assertTrue($enhancer->getLastRequestMeta()['transport_attempted'] ?? FALSE);
+  }
+
+  public function testProbeConnectivityBypassesCacheAndReturnsSafeProof(): void {
+    $transport = new StaticRequestTimeTransport(TRUE, [
+      'payload' => ['intent' => 'offices'],
+      'usage' => ['input' => 7, 'output' => 1, 'total' => 8],
+    ]);
+    $enhancer = $this->buildEnhancer(['llm.enabled' => TRUE, 'llm.cache_ttl' => 3600], $transport);
+
+    $probe = $enhancer->probeConnectivity('unit-test');
+
+    $this->assertTrue($probe['success']);
+    $this->assertSame('cohere', $probe['provider']);
+    $this->assertSame('command-a-03-2025', $probe['model']);
+    $this->assertSame('offices', $probe['classification']);
+    $this->assertTrue($probe['transport_attempted']);
+    $this->assertFalse($probe['cache_hit']);
+    $this->assertSame(0, $transport->options['cache_ttl'] ?? NULL);
+    $this->assertArrayNotHasKey('api_key', $probe);
+  }
+
+  public function testBlockOnlyHighDoesNotDisableCohereProviderSafety(): void {
+    $transport = new StaticRequestTimeTransport(TRUE, ['payload' => ['intent' => 'faq']]);
+    $enhancer = $this->buildEnhancer([
+      'llm.enabled' => TRUE,
+      'llm.safety_threshold' => 'BLOCK_ONLY_HIGH',
+    ], $transport);
+
+    $this->assertSame('faq', $enhancer->classifyIntent('Where are your tenant FAQs?'));
+    $this->assertSame('CONTEXTUAL', $transport->options['safety_mode'] ?? NULL);
   }
 
   public function testClassifyIntentRejectsNonCanonicalIntent(): void {
@@ -249,6 +281,11 @@ final class StaticRequestTimeTransport implements RequestTimeLlmTransportInterfa
   public array $messages = [];
 
   /**
+   * @var array<string, mixed>
+   */
+  public array $options = [];
+
+  /**
    * @param array<string, mixed> $result
    *   Structured payload returned by the transport.
    */
@@ -272,6 +309,7 @@ final class StaticRequestTimeTransport implements RequestTimeLlmTransportInterfa
   public function completeStructuredJson(array $messages, array $schema, array $options = []): array {
     $this->calls++;
     $this->messages = $messages;
+    $this->options = $options;
     return $this->result;
   }
 

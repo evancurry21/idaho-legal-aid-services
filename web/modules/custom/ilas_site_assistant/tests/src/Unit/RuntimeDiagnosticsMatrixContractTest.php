@@ -38,6 +38,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     $this->assertContains('llm.provider', $factKeys);
     $this->assertContains('llm.model', $factKeys);
     $this->assertContains('llm.request_time_generation_reachable', $factKeys);
+    $this->assertContains('llm.generation_probe_passed', $factKeys);
+    $this->assertContains('llm.generation_attempted', $factKeys);
+    $this->assertContains('llm.last_error', $factKeys);
     $this->assertContains('llm.cohere_api_key_present', $factKeys);
     $this->assertNotContains('llm.request_time_retired', $factKeys);
     $this->assertNotContains('llm.google_generation_reachable', $factKeys);
@@ -77,6 +80,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
           'model' => 'command-a-03-2025',
           'runtime_ready' => $requestTimeReachable,
           'request_time_generation_reachable' => $requestTimeReachable,
+          'generation_probe_passed' => $requestTimeReachable,
+          'generation_attempted' => $requestTimeReachable,
+          'last_error' => NULL,
         ],
         'vector_search' => [
           'enabled' => FALSE,
@@ -113,6 +119,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
         'llm.provider' => 'Cohere-first request-time transport contract',
         'llm.model' => 'Cohere-first request-time transport contract',
         'llm.request_time_generation_reachable' => 'LlmEnhancer::isEnabled()',
+        'llm.generation_probe_passed' => 'CohereGenerationProbe exact-output proof',
+        'llm.generation_attempted' => 'CohereGenerationProbe last explicit probe state',
+        'llm.last_error' => 'CohereGenerationProbe sanitized last error',
         'vector_search.enabled' => 'config export',
       ],
       'divergences' => [],

@@ -102,7 +102,7 @@ class LangfuseProbeCommands extends DrushCommands {
 
     // Guard: Langfuse must be enabled.
     if (!$config->get('langfuse.enabled')) {
-      $this->logger()?->error('Langfuse is runtime-disabled. Enablement depends on LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY secrets being present via settings.php. Run `drush ilas:langfuse-status` for the full stored-vs-effective picture.');
+      $this->logger()?->error('Langfuse is runtime-disabled. Exports are live-only by default; set ILAS_LANGFUSE_ENABLED=1 with LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY for temporary non-live diagnostics. Run `drush ilas:langfuse-status` for the full stored-vs-effective picture.');
       return 1;
     }
 
@@ -408,8 +408,6 @@ class LangfuseProbeCommands extends DrushCommands {
    */
   protected function deriveVerdict(bool $effectiveEnabled, bool $publicKeyPresent, bool $secretKeyPresent): string {
     if (!$effectiveEnabled) {
-      // When disabled at runtime, it's almost always because secrets
-      // are absent (settings.php only enables when both are present).
       return 'DISABLED_NO_SECRETS';
     }
 
@@ -431,7 +429,7 @@ class LangfuseProbeCommands extends DrushCommands {
    */
   protected function deriveSuggestion(string $verdict): ?string {
     return match ($verdict) {
-      'DISABLED_NO_SECRETS' => 'Langfuse enablement depends on LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY being present via Pantheon secrets or environment variables. Run `drush ilas:langfuse-status` for override channel details.',
+      'DISABLED_NO_SECRETS' => 'Langfuse exports are live-only by default. For non-live diagnostics, set ILAS_LANGFUSE_ENABLED=1 with LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY; set ILAS_LANGFUSE_ENABLED=0 as a kill switch. Run `drush ilas:langfuse-status` for override channel details.',
       'ENABLED_NO_CREDENTIALS' => 'Langfuse is enabled but credential injection failed. Check that LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY resolve in _ilas_get_secret(). Run `drush ilas:langfuse-status` to inspect.',
       'DISABLED_CONFIG' => 'Langfuse is explicitly disabled in effective config despite secrets being present. Check settings.php override logic.',
       default => NULL,

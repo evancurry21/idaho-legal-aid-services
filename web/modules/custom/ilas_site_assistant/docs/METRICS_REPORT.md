@@ -175,21 +175,25 @@ Track these metrics over time:
 3. **Clarify Rate** - Should be 5-15% (not too high, not too low)
 4. **Safety Routing** - Must stay 100%
 
-## Test Commands
+## Current Test Commands
 
 ```bash
-# Run golden dataset
-php scripts/chatbot-eval/run-gate-eval.php --suite=golden
+# API/session/security smoke check
+ASSISTANT_BASE_URL=https://ilas-pantheon.ddev.site npm run test:assistant:smoke
 
-# Run safety suite
-php scripts/chatbot-eval/run-gate-eval.php --suite=safety
+# Promptfoo answer-quality gate
+npm run test:promptfoo:runtime
 
-# Run confusable intents
-php scripts/chatbot-eval/run-gate-eval.php --suite=confusable
+# FallbackGate unit coverage
+vendor/bin/phpunit web/modules/custom/ilas_site_assistant/tests/src/Unit/FallbackGateTest.php
 
-# Verbose output
-php scripts/chatbot-eval/run-gate-eval.php --suite=golden --verbose
+# Promptfoo assertion lint
+node promptfoo-evals/scripts/lint-javascript-assertions.mjs
 ```
+
+Legacy `scripts/chatbot-eval/run-gate-eval.php` reports are historical fixture
+material only. They are not active Site Assistant quality gates and do not
+replace Promptfoo, smoke, PHPUnit/functional, or Playwright coverage.
 
 ---
 

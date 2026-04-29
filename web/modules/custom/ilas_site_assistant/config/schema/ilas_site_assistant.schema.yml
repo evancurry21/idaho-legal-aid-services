@@ -163,6 +163,12 @@ ilas_site_assistant.settings:
         enabled:
           type: boolean
           label: 'Enable request-time LLM enhancement'
+        provider:
+          type: string
+          label: 'Request-time LLM provider'
+        model:
+          type: string
+          label: 'Request-time LLM model'
         max_tokens:
           type: integer
           label: 'Maximum output tokens'

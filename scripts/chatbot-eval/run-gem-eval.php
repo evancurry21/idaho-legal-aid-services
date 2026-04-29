@@ -3,7 +3,10 @@
 
 /**
  * @file
- * Exploratory evaluation of Gem bot historical queries against current chatbot.
+ * Exploratory evaluation of Gem bot historical queries - deprecated legacy harness.
+ *
+ * Preserved for historical fixture review only. This HTTP script does not honor
+ * the current Site Assistant bootstrap/session/CSRF/conversation contract.
  *
  * Sends each query via HTTP to the running DDEV site and records:
  * - intent_selected, intent_confidence
@@ -36,6 +39,7 @@ $options = getopt('', [
 ]);
 
 if (isset($options['help'])) {
+  echo "DEPRECATED legacy harness. Use Promptfoo for current answer-quality coverage.\n";
   echo "Usage: php run-gem-eval.php [--fixture=PATH] [--base-url=URL] [--limit=N] [--verbose]\n";
   exit(0);
 }
@@ -65,7 +69,9 @@ if ($limit) {
   $queries = array_slice($queries, 0, $limit);
 }
 
-echo "=== Gem Export Exploratory Evaluation ===\n\n";
+echo "=== Gem Export Exploratory Evaluation (Deprecated Legacy) ===\n\n";
+echo "Warning: this HTTP script is historical fixture material only, not a current Site Assistant quality gate.\n";
+echo "It does not exercise the current bootstrap/session/CSRF/conversation contract.\n\n";
 echo "Fixture: $fixture_path\n";
 echo "Queries: " . count($queries) . "\n";
 echo "Base URL: $base_url\n";

@@ -149,18 +149,40 @@ final class VectorMaintenanceCommands extends DrushCommands {
   protected function formatIndexStatus(array $index_snapshot): array {
     $total_items = (int) ($index_snapshot['total_items'] ?? 0);
     $indexed_items = (int) ($index_snapshot['indexed_items'] ?? 0);
+    $observed = is_array($index_snapshot['observed'] ?? NULL) ? $index_snapshot['observed'] : [];
+    $expected = is_array($index_snapshot['expected'] ?? NULL) ? $index_snapshot['expected'] : [];
+
+    $embeddings_engine = isset($observed['embeddings_engine']) && is_string($observed['embeddings_engine'])
+      ? $observed['embeddings_engine']
+      : ($expected['embeddings_engine'] ?? NULL);
+    [$embedding_provider, $embedding_model] = $this->splitEmbeddingsEngine((string) ($embeddings_engine ?? ''));
+
+    $probe_evidence = $index_snapshot['probe_evidence'] ?? [];
+    $probe_match_summary = $this->summarizeProbeEvidence(is_array($probe_evidence) ? $probe_evidence : []);
 
     return [
       'index_id' => $index_snapshot['index_id'] ?? '',
+      'backend_id' => $observed['server_id'] ?? ($expected['server_id'] ?? NULL),
+      'vector_provider' => $this->inferVectorProvider($observed['server_id'] ?? ($expected['server_id'] ?? NULL)),
+      'embeddings_engine' => $embeddings_engine,
+      'embedding_provider' => $embedding_provider,
+      'embedding_model' => $embedding_model,
+      'metric' => $observed['metric'] ?? ($expected['metric'] ?? NULL),
+      'expected_dimensions' => $expected['dimensions']
+        ?? ($index_snapshot['expected_dimensions'] ?? NULL),
+      'actual_dimensions' => $observed['dimensions'] ?? NULL,
+      'metadata_drift_fields' => array_values(is_array($index_snapshot['drift_fields'] ?? NULL) ? $index_snapshot['drift_fields'] : []),
       'hygiene_status' => $index_snapshot['status'] ?? 'unknown',
       'metadata_status' => $index_snapshot['metadata_status'] ?? 'unknown',
       'indexing_status' => $index_snapshot['indexing_status'] ?? 'unknown',
       'probe_status' => $index_snapshot['probe_status'] ?? 'unknown',
       'last_probe_at' => $index_snapshot['last_probe_at'] ?? NULL,
-      'probe_error' => $index_snapshot['probe_error'] ?? NULL,
+      'last_refresh_at' => $index_snapshot['last_refresh_at'] ?? NULL,
+      'probe_error' => $this->sanitizeError($index_snapshot['probe_error'] ?? NULL),
       'probe_passed_count' => (int) ($index_snapshot['probe_passed_count'] ?? 0),
       'probe_failed_count' => (int) ($index_snapshot['probe_failed_count'] ?? 0),
-      'probe_evidence' => $index_snapshot['probe_evidence'] ?? [],
+      'probe_evidence' => $probe_evidence,
+      'probe_summary' => $probe_match_summary,
       'total_items' => $total_items,
       'indexed_items' => $indexed_items,
       'remaining_items' => (int) ($index_snapshot['remaining_items'] ?? 0),
@@ -168,8 +190,103 @@ final class VectorMaintenanceCommands extends DrushCommands {
         ? round(min(100, max(0, ($indexed_items / $total_items) * 100)), 2)
         : 0.0,
       'last_stop_reason' => $index_snapshot['last_stop_reason'] ?? NULL,
-      'last_error' => $index_snapshot['last_error'] ?? NULL,
+      'last_error' => $this->sanitizeError($index_snapshot['last_error'] ?? NULL),
     ];
+  }
+
+  /**
+   * Splits a Search API embeddings engine identifier into provider+model.
+   *
+   * @return array{0:?string,1:?string}
+   */
+  protected function splitEmbeddingsEngine(string $engine): array {
+    if ($engine === '') {
+      return [NULL, NULL];
+    }
+    if (strpos($engine, '__') !== FALSE) {
+      [$provider, $model] = explode('__', $engine, 2);
+      $provider = preg_replace('/^ilas_/', '', $provider) ?: $provider;
+      return [$provider, $model];
+    }
+    return [$engine, $engine];
+  }
+
+  /**
+   * Infers the vector provider from the Search API server identifier.
+   */
+  protected function inferVectorProvider(?string $server_id): ?string {
+    if (!is_string($server_id) || $server_id === '') {
+      return NULL;
+    }
+    if (str_contains($server_id, 'pinecone')) {
+      return 'pinecone';
+    }
+    return $server_id;
+  }
+
+  /**
+   * Summarizes probe evidence into top match IDs/scores + metadata key set.
+   *
+   * @param array $probe_evidence
+   *   Array of probe records produced by VectorIndexHygieneService.
+   *
+   * @return array<string, mixed>
+   */
+  protected function summarizeProbeEvidence(array $probe_evidence): array {
+    $top_ids = [];
+    $top_scores = [];
+    $metadata_keys = [];
+    $unpublished_matches = 0;
+    $probe_query = NULL;
+    $topk_requested = NULL;
+    foreach ($probe_evidence as $record) {
+      if (!is_array($record)) {
+        continue;
+      }
+      $probe_query = $probe_query ?? ($record['query'] ?? $record['probe_query'] ?? NULL);
+      $topk_requested = $topk_requested ?? ($record['topk'] ?? $record['top_k'] ?? NULL);
+      foreach (($record['matches'] ?? []) as $match) {
+        if (!is_array($match)) {
+          continue;
+        }
+        if (isset($match['id']) && (is_string($match['id']) || is_int($match['id']))) {
+          $top_ids[] = (string) $match['id'];
+        }
+        if (isset($match['score']) && is_numeric($match['score'])) {
+          $top_scores[] = (float) $match['score'];
+        }
+        foreach (($match['metadata'] ?? []) as $key => $_) {
+          if (is_string($key)) {
+            $metadata_keys[$key] = TRUE;
+          }
+        }
+        if (isset($match['published']) && $match['published'] === FALSE) {
+          $unpublished_matches += 1;
+        }
+      }
+    }
+    rsort($top_scores, SORT_NUMERIC);
+    return [
+      'probe_query' => $probe_query,
+      'topk_requested' => $topk_requested,
+      'top_match_ids' => array_slice(array_values(array_unique($top_ids)), 0, 5),
+      'top_match_scores' => array_slice($top_scores, 0, 5),
+      'metadata_keys' => array_values(array_keys($metadata_keys)),
+      'matches_unpublished' => $unpublished_matches,
+    ];
+  }
+
+  /**
+   * Sanitizes error strings to remove anything resembling a secret/key.
+   */
+  protected function sanitizeError(mixed $error): mixed {
+    if (!is_string($error) || $error === '') {
+      return $error;
+    }
+    // Redact bearer tokens, API keys, and high-entropy hex/base64 strings.
+    $sanitized = preg_replace('/Bearer\s+[A-Za-z0-9\-_.]+/i', 'Bearer [REDACTED]', $error) ?? $error;
+    $sanitized = preg_replace('/[A-Za-z0-9_\-]{32,}/', '[REDACTED]', $sanitized) ?? $sanitized;
+    return $sanitized;
   }
 
 }

@@ -2,7 +2,8 @@
  * ILAS Live Assistant — Promptfoo custom provider
  *
  * Shared transport/runtime lives in `promptfoo-evals/lib/ilas-live-shared.js`.
- * That module retains the assistant session bootstrap fallback chain:
+ * That module uses the current assistant session bootstrap endpoint and keeps a
+ * legacy fallback only for older environments:
  *   - /assistant/api/session/bootstrap
  *   - /session/token
  * and appends `[contract_meta]` to rendered provider output.
@@ -11,6 +12,7 @@
 const {
   DEFAULT_EXPECTED_REQUEST_TOTAL,
   IlasLiveTransport,
+  buildIlasProviderMeta,
   deterministicUuidV4,
   formatStructuredError,
   renderAssistantOutput,
@@ -98,11 +100,36 @@ class IlasLiveProvider {
     });
 
     if (!result.ok) {
-      return { error: formatStructuredError(result.error) };
+      const providerMeta = buildIlasProviderMeta(
+        {},
+        this.transport.options.siteBaseUrl,
+        {
+          providerMode: 'live_api',
+          conversationId,
+          transportMeta: result.transport || null,
+          errors: [result.error],
+        }
+      );
+      return {
+        error: formatStructuredError(result.error),
+        metadata: { ilas: providerMeta },
+      };
     }
 
+    const providerMeta = buildIlasProviderMeta(
+      result.data,
+      this.transport.options.siteBaseUrl,
+      {
+        providerMode: 'live_api',
+        conversationId,
+        transportMeta: result.transport || null,
+        requestId: result.data?.request_id || null,
+      }
+    );
+
     return {
-      output: renderAssistantOutput(result.data, this.transport.options.siteBaseUrl),
+      output: renderAssistantOutput(result.data, this.transport.options.siteBaseUrl, { providerMeta }),
+      metadata: { ilas: providerMeta },
       tokenUsage: {},
     };
   }

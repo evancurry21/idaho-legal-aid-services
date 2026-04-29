@@ -1,3 +1,5 @@
+const path = require('node:path');
+
 const { expect } = require('@playwright/test');
 
 const TRACKED_ENDPOINT_PATHS = new Set([
@@ -15,6 +17,8 @@ const KNOWN_THIRD_PARTY_NOISE_PATTERNS = [
 ];
 
 const BUTTON_SELECTOR = '.topic-suggestion-btn, .inline-suggestion-btn';
+const ASSISTANT_WIDGET_SCRIPT_PATH = path.resolve(__dirname, '..', '..', '..', 'js', 'assistant-widget.js');
+const DEFAULT_FIXTURE_ORIGIN = 'https://playwright.ilas.test';
 
 const SELECTORS = {
   pageChat: '#assistant-chat',
@@ -156,6 +160,157 @@ async function attachJson(testInfo, name, data) {
     body: Buffer.from(`${JSON.stringify(data, null, 2)}\n`, 'utf8'),
     contentType: 'application/json',
   });
+}
+
+function matchesAnyPattern(entry, patterns = []) {
+  const haystack = [
+    entry.text,
+    entry.url,
+    entry.message,
+    entry.stack,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return patterns.some((pattern) => {
+    if (pattern instanceof RegExp) {
+      return pattern.test(haystack);
+    }
+    return haystack.includes(String(pattern));
+  });
+}
+
+function buildAssistantFixtureHtml(options = {}) {
+  const mode = options.mode || 'widget';
+  const pageMode = mode === 'page';
+  const config = {
+    apiBase: '/assistant/api',
+    disclaimer: 'I can help you find information on the Idaho Legal Aid Services website. I cannot provide legal advice.',
+    enableFaq: true,
+    enableResources: true,
+    canonicalUrls: {
+      apply: '/apply',
+      faq: '/faq',
+      forms: '/forms',
+      guides: '/guides',
+      hotline: 'tel:+12087460100',
+      offices: '/about/offices',
+      resources: '/resources',
+      services: '/services',
+    },
+    welcomeMessage: 'Hi, I am Aila. I can help you find forms, guides, and answers on our website. What are you looking for?',
+    pageMode,
+    ...(options.config || {}),
+  };
+
+  const pageMarkup = pageMode ? `
+    <main class="ilas-assistant-page" id="ilas-assistant-page">
+      <div class="assistant-container">
+        <header class="assistant-header">
+          <h1 class="visually-hidden">Aila - Idaho Legal Aid Services Chat</h1>
+        </header>
+        <div class="assistant-chat" id="assistant-chat" role="log" aria-live="polite" aria-label="Chat messages"></div>
+        <div class="assistant-suggestions" id="assistant-suggestions" aria-label="Quick actions">
+          <button type="button" class="suggestion-btn" data-action="forms" aria-label="Find a Form">Find a Form</button>
+          <button type="button" class="suggestion-btn" data-action="guides" aria-label="Find a Guide">Find a Guide</button>
+          <button type="button" class="suggestion-btn" data-action="faq" aria-label="Browse FAQs">Browse FAQs</button>
+          <button type="button" class="suggestion-btn" data-action="apply" aria-label="Apply for Help">Apply for Help</button>
+        </div>
+        <form class="assistant-input-form" id="assistant-input-form" aria-label="Send a message">
+          <label for="assistant-input" class="visually-hidden">Type your question</label>
+          <input type="text" id="assistant-input" class="assistant-input" autocomplete="off" maxlength="500" aria-describedby="input-hint">
+          <span id="input-hint" class="visually-hidden">Press Enter to send your message</span>
+          <button type="submit" class="assistant-send-btn" aria-label="Send message">Send</button>
+        </form>
+      </div>
+    </main>
+  ` : '<div class="ilas-assistant-widget" id="ilas-assistant-widget" aria-hidden="true"></div>';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Assistant Playwright Fixture</title>
+  <style>
+    .visually-hidden {
+      clip: rect(1px, 1px, 1px, 1px);
+      height: 1px;
+      overflow: hidden;
+      position: absolute;
+      white-space: nowrap;
+      width: 1px;
+    }
+    .assistant-panel[hidden] {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  ${pageMarkup}
+  <script>
+    window.__assistantXss = false;
+    window.drupalSettings = {
+      ilasSiteAssistant: ${JSON.stringify(config)}
+    };
+    window.Drupal = {
+      behaviors: {},
+      t: function (text, replacements) {
+        var output = String(text || '');
+        if (replacements) {
+          Object.keys(replacements).forEach(function (key) {
+            output = output.replace(key, replacements[key]);
+          });
+        }
+        return output;
+      }
+    };
+    window.once = function (id, selector, context) {
+      var root = context || document;
+      var elements = [];
+      if (root.matches && root.matches(selector)) {
+        elements.push(root);
+      }
+      elements = elements.concat(Array.prototype.slice.call(root.querySelectorAll(selector)));
+      return elements.filter(function (element) {
+        var key = 'data-once-' + String(id || '').replace(/[^a-z0-9_-]/gi, '');
+        if (element.getAttribute(key)) {
+          return false;
+        }
+        element.setAttribute(key, 'true');
+        return true;
+      });
+    };
+  </script>
+</body>
+</html>`;
+}
+
+async function loadAssistantFixture(page, options = {}) {
+  const mode = options.mode || 'widget';
+  const origin = options.origin || DEFAULT_FIXTURE_ORIGIN;
+  const pathname = options.pathname || (mode === 'page' ? '/assistant' : '/');
+  const url = `${origin}${pathname}`;
+
+  await page.route(url, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html; charset=UTF-8',
+      body: buildAssistantFixtureHtml({ ...options, mode }),
+    });
+  });
+
+  await page.goto(url);
+  await page.addScriptTag({ path: ASSISTANT_WIDGET_SCRIPT_PATH });
+  await page.evaluate(() => {
+    window.Drupal.behaviors.ilasSiteAssistant.attach(document, window.drupalSettings);
+  });
+
+  return {
+    mode,
+    origin,
+    pathname,
+    url,
+  };
 }
 
 async function createAssistantHarness(page, testInfo, options = {}) {
@@ -569,8 +724,13 @@ async function createAssistantHarness(page, testInfo, options = {}) {
     await attachJson(testInfo, `${prefix}-turn-evidence`, turnEvidence);
   }
 
-  async function assertNoAssistantSideErrors(prefix = 'assistant') {
-    const assistantConsole = consoleEntries.filter((entry) => isAssistantOwnedConsole(entry) && !isKnownThirdPartyNoise(entry));
+  async function assertNoAssistantSideErrors(prefix = 'assistant', assertOptions = {}) {
+    const allowedAssistantConsolePatterns = assertOptions.allowedAssistantConsolePatterns || [];
+    const assistantConsole = consoleEntries.filter((entry) => {
+      return isAssistantOwnedConsole(entry)
+        && !isKnownThirdPartyNoise(entry)
+        && !matchesAnyPattern(entry, allowedAssistantConsolePatterns);
+    });
     const assistantPageErrors = pageErrors.filter((entry) => isAssistantOwnedPageError(entry) && !isKnownThirdPartyNoise(entry));
     const assistantFailedRequests = failedRequests.filter((entry) => isAssistantOwnedFailedRequest(entry));
 
@@ -633,7 +793,7 @@ async function runWithAssistantDiagnostics(page, testInfo, options, callback) {
     if (harness.turnEvidence.length) {
       await harness.attachTurnEvidence(`${prefix}-turn-evidence`);
     }
-    await harness.assertNoAssistantSideErrors(prefix);
+    await harness.assertNoAssistantSideErrors(prefix, options);
   } catch (error) {
     await harness.attachFailureArtifacts(prefix);
     throw error;
@@ -641,12 +801,65 @@ async function runWithAssistantDiagnostics(page, testInfo, options, callback) {
 }
 
 async function installAssistantApiMocks(page, options = {}) {
+  const bootstrapRequests = [];
   const messageRequests = [];
   const trackRequests = [];
+  const bootstrapResponses = Array.isArray(options.bootstrapResponses) ? [...options.bootstrapResponses] : [];
   const messageResponses = Array.isArray(options.messageResponses) ? [...options.messageResponses] : [];
 
-  await page.route('**/assistant/api/session/bootstrap', async (route) => {
+  async function resolveMockResponse(next, context) {
+    const resolved = typeof next === 'function' ? await next(context) : next;
+    return resolved || {};
+  }
+
+  async function fulfillMockResponse(route, resolved, defaults = {}) {
+    if (resolved.abort) {
+      await route.abort(resolved.abort);
+      return;
+    }
+
+    const contentType = resolved.contentType || defaults.contentType || 'application/json';
+    const status = resolved.status || defaults.status || 200;
+    let body = Object.prototype.hasOwnProperty.call(resolved, 'body') ? resolved.body : resolved;
+
+    if (Object.prototype.hasOwnProperty.call(defaults, 'body') && !Object.keys(resolved).length) {
+      body = defaults.body;
+    }
+
+    if (typeof body !== 'string') {
+      body = JSON.stringify(body);
+    }
+
     await route.fulfill({
+      status,
+      contentType,
+      headers: resolved.headers || defaults.headers,
+      body,
+    });
+  }
+
+  await page.route('**/assistant/api/session/bootstrap', async (route) => {
+    const request = route.request();
+    bootstrapRequests.push({
+      url: request.url(),
+      headers: request.headers(),
+    });
+
+    const next = bootstrapResponses.shift();
+    if (next) {
+      const resolved = await resolveMockResponse(next, {
+        request,
+        index: bootstrapRequests.length,
+      });
+      await fulfillMockResponse(route, resolved, {
+        status: 200,
+        contentType: 'text/plain; charset=UTF-8',
+        body: options.bootstrapToken || 'playwright-csrf-token',
+      });
+      return;
+    }
+
+    await fulfillMockResponse(route, {}, {
       status: 200,
       contentType: 'text/plain; charset=UTF-8',
       body: options.bootstrapToken || 'playwright-csrf-token',
@@ -684,22 +897,20 @@ async function installAssistantApiMocks(page, options = {}) {
       return;
     }
 
-    const resolved = typeof next === 'function'
-      ? await next({ payload, request, index: messageRequests.length })
-      : next;
+    const resolved = await resolveMockResponse(next, { payload, request, index: messageRequests.length });
 
     if (resolved.delayMs) {
       await page.waitForTimeout(resolved.delayMs);
     }
 
-    await route.fulfill({
-      status: resolved.status || 200,
-      contentType: resolved.contentType || 'application/json',
-      body: JSON.stringify(resolved.body || resolved),
+    await fulfillMockResponse(route, resolved, {
+      status: 200,
+      contentType: 'application/json',
     });
   });
 
   return {
+    bootstrapRequests,
     messageRequests,
     trackRequests,
   };
@@ -711,6 +922,7 @@ module.exports = {
   attachJson,
   createAssistantHarness,
   installAssistantApiMocks,
+  loadAssistantFixture,
   normalizeWhitespace,
   runWithAssistantDiagnostics,
   safeJsonParse,

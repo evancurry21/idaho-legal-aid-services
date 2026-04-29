@@ -358,4 +358,41 @@ class QueueHealthMonitorTest extends TestCase {
     $this->assertNull($monitor->getOldestEnqueuedAt());
   }
 
+  /**
+   * Tests actual queue rows override stale oldest-state after partial drains.
+   */
+  public function testActualQueueRowAgeOverridesResidualOldestState(): void {
+    $factory = $this->buildQueueFactory(8);
+    $state = $this->buildState();
+    $actualOldest = time() - 1800;
+    $monitor = new class($factory, $state, $actualOldest) extends QueueHealthMonitor {
+
+      public function __construct(
+        QueueFactory $queueFactory,
+        \Drupal\Core\State\StateInterface $state,
+        private readonly int $actualOldest,
+      ) {
+        parent::__construct($queueFactory, $state);
+      }
+
+      protected function getOldestQueueRowCreatedAt(): ?int {
+        return $this->actualOldest;
+      }
+
+    };
+
+    $monitor->recordEnqueue(time() - 8000, 0);
+    $slo = $this->buildSlo([
+      'queue_max_depth' => 10000,
+      'queue_max_age_seconds' => 7200,
+    ]);
+
+    $status = $monitor->getQueueHealthStatus($slo);
+
+    $this->assertSame('healthy', $status['status']);
+    $this->assertSame($actualOldest, $status['oldest_enqueued_at']);
+    $this->assertLessThan(7200, $status['oldest_item_age_seconds']);
+    $this->assertSame($actualOldest, $monitor->getOldestEnqueuedAt());
+  }
+
 }

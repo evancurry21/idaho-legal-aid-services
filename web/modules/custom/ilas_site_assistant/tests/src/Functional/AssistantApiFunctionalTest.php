@@ -73,6 +73,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    \Drupal::service('router.builder')->rebuild();
 
     // Create users with different permission levels.
     $this->adminUser = $this->drupalCreateUser([
@@ -370,7 +371,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
       'event_value' => '',
     ], $this->validTrackHeaders());
 
-    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals(200, $response->getStatusCode(), $this->formatBootstrapFailure($response));
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertTrue($data['ok']);
@@ -1167,10 +1168,11 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * Assistant bootstrap endpoint returns token and sets anonymous session.
    */
   public function testAnonymousSessionBootstrapEndpointReturnsTokenAndSetsCookie(): void {
+    $this->assertBootstrapRouteInstalled();
     $cookies = new CookieJar();
     $response = $this->requestBootstrap($cookies);
 
-    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals(200, $response->getStatusCode(), $this->formatBootstrapFailure($response));
     $this->assertNotEmpty(trim((string) $response->getBody()), 'Bootstrap endpoint must return a CSRF token');
     $this->assertNotEmpty($cookies->toArray(), 'Bootstrap endpoint must issue a session cookie');
     $this->assertStringContainsString('text/plain', $response->getHeader('Content-Type')[0] ?? '');
@@ -1183,17 +1185,18 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * Assistant bootstrap reuses an established anonymous session without churn.
    */
   public function testAnonymousSessionBootstrapReuseDoesNotRotateCookie(): void {
+    $this->assertBootstrapRouteInstalled();
     $cookies = new CookieJar();
 
     $first = $this->requestBootstrap($cookies);
-    $this->assertEquals(200, $first->getStatusCode());
+    $this->assertEquals(200, $first->getStatusCode(), $this->formatBootstrapFailure($first));
     $this->assertNotEmpty($first->getHeader('Set-Cookie'), 'Initial bootstrap must mint a session cookie');
 
     $initial_cookie = $this->findDrupalSessionCookie($cookies);
     $this->assertNotNull($initial_cookie, 'Initial bootstrap must populate the cookie jar with a Drupal session cookie');
 
     $second = $this->requestBootstrap($cookies);
-    $this->assertEquals(200, $second->getStatusCode());
+    $this->assertEquals(200, $second->getStatusCode(), $this->formatBootstrapFailure($second));
     $this->assertSame([], $second->getHeader('Set-Cookie'), 'Bootstrap reuse must not rotate the anonymous session cookie');
 
     $reused_cookie = $this->findDrupalSessionCookie($cookies);
@@ -1365,6 +1368,27 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     }
 
     return $this->getHttpClient()->get($this->buildUrl('/assistant/api/session/bootstrap'), $options);
+  }
+
+  /**
+   * Asserts the bootstrap route is present in the functional test router.
+   */
+  protected function assertBootstrapRouteInstalled(): void {
+    $route = \Drupal::service('router.route_provider')->getRouteByName('ilas_site_assistant.api.session_bootstrap');
+    $this->assertSame('/assistant/api/session/bootstrap', $route->getPath());
+    $this->assertSame('\Drupal\ilas_site_assistant\Controller\AssistantSessionBootstrapController::bootstrap', $route->getDefault('_controller'));
+  }
+
+  /**
+   * Formats bootstrap failures with the HTTP body and selected headers.
+   */
+  protected function formatBootstrapFailure($response): string {
+    $headers = [];
+    foreach (['Content-Type', 'X-Drupal-Cache', 'X-Generator'] as $header) {
+      $headers[$header] = $response->getHeader($header);
+    }
+
+    return 'bootstrap body=' . trim((string) $response->getBody()) . ' headers=' . json_encode($headers);
   }
 
   /**

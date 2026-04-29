@@ -332,6 +332,7 @@ class LangfuseProbeCommandTest extends TestCase {
     $this->assertCount(1, $errorMessages);
     $this->assertStringContainsString('LANGFUSE_PUBLIC_KEY', $errorMessages[0]);
     $this->assertStringContainsString('LANGFUSE_SECRET_KEY', $errorMessages[0]);
+    $this->assertStringContainsString('ILAS_LANGFUSE_ENABLED=1', $errorMessages[0]);
     $this->assertStringNotContainsString('Set langfuse.enabled=true', $errorMessages[0]);
   }
 
@@ -499,6 +500,7 @@ class LangfuseProbeCommandTest extends TestCase {
     $this->assertSame('DISABLED_NO_SECRETS', $decoded['verdict']);
     $this->assertFalse($decoded['effective_enabled']);
     $this->assertNotNull($decoded['suggestion']);
+    $this->assertStringContainsString('ILAS_LANGFUSE_ENABLED=1', $decoded['suggestion']);
     $this->assertStringContainsString('LANGFUSE_PUBLIC_KEY', $decoded['suggestion']);
   }
 

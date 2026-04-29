@@ -37,6 +37,8 @@ escalation_message: 'For personalized legal assistance, please contact our Legal
 # ambiguous-intent classification when operators enable the runtime toggle.
 llm:
   enabled: false
+  provider: 'cohere'
+  model: 'command-a-03-2025'
   max_tokens: 150
   temperature: 0.3
   fallback_on_error: true  # Use rule-based response if LLM fails
@@ -216,8 +218,9 @@ ab_testing:
 
 # Langfuse observability (default OFF)
 # Credentials should be set via settings.php from environment variables:
-#   $config['ilas_site_assistant.settings']['langfuse']['public_key'] = getenv('LANGFUSE_PUBLIC_KEY');
-#   $config['ilas_site_assistant.settings']['langfuse']['secret_key'] = getenv('LANGFUSE_SECRET_KEY');
+#   Set LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY and use ILAS_LANGFUSE_ENABLED
+#   to explicitly enable non-live diagnostics. Live auto-enables when credentials
+#   are present unless ILAS_LANGFUSE_ENABLED=0.
 #   $config['ilas_site_assistant.settings']['langfuse']['environment'] = getenv('PANTHEON_ENVIRONMENT') ?: 'local';
 langfuse:
   enabled: false
@@ -230,7 +233,7 @@ langfuse:
   redacted_preview_max_chars: 160
   timeout: 5.0
   max_queue_depth: 10000
-  max_item_age_seconds: 3600
+  max_item_age_seconds: 7200
 
 # Audit governance for "no legal advice" compliance reporting
 # See docs/aila/AUDIT_GOVERNANCE_SPEC.md for full specification.
@@ -243,7 +246,7 @@ slo:
   cron_max_age_seconds: 7200
   cron_expected_cadence_seconds: 3600
   queue_max_depth: 10000
-  queue_max_age_seconds: 3600
+  queue_max_age_seconds: 7200
 
 source_governance:
   enabled: true

@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_site_assistant\EventSubscriber;
 
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
 use Drupal\ilas_site_assistant\Service\TelemetrySchema;
@@ -199,6 +200,12 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
       // Drop CSP report noise from browser extensions, ad networks,
       // translators, and bots. These are not first-party code violations.
       if (static::isCspExtensionNoise($sentryEvent)) {
+        return NULL;
+      }
+
+      // Drop stale/bot Drupal aggregate asset client errors. These are handled
+      // 400s from old cached CSS/JS URLs, not application defects (PHP-5T).
+      if (static::isStaleAggregateAssetClientError($sentryEvent, $hint)) {
         return NULL;
       }
 
@@ -589,6 +596,25 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
   ];
 
   /**
+   * Legacy extension owners observed in stale aggregate asset requests.
+   *
+   * These names are intentionally not sourced from active config: they describe
+   * old URLs we want to classify as stale client/cache noise.
+   *
+   * @var string[]
+   */
+  private const STALE_ASSET_LIBRARY_OWNERS = [
+    'addtoany',
+    'bootstrap_barrio',
+    'bootstrap_ui',
+    'dlaw_appearance',
+    'dlaw_dashboard',
+    'dlaw_glossary',
+    'dlaw_report',
+    'statistics',
+  ];
+
+  /**
    * Checks if the event is a CSP violation from a browser extension or ad network.
    *
    * CSP reports from third-party injections are the single highest-volume
@@ -621,6 +647,233 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
     }
 
     return FALSE;
+  }
+
+  /**
+   * Checks if the event is a stale Drupal aggregate asset client error.
+   *
+   * Drupal core's AssetControllerBase can receive old aggregate CSS/JS URLs
+   * from cached pages, bots, source-map probes, or deployment-era stale markup.
+   * The filter is deliberately narrow: only handled BadRequestHttpException
+   * events from AssetControllerBase and aggregate asset URLs are eligible.
+   *
+   * @param \Sentry\Event $sentryEvent
+   *   The Sentry event to inspect.
+   * @param \Sentry\EventHint|null $hint
+   *   Additional exception context supplied by the Sentry SDK.
+   *
+   * @return bool
+   *   TRUE if the event should be dropped as stale aggregate asset noise.
+   */
+  public static function isStaleAggregateAssetClientError(\Sentry\Event $sentryEvent, ?\Sentry\EventHint $hint = NULL): bool {
+    if (!static::hasBadRequestHttpException($sentryEvent, $hint)) {
+      return FALSE;
+    }
+    if (!static::isHandledExceptionEvent($sentryEvent)) {
+      return FALSE;
+    }
+    if (!static::hasAssetControllerSignal($sentryEvent)) {
+      return FALSE;
+    }
+
+    foreach (static::assetCandidateUrls($sentryEvent) as $url) {
+      if (!static::isDrupalAggregateAssetUrl($url)) {
+        continue;
+      }
+      if (static::assetUrlReferencesStaleOwner($url)) {
+        return TRUE;
+      }
+      if (static::isMalformedAggregateAssetUrl($url)) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * Returns TRUE when the event/hint carries BadRequestHttpException.
+   */
+  private static function hasBadRequestHttpException(\Sentry\Event $sentryEvent, ?\Sentry\EventHint $hint = NULL): bool {
+    $badRequestClass = 'Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException';
+
+    if ($hint?->exception instanceof $badRequestClass) {
+      return TRUE;
+    }
+
+    foreach ($sentryEvent->getExceptions() as $exceptionBag) {
+      if ($exceptionBag->getType() === $badRequestClass) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * Returns TRUE when no Sentry mechanism marks the exception as unhandled.
+   */
+  private static function isHandledExceptionEvent(\Sentry\Event $sentryEvent): bool {
+    foreach ($sentryEvent->getExceptions() as $exceptionBag) {
+      $mechanism = $exceptionBag->getMechanism();
+      if ($mechanism !== NULL && !$mechanism->isHandled()) {
+        return FALSE;
+      }
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Returns TRUE when message or stacktrace points to AssetControllerBase.
+   */
+  private static function hasAssetControllerSignal(\Sentry\Event $sentryEvent): bool {
+    $candidates = [
+      $sentryEvent->getMessage() ?? '',
+      $sentryEvent->getMessageFormatted() ?? '',
+      $sentryEvent->getTransaction() ?? '',
+    ];
+
+    foreach ($sentryEvent->getExceptions() as $exceptionBag) {
+      $candidates[] = $exceptionBag->getValue();
+      $stacktrace = $exceptionBag->getStacktrace();
+      if ($stacktrace === NULL) {
+        continue;
+      }
+      foreach ($stacktrace->getFrames() as $frame) {
+        $candidates[] = $frame->getFile();
+        $candidates[] = $frame->getFunctionName() ?? '';
+      }
+    }
+
+    $haystack = implode(' ', $candidates);
+    return str_contains($haystack, 'AssetControllerBase')
+      || str_contains($haystack, '/core/modules/system/src/Controller/AssetControllerBase.php');
+  }
+
+  /**
+   * Returns candidate URLs from request, trace context, and breadcrumbs.
+   *
+   * @return string[]
+   *   Unique non-empty URL candidates.
+   */
+  private static function assetCandidateUrls(\Sentry\Event $sentryEvent): array {
+    $urls = [];
+
+    $contexts = $sentryEvent->getContexts();
+    $traceUrl = $contexts['trace']['data']['http.url'] ?? NULL;
+    if (is_string($traceUrl)) {
+      $urls[] = $traceUrl;
+    }
+
+    $request = $sentryEvent->getRequest();
+    if (isset($request['url']) && is_string($request['url'])) {
+      $url = $request['url'];
+      $hasQueryString = isset($request['query_string'])
+        && is_string($request['query_string'])
+        && $request['query_string'] !== '';
+      if ($hasQueryString && !str_contains($url, '?')) {
+        $url .= '?' . $request['query_string'];
+      }
+      $urls[] = $url;
+    }
+
+    foreach ($sentryEvent->getBreadcrumbs() as $breadcrumb) {
+      $metadata = $breadcrumb->getMetadata();
+      foreach (['http.url', 'url'] as $key) {
+        if (isset($metadata[$key]) && is_string($metadata[$key])) {
+          $urls[] = $metadata[$key];
+        }
+      }
+    }
+
+    return array_values(array_unique(array_filter($urls, static fn(string $url): bool => $url !== '')));
+  }
+
+  /**
+   * Returns TRUE when a URL targets Drupal's aggregate asset controller.
+   */
+  private static function isDrupalAggregateAssetUrl(string $url): bool {
+    $path = parse_url($url, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+      $path = $url;
+    }
+    $decodedPath = rawurldecode($path);
+
+    return preg_match('#/sites/default/files/(?:css|js)/(?:css|js)_[^/?]+\\.(?:css|js)(?:\\.map)?(?:[?&].*)?$#', $decodedPath) === 1
+      || preg_match('#/sites/default/files/(?:css|js)/(?:css|js)_[^/?]+\\.(?:css|js)(?:\\.map)?$#', $path) === 1;
+  }
+
+  /**
+   * Returns TRUE when aggregate URL query state points at legacy owners.
+   */
+  private static function assetUrlReferencesStaleOwner(string $url): bool {
+    $query = static::queryArgumentsFromUrl($url);
+    $theme = $query['theme'] ?? '';
+    if (is_string($theme) && in_array($theme, self::STALE_ASSET_LIBRARY_OWNERS, TRUE)) {
+      return TRUE;
+    }
+
+    foreach (['include', 'exclude'] as $key) {
+      if (!isset($query[$key]) || !is_string($query[$key]) || $query[$key] === '') {
+        continue;
+      }
+      $libraries = explode(',', UrlHelper::uncompressQueryParameter($query[$key]));
+      foreach ($libraries as $library) {
+        $owner = strtok($library, '/');
+        if (is_string($owner) && in_array($owner, self::STALE_ASSET_LIBRARY_OWNERS, TRUE)) {
+          return TRUE;
+        }
+      }
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * Returns TRUE when aggregate URL query state is plainly malformed.
+   */
+  private static function isMalformedAggregateAssetUrl(string $url): bool {
+    $path = parse_url($url, PHP_URL_PATH);
+    if (is_string($path) && str_contains(rawurldecode($path), '?')) {
+      return TRUE;
+    }
+
+    $query = static::queryArgumentsFromUrl($url);
+    foreach (['theme', 'delta', 'language', 'include'] as $required) {
+      if (!isset($query[$required]) || $query[$required] === '') {
+        return TRUE;
+      }
+    }
+
+    return !is_numeric($query['delta']);
+  }
+
+  /**
+   * Parses real and percent-encoded query strings from an asset URL.
+   *
+   * @return array<string, mixed>
+   *   Parsed query arguments.
+   */
+  private static function queryArgumentsFromUrl(string $url): array {
+    $queryString = parse_url($url, PHP_URL_QUERY);
+    $parts = [];
+
+    if (is_string($queryString) && $queryString !== '') {
+      $parts[] = html_entity_decode($queryString, ENT_QUOTES | ENT_HTML5);
+    }
+
+    $path = parse_url($url, PHP_URL_PATH);
+    if (is_string($path)) {
+      $decodedPath = rawurldecode($path);
+      if (str_contains($decodedPath, '?')) {
+        $parts[] = substr($decodedPath, strpos($decodedPath, '?') + 1);
+      }
+    }
+
+    $query = [];
+    parse_str(implode('&', $parts), $query);
+    return $query;
   }
 
   /**

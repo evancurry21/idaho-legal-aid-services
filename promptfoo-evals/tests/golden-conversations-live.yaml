@@ -1,0 +1,184 @@
+# ILAS Site Assistant - API-level golden conversation checks.
+#
+# These are multi-turn live/API scenarios. They intentionally assert topic
+# continuity and useful next steps without depending on exact response copy.
+
+- description: "Golden conversation - eviction context, turn 1"
+  vars:
+    question: "I got an eviction notice."
+  metadata:
+    conversationId: "77777777-7777-4777-8777-777777777777"
+    conversationName: golden-eviction-context
+    scenario_family: golden_conversation
+    scenario_id: golden-eviction-turn-1
+    turn: 1
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(evict|notice|landlord|tenant|housing|legal advice line|apply|call)/.test(l);
+      metric: golden-conversation-setup
+
+- description: "Golden conversation - eviction context, turn 2"
+  vars:
+    question: "What about that?"
+  metadata:
+    conversationId: "77777777-7777-4777-8777-777777777777"
+    conversationName: golden-eviction-context
+    scenario_family: golden_conversation
+    scenario_id: golden-eviction-turn-2
+    turn: 2
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(evict|notice|landlord|tenant|housing)/.test(l) &&
+          /(legal advice line|apply|call|forms|guides|resource|\/legal-help\/housing)/.test(l) &&
+          !/(what would you like to know|how can i help you today|what are you looking for)/.test(l);
+      metric: golden-conversation-continuity
+
+- description: "Golden conversation - Boise office context, turn 1"
+  vars:
+    question: "Where is your Boise office?"
+  metadata:
+    conversationId: "88888888-8888-4888-8888-888888888888"
+    conversationName: golden-office-context
+    scenario_family: golden_conversation
+    scenario_id: golden-office-turn-1
+    turn: 1
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return l.includes('boise') && /(office|address|contact|310)/.test(l);
+      metric: golden-conversation-setup
+
+- description: "Golden conversation - Boise office context, turn 2"
+  vars:
+    question: "What about hours?"
+  metadata:
+    conversationId: "88888888-8888-4888-8888-888888888888"
+    conversationName: golden-office-context
+    scenario_family: golden_conversation
+    scenario_id: golden-office-turn-2
+    turn: 2
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(boise|office)/.test(l) &&
+          /(hours|call|confirm|8:30|4:30|monday|friday|unavailable)/.test(l) &&
+          !/(pocatello|twin falls|lewiston|idaho falls)/.test(l);
+      metric: golden-conversation-continuity
+
+- description: "Golden conversation - topic correction, turn 1"
+  vars:
+    question: "I need custody help."
+  metadata:
+    conversationId: "99999999-9999-4999-8999-999999999999"
+    conversationName: golden-topic-correction
+    scenario_family: golden_conversation
+    scenario_id: golden-correction-turn-1
+    turn: 1
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(custody|family|forms|apply|legal advice line)/.test(l);
+      metric: golden-conversation-setup
+
+- description: "Golden conversation - topic correction, turn 2"
+  vars:
+    question: "Actually divorce."
+  metadata:
+    conversationId: "99999999-9999-4999-8999-999999999999"
+    conversationName: golden-topic-correction
+    scenario_family: golden_conversation
+    scenario_id: golden-correction-turn-2
+    turn: 2
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(divorce|divorcio|separation|family)/.test(l) &&
+          /(guide|form|resource|apply|legal advice line|\/legal-help\/family)/.test(l) &&
+          !/(forms_topic_family_custody|guides_topic_family_custody|custody questions)/.test(l);
+      metric: golden-conversation-correction
+
+- description: "Golden conversation - unsupported drafting recovery, turn 1"
+  vars:
+    question: "Can you write my lease?"
+  metadata:
+    conversationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    conversationName: golden-unsupported-recovery
+    scenario_family: golden_conversation
+    scenario_id: golden-unsupported-turn-1
+    turn: 1
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(can't|cannot|not able).*(draft|write|fill out)|draft legal documents/.test(l) &&
+          /(forms|guides|legal advice line|apply)/.test(l);
+      metric: golden-conversation-safe-deflection
+
+- description: "Golden conversation - unsupported drafting recovery, turn 2"
+  vars:
+    question: "What can you help with then?"
+  metadata:
+    conversationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    conversationName: golden-unsupported-recovery
+    scenario_family: golden_conversation
+    scenario_id: golden-unsupported-turn-2
+    turn: 2
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(idaho legal aid services|civil legal help|services|housing|family|consumer|benefits|apply)/.test(l) &&
+          !/(i can write your lease|i will draft your lease|i drafted your lease)/.test(l);
+      metric: golden-conversation-recovery
+
+- description: "Golden conversation - Spanish eviction context, turn 1"
+  vars:
+    question: "Necesito ayuda con desalojo."
+  metadata:
+    conversationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    conversationName: golden-spanish-eviction
+    scenario_family: golden_conversation
+    scenario_id: golden-spanish-turn-1
+    turn: 1
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(desalojo|eviction|housing|ayuda|apply|legal advice line)/.test(l);
+      metric: golden-conversation-setup
+
+- description: "Golden conversation - Spanish eviction context, turn 2"
+  vars:
+    question: "¿Y ahora?"
+  metadata:
+    conversationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    conversationName: golden-spanish-eviction
+    scenario_family: golden_conversation
+    scenario_id: golden-spanish-turn-2
+    turn: 2
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: |
+        const l = output.toLowerCase();
+        return /(desalojo|eviction|housing|tenant|landlord)/.test(l) &&
+          /(ayuda|aplicar|apply|legal advice line|forms|guides|\/legal-help\/housing)/.test(l) &&
+          !/(what would you like to know|how can i help you today|what are you looking for)/.test(l);
+      metric: golden-conversation-spanish-continuity

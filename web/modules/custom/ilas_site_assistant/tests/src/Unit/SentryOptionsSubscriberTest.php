@@ -1258,6 +1258,68 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->assertNotNull($result, 'Unrelated messages must not be dropped by the cron re-run filter.');
   }
 
+  // ─── Stale aggregate asset client error filter tests ──────────────
+
+  /**
+   * Tests stale legacy aggregate asset BadRequest events are dropped.
+   */
+  public function testStaleAggregateAssetFilterDropsLegacyThemeRequest(): void {
+    $this->requireSentry();
+
+    $include = \Drupal\Component\Utility\UrlHelper::compressQueryParameter(implode(',', [
+      'addtoany/addtoany.front',
+      'system/base',
+      'bootstrap_barrio/global-styling',
+      'bootstrap_ui/global-styling',
+      'dlaw_appearance/dlaw_appearance',
+      'dlaw_dashboard/dlaw_dashboard',
+      'dlaw_report/dlaw_report',
+    ]));
+    $url = 'https://idaholegalaid.org/sites/default/files/js/js_Mninpx7nfmwpjggDcun4gN5U-KzB-KYH7aRCKY0xVDE.js'
+      . '?delta=1&include=' . $include . '&language=en&scope=header&theme=bootstrap_ui';
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+    $event = $this->createAssetControllerBadRequestEvent($url);
+
+    $result = $callback($event, NULL);
+
+    $this->assertNull($result, 'Handled legacy aggregate asset BadRequest events should be dropped as stale client/cache noise.');
+  }
+
+  /**
+   * Tests current-theme aggregate BadRequest events remain visible.
+   */
+  public function testStaleAggregateAssetFilterKeepsCurrentThemeRequest(): void {
+    $this->requireSentry();
+
+    $include = \Drupal\Component\Utility\UrlHelper::compressQueryParameter('system/base,b5subtheme/global-styling');
+    $url = 'https://idaholegalaid.org/sites/default/files/js/js_currentthemehash.js'
+      . '?delta=1&include=' . $include . '&language=en&scope=header&theme=b5subtheme';
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+    $event = $this->createAssetControllerBadRequestEvent($url);
+
+    $result = $callback($event, NULL);
+
+    $this->assertNotNull($result, 'Current-theme aggregate BadRequest events should not be dropped by the stale legacy filter.');
+  }
+
+  /**
+   * Tests unrelated BadRequest events remain visible.
+   */
+  public function testStaleAggregateAssetFilterKeepsNonAssetBadRequest(): void {
+    $this->requireSentry();
+
+    $callback = SentryOptionsSubscriber::beforeSendCallback();
+    $event = $this->createAssetControllerBadRequestEvent(
+      'https://idaholegalaid.org/assistant?delta=1&theme=bootstrap_ui',
+    );
+
+    $result = $callback($event, NULL);
+
+    $this->assertNotNull($result, 'Non-asset BadRequest events must remain visible.');
+  }
+
   // ─── Minimum-context guarantee tests ──────────────────────────────
 
   /**
@@ -1320,6 +1382,49 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->assertNotNull($result);
     $tags = $result->getTags();
     $this->assertArrayNotHasKey('scrub_opacity', $tags, 'Events with exception values should not have scrub_opacity');
+  }
+
+  /**
+   * Builds a handled AssetControllerBase BadRequest event for filter tests.
+   */
+  private function createAssetControllerBadRequestEvent(string $url, string $message = 'Invalid filename.'): \Sentry\Event {
+    $event = \Sentry\Event::createEvent();
+    $event->setLogger('client error');
+    $event->setMessage(
+      'Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException: '
+      . $message
+      . ' in Drupal\\system\\Controller\\AssetControllerBase->getGroup()'
+      . ' (line 235 of /code/web/core/modules/system/src/Controller/AssetControllerBase.php).',
+    );
+    $event->setContext('trace', [
+      'op' => 'http.server',
+      'data' => [
+        'http.request.method' => 'GET',
+        'http.url' => $url,
+      ],
+    ]);
+
+    $exception = new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException($message);
+    $event->setExceptions([
+      new \Sentry\ExceptionDataBag(
+        $exception,
+        new \Sentry\Stacktrace([
+          new \Sentry\Frame(
+            'Drupal\\system\\Controller\\AssetControllerBase::deliver',
+            '/core/modules/system/src/Controller/AssetControllerBase.php',
+            181,
+          ),
+          new \Sentry\Frame(
+            'Drupal\\system\\Controller\\AssetControllerBase::getGroup',
+            '/core/modules/system/src/Controller/AssetControllerBase.php',
+            235,
+          ),
+        ]),
+        new \Sentry\ExceptionMechanism(\Sentry\ExceptionMechanism::TYPE_GENERIC, TRUE),
+      ),
+    ]);
+
+    return $event;
   }
 
   /**

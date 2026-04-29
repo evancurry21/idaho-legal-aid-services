@@ -59,6 +59,8 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
     $decoded = json_decode($output->fetch(), TRUE, 512, JSON_THROW_ON_ERROR);
     $this->assertContains('llm.provider', array_column($decoded, 'fact_key'));
     $this->assertContains('llm.request_time_generation_reachable', array_column($decoded, 'fact_key'));
+    $this->assertContains('llm.generation_attempted', array_column($decoded, 'fact_key'));
+    $this->assertContains('llm.last_error', array_column($decoded, 'fact_key'));
     $this->assertContains('llm.cohere_api_key_present', array_column($decoded, 'fact_key'));
     $this->assertNotContains('llm.request_time_retired', array_column($decoded, 'fact_key'));
     $this->assertNotContains('llm.google_generation_reachable', array_column($decoded, 'fact_key'));
@@ -107,6 +109,9 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
           'model' => 'command-a-03-2025',
           'runtime_ready' => TRUE,
           'request_time_generation_reachable' => TRUE,
+          'generation_probe_passed' => TRUE,
+          'generation_attempted' => TRUE,
+          'last_error' => NULL,
         ],
         'vector_search' => [
           'enabled' => FALSE,
@@ -145,6 +150,9 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
         'llm.provider' => 'Cohere-first request-time transport contract',
         'llm.model' => 'Cohere-first request-time transport contract',
         'llm.request_time_generation_reachable' => 'LlmEnhancer::isEnabled()',
+        'llm.generation_probe_passed' => 'CohereGenerationProbe exact-output proof',
+        'llm.generation_attempted' => 'CohereGenerationProbe last explicit probe state',
+        'llm.last_error' => 'CohereGenerationProbe sanitized last error',
         'vector_search.enabled' => 'config export',
       ],
       'divergences' => [],

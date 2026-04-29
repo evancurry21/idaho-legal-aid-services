@@ -77,6 +77,8 @@ final class PromptfooGateReliabilityContractTest extends TestCase {
     $this->assertStringContainsString('connectivity_error_code=', $script);
     $this->assertStringContainsString('quality_phase=', $script);
     $this->assertStringContainsString('eval_execution_mode=', $script);
+    $this->assertStringContainsString('simulated_blocking_allowed=', $script);
+    $this->assertStringContainsString('simulated_blocking_disallowed', $script);
     $this->assertStringContainsString('rate_limit_source=', $script);
     $this->assertStringContainsString('effective_pacing_rate_per_minute=', $script);
     $this->assertStringContainsString('effective_request_delay_ms=', $script);
@@ -164,15 +166,36 @@ final class PromptfooGateReliabilityContractTest extends TestCase {
   public function testWorkflowPassesExplicitRemoteRateLimitEnvVars(): void {
     $workflow = self::readFile('.github/workflows/quality-gate.yml');
 
-    $this->assertStringContainsString('CI_PROMPTFOO_ENV: dev', $workflow);
+    $this->assertStringContainsString('CI_PROMPTFOO_ENV:', $workflow);
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE', $workflow);
     $this->assertStringContainsString('ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR', $workflow);
-    $this->assertStringContainsString('TARGET_ENV="${CI_PROMPTFOO_ENV}"', $workflow);
-    $this->assertStringContainsString('npm run test:promptfoo:runtime', $workflow);
+    $this->assertStringContainsString('ASSISTANT_TARGET_ENV', $workflow);
+    $this->assertStringContainsString('CI_PROMPTFOO_ENV=${ASSISTANT_TARGET_ENV:-dev}', $workflow);
+    $this->assertStringContainsString('Run provider/runtime harness and golden checks', $workflow);
+    $this->assertStringContainsString('run-quality-gate.sh --profile basic --skip-phpunit', $workflow);
+    $this->assertStringContainsString('promptfooconfig.quality.yaml', $workflow);
     $this->assertStringContainsString('promptfooconfig.hosted.yaml', $workflow);
-    $this->assertStringContainsString('promptfooconfig.protected-push.yaml', $workflow);
-    $this->assertStringContainsString('promptfoo-gate-artifacts', $workflow);
+    $this->assertStringContainsString('assistant-pr-quality-artifacts', $workflow);
+    $this->assertStringContainsString('hosted-manual-gate-artifacts', $workflow);
     $this->assertStringContainsString('--no-deep-eval', $workflow);
+  }
+
+  /**
+   * Assistant PR quality profile must keep the stricter mini-suite wired.
+   */
+  public function testQualityPromptfooProfilePreservesAssistantPrCoverage(): void {
+    $config = self::readFile('promptfoo-evals/promptfooconfig.quality.yaml');
+
+    $this->assertStringContainsString('CI quality mini-suite', $config);
+    $this->assertStringContainsString('file://providers/ilas-live.js', $config);
+    $this->assertStringContainsString('maxConcurrency: 1', $config);
+    $this->assertStringContainsString('tests/conversation-quality.yaml', $config);
+    $this->assertStringContainsString('tests/retrieval-grounding.yaml', $config);
+    $this->assertStringContainsString('tests/safety-boundaries.yaml', $config);
+    $this->assertStringContainsString('tests/spanish-quality.yaml', $config);
+    $this->assertStringContainsString('tests/adversarial-grounding.yaml', $config);
+    $this->assertStringContainsString('quality-provider-live-mode', $config);
+    $this->assertStringContainsString('quality-contract-meta-readable', $config);
   }
 
   /**

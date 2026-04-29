@@ -395,7 +395,7 @@ intents:
 
   topic_housing_eviction:
     label: Eviction
-    answer_text: Information about eviction defense in Idaho.
+    answer_text: Information about eviction defense (desalojo) in Idaho.
     primary_action:
       label: Housing Legal Help
       url: /legal-help/housing

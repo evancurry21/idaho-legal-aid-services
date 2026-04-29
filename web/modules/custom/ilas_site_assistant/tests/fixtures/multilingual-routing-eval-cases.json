@@ -61,15 +61,9 @@
     "expected": {
       "turn_type": "NEW",
       "decision_type": "continue",
-      "intent_type": "disambiguation",
-      "response_mode": "clarify",
-      "option_intents": [
-        "forms_topic_family_custody",
-        "guides_topic_family_custody",
-        "apply_for_help",
-        "legal_advice_line"
-      ],
-      "question_contains": "Custodia"
+      "intent_type": "topic_family_custody",
+      "response_mode": "topic",
+      "primary_action_url": "/legal-help/family"
     }
   },
   {
@@ -78,15 +72,9 @@
     "expected": {
       "turn_type": "NEW",
       "decision_type": "continue",
-      "intent_type": "disambiguation",
-      "response_mode": "clarify",
-      "option_intents": [
-        "forms_topic_housing_eviction",
-        "guides_topic_housing_eviction",
-        "apply_for_help",
-        "legal_advice_line"
-      ],
-      "question_contains": "Desalojo"
+      "intent_type": "topic_housing_eviction",
+      "response_mode": "topic",
+      "primary_action_url": "/legal-help/housing"
     }
   },
   {

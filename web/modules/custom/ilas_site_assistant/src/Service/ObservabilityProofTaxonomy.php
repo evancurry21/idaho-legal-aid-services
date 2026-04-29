@@ -76,6 +76,7 @@ final class ObservabilityProofTaxonomy {
   const TOOL_LANGFUSE_STATUS = 'langfuse-status';
   const TOOL_LANGFUSE_DIAGNOSE = 'langfuse-diagnose';
   const TOOL_RUNTIME_DIAGNOSTICS = 'runtime-diagnostics';
+  const TOOL_COHERE_PROBE = 'cohere-probe';
 
   /**
    * Maximum proof level each tool can achieve.
@@ -91,6 +92,7 @@ final class ObservabilityProofTaxonomy {
     self::TOOL_LANGFUSE_STATUS => self::LEVEL_L1_TRANSPORT,
     self::TOOL_LANGFUSE_DIAGNOSE => self::LEVEL_L0_UNVERIFIED,
     self::TOOL_RUNTIME_DIAGNOSTICS => self::LEVEL_L0_UNVERIFIED,
+    self::TOOL_COHERE_PROBE => self::LEVEL_L3_PAYLOAD_ACCEPTANCE,
   ];
 
   /**

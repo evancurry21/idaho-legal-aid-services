@@ -315,6 +315,14 @@ class PiiRedactorTest extends TestCase {
         'The population is 123456789',
         'Bare 9 digits without SSN keyword should not match',
       ],
+      'operational filename' => [
+        'Invalid filename.',
+        'Operational filename text should not be treated as a file number',
+      ],
+      'operational file system' => [
+        'The file system path is unavailable.',
+        'Operational file system text should not be treated as a file number',
+      ],
       'tenant rights guide' => [
         'tenant rights guide',
         'Topic phrases must not be treated as tenant names',

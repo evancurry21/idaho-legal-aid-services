@@ -1,10 +1,25 @@
-# ILAS Chatbot Evaluation Harness
+# ILAS Chatbot Evaluation Harness (Deprecated Legacy)
 
-An automated evaluation system for testing the ILAS Site Assistant chatbot against a golden dataset.
+> **Deprecated legacy tooling.** This directory is preserved for historical
+> context and possible fixture mining only. It is not the current ILAS Site
+> Assistant quality gate, and new developers should not treat its pass/fail
+> results as production confidence.
+>
+> The HTTP mode in this harness posts directly to `/assistant/api/message` and
+> does not honor the current strict assistant contract:
+> `/assistant/api/session/bootstrap`, anonymous session cookie reuse,
+> `X-CSRF-Token`, and stable `conversation_id`.
+>
+> Use `promptfoo-evals/` for answer-quality evaluation,
+> `scripts/smoke/assistant-smoke.mjs` for HTTP/session/security smoke checks,
+> and Playwright tests for widget/page UI behavior.
+
+An older automated evaluation system for testing chatbot-era behavior against a
+golden dataset.
 
 ## Overview
 
-This harness provides:
+This legacy harness provided:
 - **Deterministic testing** against the golden dataset (no LLM calls required)
 - **DEBUG mode** for structured metadata output from the chatbot API
 - **Multiple report formats** (Markdown, JSON, JUnit XML)
@@ -39,20 +54,23 @@ web/modules/custom/ilas_site_assistant/
         └── DebugModeTest.php
 ```
 
-## Quick Start
+## Historical Commands (Do Not Use As Current Gate)
 
-### Run Full Evaluation
+These commands are kept so prior reports can be reproduced. They do not replace
+the current Promptfoo, smoke, or Playwright assistant checks.
+
+### Run Full Legacy Evaluation
 
 ```bash
 cd scripts/chatbot-eval
 
-# Run with golden dataset (uses HTTP mode by default)
+# Run with golden dataset (uses legacy HTTP mode by default)
 php run-eval.php
 
 # Run with verbose output
 php run-eval.php --verbose
 
-# Run via HTTP against DDEV site
+# Run via legacy HTTP mode against DDEV site
 php run-eval.php --http --base-url=https://ilas-pantheon.ddev.site --verbose
 ```
 
@@ -240,9 +258,13 @@ cd web
 ../vendor/bin/phpunit modules/custom/ilas_site_assistant/tests/src/Unit/ --coverage-html=coverage
 ```
 
-## CI Integration
+## Historical CI Integration (Do Not Copy)
 
-### GitHub Actions Example
+Do not add new GitHub Actions or pre-push checks based on this directory. Current
+assistant-related CI should use Promptfoo quality configs, the production-safe
+smoke script, PHPUnit/functional tests, and Playwright as appropriate.
+
+### Legacy GitHub Actions Example
 
 ```yaml
 name: Chatbot Tests
@@ -307,7 +329,9 @@ Average of 1/rank for the first relevant result in retrieval queries. Higher is 
 
 ### "Drupal bootstrap failed"
 
-The evaluation harness automatically switches to HTTP mode if Drupal bootstrap fails. Ensure:
+The legacy harness can switch to old HTTP mode if Drupal bootstrap fails. That
+mode does not exercise the current strict assistant session contract. For
+historical reproduction only, ensure:
 - DDEV/Drupal site is running
 - Base URL is correct (`--base-url=https://...`)
 
@@ -327,16 +351,20 @@ If fallback rate is high (>20%), check:
 2. Whether LLM fallback is enabled
 3. Test utterances that commonly fail
 
-## Contributing
+## Historical Fixture Changes
 
-When adding new test cases to the golden dataset:
+Do not add new active quality gates here. If a legacy fixture is still useful,
+port the reusable behavior into `promptfoo-evals/tests/*` with a note naming the
+source fixture.
+
+When editing old golden dataset cases for historical reproduction:
 1. Ensure utterance is realistic
 2. Set correct intent label
 3. Set expected primary action URL
 4. Mark `Must-Include Safety Language` for high-risk cases
 5. Add edge-case notes for non-obvious cases
 
-Run validation before committing:
+Run legacy fixture validation before committing historical fixture changes:
 ```bash
 php run-eval.php --validate --fixture=../../chatbot-golden-dataset.csv
 ```

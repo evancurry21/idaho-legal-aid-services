@@ -16,6 +16,9 @@ export PROMPTFOO_SELF_HOSTED=1
 # Keep eval runtime deterministic in CI by disabling promptfoo's adaptive
 # scheduler retry loop (which can honor long Retry-After windows).
 export PROMPTFOO_DISABLE_ADAPTIVE_SCHEDULER="${PROMPTFOO_DISABLE_ADAPTIVE_SCHEDULER:-1}"
+# Scope named multi-turn conversations to this eval run. The provider turns
+# scenario IDs into valid UUIDv4 values when ILAS_EVAL_RUN_ID is present.
+export ILAS_EVAL_RUN_ID="${ILAS_EVAL_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
 
 # ── Resolve paths ────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

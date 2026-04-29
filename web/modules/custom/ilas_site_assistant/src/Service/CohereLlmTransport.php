@@ -18,6 +18,7 @@ class CohereLlmTransport implements RequestTimeLlmTransportInterface {
 
   public function __construct(
     protected ClientInterface $httpClient,
+    protected ?LlmRuntimeConfigResolver $runtimeConfig = NULL,
   ) {}
 
   /**
@@ -31,14 +32,21 @@ class CohereLlmTransport implements RequestTimeLlmTransportInterface {
    * {@inheritdoc}
    */
   public function getModelId(): string {
-    return self::DEFAULT_MODEL;
+    return $this->runtimeConfig?->getModelId() ?? self::DEFAULT_MODEL;
   }
 
   /**
    * {@inheritdoc}
    */
   public function isConfigured(): bool {
-    return $this->getApiKey() !== '';
+    if ($this->runtimeConfig !== NULL) {
+      $summary = $this->runtimeConfig->resolve();
+      return (bool) ($summary['provider_is_cohere'] ?? FALSE)
+        && (bool) ($summary['model_configured'] ?? FALSE)
+        && (bool) ($summary['key_present'] ?? FALSE);
+    }
+
+    return $this->getApiKey() !== '' && $this->getModelId() !== '';
   }
 
   /**
@@ -89,9 +97,57 @@ class CohereLlmTransport implements RequestTimeLlmTransportInterface {
   }
 
   /**
+   * Executes a plain-text Cohere chat request for explicit diagnostics probes.
+   *
+   * @param array<int, array<string, mixed>> $messages
+   *   Provider-normalized chat messages.
+   * @param array<string, mixed> $options
+   *   Provider-neutral request options.
+   *
+   * @return array{text: string, usage: array<string, int>}
+   *   Text response and optional normalized usage.
+   */
+  public function completeText(array $messages, array $options = []): array {
+    $api_key = $this->getApiKey();
+    if ($api_key === '') {
+      throw new RuntimeException('Missing ILAS_COHERE_API_KEY runtime secret.');
+    }
+
+    $response = $this->httpClient->request('POST', self::API_ENDPOINT, [
+      'headers' => [
+        'Authorization' => 'Bearer ' . $api_key,
+        'Content-Type' => 'application/json',
+        'X-Client-Name' => 'ilas-site-assistant',
+      ],
+      'json' => [
+        'model' => $options['model'] ?? $this->getModelId(),
+        'messages' => $messages,
+        'stream' => FALSE,
+        'max_tokens' => (int) ($options['max_tokens'] ?? 16),
+        'temperature' => (float) ($options['temperature'] ?? 0.0),
+        'safety_mode' => $options['safety_mode'] ?? 'CONTEXTUAL',
+      ],
+      'timeout' => (float) ($options['timeout'] ?? 5.0),
+      'connect_timeout' => (float) ($options['connect_timeout'] ?? 2.0),
+    ]);
+
+    /** @var array<string, mixed> $body */
+    $body = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+
+    return [
+      'text' => $this->extractTextPayload($body),
+      'usage' => $this->extractUsage($body),
+    ];
+  }
+
+  /**
    * Returns the configured Cohere API key.
    */
   protected function getApiKey(): string {
+    if ($this->runtimeConfig !== NULL) {
+      return $this->runtimeConfig->getApiKey();
+    }
+
     return trim((string) Settings::get('ilas_cohere_api_key', ''));
   }
 

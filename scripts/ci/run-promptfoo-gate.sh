@@ -27,11 +27,14 @@ SMOKE_CONFIG_FILE="promptfooconfig.smoke.yaml"
 CONNECTIVITY_ONLY="false"
 SKIP_EVAL="false"
 NO_DEEP_EVAL="false"
+ALLOW_SIMULATED_BLOCKING="${ILAS_ALLOW_SIMULATED_BLOCKING:-false}"
 SIMULATED_PASS_RATE=""
 RAG_METRIC_THRESHOLD="${RAG_CONFIDENCE_THRESHOLD:-90}"
 RAG_METRIC_MIN_COUNT="${RAG_METRIC_MIN_COUNT:-10}"
 P2DEL04_METRIC_THRESHOLD="${P2DEL04_METRIC_THRESHOLD:-85}"
 P2DEL04_METRIC_MIN_COUNT="${P2DEL04_METRIC_MIN_COUNT:-10}"
+QUALITY_DIM_THRESHOLD="${QUALITY_DIM_THRESHOLD:-90}"
+QUALITY_DIM_MIN_COUNT="${QUALITY_DIM_MIN_COUNT:-1}"
 ILAS_HOURLY_LIMIT_PREFLIGHT="${ILAS_HOURLY_LIMIT_PREFLIGHT:-true}"
 ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE="${ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE:-}"
 ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR="${ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR:-}"
@@ -149,6 +152,44 @@ P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT="0"
 P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT_FAIL="no"
 P2DEL04_BOUNDARY_URGENT_ROUTING_FAIL="no"
 
+QUALITY_DIM_METRICS_ENFORCED="false"
+QUALITY_DIM_GENERIC_FALLBACK_RATE="0"
+QUALITY_DIM_GENERIC_FALLBACK_SCORE="0"
+QUALITY_DIM_GENERIC_FALLBACK_COUNT="0"
+QUALITY_DIM_GENERIC_FALLBACK_COUNT_FAIL="no"
+QUALITY_DIM_GENERIC_FALLBACK_FAIL="no"
+QUALITY_DIM_RETRIEVAL_RATE="0"
+QUALITY_DIM_RETRIEVAL_SCORE="0"
+QUALITY_DIM_RETRIEVAL_COUNT="0"
+QUALITY_DIM_RETRIEVAL_COUNT_FAIL="no"
+QUALITY_DIM_RETRIEVAL_FAIL="no"
+QUALITY_DIM_GROUNDING_RATE="0"
+QUALITY_DIM_GROUNDING_SCORE="0"
+QUALITY_DIM_GROUNDING_COUNT="0"
+QUALITY_DIM_GROUNDING_COUNT_FAIL="no"
+QUALITY_DIM_GROUNDING_FAIL="no"
+QUALITY_DIM_SAFETY_RATE="0"
+QUALITY_DIM_SAFETY_SCORE="0"
+QUALITY_DIM_SAFETY_COUNT="0"
+QUALITY_DIM_SAFETY_COUNT_FAIL="no"
+QUALITY_DIM_SAFETY_FAIL="no"
+QUALITY_DIM_CONTINUITY_RATE="0"
+QUALITY_DIM_CONTINUITY_SCORE="0"
+QUALITY_DIM_CONTINUITY_COUNT="0"
+QUALITY_DIM_CONTINUITY_COUNT_FAIL="no"
+QUALITY_DIM_CONTINUITY_FAIL="no"
+QUALITY_DIM_PROVIDER_RATE="0"
+QUALITY_DIM_PROVIDER_SCORE="0"
+QUALITY_DIM_PROVIDER_COUNT="0"
+QUALITY_DIM_PROVIDER_COUNT_FAIL="no"
+QUALITY_DIM_PROVIDER_FAIL="no"
+QUALITY_DIM_SPANISH_RATE="0"
+QUALITY_DIM_SPANISH_SCORE="0"
+QUALITY_DIM_SPANISH_COUNT="0"
+QUALITY_DIM_SPANISH_COUNT_FAIL="no"
+QUALITY_DIM_SPANISH_FAIL="no"
+QUALITY_DIM_THRESHOLD_FAIL="no"
+
 DDEV_RATE_LIMIT_OVERRIDE_APPLIED="false"
 DDEV_ORIGINAL_RATE_LIMIT_PER_MINUTE=""
 DDEV_ORIGINAL_RATE_LIMIT_PER_HOUR=""
@@ -197,11 +238,12 @@ reset_output_artifacts() {
 
 usage() {
   cat <<USAGE
-Usage: $0 --env <dev|test|live> [--site <pantheon-site>] [--mode auto|blocking|advisory] [--threshold <0-100>] [--config <promptfoo-config>] [--deep-config <deep-config>] [--no-deep-eval] [--connectivity-only] [--skip-eval] [--simulate-pass-rate <0-100>]
+Usage: $0 --env <dev|test|live> [--site <pantheon-site>] [--mode auto|blocking|advisory] [--threshold <0-100>] [--config <promptfoo-config>] [--deep-config <deep-config>] [--no-deep-eval] [--connectivity-only] [--skip-eval] [--simulate-pass-rate <0-100>] [--allow-simulated-blocking]
 
 Policy:
   mode=auto -> blocking on master/main/release/*, advisory otherwise.
   --deep-config auto-enables on blocking branches if not explicitly set, unless --no-deep-eval is supplied.
+  Simulated mode is advisory by default. Blocking simulated runs require --allow-simulated-blocking or ILAS_ALLOW_SIMULATED_BLOCKING=true.
   Deploy-safe local exact-code runs commonly use --config promptfooconfig.deploy.yaml --no-deep-eval.
   Hosted helper PR runs commonly use --config promptfooconfig.hosted.yaml --no-deep-eval.
   Hosted protected-push/post-deploy runs commonly use --config promptfooconfig.protected-push.yaml --no-deep-eval.
@@ -293,6 +335,10 @@ apply_metric_threshold_report() {
         p2del04)
           P2DEL04_THRESHOLD_FAIL="$metric"
           ;;
+
+        qdim)
+          QUALITY_DIM_THRESHOLD_FAIL="$metric"
+          ;;
       esac
       continue
     fi
@@ -376,6 +422,62 @@ apply_metric_threshold_report() {
         P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT="$count"
         P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT_FAIL="$count_fail"
         P2DEL04_BOUNDARY_URGENT_ROUTING_FAIL="$fail"
+        ;;
+
+      qdim:quality-no-generic-fallback)
+        QUALITY_DIM_GENERIC_FALLBACK_RATE="$rate"
+        QUALITY_DIM_GENERIC_FALLBACK_SCORE="$score"
+        QUALITY_DIM_GENERIC_FALLBACK_COUNT="$count"
+        QUALITY_DIM_GENERIC_FALLBACK_COUNT_FAIL="$count_fail"
+        QUALITY_DIM_GENERIC_FALLBACK_FAIL="$fail"
+        ;;
+
+      qdim:quality-retrieval-attempted)
+        QUALITY_DIM_RETRIEVAL_RATE="$rate"
+        QUALITY_DIM_RETRIEVAL_SCORE="$score"
+        QUALITY_DIM_RETRIEVAL_COUNT="$count"
+        QUALITY_DIM_RETRIEVAL_COUNT_FAIL="$count_fail"
+        QUALITY_DIM_RETRIEVAL_FAIL="$fail"
+        ;;
+
+      qdim:quality-grounding-proof)
+        QUALITY_DIM_GROUNDING_RATE="$rate"
+        QUALITY_DIM_GROUNDING_SCORE="$score"
+        QUALITY_DIM_GROUNDING_COUNT="$count"
+        QUALITY_DIM_GROUNDING_COUNT_FAIL="$count_fail"
+        QUALITY_DIM_GROUNDING_FAIL="$fail"
+        ;;
+
+      qdim:quality-must-not-safety)
+        QUALITY_DIM_SAFETY_RATE="$rate"
+        QUALITY_DIM_SAFETY_SCORE="$score"
+        QUALITY_DIM_SAFETY_COUNT="$count"
+        QUALITY_DIM_SAFETY_COUNT_FAIL="$count_fail"
+        QUALITY_DIM_SAFETY_FAIL="$fail"
+        ;;
+
+      qdim:quality-conversation-continuity)
+        QUALITY_DIM_CONTINUITY_RATE="$rate"
+        QUALITY_DIM_CONTINUITY_SCORE="$score"
+        QUALITY_DIM_CONTINUITY_COUNT="$count"
+        QUALITY_DIM_CONTINUITY_COUNT_FAIL="$count_fail"
+        QUALITY_DIM_CONTINUITY_FAIL="$fail"
+        ;;
+
+      qdim:quality-provider-proof)
+        QUALITY_DIM_PROVIDER_RATE="$rate"
+        QUALITY_DIM_PROVIDER_SCORE="$score"
+        QUALITY_DIM_PROVIDER_COUNT="$count"
+        QUALITY_DIM_PROVIDER_COUNT_FAIL="$count_fail"
+        QUALITY_DIM_PROVIDER_FAIL="$fail"
+        ;;
+
+      qdim:quality-spanish-helpfulness)
+        QUALITY_DIM_SPANISH_RATE="$rate"
+        QUALITY_DIM_SPANISH_SCORE="$score"
+        QUALITY_DIM_SPANISH_COUNT="$count"
+        QUALITY_DIM_SPANISH_COUNT_FAIL="$count_fail"
+        QUALITY_DIM_SPANISH_FAIL="$fail"
         ;;
     esac
   done < <(node "$GATE_METRICS_SCRIPT" evaluate-thresholds "$results_file" "$threshold" "$min_count" "$@" 2>/dev/null)
@@ -767,6 +869,7 @@ write_summary() {
     echo "connectivity_error_code=${CONNECTIVITY_ERROR_CODE}"
     echo "quality_phase=${QUALITY_PHASE}"
     echo "eval_execution_mode=${EVAL_EXECUTION_MODE}"
+    echo "simulated_blocking_allowed=${ALLOW_SIMULATED_BLOCKING}"
     echo "rate_limit_source=${RATE_LIMIT_SOURCE}"
     echo "configured_rate_limit_per_minute=${CONFIGURED_RATE_LIMIT_PER_MINUTE_VALUE}"
     echo "configured_rate_limit_per_hour=${CONFIGURED_RATE_LIMIT_PER_HOUR_VALUE}"
@@ -854,6 +957,44 @@ write_summary() {
       echo "p2del04_boundary_urgent_routing_count=${P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT}"
       echo "p2del04_boundary_urgent_routing_count_fail=${P2DEL04_BOUNDARY_URGENT_ROUTING_COUNT_FAIL}"
       echo "p2del04_boundary_urgent_routing_fail=${P2DEL04_BOUNDARY_URGENT_ROUTING_FAIL}"
+      echo "quality_dim_metrics_enforced=${QUALITY_DIM_METRICS_ENFORCED}"
+      echo "quality_dim_metric_threshold=${QUALITY_DIM_THRESHOLD}"
+      echo "quality_dim_metric_min_count=${QUALITY_DIM_MIN_COUNT}"
+      echo "quality_dim_generic_fallback_rate=${QUALITY_DIM_GENERIC_FALLBACK_RATE}"
+      echo "quality_dim_generic_fallback_score=${QUALITY_DIM_GENERIC_FALLBACK_SCORE}"
+      echo "quality_dim_generic_fallback_count=${QUALITY_DIM_GENERIC_FALLBACK_COUNT}"
+      echo "quality_dim_generic_fallback_count_fail=${QUALITY_DIM_GENERIC_FALLBACK_COUNT_FAIL}"
+      echo "quality_dim_generic_fallback_fail=${QUALITY_DIM_GENERIC_FALLBACK_FAIL}"
+      echo "quality_dim_retrieval_rate=${QUALITY_DIM_RETRIEVAL_RATE}"
+      echo "quality_dim_retrieval_score=${QUALITY_DIM_RETRIEVAL_SCORE}"
+      echo "quality_dim_retrieval_count=${QUALITY_DIM_RETRIEVAL_COUNT}"
+      echo "quality_dim_retrieval_count_fail=${QUALITY_DIM_RETRIEVAL_COUNT_FAIL}"
+      echo "quality_dim_retrieval_fail=${QUALITY_DIM_RETRIEVAL_FAIL}"
+      echo "quality_dim_grounding_rate=${QUALITY_DIM_GROUNDING_RATE}"
+      echo "quality_dim_grounding_score=${QUALITY_DIM_GROUNDING_SCORE}"
+      echo "quality_dim_grounding_count=${QUALITY_DIM_GROUNDING_COUNT}"
+      echo "quality_dim_grounding_count_fail=${QUALITY_DIM_GROUNDING_COUNT_FAIL}"
+      echo "quality_dim_grounding_fail=${QUALITY_DIM_GROUNDING_FAIL}"
+      echo "quality_dim_safety_rate=${QUALITY_DIM_SAFETY_RATE}"
+      echo "quality_dim_safety_score=${QUALITY_DIM_SAFETY_SCORE}"
+      echo "quality_dim_safety_count=${QUALITY_DIM_SAFETY_COUNT}"
+      echo "quality_dim_safety_count_fail=${QUALITY_DIM_SAFETY_COUNT_FAIL}"
+      echo "quality_dim_safety_fail=${QUALITY_DIM_SAFETY_FAIL}"
+      echo "quality_dim_continuity_rate=${QUALITY_DIM_CONTINUITY_RATE}"
+      echo "quality_dim_continuity_score=${QUALITY_DIM_CONTINUITY_SCORE}"
+      echo "quality_dim_continuity_count=${QUALITY_DIM_CONTINUITY_COUNT}"
+      echo "quality_dim_continuity_count_fail=${QUALITY_DIM_CONTINUITY_COUNT_FAIL}"
+      echo "quality_dim_continuity_fail=${QUALITY_DIM_CONTINUITY_FAIL}"
+      echo "quality_dim_provider_rate=${QUALITY_DIM_PROVIDER_RATE}"
+      echo "quality_dim_provider_score=${QUALITY_DIM_PROVIDER_SCORE}"
+      echo "quality_dim_provider_count=${QUALITY_DIM_PROVIDER_COUNT}"
+      echo "quality_dim_provider_count_fail=${QUALITY_DIM_PROVIDER_COUNT_FAIL}"
+      echo "quality_dim_provider_fail=${QUALITY_DIM_PROVIDER_FAIL}"
+      echo "quality_dim_spanish_rate=${QUALITY_DIM_SPANISH_RATE}"
+      echo "quality_dim_spanish_score=${QUALITY_DIM_SPANISH_SCORE}"
+      echo "quality_dim_spanish_count=${QUALITY_DIM_SPANISH_COUNT}"
+      echo "quality_dim_spanish_count_fail=${QUALITY_DIM_SPANISH_COUNT_FAIL}"
+      echo "quality_dim_spanish_fail=${QUALITY_DIM_SPANISH_FAIL}"
     fi
   } > "$SUMMARY_FILE"
 }
@@ -922,6 +1063,10 @@ while [[ $# -gt 0 ]]; do
     --simulate-pass-rate)
       SIMULATED_PASS_RATE="${2:-}"
       shift 2
+      ;;
+    --allow-simulated-blocking)
+      ALLOW_SIMULATED_BLOCKING="true"
+      shift 1
       ;;
     -h|--help)
       usage
@@ -996,8 +1141,28 @@ PLANNED_MESSAGE_REQUEST_BUDGET="$(compute_message_request_budget)"
 mkdir -p "$(dirname "$SUMMARY_FILE")"
 reset_output_artifacts
 
+if [[ "$SKIP_EVAL" == "true" && "$EFFECTIVE_MODE" == "blocking" && "$ALLOW_SIMULATED_BLOCKING" != "true" ]]; then
+  EVAL_EXECUTION_MODE="simulated"
+  QUALITY_PHASE="configuration"
+  FAILURE_KIND="configuration"
+  FAILURE_CODE="simulated_blocking_disallowed"
+  TARGET_SOURCE="skip_eval"
+  REQUESTED_TARGET_ENV="$ENV_NAME"
+  TARGET_VALIDATION_STATUS="not_applicable"
+  if [[ -z "${ILAS_ASSISTANT_URL:-}" ]]; then
+    ILAS_ASSISTANT_URL="https://example.invalid/assistant/api/message"
+  fi
+  classify_assistant_url "$ILAS_ASSISTANT_URL" ""
+  cat >&2 <<EOF
+Promptfoo simulated mode cannot satisfy a blocking gate.
+Run a real Promptfoo eval, switch to advisory mode, or pass --allow-simulated-blocking only for an explicitly documented policy test.
+EOF
+  finalize_and_exit 2
+fi
+
 if [[ "$SKIP_EVAL" == "true" ]]; then
   EVAL_EXECUTION_MODE="simulated"
+  echo "SIMULATED Promptfoo mode: advisory status only; no live assistant quality was evaluated." >&2
   QUALITY_PHASE="target_resolution"
   if [[ -n "${ILAS_ASSISTANT_URL:-}" ]]; then
     resolve_assistant_target
@@ -1171,6 +1336,21 @@ if [[ "$EVAL_EXIT" -eq 0 && -f "$RESULTS_FILE" ]]; then
     "p2del04-safety-boundary-routing" \
     "p2del04-boundary-dampening" \
     "p2del04-boundary-urgent-routing"
+
+  QUALITY_DIM_METRICS_ENFORCED="true"
+  QUALITY_DIM_THRESHOLD_FAIL="no"
+  apply_metric_threshold_report \
+    "$RESULTS_FILE" \
+    "$QUALITY_DIM_THRESHOLD" \
+    "$QUALITY_DIM_MIN_COUNT" \
+    "qdim" \
+    "quality-no-generic-fallback" \
+    "quality-retrieval-attempted" \
+    "quality-grounding-proof" \
+    "quality-must-not-safety" \
+    "quality-conversation-continuity" \
+    "quality-provider-proof" \
+    "quality-spanish-helpfulness"
 fi
 
 if [[ -n "$DEEP_CONFIG_FILE" ]]; then
@@ -1198,7 +1378,7 @@ if [[ "$DEEP_ERROR_KIND" == "connectivity" || "$PRIMARY_ERROR_KIND" == "connecti
   finalize_and_exit 3
 fi
 
-if [[ "$EVAL_EXIT" -ne 0 || "$THRESHOLD_FAIL" == "yes" || "$DEEP_EVAL_EXIT" -ne 0 || "$DEEP_THRESHOLD_FAIL" == "yes" || "$RAG_THRESHOLD_FAIL" == "yes" || "$P2DEL04_THRESHOLD_FAIL" == "yes" ]]; then
+if [[ "$EVAL_EXIT" -ne 0 || "$THRESHOLD_FAIL" == "yes" || "$DEEP_EVAL_EXIT" -ne 0 || "$DEEP_THRESHOLD_FAIL" == "yes" || "$RAG_THRESHOLD_FAIL" == "yes" || "$P2DEL04_THRESHOLD_FAIL" == "yes" || "$QUALITY_DIM_THRESHOLD_FAIL" == "yes" ]]; then
   FAILURE_KIND="eval"
   FAILURE_CODE="threshold_or_eval_failure"
   if [[ "$PRIMARY_ERROR_KIND" == "capacity" ]]; then

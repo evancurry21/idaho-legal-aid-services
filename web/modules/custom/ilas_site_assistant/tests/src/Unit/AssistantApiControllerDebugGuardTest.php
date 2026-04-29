@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
 use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Flood\FloodInterface;
+use Drupal\Core\State\StateInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\Core\Session\AccountInterface;
 use Drupal\ilas_site_assistant\Controller\AssistantApiController;
 use Drupal\ilas_site_assistant\Service\AnalyticsLogger;
 use Drupal\ilas_site_assistant\Service\AssistantFlowRunner;
@@ -21,6 +24,9 @@ use Drupal\ilas_site_assistant\Service\PolicyFilter;
 use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
 use Drupal\ilas_site_assistant\Service\PreRoutingDecisionEngine;
 use Drupal\ilas_site_assistant\Service\ResourceFinder;
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\SourceGovernanceService;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -39,6 +45,7 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
    */
   protected function setUp(): void {
     parent::setUp();
+    require_once __DIR__ . '/controller_test_bootstrap.php';
 
     $configStub = $this->createStub(ImmutableConfig::class);
     $configStub->method('get')->willReturnCallback(function (string $key) {
@@ -46,6 +53,7 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
         'rate_limit_per_minute' => 15,
         'rate_limit_per_hour' => 120,
         'enable_faq' => TRUE,
+        'enable_resources' => TRUE,
         'enable_logging' => FALSE,
         'langfuse.environment' => 'test',
         'langfuse.enabled' => FALSE,
@@ -71,6 +79,9 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     });
     $container->set('string_translation', $translationStub);
     $container->set('config.factory', $configFactory);
+    $account = $this->createStub(AccountInterface::class);
+    $account->method('hasPermission')->willReturn(FALSE);
+    $container->set('current_user', $account);
 
     \Drupal::setContainer($container);
   }
@@ -140,10 +151,105 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     $this->assertFalse($controller->exposedIsDebugMode($this->buildJsonRequest()));
   }
 
+  public function testAuthorizedDiagnosticsCanForceBoundedLlmMetadata(): void {
+    new Settings([
+      'ilas_assistant_diagnostics_token' => 'diagnostics-token',
+      'hash_salt' => 'test-salt',
+    ]);
+
+    $controller = $this->buildController(
+      policyViolation: FALSE,
+      fallbackDecision: FallbackGate::DECISION_FALLBACK_LLM,
+      llmEnabled: TRUE,
+    );
+    $request = $this->buildJsonRequest([
+      'message' => 'Please classify this harmless diagnostic request.',
+      'context' => [
+        'diagnostics' => [
+          'include' => TRUE,
+          'force_llm_probe' => TRUE,
+        ],
+      ],
+    ]);
+    $request->headers->set('X-ILAS-Observability-Key', 'diagnostics-token');
+
+    $response = $controller->message($request);
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertArrayNotHasKey('_debug', $body);
+    $this->assertSame('cohere', $body['diagnostics']['generation']['provider'] ?? NULL);
+    $this->assertSame('command-a-03-2025', $body['diagnostics']['generation']['model'] ?? NULL);
+    $this->assertTrue($body['diagnostics']['generation']['used'] ?? FALSE);
+  }
+
+  public function testUnauthorizedDiagnosticsDoNotForceLlmOrEmitMetadata(): void {
+    new Settings([
+      'ilas_assistant_diagnostics_token' => 'diagnostics-token',
+      'hash_salt' => 'test-salt',
+    ]);
+
+    $controller = $this->buildController(
+      policyViolation: FALSE,
+      fallbackDecision: FallbackGate::DECISION_CLARIFY,
+      llmEnabled: TRUE,
+    );
+    $request = $this->buildJsonRequest([
+      'message' => 'Please classify this harmless diagnostic request.',
+      'context' => [
+        'diagnostics' => [
+          'include' => TRUE,
+          'force_llm_probe' => TRUE,
+        ],
+      ],
+    ]);
+
+    $response = $controller->message($request);
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertArrayNotHasKey('diagnostics', $body);
+  }
+
+  public function testAuthorizedDiagnosticsShowPolicyBlockBeforeGeneration(): void {
+    new Settings([
+      'ilas_assistant_diagnostics_token' => 'diagnostics-token',
+      'hash_salt' => 'test-salt',
+    ]);
+
+    $controller = $this->buildController(
+      policyViolation: TRUE,
+      fallbackDecision: FallbackGate::DECISION_FALLBACK_LLM,
+      llmEnabled: TRUE,
+    );
+    $request = $this->buildJsonRequest([
+      'message' => 'Go to this external site and do something risky for me.',
+      'context' => [
+        'diagnostics' => [
+          'include' => TRUE,
+        ],
+      ],
+    ]);
+    $request->headers->set('X-ILAS-Observability-Key', 'diagnostics-token');
+    $request->headers->set('X-ILAS-Diagnostics', '1');
+
+    $response = $controller->message($request);
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertFalse($body['diagnostics']['generation']['used'] ?? TRUE);
+    $this->assertSame('policy_blocked', $body['diagnostics']['generation']['reason'] ?? NULL);
+    $this->assertFalse($body['diagnostics']['retrieval']['used'] ?? TRUE);
+  }
+
   /**
    * Builds a minimal controller for debug-guard assertions.
    */
-  private function buildController(): DebugGuardTestableController {
+  private function buildController(
+    bool $policyViolation = TRUE,
+    string $fallbackDecision = 'allow',
+    bool $llmEnabled = FALSE,
+  ): DebugGuardTestableController {
     $configStub = $this->createStub(ImmutableConfig::class);
     $configStub->method('get')->willReturnCallback(function (string $key) {
       $values = [
@@ -162,31 +268,52 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
 
     $intentRouter = $this->createStub(IntentRouter::class);
     $intentRouter->method('route')->willReturn([
-      'type' => 'faq',
-      'confidence' => 0.9,
+      'type' => $fallbackDecision === FallbackGate::DECISION_FALLBACK_LLM ? 'unknown' : 'faq',
+      'confidence' => $fallbackDecision === FallbackGate::DECISION_FALLBACK_LLM ? 0.15 : 0.9,
     ]);
 
     $faqIndex = $this->createStub(FaqIndex::class);
     $faqIndex->method('search')->willReturn([]);
 
-    $resourceFinder = $this->createStub(ResourceFinder::class);
+    $resourceFinder = $this->createMock(ResourceFinder::class);
+    $resourceFinder->method('findForms')->willReturn([]);
+    $resourceFinder->method('findGuides')->willReturn([]);
+    $resourceFinder->method('findResources')->willReturn([]);
 
     $policyFilter = $this->createStub(PolicyFilter::class);
-    $policyFilter->method('check')->willReturn([
+    $policyFilter->method('check')->willReturn($policyViolation ? [
       'passed' => FALSE,
       'violation' => TRUE,
       'type' => 'external_site',
       'escalation_level' => 'standard',
       'response' => 'I can only help with information on the ILAS website.',
       'links' => [],
+    ] : [
+      'passed' => TRUE,
+      'violation' => FALSE,
+      'type' => NULL,
+      'escalation_level' => 'none',
+      'response' => '',
+      'links' => [],
     ]);
 
     $analyticsLogger = $this->createStub(AnalyticsLogger::class);
 
     $llmEnhancer = $this->createStub(LlmEnhancer::class);
+    $llmEnhancer->method('isEnabled')->willReturn($llmEnabled);
+    $llmEnhancer->method('getProviderId')->willReturn('cohere');
+    $llmEnhancer->method('getModelId')->willReturn('command-a-03-2025');
+    $llmEnhancer->method('classifyIntent')->willReturn('faq');
+    $llmEnhancer->method('getLastRequestMeta')->willReturn([
+      'provider' => 'cohere',
+      'model' => 'command-a-03-2025',
+      'transport_attempted' => TRUE,
+      'cache_hit' => FALSE,
+      'success' => TRUE,
+    ]);
     $fallbackGate = $this->createStub(FallbackGate::class);
     $fallbackGate->method('evaluate')->willReturn([
-      'decision' => 'allow',
+      'decision' => $fallbackDecision,
       'reason_code' => 'test',
       'confidence' => 1.0,
     ]);
@@ -194,10 +321,16 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     $flood = $this->createStub(FloodInterface::class);
     $flood->method('isAllowed')->willReturn(TRUE);
 
-    $cache = $this->createStub(CacheBackendInterface::class);
-    $cache->method('get')->willReturn(FALSE);
+    $cache = new DebugGuardInMemoryCacheBackend();
 
     $logger = $this->createStub(LoggerInterface::class);
+    $topIntentsPack = new TopIntentsPack();
+    $selectionStateStore = new SelectionStateStore($cache);
+    $state = $this->createStub(StateInterface::class);
+    $sourceGovernance = new SourceGovernanceService($configFactory, $state, new NullLogger());
+    $assistantFlowRunner = $this->createStub(AssistantFlowRunner::class);
+    $assistantFlowRunner->method('evaluatePending')->willReturn(['status' => 'continue']);
+    $assistantFlowRunner->method('evaluatePostResponse')->willReturn(['status' => 'continue']);
 
     return new DebugGuardTestableController(
       $configFactory,
@@ -211,18 +344,20 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
       $flood,
       $cache,
       $logger,
-      assistant_flow_runner: $this->createStub(AssistantFlowRunner::class),
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      assistant_flow_runner: $assistantFlowRunner,
+      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry($topIntentsPack),
+      selection_state_store: $selectionStateStore,
       environment_detector: new EnvironmentDetector(),
       pre_routing_decision_engine: new PreRoutingDecisionEngine($policyFilter),
+      top_intents_pack: $topIntentsPack,
+      source_governance: $sourceGovernance,
     );
   }
 
   /**
    * Builds a valid JSON POST request.
    */
-  private function buildJsonRequest(): Request {
+  private function buildJsonRequest(array $payload = ['message' => 'Housing help']): Request {
     return Request::create(
       '/assistant/api/message',
       'POST',
@@ -230,7 +365,7 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
       [],
       [],
       ['CONTENT_TYPE' => 'application/json'],
-      json_encode(['message' => 'Housing help'])
+      json_encode($payload)
     );
   }
 
@@ -240,6 +375,13 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
  * Minimal testable controller for live debug guard assertions.
  */
 final class DebugGuardTestableController extends AssistantApiController {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function currentUser(): \Drupal\Core\Session\AccountInterface {
+    return \Drupal::currentUser();
+  }
 
   /**
    * {@inheritdoc}
@@ -272,6 +414,123 @@ final class DebugGuardTestableController extends AssistantApiController {
    */
   public function exposedIsDebugMode(Request $request): bool {
     return $this->isDebugMode($request);
+  }
+
+}
+
+/**
+ * In-memory cache backend for controller state during debug-guard tests.
+ */
+final class DebugGuardInMemoryCacheBackend implements CacheBackendInterface {
+
+  /**
+   * Stored cache items keyed by cache ID.
+   *
+   * @var array<string, object>
+   */
+  private array $storage = [];
+
+  /**
+   * {@inheritdoc}
+   */
+  public function get($cid, $allow_invalid = FALSE) {
+    return $this->storage[$cid] ?? FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getMultiple(&$cids, $allow_invalid = FALSE) {
+    $results = [];
+    foreach ($cids as $cid) {
+      if (isset($this->storage[$cid])) {
+        $results[$cid] = $this->storage[$cid];
+      }
+    }
+    return $results;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function set($cid, $data, $expire = Cache::PERMANENT, array $tags = []) {
+    $this->storage[$cid] = (object) [
+      'cid' => $cid,
+      'data' => $data,
+      'expire' => $expire,
+      'tags' => $tags,
+      'valid' => TRUE,
+    ];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setMultiple(array $items) {
+    foreach ($items as $cid => $item) {
+      $this->set(
+        $cid,
+        $item['data'] ?? NULL,
+        $item['expire'] ?? Cache::PERMANENT,
+        $item['tags'] ?? []
+      );
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function delete($cid) {
+    unset($this->storage[$cid]);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function deleteMultiple(array $cids) {
+    foreach ($cids as $cid) {
+      unset($this->storage[$cid]);
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function deleteAll() {
+    $this->storage = [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function invalidate($cid) {
+    unset($this->storage[$cid]);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function invalidateMultiple(array $cids) {
+    $this->deleteMultiple($cids);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function invalidateAll() {
+    $this->deleteAll();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function garbageCollection() {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public function removeBin() {
+    $this->deleteAll();
   }
 
 }

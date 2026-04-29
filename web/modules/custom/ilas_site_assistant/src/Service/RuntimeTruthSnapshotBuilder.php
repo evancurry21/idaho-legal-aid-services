@@ -25,6 +25,8 @@ class RuntimeTruthSnapshotBuilder {
     protected ?ConversationLogger $conversationLogger = NULL,
     protected ?LlmEnhancer $llmEnhancer = NULL,
     protected ?VoyageReranker $voyageReranker = NULL,
+    protected ?LlmRuntimeConfigResolver $llmRuntimeConfig = NULL,
+    protected ?CohereGenerationProbe $cohereGenerationProbe = NULL,
   ) {}
 
   /**
@@ -121,10 +123,23 @@ class RuntimeTruthSnapshotBuilder {
       ],
       'llm' => [
         'enabled' => (bool) ($llm['enabled'] ?? FALSE),
-        'provider' => 'cohere',
-        'model' => $this->llmEnhancer?->getModelId() ?? 'command-a-03-2025',
+        'provider' => $this->stringValue($llm['provider'] ?? LlmRuntimeConfigResolver::DEFAULT_PROVIDER),
+        'model' => $this->stringValue($llm['model'] ?? LlmRuntimeConfigResolver::DEFAULT_MODEL),
         'runtime_ready' => $this->buildStoredLlmRuntimeReady($llm),
         'request_time_generation_reachable' => FALSE,
+        'generation_probe_passed' => FALSE,
+        'generation_attempted' => FALSE,
+        'last_error' => NULL,
+        'sources' => [
+          'enabled' => 'config export llm.enabled',
+          'provider' => array_key_exists('provider', $llm) ? 'config export llm.provider' : 'code default',
+          'model' => array_key_exists('model', $llm) ? 'config export llm.model' : 'code default',
+          'runtime_ready' => 'stored config cannot prove runtime secrets',
+          'request_time_generation_reachable' => 'explicit Cohere probe only',
+          'generation_probe_passed' => 'explicit Cohere probe only',
+          'generation_attempted' => 'explicit Cohere probe only',
+          'last_error' => 'explicit Cohere probe only',
+        ],
       ],
       'vector_search' => [
         'enabled' => (bool) ($assistant['vector_search']['enabled'] ?? FALSE),
@@ -220,11 +235,16 @@ class RuntimeTruthSnapshotBuilder {
       'voyage' => $voyage,
       'embeddings' => $embeddings,
       'llm' => [
-        'enabled' => (bool) $assistant->get('llm.enabled'),
-        'provider' => $llm['provider'] ?? 'cohere',
-        'model' => $llm['model'] ?? ($this->llmEnhancer?->getModelId() ?? 'command-a-03-2025'),
+        'enabled' => (bool) ($llm['enabled'] ?? $assistant->get('llm.enabled')),
+        'provider' => $llm['provider'] ?? LlmRuntimeConfigResolver::DEFAULT_PROVIDER,
+        'model' => $llm['model'] ?? ($this->llmEnhancer?->getModelId() ?? LlmRuntimeConfigResolver::DEFAULT_MODEL),
         'runtime_ready' => $llm['runtime_ready'] ?? FALSE,
         'request_time_generation_reachable' => $llm['request_time_generation_reachable'] ?? FALSE,
+        'generation_probe_passed' => $llm['generation_probe_passed'] ?? FALSE,
+        'generation_attempted' => $llm['generation_attempted'] ?? FALSE,
+        'last_error' => $llm['last_error'] ?? NULL,
+        'sources' => $llm['sources'] ?? [],
+        'cost_control_summary' => $llm['cost_control_summary'] ?? [],
       ],
       'vector_search' => [
         'enabled' => $vectorSearchEnabled,
@@ -327,6 +347,7 @@ class RuntimeTruthSnapshotBuilder {
    */
   public function buildOverrideChannels(): array {
     $vectorSearchOverrideChannel = $this->resolveVectorSearchOverrideChannel();
+    $langfuseOverrideChannel = $this->resolveLangfuseOverrideChannel();
 
     return [
       'rate_limit_per_minute' => 'settings.php live branch',
@@ -342,11 +363,14 @@ class RuntimeTruthSnapshotBuilder {
       'conversation_logging.retention_hours' => 'ConversationLogger retention cap',
       'conversation_logging.redact_pii' => 'ConversationLogger privacy invariants',
       'conversation_logging.show_user_notice' => 'ConversationLogger privacy invariants',
-      'llm.enabled' => 'settings.php runtime toggle ILAS_LLM_ENABLED -> getenv/pantheon_get_secret',
-      'llm.provider' => 'Cohere-first request-time transport contract',
-      'llm.model' => 'Cohere-first request-time transport contract',
-      'llm.runtime_ready' => 'LlmEnhancer::isEnabled()',
-      'llm.request_time_generation_reachable' => 'LlmEnhancer::isEnabled()',
+      'llm.enabled' => $this->resolveLlmEnabledOverrideChannel(),
+      'llm.provider' => 'config export llm.provider with code default fallback',
+      'llm.model' => 'config export llm.model with code default fallback',
+      'llm.runtime_ready' => 'LlmRuntimeConfigResolver::resolve()',
+      'llm.request_time_generation_reachable' => 'CohereGenerationProbe last explicit probe state',
+      'llm.generation_probe_passed' => 'CohereGenerationProbe exact-output proof',
+      'llm.generation_attempted' => 'CohereGenerationProbe last explicit probe state',
+      'llm.last_error' => 'CohereGenerationProbe sanitized last error',
       'vector_search.enabled' => $vectorSearchOverrideChannel,
       'vector_search.override_channel' => $vectorSearchOverrideChannel,
       'retrieval.faq_index_id' => 'config export',
@@ -371,10 +395,10 @@ class RuntimeTruthSnapshotBuilder {
       'embeddings.model_id' => 'ai.settings config export',
       'embeddings.api_key_present' => 'settings.php runtime site setting ILAS_VOYAGE_API_KEY via key.key.voyage_ai_api_key',
       'embeddings.runtime_ready' => 'ai.settings + search_api.server.pinecone_vector_* + runtime Voyage key',
-      'langfuse.enabled' => 'settings.php secret -> getenv/pantheon_get_secret',
-      'langfuse.public_key_present' => 'settings.php secret -> getenv/pantheon_get_secret',
-      'langfuse.secret_key_present' => 'settings.php secret -> getenv/pantheon_get_secret',
-      'langfuse.environment' => 'settings.php secret -> getenv/pantheon_get_secret',
+      'langfuse.enabled' => $langfuseOverrideChannel,
+      'langfuse.public_key_present' => $langfuseOverrideChannel,
+      'langfuse.secret_key_present' => $langfuseOverrideChannel,
+      'langfuse.environment' => 'settings.php observability environment',
       'langfuse.sample_rate' => 'config export',
       'langfuse.redacted_preview_enabled' => 'config export',
       'langfuse.redacted_preview_max_chars' => 'config export',
@@ -475,6 +499,14 @@ class RuntimeTruthSnapshotBuilder {
       'llm.request_time_generation_reachable' => [
         'stored' => $exportedStorage['llm']['request_time_generation_reachable'] ?? FALSE,
         'effective' => $effectiveRuntime['llm']['request_time_generation_reachable'] ?? FALSE,
+      ],
+      'llm.generation_probe_passed' => [
+        'stored' => $exportedStorage['llm']['generation_probe_passed'] ?? FALSE,
+        'effective' => $effectiveRuntime['llm']['generation_probe_passed'] ?? FALSE,
+      ],
+      'llm.generation_attempted' => [
+        'stored' => $exportedStorage['llm']['generation_attempted'] ?? FALSE,
+        'effective' => $effectiveRuntime['llm']['generation_attempted'] ?? FALSE,
       ],
       'vector_search.enabled' => [
         'stored' => $exportedStorage['vector_search']['enabled'] ?? FALSE,
@@ -675,6 +707,30 @@ class RuntimeTruthSnapshotBuilder {
   }
 
   /**
+   * Resolves the current Langfuse override channel label.
+   */
+  protected function resolveLangfuseOverrideChannel(): string {
+    $overrideChannel = Settings::get('ilas_langfuse_override_channel');
+    if (is_string($overrideChannel) && $overrideChannel !== '') {
+      return $overrideChannel;
+    }
+
+    return 'settings.php live-only default + ILAS_LANGFUSE_ENABLED -> getenv/pantheon_get_secret';
+  }
+
+  /**
+   * Resolves the current LLM enabled source label.
+   */
+  protected function resolveLlmEnabledOverrideChannel(): string {
+    $overrideChannel = Settings::get('ilas_llm_override_channel');
+    if (is_string($overrideChannel) && $overrideChannel !== '') {
+      return $overrideChannel;
+    }
+
+    return 'config export llm.enabled';
+  }
+
+  /**
    * Reads an optional config-sync object.
    *
    * @param string $configName
@@ -856,11 +912,51 @@ class RuntimeTruthSnapshotBuilder {
    *   Safe LLM summary.
    */
   protected function buildEffectiveLlmSummary(object $assistant): array {
+    if ($this->llmRuntimeConfig !== NULL) {
+      $summary = $this->llmRuntimeConfig->resolve();
+      $probe = $this->cohereGenerationProbe?->getReadinessSummary() ?? [];
+
+      return [
+        'enabled' => (bool) ($summary['enabled'] ?? FALSE),
+        'provider' => (string) ($summary['provider'] ?? LlmRuntimeConfigResolver::DEFAULT_PROVIDER),
+        'model' => (string) ($summary['model'] ?? LlmRuntimeConfigResolver::DEFAULT_MODEL),
+        'runtime_ready' => (bool) ($summary['runtime_ready'] ?? FALSE),
+        'request_time_generation_reachable' => (bool) ($probe['request_time_generation_reachable'] ?? FALSE),
+        'generation_probe_passed' => (bool) ($probe['generation_probe_passed'] ?? FALSE),
+        'generation_attempted' => (bool) ($probe['generation_attempted'] ?? FALSE),
+        'last_error' => $probe['last_error'] ?? NULL,
+        'sources' => array_merge(
+          is_array($summary['sources'] ?? NULL) ? $summary['sources'] : [],
+          [
+            'request_time_generation_reachable' => 'CohereGenerationProbe last explicit probe state',
+            'generation_probe_passed' => 'CohereGenerationProbe exact-output proof',
+            'generation_attempted' => 'CohereGenerationProbe last explicit probe state',
+            'last_error' => 'CohereGenerationProbe sanitized last error',
+          ],
+        ),
+        'cost_control_summary' => $this->llmEnhancer?->getCostControlSummary() ?? [],
+      ];
+    }
+
     return [
-      'provider' => $this->llmEnhancer?->getProviderId() ?? 'cohere',
-      'model' => $this->llmEnhancer?->getModelId() ?? 'command-a-03-2025',
+      'enabled' => (bool) ($assistant->get('llm.enabled') ?? FALSE),
+      'provider' => $this->llmEnhancer?->getProviderId() ?? LlmRuntimeConfigResolver::DEFAULT_PROVIDER,
+      'model' => $this->llmEnhancer?->getModelId() ?? LlmRuntimeConfigResolver::DEFAULT_MODEL,
       'runtime_ready' => $this->llmEnhancer?->isEnabled() ?? $this->buildFallbackLlmRuntimeReady($assistant),
-      'request_time_generation_reachable' => $this->llmEnhancer?->isEnabled() ?? $this->buildFallbackLlmRuntimeReady($assistant),
+      'request_time_generation_reachable' => FALSE,
+      'generation_probe_passed' => FALSE,
+      'generation_attempted' => FALSE,
+      'last_error' => NULL,
+      'sources' => [
+        'enabled' => $this->resolveLlmEnabledOverrideChannel(),
+        'provider' => 'code default',
+        'model' => 'code default',
+        'runtime_ready' => 'fallback llm.enabled + runtime Cohere key check',
+        'request_time_generation_reachable' => 'explicit Cohere probe only',
+        'generation_probe_passed' => 'explicit Cohere probe only',
+        'generation_attempted' => 'explicit Cohere probe only',
+        'last_error' => 'explicit Cohere probe only',
+      ],
       'cost_control_summary' => $this->llmEnhancer?->getCostControlSummary() ?? [],
     ];
   }

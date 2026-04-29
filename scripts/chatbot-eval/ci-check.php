@@ -3,9 +3,11 @@
 
 /**
  * @file
- * ILAS Chatbot CI Check - Pre-deployment validation script.
+ * ILAS Chatbot CI Check - deprecated legacy local validation script.
  *
- * Run this before pushing to Pantheon to catch config regressions.
+ * This script is preserved for historical local use only. It is not a current
+ * Site Assistant quality gate and does not exercise the strict assistant
+ * bootstrap/session/CSRF/conversation contract.
  *
  * Usage:
  *   php scripts/chatbot-eval/ci-check.php [options]
@@ -57,7 +59,11 @@ $options = getopt('', [
 
 if (isset($options['help'])) {
   echo <<<HELP
-ILAS Chatbot CI Check - Pre-deployment validation
+ILAS Chatbot CI Check - DEPRECATED legacy local tooling
+
+This script is not a current Site Assistant quality gate. Use Promptfoo for
+answer quality, scripts/smoke/assistant-smoke.mjs for HTTP/session/security
+smoke checks, and Playwright for UI behavior.
 
 Usage:
   php scripts/chatbot-eval/ci-check.php [options]
@@ -77,7 +83,7 @@ Thresholds (regression detection):
   Overall Pass Rate:  >= 70%
 
 Examples:
-  # Quick check before pushing (recommended)
+  # Legacy local check
   php scripts/chatbot-eval/ci-check.php
 
   # Full evaluation (slower, more thorough)
@@ -107,7 +113,9 @@ function red($text) { return "\033[31m{$text}\033[0m"; }
 function yellow($text) { return "\033[33m{$text}\033[0m"; }
 function bold($text) { return "\033[1m{$text}\033[0m"; }
 
-echo bold("=== ILAS Chatbot CI Check ===\n\n");
+echo bold("=== ILAS Chatbot CI Check (Deprecated Legacy) ===\n\n");
+echo yellow("Warning: scripts/chatbot-eval is historical local tooling only.\n");
+echo yellow("Use Promptfoo, assistant-smoke, PHPUnit/functional tests, and Playwright for current coverage.\n\n");
 
 $checks_passed = true;
 $check_results = [];
@@ -377,10 +385,11 @@ foreach ($check_results as $check => $result) {
 echo "\n";
 
 if ($checks_passed) {
-  echo green(bold("All checks passed - safe to deploy\n"));
+  echo green(bold("Legacy checks passed\n"));
+  echo yellow("This result is not current Site Assistant deployment confidence.\n");
   exit(0);
 } else {
-  echo red(bold("Checks failed - DO NOT deploy until fixed\n"));
+  echo red(bold("Legacy checks failed\n"));
 
   // Determine exit code.
   if ($check_results['yaml_validation'] === 'failed' ||

@@ -53,6 +53,8 @@ conversation_logging:
   show_user_notice: true
 llm:
   enabled: false
+  provider: cohere
+  model: command-a-03-2025
   max_tokens: 150
   temperature: 0.3
   fallback_on_error: true
@@ -162,7 +164,7 @@ slo:
   cron_max_age_seconds: 7200
   cron_expected_cadence_seconds: 3600
   queue_max_depth: 10000
-  queue_max_age_seconds: 3600
+  queue_max_age_seconds: 7200
 source_governance:
   enabled: true
   policy_version: p2_obj_03_v1
@@ -274,7 +276,7 @@ langfuse:
   redacted_preview_max_chars: 160
   timeout: 5.0
   max_queue_depth: 10000
-  max_item_age_seconds: 3600
+  max_item_age_seconds: 7200
 review_loop:
   owner_role: 'Content Manager + SRE/Platform Engineer'
   cadence: Weekly

@@ -98,7 +98,10 @@ final class RuntimeDiagnosticsMatrixBuilder {
     $rows[] = $this->valueFact('llm.provider', (string) ($effective['llm']['provider'] ?? 'cohere'), $overrides['llm.provider'] ?? 'Cohere-first request-time transport contract', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->valueFact('llm.model', (string) ($effective['llm']['model'] ?? ''), $overrides['llm.model'] ?? 'Cohere-first request-time transport contract', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->toggleFact('llm.runtime_ready', $effective['llm']['runtime_ready'] ?? FALSE, $overrides['llm.runtime_ready'] ?? 'LlmEnhancer::isEnabled()', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
-    $rows[] = $this->toggleFact('llm.request_time_generation_reachable', $effective['llm']['request_time_generation_reachable'] ?? FALSE, $overrides['llm.request_time_generation_reachable'] ?? 'LlmEnhancer::isEnabled()', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
+    $rows[] = $this->toggleFact('llm.request_time_generation_reachable', $effective['llm']['request_time_generation_reachable'] ?? FALSE, $overrides['llm.request_time_generation_reachable'] ?? 'CohereGenerationProbe last explicit probe state', ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE, 'VC-COHERE-PROBE');
+    $rows[] = $this->toggleFact('llm.generation_probe_passed', $effective['llm']['generation_probe_passed'] ?? FALSE, $overrides['llm.generation_probe_passed'] ?? 'CohereGenerationProbe exact-output proof', ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE, 'VC-COHERE-PROBE');
+    $rows[] = $this->toggleFact('llm.generation_attempted', $effective['llm']['generation_attempted'] ?? FALSE, $overrides['llm.generation_attempted'] ?? 'CohereGenerationProbe last explicit probe state', ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE, 'VC-COHERE-PROBE');
+    $rows[] = $this->nullableValueFact('llm.last_error', $effective['llm']['last_error'] ?? NULL, $overrides['llm.last_error'] ?? 'CohereGenerationProbe sanitized last error', ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE, 'VC-COHERE-PROBE');
     $rows[] = $this->toggleFact('vector_search.enabled', $effective['vector_search']['enabled'] ?? FALSE, $overrides['vector_search.enabled'] ?? 'config export', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->toggleFact('pinecone.runtime_ready', $effective['pinecone']['runtime_ready'] ?? FALSE, $overrides['pinecone.runtime_ready'] ?? 'vector_search.enabled + key.key.pinecone_api_key + RetrievalConfigurationService runtime resolution', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
     $rows[] = $this->toggleFact('embeddings.runtime_ready', $effective['embeddings']['runtime_ready'] ?? FALSE, $overrides['embeddings.runtime_ready'] ?? 'ai.settings + search_api.server.pinecone_vector_* + runtime Voyage key', ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED, 'VC-RUNTIME-TRUTH');
@@ -170,6 +173,26 @@ final class RuntimeDiagnosticsMatrixBuilder {
       'static_proof_ceiling' => $proofCeiling,
       'verification_command' => $verificationCommand,
       'assertion' => $value !== '' ? ObservabilityProofTaxonomy::ASSERTION_PASS : ObservabilityProofTaxonomy::ASSERTION_DEGRADED,
+    ];
+  }
+
+  /**
+   * Builds a nullable runtime fact row.
+   */
+  private function nullableValueFact(string $factKey, mixed $value, string $source, string $proofCeiling, string $verificationCommand): array {
+    $normalized = is_array($value) ? json_encode($value, JSON_UNESCAPED_SLASHES) : (is_scalar($value) || $value === NULL ? $value : NULL);
+    $present = $normalized !== NULL && $normalized !== '';
+
+    return [
+      'fact_key' => $factKey,
+      'category' => 'metadata',
+      'current_value' => $normalized,
+      'source' => $source,
+      'proof_level' => ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED,
+      'proof_level_label' => ObservabilityProofTaxonomy::proofStrengthLabel(ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED),
+      'static_proof_ceiling' => $proofCeiling,
+      'verification_command' => $verificationCommand,
+      'assertion' => $present ? ObservabilityProofTaxonomy::ASSERTION_DEGRADED : ObservabilityProofTaxonomy::ASSERTION_PASS,
     ];
   }
 
@@ -299,6 +322,20 @@ final class RuntimeDiagnosticsMatrixBuilder {
         'achieved_proof_level' => ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED,
         'proof_ceiling' => ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE,
         'verification_command' => 'VC-LANGFUSE-PROBE-DIRECT',
+      ],
+      'llm' => [
+        'enabled' => (bool) ($effective['llm']['enabled'] ?? FALSE),
+        'provider' => (string) ($effective['llm']['provider'] ?? 'cohere'),
+        'model' => (string) ($effective['llm']['model'] ?? ''),
+        'runtime_ready' => (bool) ($effective['llm']['runtime_ready'] ?? FALSE),
+        'request_time_generation_reachable' => (bool) ($effective['llm']['request_time_generation_reachable'] ?? FALSE),
+        'generation_probe_passed' => (bool) ($effective['llm']['generation_probe_passed'] ?? FALSE),
+        'generation_attempted' => (bool) ($effective['llm']['generation_attempted'] ?? FALSE),
+        'last_error' => $effective['llm']['last_error'] ?? NULL,
+        'credential_present' => (bool) (($snapshot['runtime_site_settings']['cohere_api_key_present'] ?? FALSE)),
+        'achieved_proof_level' => ObservabilityProofTaxonomy::LEVEL_L0_UNVERIFIED,
+        'proof_ceiling' => ObservabilityProofTaxonomy::LEVEL_L3_PAYLOAD_ACCEPTANCE,
+        'verification_command' => 'VC-COHERE-PROBE',
       ],
       'pinecone' => [
         'enabled' => (bool) ($effective['vector_search']['enabled'] ?? FALSE),
@@ -450,6 +487,8 @@ final class RuntimeDiagnosticsMatrixBuilder {
     return [
       'VC-RUNTIME-TRUTH' => 'drush ilas:runtime-truth',
       'VC-RUNTIME-DIAGNOSTICS' => 'drush ilas:runtime-diagnostics',
+      'VC-COHERE-PROBE' => 'drush ilas:cohere-probe',
+      'VC-LLM-PROBE' => 'drush ilas:runtime-diagnostics --probe-llm',
       'VC-SENTRY-PROBE' => 'drush ilas:sentry-probe',
       'VC-LANGFUSE-PROBE-DIRECT' => 'drush ilas:langfuse-probe --direct',
       'VC-LANGFUSE-PROBE-QUEUED' => 'drush ilas:langfuse-probe',

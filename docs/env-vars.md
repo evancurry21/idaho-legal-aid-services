@@ -31,6 +31,11 @@ on hosted environments.
 - `ILAS_LLM_ENABLED`
   - Runtime-only rollout toggle for request-time assistant classification.
   - Honored on `local`, `dev`, `test`, and `live` when set truthy.
+- `ILAS_ASSISTANT_DIAGNOSTICS_TOKEN`
+  - Runtime-only machine-auth token for guarded assistant diagnostics metadata
+    and private observability endpoints.
+  - Required for a live assistant API proof request that returns sanitized
+    `diagnostics.generation.*` metadata.
 - `ILAS_GEMINI_API_KEY`
   - Optional runtime API key retained only for residual Search API AI paths
     that still prove a Gemini dependency.

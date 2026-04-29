@@ -35,7 +35,9 @@ final class PhaseTwoDeliverableTwoBehaviorTest extends BehavioralDependencyGateT
 
     $this->assertTrue($rendered['hasContractMetaLine']);
     $this->assertIsArray($rendered['contractMeta']);
-    $this->assertSame(3, $rendered['contractMeta']['citations_count']);
+    $this->assertSame(0, $rendered['contractMeta']['citations_count']);
+    $this->assertSame(3, $rendered['contractMeta']['derived_citation_count']);
+    $this->assertSame('unsupported_link_or_result_only', $rendered['contractMeta']['grounding_status']);
     $this->assertSame('search_results', $rendered['contractMeta']['response_type']);
     $this->assertSame('grounded_answer', $rendered['contractMeta']['response_mode']);
     $this->assertSame('retrieval_match', $rendered['contractMeta']['reason_code']);

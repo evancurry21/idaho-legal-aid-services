@@ -48,6 +48,7 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    \Drupal::service('router.builder')->rebuild();
 
     // Pin LLM to disabled so FallbackGate returns DECISION_CLARIFY for
     // unknown intents — gives deterministic clarify without a real backend.
@@ -204,6 +205,86 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
       'Session B must not have turn_type set (FOLLOW_UP requires history, which fingerprint guard should block)');
   }
 
+  /**
+   * Eviction follow-ups keep prior notice context when new facts are added.
+   */
+  public function testEvictionContextSummaryCarriesFactOnlyFollowups(): void {
+    $this->clearMessageFloodEvents();
+    [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
+    $convId = \Drupal::service('uuid')->generate();
+
+    $r1 = $this->sendAnonymousMessage($cookies, $token, 'I got a 3-day eviction notice.', $convId);
+    $r1Text = $this->responseText($r1);
+    $this->assertMatchesRegularExpression('/3-day|eviction|notice|housing/', $r1Text);
+
+    $r2 = $this->sendAnonymousMessage($cookies, $token, 'I live in Ada County and I have kids.', $convId);
+    $r2Text = $this->responseText($r2);
+    $this->assertNotSame('clarify', $r2['response_mode'] ?? '', 'Turn 2 must stay in eviction context instead of falling back to generic clarify.');
+    $this->assertMatchesRegularExpression('/(3-day|eviction|notice)/', $r2Text);
+    $this->assertMatchesRegularExpression('/(ada|boise)/', $r2Text);
+    $this->assertMatchesRegularExpression('/(kid|child)/', $r2Text);
+    $this->assertMatchesRegularExpression('/(legal advice line|apply for help|hotline)/', $r2Text);
+
+    $r3 = $this->sendAnonymousMessage($cookies, $token, 'What should I do next?', $convId);
+    $r3Text = $this->responseText($r3);
+    $this->assertNotSame('clarify', $r3['response_mode'] ?? '', 'Turn 3 must continue the eviction thread with actionable next steps.');
+    $this->assertMatchesRegularExpression('/(3-day|eviction|notice)/', $r3Text);
+    $this->assertMatchesRegularExpression('/(ada|boise)/', $r3Text);
+    $this->assertMatchesRegularExpression('/(legal advice line|apply for help|hotline|guide|form)/', $r3Text);
+  }
+
+  /**
+   * Courtroom-strategy requests are refused and redirected safely.
+   */
+  public function testLegalStrategyRequestGetsClearBoundaryResponse(): void {
+    $this->clearMessageFloodEvents();
+    [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
+    $convId = \Drupal::service('uuid')->generate();
+
+    $this->sendAnonymousMessage($cookies, $token, 'I got a 3-day eviction notice.', $convId);
+    $response = $this->sendAnonymousMessage($cookies, $token, 'Can you write exactly what I should tell the judge so I win?', $convId);
+    $text = $this->responseText($response);
+
+    $this->assertMatchesRegularExpression('/(can.t|cannot)\s+tell.*judge.*win/', $text);
+    $this->assertMatchesRegularExpression('/legal strategy/', $text);
+    $this->assertMatchesRegularExpression('/(legal advice line|apply for help|guide|form)/', $text);
+    $this->assertDoesNotMatchRegularExpression('/say exactly this|you will win/', $text);
+  }
+
+  /**
+   * Session changes clear the ephemeral continuity summary with history.
+   */
+  public function testConversationContextDoesNotLeakAcrossSessionReset(): void {
+    $this->clearMessageFloodEvents();
+    $convId = \Drupal::service('uuid')->generate();
+
+    [$cookiesA, $tokenA] = $this->getAnonymousSessionCookiesAndToken();
+    $this->sendAnonymousMessage($cookiesA, $tokenA, 'I got a 3-day eviction notice.', $convId);
+
+    [$cookiesB, $tokenB] = $this->getAnonymousSessionCookiesAndToken();
+    $response = $this->sendAnonymousMessage($cookiesB, $tokenB, 'I live in Ada County and I have kids.', $convId);
+    $text = $this->responseText($response);
+
+    $this->assertDoesNotMatchRegularExpression('/3-day|eviction/', $text);
+  }
+
+  /**
+   * Clearing the cache removes the ephemeral continuity summary.
+   */
+  public function testConversationContextClearsWhenConversationCacheIsRemoved(): void {
+    $this->clearMessageFloodEvents();
+    [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
+    $convId = \Drupal::service('uuid')->generate();
+
+    $this->sendAnonymousMessage($cookies, $token, 'I got a 3-day eviction notice.', $convId);
+    $this->clearConversationContextCache($convId);
+
+    $response = $this->sendAnonymousMessage($cookies, $token, 'What should I do next?', $convId);
+    $text = $this->responseText($response);
+
+    $this->assertDoesNotMatchRegularExpression('/3-day|eviction/', $text);
+  }
+
   // -----------------------------------------------------------------------
   // Helpers: duplicated from AssistantApiFunctionalTest (trait extraction
   // deferred until 5+ multi-turn methods are stable).
@@ -323,6 +404,21 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
         'ilas_assistant_hr',
       ], 'IN')
       ->execute();
+  }
+
+  /**
+   * Returns a lowercase searchable string view of the response payload.
+   */
+  protected function responseText(array $response): string {
+    return mb_strtolower((string) json_encode($response));
+  }
+
+  /**
+   * Clears ephemeral conversation cache entries for one conversation.
+   */
+  protected function clearConversationContextCache(string $conversationId): void {
+    \Drupal::service('cache.ilas_site_assistant')->delete('ilas_conv:' . $conversationId);
+    \Drupal::service('cache.ilas_site_assistant')->delete('ilas_conv_meta:' . $conversationId);
   }
 
 }

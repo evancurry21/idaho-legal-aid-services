@@ -774,6 +774,12 @@ class IntentRouter {
       ];
     }
 
+    $explicit_top_intent = $this->matchExplicitTopIntent($message);
+    if ($explicit_top_intent) {
+      $explicit_top_intent['extraction'] = $extraction;
+      return $explicit_top_intent;
+    }
+
     // Step 5a: Check for vague/ambiguous queries that need clarification.
     // This runs BEFORE topic routing so single-word topic queries like
     // "divorce" or "forms" get a clarification prompt instead of being
@@ -814,10 +820,7 @@ class IntentRouter {
     // that should ask what action the user wants (forms, guides, apply).
     // Skip TopicRouter when message contains an explicit resource type word
     // (e.g. "custody forms") so intent patterns can match directly.
-    $has_resource_type_word = (bool) preg_match(
-      '/\b(forms?|paperwork|papers|documents?|guides?|handbook|manuals?|instructions?|faq|faqs)\b/i',
-      $message
-    );
+    $has_resource_type_word = $this->hasResourceTypeWord($message);
     if ($this->topicRouter && str_word_count($message) <= 4 && !$has_resource_type_word) {
       $topic_route = $this->topicRouter->route($message);
       if ($topic_route) {
@@ -940,6 +943,7 @@ class IntentRouter {
           'type' => $pack_match,
           'confidence' => 0.60,
           'source' => 'top_intents_pack',
+          'area' => $this->inferAreaFromIntentType($pack_match),
           'pack_entry' => $pack_entry,
           'extraction' => $extraction,
         ];
@@ -993,6 +997,84 @@ class IntentRouter {
     unset($normalized['high_risk'], $normalized['out_of_scope']);
 
     return $normalized;
+  }
+
+  /**
+   * Matches explicit multi-word topic requests to a top-intent entry.
+   */
+  protected function matchExplicitTopIntent(string $message): ?array {
+    if (!$this->topIntentsPack || mb_strlen(trim($message)) < 4) {
+      return NULL;
+    }
+
+    if ($this->hasResourceTypeWord($message)) {
+      return NULL;
+    }
+
+    $normalized = mb_strtolower(trim($message));
+    $pack_match = $this->topIntentsPack->matchSynonyms($normalized);
+    if (!$pack_match || !str_starts_with($pack_match, 'topic_')) {
+      return NULL;
+    }
+
+    if (!$this->isExplicitTopIntentRequest($normalized)) {
+      return NULL;
+    }
+
+    return [
+      'type' => $pack_match,
+      'confidence' => 0.72,
+      'source' => 'explicit_top_intents_pack',
+      'area' => $this->inferAreaFromIntentType($pack_match),
+      'pack_entry' => $this->topIntentsPack->lookup($pack_match),
+    ];
+  }
+
+  /**
+   * Returns TRUE when a topic mention carries enough context to answer.
+   */
+  protected function isExplicitTopIntentRequest(string $normalized_message): bool {
+    if (HistoryIntentResolver::detectResetSignal($normalized_message)) {
+      return TRUE;
+    }
+
+    return (bool) preg_match('/\b(i\s+need|need|necesito|quiero|help|ayuda|with|about|con|sobre|para|actually|instead|en\s+realidad|mejor|got|have|received|tengo|recibi|recibí)\b/u', $normalized_message);
+  }
+
+  /**
+   * Detects resource-type words that should keep resource routing precedence.
+   */
+  protected function hasResourceTypeWord(string $message): bool {
+    return (bool) preg_match(
+      '/\b(forms?|paperwork|papers|documents?|guides?|handbook|manuals?|instructions?|faq|faqs)\b/i',
+      $message
+    );
+  }
+
+  /**
+   * Infers a broad service area from a topic intent key.
+   */
+  protected function inferAreaFromIntentType(string $intent_type): ?string {
+    if (str_starts_with($intent_type, 'topic_housing')) {
+      return 'housing';
+    }
+    if (str_starts_with($intent_type, 'topic_family')) {
+      return 'family';
+    }
+    if (str_starts_with($intent_type, 'topic_consumer')) {
+      return 'consumer';
+    }
+    if (str_starts_with($intent_type, 'topic_seniors')) {
+      return 'seniors';
+    }
+    if (str_starts_with($intent_type, 'topic_health') || str_starts_with($intent_type, 'topic_benefits')) {
+      return 'health';
+    }
+    if (str_starts_with($intent_type, 'topic_civil_rights') || str_starts_with($intent_type, 'topic_employment')) {
+      return 'civil_rights';
+    }
+
+    return NULL;
   }
 
   /**

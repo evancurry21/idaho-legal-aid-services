@@ -538,7 +538,13 @@ class AssistantSettingsForm extends ConfigFormBase {
 
     $form['llm']['llm_runtime_notice'] = [
       '#type' => 'item',
-      '#markup' => '<p>' . $this->t('Runtime secret: <code>ILAS_COHERE_API_KEY</code>. Live rollout remains runtime-toggle controlled with <code>ILAS_LLM_ENABLED</code>. Provider/model credentials are not stored in Drupal config or exposed in this form. Greeting variation stays retired.') . '</p>',
+      '#markup' => '<p>' . $this->t('Runtime secret: <code>ILAS_COHERE_API_KEY</code>. Live rollout remains runtime-toggle controlled with <code>ILAS_LLM_ENABLED</code>. Provider/model are non-secret config values; credentials are never stored in Drupal config. Greeting variation stays retired.') . '</p>',
+    ];
+
+    $form['llm']['llm_provider_model'] = [
+      '#type' => 'item',
+      '#title' => $this->t('Provider / model'),
+      '#markup' => '<code>' . htmlspecialchars((string) ($llm_config['provider'] ?? 'cohere'), ENT_QUOTES, 'UTF-8') . ' / ' . htmlspecialchars((string) ($llm_config['model'] ?? 'command-a-03-2025'), ENT_QUOTES, 'UTF-8') . '</code>',
     ];
 
     $form['llm']['llm_enabled'] = [
@@ -744,13 +750,17 @@ class AssistantSettingsForm extends ConfigFormBase {
     $llm_config = $config->get('llm');
     $llm_config = is_array($llm_config) ? $llm_config : [];
     unset(
-      $llm_config['provider'],
-      $llm_config['model'],
       $llm_config['api_key'],
       $llm_config['project_id'],
       $llm_config['location'],
       $llm_config['service_account_json'],
     );
+    $llm_config['provider'] = trim((string) ($llm_config['provider'] ?? '')) !== ''
+      ? trim((string) $llm_config['provider'])
+      : 'cohere';
+    $llm_config['model'] = trim((string) ($llm_config['model'] ?? '')) !== ''
+      ? trim((string) $llm_config['model'])
+      : 'command-a-03-2025';
     $llm_config['enabled'] = $llm_enabled;
     $llm_config['max_tokens'] = (int) $form_state->getValue('llm_max_tokens');
     $llm_config['temperature'] = (float) $form_state->getValue('llm_temperature');

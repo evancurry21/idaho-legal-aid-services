@@ -104,7 +104,7 @@ class FaqIndex {
    *
    * @var \Drupal\ilas_site_assistant\Service\RetrievalConfigurationService
    */
-  protected RetrievalConfigurationService $retrievalConfiguration;
+  protected ?RetrievalConfigurationService $retrievalConfiguration = NULL;
 
   /**
    * The ranking enhancer service.
@@ -258,7 +258,9 @@ class FaqIndex {
    */
   protected function getIndex() {
     if ($this->index === NULL) {
-      $index_id = $this->retrievalConfiguration->getFaqIndexId();
+      $index_id = $this->hasRetrievalConfiguration()
+        ? $this->retrievalConfiguration->getFaqIndexId()
+        : 'faq_accordion';
       $this->index = $index_id ? Index::load($index_id) : NULL;
     }
     return $this->index;
@@ -510,6 +512,48 @@ class FaqIndex {
   }
 
   /**
+   * Returns static identity describing the vector + embedding stack.
+   *
+   * Safe to expose: contains no secrets. Used by the response contract to
+   * prove which provider/model is wired to FAQ vector retrieval.
+   *
+   * @return array<string, mixed>
+   */
+  public function getVectorTelemetryIdentity(): array {
+    [$embedding_provider, $embedding_model] = $this->splitEmbeddingsEngine(self::EXPECTED_VECTOR_EMBEDDINGS_ENGINE);
+    return [
+      'service' => 'faq',
+      'vector_provider' => 'pinecone',
+      'vector_index_id' => $this->hasRetrievalConfiguration()
+        ? $this->retrievalConfiguration->getFaqVectorIndexId()
+        : '',
+      'embedding_provider' => $embedding_provider,
+      'embedding_model' => $embedding_model,
+      'embeddings_engine' => self::EXPECTED_VECTOR_EMBEDDINGS_ENGINE,
+      'expected_dimensions' => self::EXPECTED_VECTOR_DIMENSIONS,
+    ];
+  }
+
+  /**
+   * Splits an `<provider>__<model>` engine identifier into its parts.
+   *
+   * @param string $engine
+   *   The engine identifier (e.g., 'ilas_voyage__voyage-law-2').
+   *
+   * @return array{0:string,1:string}
+   *   [provider, model] tuple. Provider falls back to the full string when
+   *   the delimiter is absent; model falls back to the engine string.
+   */
+  protected function splitEmbeddingsEngine(string $engine): array {
+    if (strpos($engine, '__') !== FALSE) {
+      [$provider, $model] = explode('__', $engine, 2);
+      $provider = preg_replace('/^ilas_/', '', $provider) ?: $provider;
+      return [$provider, $model];
+    }
+    return [$engine, $engine];
+  }
+
+  /**
    * Builds a cache key for memoizing query results without storing PII.
    */
   protected function buildQueryCacheKey(string $query, int $limit, ?string $type): ?string {
@@ -570,6 +614,30 @@ class FaqIndex {
     $lexical_degraded_reason = isset($decision['lexical_degraded_reason']) && is_string($decision['lexical_degraded_reason'])
       ? $decision['lexical_degraded_reason']
       : NULL;
+    $vector_top_scores = [];
+    $vector_top_match_ids = [];
+    foreach ($items as $item) {
+      $is_vector_item = (($item['source'] ?? '') === 'vector')
+        || (isset($item['source_class']) && is_string($item['source_class']) && str_ends_with($item['source_class'], '_vector'));
+      if (!$is_vector_item) {
+        continue;
+      }
+      if (isset($item['vector_score']) && is_numeric($item['vector_score'])) {
+        $vector_top_scores[] = (float) $item['vector_score'];
+      }
+      if (isset($item['id']) && (is_string($item['id']) || is_int($item['id']))) {
+        $vector_top_match_ids[] = (string) $item['id'];
+      }
+    }
+    rsort($vector_top_scores, SORT_NUMERIC);
+    $vector_top_scores = array_slice($vector_top_scores, 0, 5);
+    $vector_top_match_ids = array_slice($vector_top_match_ids, 0, 5);
+
+    $identity = $this->getVectorTelemetryIdentity();
+    $resolved_index_id = isset($vector_outcome['vector_index_id']) && is_string($vector_outcome['vector_index_id'])
+      ? $vector_outcome['vector_index_id']
+      : ($identity['vector_index_id'] ?? NULL);
+
     $this->retrievalTelemetry[] = [
       'service' => 'faq',
       'path' => $path,
@@ -586,6 +654,14 @@ class FaqIndex {
         ? ($vector_outcome['reason'] ?? 'degraded')
         : NULL),
       'vector_elapsed_ms' => isset($vector_outcome['elapsed_ms']) ? (int) $vector_outcome['elapsed_ms'] : NULL,
+      'vector_index_id' => $resolved_index_id,
+      'vector_provider' => $identity['vector_provider'],
+      'embedding_provider' => $identity['embedding_provider'],
+      'embedding_model' => $identity['embedding_model'],
+      'expected_dimensions' => $identity['expected_dimensions'],
+      'topk_requested' => $vector_outcome['topk_requested'] ?? NULL,
+      'vector_top_scores' => $vector_top_scores,
+      'vector_top_match_ids' => $vector_top_match_ids,
       'result_count' => count($items),
       'lexical_result_count' => $lexical_result_count,
       'vector_result_count' => $vector_result_count,
@@ -1410,7 +1486,9 @@ class FaqIndex {
     }
 
     $vector_config = $this->getVectorSearchConfig();
-    $index_id = $this->retrievalConfiguration->getFaqVectorIndexId();
+    $index_id = $this->hasRetrievalConfiguration()
+      ? $this->retrievalConfiguration->getFaqVectorIndexId()
+      : NULL;
     $min_score = $vector_config['min_vector_score'] ?? 0.70;
     $normalization = $vector_config['score_normalization_factor'] ?? 100;
 
@@ -1505,7 +1583,7 @@ class FaqIndex {
         ]);
       }
 
-      return $this->buildVectorOutcome(
+      $outcome = $this->buildVectorOutcome(
         TRUE,
         empty($items) ? 'healthy_empty' : 'healthy',
         empty($items) ? 'no_results_above_threshold' : 'results_available',
@@ -1513,6 +1591,9 @@ class FaqIndex {
         $elapsed_ms,
         TRUE,
       );
+      $outcome['vector_index_id'] = $index_id;
+      $outcome['topk_requested'] = $limit;
+      return $outcome;
     }
     catch (\Exception $e) {
       $exception_class = get_class($e);
@@ -1540,7 +1621,10 @@ class FaqIndex {
           '@seconds' => self::VECTOR_BACKOFF_SECONDS,
         ]
       );
-      return $this->buildVectorOutcome(TRUE, 'degraded', $category, [], NULL, FALSE);
+      $outcome = $this->buildVectorOutcome(TRUE, 'degraded', $category, [], NULL, FALSE);
+      $outcome['vector_index_id'] = $index_id;
+      $outcome['topk_requested'] = $limit;
+      return $outcome;
     }
   }
 

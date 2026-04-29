@@ -1,4 +1,7 @@
-# Promptfoo eval config for golden transcript validation.
+# Legacy Promptfoo API smoke config.
+#
+# This is not the authoritative golden conversation suite. Multi-turn
+# conversation-quality checks live under promptfoo-evals/tests.
 #
 # Usage (when promptfoo is available):
 #   npx promptfoo eval -c tests/goldens/promptfoo.yaml
@@ -6,7 +9,7 @@
 # Requires:
 #   ILAS_ASSISTANT_URL env var pointing to the assistant API endpoint.
 
-description: "Aila Golden Transcript Evaluation"
+description: "Aila Legacy API Smoke Evaluation"
 
 providers:
   - id: ilas-assistant

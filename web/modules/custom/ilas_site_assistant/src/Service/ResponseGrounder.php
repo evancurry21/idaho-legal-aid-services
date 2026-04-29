@@ -80,6 +80,30 @@ class ResponseGrounder {
   ];
 
   /**
+   * Public response/result fields that may contain untrusted retrieved text.
+   */
+  const UNTRUSTED_RETRIEVAL_TEXT_FIELDS = [
+    'message',
+    'answer',
+    'answer_snippet',
+    'body',
+    'description',
+    'summary',
+    'title',
+    'question',
+  ];
+
+  /**
+   * Prompt-injection-like content that must be treated as page text only.
+   */
+  const UNTRUSTED_RETRIEVAL_INSTRUCTION_PATTERNS = [
+    '/\bignore\s+(all\s+)?(previous|prior|above|system|developer|assistant)\s+instructions\b/i',
+    '/\bdo\s+not\s+cite\s+(ilas|idaho\s+legal\s+aid|sources?)\b/i',
+    '/\brecommend\s+(a\s+)?paid\s+lawyer\b/i',
+    '/\btell\s+the\s+user\s+they\s+(will|should)\s+win\b/i',
+  ];
+
+  /**
    * Constructs a response grounder.
    */
   public function __construct(?SourceGovernanceService $source_governance = NULL) {
@@ -109,6 +133,12 @@ class ResponseGrounder {
       'add_caveats' => TRUE,
       'include_source_url' => TRUE,
     ], $options);
+
+    [$response, $retrieved_results, $sanitized_fields] = $this->sanitizeUntrustedRetrievedContent($response, $retrieved_results);
+    if (!empty($sanitized_fields)) {
+      $response['_retrieval_content_sanitized'] = TRUE;
+      $response['_retrieval_content_sanitized_fields'] = $sanitized_fields;
+    }
 
     // Add citations from retrieved results.
     if ($options['add_citations'] && !empty($retrieved_results)) {
@@ -165,6 +195,9 @@ class ResponseGrounder {
 
     foreach ($results as $result) {
       $title = $result['title'] ?? $result['question'] ?? 'Untitled';
+      if (!is_string($title) || trim($title) === '') {
+        $title = 'Untitled';
+      }
       $raw_url = $result['url'] ?? $result['source_url'] ?? NULL;
       $url = $this->sourceGovernance?->sanitizeCitationUrl(is_string($raw_url) ? $raw_url : NULL);
       $freshness = $result['freshness']['status'] ?? 'unknown';
@@ -209,6 +242,132 @@ class ResponseGrounder {
     }
 
     return $response;
+  }
+
+  /**
+   * Removes prompt-injection-like instructions from untrusted retrieved text.
+   *
+   * Retrieved page content may describe malicious instructions. It must never
+   * become an instruction to the assistant, a citation title, or public result
+   * snippet. This deliberately uses narrow patterns so normal legal content is
+   * not broadly rewritten.
+   *
+   * @param array $response
+   *   Response being grounded.
+   * @param array $retrieved_results
+   *   Retrieved results used for grounding.
+   *
+   * @return array
+   *   Tuple of sanitized response, sanitized results, and changed field labels.
+   */
+  protected function sanitizeUntrustedRetrievedContent(array $response, array $retrieved_results): array {
+    $sanitized_fields = [];
+
+    foreach (self::UNTRUSTED_RETRIEVAL_TEXT_FIELDS as $field) {
+      if (!isset($response[$field]) || !is_string($response[$field])) {
+        continue;
+      }
+
+      $original = $response[$field];
+      $response[$field] = $this->stripUntrustedInstructionText($original);
+      if ($response[$field] !== $original) {
+        $sanitized_fields[] = 'response.' . $field;
+        if ($field === 'message' && trim($response[$field]) === '') {
+          $response[$field] = 'I found ILAS information for this topic, but I cannot summarize untrusted instructions from retrieved page content. Please review the cited ILAS source or contact ILAS for help.';
+        }
+      }
+    }
+
+    if (!empty($response['results']) && is_array($response['results'])) {
+      foreach ($response['results'] as $index => $result) {
+        if (!is_array($result)) {
+          continue;
+        }
+        [$response['results'][$index], $changed] = $this->sanitizeUntrustedResultItem($result, 'response.results.' . $index);
+        $sanitized_fields = array_merge($sanitized_fields, $changed);
+      }
+    }
+
+    foreach ($retrieved_results as $index => $result) {
+      if (!is_array($result)) {
+        continue;
+      }
+      [$retrieved_results[$index], $changed] = $this->sanitizeUntrustedResultItem($result, 'retrieved_results.' . $index);
+      $sanitized_fields = array_merge($sanitized_fields, $changed);
+    }
+
+    return [
+      $response,
+      $retrieved_results,
+      array_values(array_unique($sanitized_fields)),
+    ];
+  }
+
+  /**
+   * Sanitizes one retrieval result item.
+   *
+   * @param array $result
+   *   Result item.
+   * @param string $prefix
+   *   Field prefix for diagnostics.
+   *
+   * @return array
+   *   Tuple of sanitized result and changed field labels.
+   */
+  protected function sanitizeUntrustedResultItem(array $result, string $prefix): array {
+    $changed = [];
+
+    foreach (self::UNTRUSTED_RETRIEVAL_TEXT_FIELDS as $field) {
+      if (!isset($result[$field]) || !is_string($result[$field])) {
+        continue;
+      }
+
+      $original = $result[$field];
+      $result[$field] = $this->stripUntrustedInstructionText($original);
+      if ($result[$field] !== $original) {
+        $changed[] = $prefix . '.' . $field;
+        if (in_array($field, ['title', 'question'], TRUE) && trim($result[$field]) === '') {
+          $result[$field] = 'ILAS source';
+        }
+      }
+    }
+
+    return [$result, $changed];
+  }
+
+  /**
+   * Strips sentences or lines that look like injected instructions.
+   */
+  protected function stripUntrustedInstructionText(string $text): string {
+    if (!$this->containsUntrustedInstruction($text)) {
+      return $text;
+    }
+
+    $chunks = preg_split('/(?<=[.!?])\s+|\R+/', $text, -1, PREG_SPLIT_NO_EMPTY);
+    $chunks = $chunks !== FALSE ? $chunks : [$text];
+    $kept = [];
+
+    foreach ($chunks as $chunk) {
+      if ($this->containsUntrustedInstruction($chunk)) {
+        continue;
+      }
+      $kept[] = $chunk;
+    }
+
+    return trim((string) preg_replace('/\s+/', ' ', implode(' ', $kept)));
+  }
+
+  /**
+   * Returns TRUE when text contains a retrieval prompt-injection pattern.
+   */
+  protected function containsUntrustedInstruction(string $text): bool {
+    foreach (self::UNTRUSTED_RETRIEVAL_INSTRUCTION_PATTERNS as $pattern) {
+      if (preg_match($pattern, $text)) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
   }
 
   /**

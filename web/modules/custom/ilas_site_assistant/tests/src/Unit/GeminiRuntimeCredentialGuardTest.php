@@ -70,8 +70,10 @@ final class GeminiRuntimeCredentialGuardTest extends TestCase {
   public function testRuntimeTruthContractReportsCohereProvider(): void {
     $builder = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/RuntimeTruthSnapshotBuilder.php');
     $diagnostics = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/RuntimeDiagnosticsMatrixBuilder.php');
+    $runtimeResolver = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/LlmRuntimeConfigResolver.php');
 
-    $this->assertStringContainsString("'provider' => 'cohere'", $builder);
+    $this->assertStringContainsString('LlmRuntimeConfigResolver::DEFAULT_PROVIDER', $builder);
+    $this->assertStringContainsString("DEFAULT_PROVIDER = 'cohere'", $runtimeResolver);
     $this->assertStringContainsString('request_time_generation_reachable', $builder);
     $this->assertStringContainsString("valueFact('llm.provider'", $diagnostics);
     $this->assertStringContainsString('llm.cohere_api_key_present', $diagnostics);

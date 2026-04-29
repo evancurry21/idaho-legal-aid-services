@@ -86,6 +86,14 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
+   * Short correction words suppress sticky history fallback.
+   */
+  public function testCorrectionResetSignals(): void {
+    $this->assertTrue(HistoryIntentResolver::detectResetSignal('Actually divorce.'));
+    $this->assertTrue(HistoryIntentResolver::detectResetSignal('Instead custody.'));
+  }
+
+  /**
    * History entries older than the time window are ignored.
    */
   public function testStaleHistoryIgnored(): void {
@@ -179,6 +187,18 @@ class HistoryIntentResolverTest extends TestCase {
     $this->assertEquals('topic_housing', $result['intent']);
     $this->assertEquals(1.0, $result['confidence']);
     $this->assertEquals(1, $result['turns_analyzed']);
+  }
+
+  /**
+   * Older history without area metadata still exposes topic context.
+   */
+  public function testExtractTopicContextInfersFromHistoryText(): void {
+    $context = HistoryIntentResolver::extractTopicContext([
+      $this->entry('unknown', 1000000, 'I got an eviction notice.'),
+    ]);
+
+    $this->assertSame('housing', $context['area'] ?? NULL);
+    $this->assertSame('eviction', $context['topic'] ?? NULL);
   }
 
   /**
@@ -317,9 +337,9 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * resolveFromHistory topic_context is NULL when history has no area fields.
+   * resolveFromHistory infers topic_context for old entries without area.
    */
-  public function testResolveFromHistoryTopicContextNullWithoutArea(): void {
+  public function testResolveFromHistoryTopicContextInferredWithoutArea(): void {
     $now = 1000000;
     $history = [
       $this->entry('topic_housing', $now - 60),
@@ -331,8 +351,7 @@ class HistoryIntentResolverTest extends TestCase {
 
     $this->assertNotNull($result);
     $this->assertArrayHasKey('topic_context', $result);
-    // Old-format entries without 'area' field → NULL topic_context.
-    $this->assertNull($result['topic_context']);
+    $this->assertSame('housing', $result['topic_context']['area'] ?? NULL);
   }
 
   /**

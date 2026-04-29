@@ -1,0 +1,271 @@
+# ILAS Site Assistant - retrieval and grounding quality
+#
+# Positive grounding cases require supported citation metadata. A generic link,
+# result URL, broad keyword, or citation-looking string is not enough.
+
+- description: "Retrieval grounding - eviction FAQ/source"
+  vars:
+    question: "What does ILAS say about eviction notices?"
+    expected_topic: eviction
+    expected_terms:
+      - eviction
+      - notice
+      - housing
+    expected_terms_min: 2
+    expected_action_terms:
+      - legal advice line
+      - apply
+      - resource
+    require_retrieval_attempted: true
+    require_grounding: true
+    require_supported_citation: true
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: eviction-source
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasNoGenericFallback
+      metric: quality-no-generic-fallback
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasExpectedTopicTerms
+      metric: quality-topic-specificity
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasActionableNextStep
+      metric: quality-actionable-next-step
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasRetrievalAttemptProof
+      metric: quality-retrieval-attempted
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasGroundedSupportWhenExpected
+      metric: quality-grounding-proof
+    - &quality_supported_citation
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasSupportedCitation
+      metric: quality-supported-citation-topic-support
+    - &quality_no_unsupported_claim
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasNoUnsupportedClaim
+      metric: quality-no-unsupported-claim
+    - &quality_no_disallowed_source
+      type: javascript
+      value: file://lib/ilas-assertions.js:didNotUseDisallowedSource
+      metric: quality-disallowed-source-blocked
+
+- description: "Retrieval grounding - deposit source"
+  vars:
+    question: "Where can I find information about security deposits?"
+    expected_topic: deposit
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: deposit-source
+  assert:
+    - *quality_supported_citation
+    - *quality_no_unsupported_claim
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - custody forms source"
+  vars:
+    question: "Where are custody forms?"
+    expected_topic: custody
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: custody-forms-source
+  assert:
+    - *quality_supported_citation
+    - *quality_no_unsupported_claim
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - divorce guide source"
+  vars:
+    question: "Where is your divorce guide?"
+    expected_topic: divorce
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: divorce-guide-source
+  assert:
+    - *quality_supported_citation
+    - *quality_no_unsupported_claim
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - debt source"
+  vars:
+    question: "What can I read about debt collection?"
+    expected_topic: debt
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: debt-source
+  assert:
+    - *quality_supported_citation
+    - *quality_no_unsupported_claim
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - Twin Falls office contact"
+  vars:
+    question: "How do I contact the Twin Falls office?"
+    expected_terms:
+      - twin falls
+      - office
+      - contact
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: twin-falls-office
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isUsefulClarification
+      metric: quality-office-contact-useful
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - protection order and DV source"
+  vars:
+    question: "Where are protection order or domestic violence resources?"
+    expected_topic: protection
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: protection-order-dv-source
+  assert:
+    - *quality_supported_citation
+    - *quality_no_unsupported_claim
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - benefits source"
+  vars:
+    question: "Where can I read about SSI or disability benefits?"
+    expected_topic: benefits
+    expected_terms:
+      - ssi
+      - disability
+      - benefits
+    expected_terms_min: 2
+    expected_action_terms:
+      - resource
+      - apply
+      - legal advice line
+    require_retrieval_attempted: true
+    require_grounding: true
+    require_supported_citation: true
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: benefits-source
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasNoGenericFallback
+      metric: quality-no-generic-fallback
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasExpectedTopicTerms
+      metric: quality-topic-specificity
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasRetrievalAttemptProof
+      metric: quality-retrieval-attempted
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasGroundedSupportWhenExpected
+      metric: quality-grounding-proof
+    - *quality_supported_citation
+    - *quality_no_unsupported_claim
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - guardianship source"
+  vars:
+    question: "Where can I find guardianship help for my grandchild?"
+    expected_topic: guardianship
+    expected_terms:
+      - guardianship
+      - grandchild
+      - family
+    expected_terms_min: 2
+    expected_action_terms:
+      - form
+      - guide
+      - resource
+      - apply
+    require_retrieval_attempted: true
+    require_grounding: true
+    require_supported_citation: true
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: guardianship-source
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasNoGenericFallback
+      metric: quality-no-generic-fallback
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasExpectedTopicTerms
+      metric: quality-topic-specificity
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasRetrievalAttemptProof
+      metric: quality-retrieval-attempted
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasGroundedSupportWhenExpected
+      metric: quality-grounding-proof
+    - *quality_supported_citation
+    - *quality_no_unsupported_claim
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - tenant rights source"
+  vars:
+    question: "What are Idaho tenant rights for eviction notices?"
+    expected_topic: tenant
+    expected_terms:
+      - tenant
+      - rights
+      - eviction
+      - notice
+      - housing
+    expected_terms_min: 3
+    expected_action_terms:
+      - guide
+      - resource
+      - legal advice line
+      - apply
+    require_retrieval_attempted: true
+    require_grounding: true
+    require_supported_citation: true
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: tenant-rights-source
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasNoGenericFallback
+      metric: quality-no-generic-fallback
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasExpectedTopicTerms
+      metric: quality-topic-specificity
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasRetrievalAttemptProof
+      metric: quality-retrieval-attempted
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasGroundedSupportWhenExpected
+      metric: quality-grounding-proof
+    - *quality_supported_citation
+    - *quality_no_unsupported_claim
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - no-content space law"
+  vars:
+    question: "Do you handle Idaho space law?"
+    expected_terms:
+      - outside
+      - service
+      - help
+      - legal aid
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: no-content-space-law
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isUsefulClarification
+      metric: quality-low-confidence-refusal
+    - *quality_no_disallowed_source
+
+- description: "Retrieval grounding - irrelevant lexical Apple phone custody issue"
+  vars:
+    question: "Apple phone custody issue"
+    disallowed_hosts:
+      - apple.com
+      - evil.example
+  metadata:
+    scenario_family: retrieval_grounding
+    scenario_id: irrelevant-lexical-apple-custody
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:didNotUseDisallowedSource
+      metric: quality-low-confidence-refusal

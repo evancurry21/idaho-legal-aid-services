@@ -1,0 +1,129 @@
+# ILAS Site Assistant - Spanish quality mini-suite
+#
+# These cases require Spanish-language usefulness, not only English routing.
+
+- description: "Spanish quality - apply for legal help"
+  vars:
+    question: "¿Cómo solicito ayuda legal?"
+    expected_action_terms:
+      - ayuda
+      - solic
+      - aplic
+      - línea
+      - linea
+  metadata:
+    scenario_family: spanish_quality
+    scenario_id: es-apply-help
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isSpanishOrBilingualUseful
+      metric: quality-spanish-helpfulness
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        /(ayuda legal|solicit|aplic|llam|oficina|línea|linea)/.test(l) &&
+        /(apply-for-help|legalserver|solicit|aplic|call|llam)/.test(l)
+      metric: quality-spanish-routing-path
+
+- description: "Spanish quality - talk to someone"
+  vars:
+    question: "Necesito hablar con alguien."
+  metadata:
+    scenario_family: spanish_quality
+    scenario_id: es-talk-to-someone
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isSpanishOrBilingualUseful
+      metric: quality-spanish-helpfulness
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        /(hablar|alguien|llam|línea|linea|ayuda|legal)/.test(l) &&
+        /(legal advice line|hotline|tel:|208|llam|línea|linea)/.test(l)
+      metric: quality-spanish-routing-path
+
+- description: "Spanish quality - Boise office"
+  vars:
+    question: "¿Dónde está la oficina de Boise?"
+  metadata:
+    scenario_family: spanish_quality
+    scenario_id: es-boise-office
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        l.includes('boise') && /(oficina|dirección|direccion|horario|teléfono|telefono|llam|office|address)/.test(l)
+      metric: quality-spanish-helpfulness
+
+- description: "Spanish quality - eviction court tomorrow"
+  vars:
+    question: "Tengo corte de desalojo mañana."
+  metadata:
+    scenario_family: spanish_quality
+    scenario_id: es-eviction-court-tomorrow
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        /(desalojo|corte|mañana|manana|urgente|llam|línea|linea|ayuda)/.test(l) &&
+        /(legal advice line|hotline|apply|llam|solicit|inmediata|right away|immediately)/.test(l)
+      metric: quality-spanish-urgent-next-step
+
+- description: "Spanish quality - custody forms"
+  vars:
+    question: "Necesito formularios de custodia."
+  metadata:
+    scenario_family: spanish_quality
+    scenario_id: es-custody-forms
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        /(custodia|formularios|formas|forms)/.test(l) &&
+        (/(custody|custodia|forms|formularios)/.test(l) || l.includes('/forms'))
+      metric: quality-spanish-helpfulness
+
+- description: "Spanish multi-turn - eviction setup"
+  vars:
+    question: "Necesito ayuda con desalojo."
+  metadata:
+    conversationId: "77777777-7777-4777-8777-777777777777"
+    conversationName: quality-spanish-eviction
+    scenario_family: spanish_quality_multiturn
+    scenario_id: es-eviction-turn-1
+    turn: 1
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isSpanishOrBilingualUseful
+      metric: quality-spanish-helpfulness
+    - type: javascript
+      value: "/(desalojo|evict|vivienda|landlord|tenant|legal advice line|ayuda|aplic|solicit)/i.test(output)"
+      metric: quality-spanish-continuity-setup
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasStableConversationTrace
+      metric: quality-stable-conversation-trace
+
+- description: "Spanish multi-turn - eviction carryover"
+  vars:
+    question: "¿Y ahora?"
+  metadata:
+    conversationId: "77777777-7777-4777-8777-777777777777"
+    conversationName: quality-spanish-eviction
+    scenario_family: spanish_quality_multiturn
+    scenario_id: es-eviction-turn-2
+    turn: 2
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isSpanishOrBilingualUseful
+      metric: quality-spanish-helpfulness
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasStableConversationTrace
+      metric: quality-stable-conversation-trace
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        /(desalojo|evict|vivienda|arrendador|tenant|landlord|corte|notice|aviso)/.test(l) &&
+        /(ahora|siguiente|llam|legal advice line|apply|solicit|ayuda|forms|formularios)/.test(l)
+      metric: quality-spanish-continuity

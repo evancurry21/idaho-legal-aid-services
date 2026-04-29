@@ -27,6 +27,7 @@ use Drupal\ilas_site_assistant\Service\GapReviewDecider;
 use Drupal\ilas_site_assistant\Service\InputNormalizer;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
 use Drupal\ilas_site_assistant\Service\HistoryIntentResolver;
+use Drupal\ilas_site_assistant\Service\ConversationContextSummary;
 use Drupal\ilas_site_assistant\Service\ResponseBuilder;
 use Drupal\ilas_site_assistant\Service\TelemetrySchema;
 use Drupal\ilas_site_assistant\Service\TopIntentsPack;
@@ -115,6 +116,26 @@ class AssistantApiController extends ControllerBase {
   ];
 
   /**
+   * Header used by private diagnostics callers.
+   */
+  private const DIAGNOSTICS_TOKEN_HEADER = 'X-ILAS-Observability-Key';
+
+  /**
+   * Optional header that requests sanitized diagnostics metadata.
+   */
+  private const DIAGNOSTICS_INCLUDE_HEADER = 'X-ILAS-Diagnostics';
+
+  /**
+   * Runtime settings key for the diagnostics token.
+   */
+  private const DIAGNOSTICS_TOKEN_SETTINGS_KEY = 'ilas_assistant_diagnostics_token';
+
+  /**
+   * Environment variable fallback for the diagnostics token.
+   */
+  private const DIAGNOSTICS_TOKEN_ENV = 'ILAS_ASSISTANT_DIAGNOSTICS_TOKEN';
+
+  /**
    * The config factory.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
@@ -134,6 +155,13 @@ class AssistantApiController extends ControllerBase {
    * @var \Drupal\ilas_site_assistant\Service\FaqIndex
    */
   protected $faqIndex;
+
+  /**
+   * The most recent Voyage rerank meta payload (per-request).
+   *
+   * @var array<string, mixed>|null
+   */
+  protected ?array $lastRerankMeta = NULL;
 
   /**
    * The resource finder service.
@@ -360,6 +388,13 @@ class AssistantApiController extends ControllerBase {
   protected SelectionStateStore $selectionStateStore;
 
   /**
+   * Ephemeral structured continuity summary service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\ConversationContextSummary|null
+   */
+  protected ?ConversationContextSummary $conversationContextSummary = NULL;
+
+  /**
    * Constructs an AssistantApiController object.
    */
   public function __construct(
@@ -398,6 +433,7 @@ class AssistantApiController extends ControllerBase {
     PreRoutingDecisionEngine $pre_routing_decision_engine = NULL,
     AssistantReadEndpointGuard $read_endpoint_guard = NULL,
     VoyageReranker $voyage_reranker = NULL,
+    ConversationContextSummary $conversation_context_summary = NULL,
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -434,6 +470,7 @@ class AssistantApiController extends ControllerBase {
     $this->preRoutingDecisionEngine = $pre_routing_decision_engine;
     $this->selectionRegistry = $selection_registry;
     $this->selectionStateStore = $selection_state_store;
+    $this->conversationContextSummary = $conversation_context_summary;
   }
 
   /**
@@ -491,6 +528,7 @@ class AssistantApiController extends ControllerBase {
       $container->get('ilas_site_assistant.pre_routing_decision_engine'),
       $container->get('ilas_site_assistant.read_endpoint_guard'),
       $container->has('ilas_site_assistant.voyage_reranker') ? $container->get('ilas_site_assistant.voyage_reranker') : NULL,
+      $container->has('ilas_site_assistant.conversation_context_summary') ? $container->get('ilas_site_assistant.conversation_context_summary') : NULL,
     );
   }
 
@@ -861,7 +899,7 @@ class AssistantApiController extends ControllerBase {
    * Normalizes the public /message request context to the approved schema.
    *
    * Unknown keys are stripped deterministically. Accepted keys are
-   * quickAction and selection.
+   * quickAction, selection, and diagnostics.
    *
    * @param mixed $context
    *   Raw decoded context value from the request payload.
@@ -892,6 +930,22 @@ class AssistantApiController extends ControllerBase {
 
     if (array_key_exists('selection', $context)) {
       $normalized['selection'] = $this->normalizeSelectionContext($context['selection']);
+    }
+
+    if (array_key_exists('diagnostics', $context)) {
+      $diagnostics = $context['diagnostics'];
+      if (!is_array($diagnostics) || array_is_list($diagnostics)) {
+        throw new \InvalidArgumentException('Diagnostics must be an object.');
+      }
+
+      $include = !empty($diagnostics['include']);
+      $force_llm_probe = !empty($diagnostics['force_llm_probe']);
+      if ($include || $force_llm_probe) {
+        $normalized['diagnostics'] = [
+          'include' => $include || $force_llm_probe,
+          'force_llm_probe' => $force_llm_probe,
+        ];
+      }
     }
 
     return $normalized;
@@ -1902,6 +1956,9 @@ class AssistantApiController extends ControllerBase {
       'active_selection' => NULL,
       'last_menu_signature' => '',
     ];
+    $conversation_context_summary = $this->conversationContextSummary
+      ? $this->conversationContextSummary->normalizeStoredSummary([])
+      : [];
     $active_selection = NULL;
     $resolved_selection = NULL;
     $selection_back_navigation = FALSE;
@@ -1927,6 +1984,11 @@ class AssistantApiController extends ControllerBase {
         }
         else {
           $server_history = is_array($cached_data) ? array_filter($cached_data, 'is_int', ARRAY_FILTER_USE_KEY) : [];
+          if ($this->conversationContextSummary && is_array($cached_data)) {
+            $conversation_context_summary = $this->conversationContextSummary->normalizeStoredSummary(
+              $cached_data['conversation_context_summary'] ?? []
+            );
+          }
         }
       }
       $clarify_meta = $this->loadClarifyMeta($conversation_id);
@@ -2005,6 +2067,9 @@ class AssistantApiController extends ControllerBase {
 
     // Check for DEBUG mode (server-side env var only).
     $debug_mode = $this->isDebugMode($request);
+    $diagnostics_meta = $this->isDiagnosticsMetadataAllowed($request, $context)
+      ? $this->buildDiagnosticsContract()
+      : NULL;
 
     // Initialize debug metadata.
     $debug_meta = $debug_mode ? [
@@ -2216,7 +2281,22 @@ class AssistantApiController extends ControllerBase {
         )
       );
 
+      $this->persistEvictionSafetyExitContext(
+        $conversation_id,
+        $server_history,
+        $user_message,
+        $safety_classification,
+        $safety_flags_for_gate,
+        $response_data['type'] ?? NULL,
+        $session_fingerprint,
+      );
+
       $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
+      if (is_array($diagnostics_meta)) {
+        $diagnostics_meta['safety']['blocked'] = TRUE;
+        $diagnostics_meta['generation']['reason'] = 'safety_blocked';
+        $response_data = $this->attachDiagnosticsMetadata($response_data, $diagnostics_meta);
+      }
       return $this->monitoredJsonResponse(
         $request,
         PerformanceMonitor::ENDPOINT_MESSAGE,
@@ -2310,6 +2390,10 @@ class AssistantApiController extends ControllerBase {
       );
 
       $response_data = $this->assembleContractFields($response_data, NULL, 'oos');
+      if (is_array($diagnostics_meta)) {
+        $diagnostics_meta['generation']['reason'] = 'out_of_scope_blocked';
+        $response_data = $this->attachDiagnosticsMetadata($response_data, $diagnostics_meta);
+      }
       return $this->monitoredJsonResponse(
         $request,
         PerformanceMonitor::ENDPOINT_MESSAGE,
@@ -2388,6 +2472,10 @@ class AssistantApiController extends ControllerBase {
       );
 
       $response_data = $this->assembleContractFields($response_data, NULL, 'policy');
+      if (is_array($diagnostics_meta)) {
+        $diagnostics_meta['generation']['reason'] = 'policy_blocked';
+        $response_data = $this->attachDiagnosticsMetadata($response_data, $diagnostics_meta);
+      }
       return $this->monitoredJsonResponse(
         $request,
         PerformanceMonitor::ENDPOINT_MESSAGE,
@@ -2624,6 +2712,9 @@ class AssistantApiController extends ControllerBase {
       'faq',
       'meta_help',
       'meta_information',
+      'meta_what_do_you_do',
+      'intent_pack_meta_what_do_you_do',
+      'intent_pack_meta_information',
       'services_overview',
       'forms_finder',
       'guides_finder',
@@ -2648,6 +2739,8 @@ class AssistantApiController extends ControllerBase {
 
     $intent_type = (string) ($intent['type'] ?? 'unknown');
     $intent_area = (string) ($intent['area'] ?? '');
+    $is_generic_followup_intent = in_array($intent_type, $generic_followup_intents, TRUE)
+      || str_starts_with($intent_type, 'intent_pack_meta_');
     $is_contextual_legal_complaint = (
       !empty($server_history) &&
       $history_area &&
@@ -2680,19 +2773,25 @@ class AssistantApiController extends ControllerBase {
       !HistoryIntentResolver::detectResetSignal($user_message) &&
       !$this->isExplicitServiceAreaShift($user_message, $history_area)
     );
+    $is_deterministic_intent_source = $this->isDeterministicIntentSource((string) ($intent['source'] ?? ''));
+    $generic_followup_context = (
+      $is_generic_followup_intent &&
+      !$is_deterministic_intent_source &&
+      !$is_acknowledgement_turn &&
+      ($intent_area === '' || $intent_area === $history_area)
+    );
 
     if (
       !empty($server_history) &&
       $history_area &&
       (
-        (
-          in_array($intent_type, $generic_followup_intents, TRUE) &&
-          empty($intent['area']) &&
-          !$is_acknowledgement_turn
-        ) ||
+        $generic_followup_context ||
         $service_area_drift
       ) &&
-      !$this->isDeterministicIntentSource((string) ($intent['source'] ?? '')) &&
+      (
+        $generic_followup_context ||
+        !$is_deterministic_intent_source
+      ) &&
       !HistoryIntentResolver::detectResetSignal($user_message) &&
       !$this->isExplicitServiceAreaShift($user_message, $history_area)
     ) {
@@ -2705,6 +2804,22 @@ class AssistantApiController extends ControllerBase {
         'source' => 'followup_service_area_continuity',
         'extraction' => $intent['extraction'] ?? [],
       ];
+    }
+
+    if (
+      $this->conversationContextSummary &&
+      !empty($conversation_context_summary) &&
+      !HistoryIntentResolver::detectResetSignal($user_message) &&
+      !$this->isExplicitServiceAreaShift($user_message, (string) ($conversation_context_summary['service_area'] ?? ''))
+    ) {
+      $summary_continuation_intent = $this->conversationContextSummary->buildContinuationIntent(
+        $user_message,
+        $intent,
+        $conversation_context_summary,
+      );
+      if (is_array($summary_continuation_intent)) {
+        $intent = $summary_continuation_intent;
+      }
     }
 
     if ($debug_mode) {
@@ -2769,6 +2884,29 @@ class AssistantApiController extends ControllerBase {
       $routing_override_intent,
       $gate_context
     );
+    if ($this->shouldForceDiagnosticLlmProbe($context, $diagnostics_meta)) {
+      if ($this->llmEnhancer->isEnabled()) {
+        $gate_decision = [
+          'decision' => FallbackGate::DECISION_FALLBACK_LLM,
+          'reason_code' => 'DIAGNOSTIC_FORCE_LLM_PROBE',
+          'confidence' => 0.45,
+          'details' => [
+            'diagnostic_force_llm_probe' => TRUE,
+            'original_gate_decision' => $gate_decision['decision'] ?? 'unknown',
+            'original_gate_reason_code' => $gate_decision['reason_code'] ?? NULL,
+          ],
+        ];
+        $intent = [
+          'type' => 'unknown',
+          'confidence' => 0.15,
+          'source' => 'diagnostic_force_llm_probe',
+          'extraction' => $intent['extraction'] ?? [],
+        ];
+      }
+      else {
+        $diagnostics_meta['generation']['reason'] = 'disabled';
+      }
+    }
     $this->langfuseTracer?->endSpan([
       'decision' => $gate_decision['decision'] ?? 'unknown',
       'reason_code' => $gate_decision['reason_code'] ?? NULL,
@@ -2874,6 +3012,7 @@ class AssistantApiController extends ControllerBase {
         'llm_model' => $llm_model,
         'llm_route_resolution' => $llm_route_resolution,
       ]);
+      $this->updateGenerationDiagnostics($diagnostics_meta, $llm_route_resolution);
 
       if ($llm_classification !== 'unknown' && $llm_classification !== 'clarify') {
         $intent = [
@@ -2945,6 +3084,7 @@ class AssistantApiController extends ControllerBase {
       $rerank_result = $this->voyageReranker->rerank($user_message, $response['results']);
       $response['results'] = $rerank_result['items'];
       $rerank_meta = $rerank_result['meta'];
+      $this->lastRerankMeta = $rerank_meta;
       $rerank_trace = $this->buildRerankTraceMetadata($rerank_results_before, $response['results'], $rerank_meta);
       $this->langfuseTracer?->endSpan([
         'applied' => $rerank_meta['applied'] ?? FALSE,
@@ -3027,6 +3167,21 @@ class AssistantApiController extends ControllerBase {
 
     if ($debug_mode) {
       $debug_meta['processing_stages'][] = 'post_generation_safety';
+    }
+
+    if ($this->conversationContextSummary && !empty($conversation_context_summary)) {
+      $response = $this->applyConversationContextResponseHints(
+        $response,
+        $conversation_context_summary,
+        $canonical_urls,
+      );
+      if ($this->isClarifyLikeResponse($response)) {
+        $response = $this->recoverClarifyFromConversationContext(
+          $response,
+          $conversation_context_summary,
+          $canonical_urls,
+        );
+      }
     }
 
     // Clarify-loop prevention: if the same clarify question repeats too many
@@ -3130,14 +3285,24 @@ class AssistantApiController extends ControllerBase {
 
     // Store conversation turn in cache for multi-turn continuity.
     if ($conversation_id) {
+      $history_intent_type = (string) ($intent['type'] ?? 'unknown');
+      if ($this->conversationContextSummary) {
+        $conversation_context_summary = $this->conversationContextSummary->summarizeTurn(
+          $user_message,
+          $intent,
+          $response,
+          $conversation_context_summary,
+          ['safety_flags' => $safety_flags_for_gate],
+        );
+      }
       $server_history[] = [
         'role' => 'user',
         'text' => PiiRedactor::redactForStorage($user_message, 200),
-        'intent' => $intent['type'] ?? 'unknown',
+        'intent' => $history_intent_type,
         'route_source' => $intent['source'] ?? 'direct',
         'safety_flags' => $safety_flags_for_gate,
         'timestamp' => time(),
-        'area' => $normalized_intent === 'thanks' ? NULL : ($intent['area'] ?? $intent['service_area'] ?? NULL),
+        'area' => $normalized_intent === 'thanks' ? NULL : ($intent['area'] ?? $intent['service_area'] ?? $this->inferAreaFromIntentType($history_intent_type)),
         'topic_id' => $normalized_intent === 'thanks' ? NULL : ($intent['topic_id'] ?? NULL),
         'topic' => $normalized_intent === 'thanks' ? NULL : ($intent['topic'] ?? NULL),
         'response_type' => $response['type'] ?? NULL,
@@ -3147,6 +3312,9 @@ class AssistantApiController extends ControllerBase {
 
       // Build cache data: history + session fingerprint + A/B assignments.
       $cache_data = $server_history;
+      if ($this->conversationContextSummary && $conversation_context_summary !== []) {
+        $cache_data['conversation_context_summary'] = $conversation_context_summary;
+      }
       if ($session_fingerprint !== '') {
         $cache_data['_session_fp'] = $session_fingerprint;
       }
@@ -3267,7 +3435,27 @@ class AssistantApiController extends ControllerBase {
       $response['caveat'] = $response['caveat'] ?? $response['degraded_notice'];
     }
 
+    if (is_array($diagnostics_meta)) {
+      if (!$diagnostics_meta['generation']['used'] && $diagnostics_meta['generation']['reason'] === 'not_attempted') {
+        $diagnostics_meta['generation']['reason'] = (string) ($gate_decision['reason_code'] ?? 'deterministic_route');
+      }
+      $diagnostics_meta['retrieval']['used'] = !empty($early_retrieval) || !empty($response['results']);
+      $diagnostics_meta['safety']['blocked'] = FALSE;
+      $diagnostics_meta['grounding']['used'] = !empty($response['citations']) || !empty($response['sources']);
+      if ($this->conversationContextSummary && $conversation_context_summary !== []) {
+        $diagnostics_meta['conversation_context_summary'] = $conversation_context_summary;
+      }
+      $response = $this->attachDiagnosticsMetadata($response, $diagnostics_meta);
+    }
+
     $retrieval_trace = $this->collectRetrievalTraceMetadata($response);
+    // Surface a minimal, secret-free retrieval contract on every response
+    // so external smoke tests can prove which provider/model/index were
+    // exercised. Full operation telemetry remains under _debug.
+    $response['retrieval'] = $this->buildPublicRetrievalContract($retrieval_trace);
+    if (isset($response['_debug']) && is_array($response['_debug'])) {
+      $response['_debug']['retrieval_trace'] = $retrieval_trace;
+    }
     $this->langfuseTracer?->addEvent('request.complete', array_merge(
       $langfuse_base_metadata,
       [
@@ -3721,6 +3909,103 @@ class AssistantApiController extends ControllerBase {
   }
 
   /**
+   * Returns TRUE when sanitized diagnostic metadata is authorized/requested.
+   */
+  protected function isDiagnosticsMetadataAllowed(Request $request, array $context): bool {
+    $requested = !empty($context['diagnostics']['include'])
+      || trim((string) $request->headers->get(self::DIAGNOSTICS_INCLUDE_HEADER, '')) === '1';
+    if (!$requested) {
+      return FALSE;
+    }
+
+    if ($this->currentUser()->hasPermission('view ilas site assistant reports')) {
+      return TRUE;
+    }
+
+    $configured_token = $this->resolveDiagnosticsToken();
+    $provided_token = trim((string) $request->headers->get(self::DIAGNOSTICS_TOKEN_HEADER, ''));
+    return $configured_token !== ''
+      && $provided_token !== ''
+      && hash_equals($configured_token, $provided_token);
+  }
+
+  /**
+   * Resolves the runtime-only diagnostics token.
+   */
+  protected function resolveDiagnosticsToken(): string {
+    $settings_token = trim((string) Settings::get(self::DIAGNOSTICS_TOKEN_SETTINGS_KEY, ''));
+    if ($settings_token !== '') {
+      return $settings_token;
+    }
+
+    $env_token = getenv(self::DIAGNOSTICS_TOKEN_ENV);
+    return is_string($env_token) ? trim($env_token) : '';
+  }
+
+  /**
+   * Builds the initial public-safe diagnostics contract.
+   */
+  protected function buildDiagnosticsContract(): array {
+    return [
+      'generation' => [
+        'provider' => $this->llmEnhancer->getProviderId(),
+        'model' => $this->llmEnhancer->getModelId(),
+        'used' => FALSE,
+        'reason' => 'not_attempted',
+      ],
+      'retrieval' => [
+        'used' => FALSE,
+      ],
+      'safety' => [
+        'blocked' => FALSE,
+      ],
+      'grounding' => [
+        'used' => FALSE,
+      ],
+    ];
+  }
+
+  /**
+   * Attaches sanitized diagnostics metadata when authorized.
+   */
+  protected function attachDiagnosticsMetadata(array $response, ?array $diagnostics): array {
+    if (is_array($diagnostics)) {
+      $response['diagnostics'] = $diagnostics;
+    }
+
+    return $response;
+  }
+
+  /**
+   * Records safe generation diagnostics from the LLM enhancer.
+   */
+  protected function updateGenerationDiagnostics(?array &$diagnostics, string $default_reason = 'not_attempted'): void {
+    if (!is_array($diagnostics)) {
+      return;
+    }
+
+    $meta = $this->llmEnhancer->getLastRequestMeta() ?? [];
+    $transport_attempted = !empty($meta['transport_attempted']);
+    $cache_hit = !empty($meta['cache_hit']);
+    $success = !empty($meta['success']);
+    $reason = (string) ($meta['fallback_reason'] ?? ($success ? 'classified' : $default_reason));
+
+    $diagnostics['generation'] = [
+      'provider' => (string) ($meta['provider'] ?? $this->llmEnhancer->getProviderId()),
+      'model' => (string) ($meta['model'] ?? $this->llmEnhancer->getModelId()),
+      'used' => $transport_attempted || $cache_hit,
+      'reason' => $reason,
+    ];
+  }
+
+  /**
+   * Returns TRUE when diagnostics may force the bounded LLM proof path.
+   */
+  protected function shouldForceDiagnosticLlmProbe(array $context, ?array $diagnostics): bool {
+    return is_array($diagnostics) && !empty($context['diagnostics']['force_llm_probe']);
+  }
+
+  /**
    * Returns TRUE when running in Pantheon live environment.
    */
   protected function isLiveEnvironment(): bool {
@@ -4007,12 +4292,85 @@ class AssistantApiController extends ControllerBase {
       $vector_status = 'enabled_not_needed';
     }
 
+    // Aggregate vector + embedding identity, indexes, and top scores from
+    // the per-service retrieval operations so the response contract can
+    // *prove* which provider/model/index was queried.
+    $vector_provider = NULL;
+    $embedding_provider = NULL;
+    $embedding_model = NULL;
+    $expected_dimensions = NULL;
+    $indexes_considered = [];
+    $indexes_queried = [];
+    $vector_top_scores = [];
+    foreach ($operations as $operation) {
+      if (!empty($operation['vector_provider']) && $vector_provider === NULL) {
+        $vector_provider = (string) $operation['vector_provider'];
+      }
+      if (!empty($operation['embedding_provider']) && $embedding_provider === NULL) {
+        $embedding_provider = (string) $operation['embedding_provider'];
+      }
+      if (!empty($operation['embedding_model']) && $embedding_model === NULL) {
+        $embedding_model = (string) $operation['embedding_model'];
+      }
+      if (!empty($operation['expected_dimensions']) && $expected_dimensions === NULL) {
+        $expected_dimensions = (int) $operation['expected_dimensions'];
+      }
+      if (!empty($operation['vector_index_id']) && is_string($operation['vector_index_id'])) {
+        $indexes_considered[$operation['vector_index_id']] = TRUE;
+        if (!empty($operation['vector_attempted'])) {
+          $indexes_queried[$operation['vector_index_id']] = TRUE;
+        }
+      }
+      if (!empty($operation['vector_top_scores']) && is_array($operation['vector_top_scores'])) {
+        foreach ($operation['vector_top_scores'] as $score) {
+          if (is_numeric($score)) {
+            $vector_top_scores[] = (float) $score;
+          }
+        }
+      }
+    }
+    rsort($vector_top_scores, SORT_NUMERIC);
+    $vector_top_scores = array_slice($vector_top_scores, 0, 5);
+
+    // Fall back to static identity when no operation telemetry is present
+    // (e.g., synthesized responses, suggestion endpoints).
+    if ($vector_provider === NULL && $this->faqIndex && method_exists($this->faqIndex, 'getVectorTelemetryIdentity')) {
+      $identity = $this->faqIndex->getVectorTelemetryIdentity();
+      $vector_provider = $vector_provider ?? ($identity['vector_provider'] ?? NULL);
+      $embedding_provider = $embedding_provider ?? ($identity['embedding_provider'] ?? NULL);
+      $embedding_model = $embedding_model ?? ($identity['embedding_model'] ?? NULL);
+      $expected_dimensions = $expected_dimensions ?? ($identity['expected_dimensions'] ?? NULL);
+      if (!empty($identity['vector_index_id'])) {
+        $indexes_considered[$identity['vector_index_id']] = TRUE;
+      }
+    }
+    if ($this->resourceFinder && method_exists($this->resourceFinder, 'getVectorTelemetryIdentity')) {
+      $identity = $this->resourceFinder->getVectorTelemetryIdentity();
+      if (!empty($identity['vector_index_id'])) {
+        $indexes_considered[$identity['vector_index_id']] = TRUE;
+      }
+    }
+
+    $grounding_sources = $this->buildGroundingSourceSummaries($response);
+
+    $rerank_summary = $this->buildRerankSummary();
+
     return [
       'vector_enabled_effective' => $vector_enabled_effective,
       'vector_attempted' => $vector_attempted,
       'vector_status' => $vector_status,
       'vector_result_count' => $effective_vector_result_count,
       'lexical_result_count' => $effective_lexical_result_count,
+      'merged_result_count' => count($results),
+      'final_grounded_result_count' => count($grounding_sources),
+      'vector_provider' => $vector_provider,
+      'embedding_provider' => $embedding_provider,
+      'embedding_model' => $embedding_model,
+      'expected_dimensions' => $expected_dimensions,
+      'indexes_considered' => array_values(array_keys($indexes_considered)),
+      'indexes_queried' => array_values(array_keys($indexes_queried)),
+      'vector_top_scores' => $vector_top_scores,
+      'rerank' => $rerank_summary,
       'source_classes' => array_values(array_unique(array_merge(
         array_keys($source_classes),
         array_keys($operation_source_classes),
@@ -4020,8 +4378,96 @@ class AssistantApiController extends ControllerBase {
       'degraded_reason' => $degraded_reason,
       'retrieval_operations' => array_slice($operations, 0, 6),
       'retrieval_artifacts' => $this->buildRetrievalArtifactSummaries($results),
-      'grounding_sources' => $this->buildGroundingSourceSummaries($response),
+      'grounding_sources' => $grounding_sources,
     ];
+  }
+
+  /**
+   * Builds the rerank section of the retrieval contract.
+   *
+   * Always emits provider/model identity from VoyageReranker config; sets
+   * `used` based on the most recent rerank attempt for this request.
+   *
+   * @return array<string, mixed>
+   */
+  /**
+   * Builds the secret-free retrieval contract attached to every response.
+   *
+   * Includes proof-of-stack identity (vector_provider, embedding_provider,
+   * embedding_model), counts, top scores, and rerank summary. Excludes
+   * raw operation telemetry, query hashes, and per-turn artifacts which
+   * remain under `_debug.retrieval_trace`.
+   *
+   * @param array<string, mixed> $trace
+   *   The output of collectRetrievalTraceMetadata().
+   *
+   * @return array<string, mixed>
+   */
+  protected function buildPublicRetrievalContract(array $trace): array {
+    return [
+      'vector_enabled_effective' => (bool) ($trace['vector_enabled_effective'] ?? FALSE),
+      'vector_attempted' => (bool) ($trace['vector_attempted'] ?? FALSE),
+      'vector_status' => (string) ($trace['vector_status'] ?? 'disabled'),
+      'lexical_result_count' => (int) ($trace['lexical_result_count'] ?? 0),
+      'vector_result_count' => (int) ($trace['vector_result_count'] ?? 0),
+      'merged_result_count' => (int) ($trace['merged_result_count'] ?? 0),
+      'final_grounded_result_count' => (int) ($trace['final_grounded_result_count'] ?? 0),
+      'vector_provider' => $trace['vector_provider'] ?? NULL,
+      'embedding_provider' => $trace['embedding_provider'] ?? NULL,
+      'embedding_model' => $trace['embedding_model'] ?? NULL,
+      'expected_dimensions' => $trace['expected_dimensions'] ?? NULL,
+      'indexes_considered' => array_values($trace['indexes_considered'] ?? []),
+      'indexes_queried' => array_values($trace['indexes_queried'] ?? []),
+      'vector_top_scores' => array_values($trace['vector_top_scores'] ?? []),
+      'source_classes' => array_values($trace['source_classes'] ?? []),
+      'rerank' => $trace['rerank'] ?? [
+        'used' => FALSE,
+        'attempted' => FALSE,
+        'provider' => 'voyage',
+        'model' => NULL,
+        'input_count' => 0,
+        'output_count' => 0,
+      ],
+    ];
+  }
+
+  protected function buildRerankSummary(): array {
+    $summary = [
+      'used' => FALSE,
+      'attempted' => FALSE,
+      'provider' => 'voyage',
+      'model' => NULL,
+      'input_count' => 0,
+      'output_count' => 0,
+      'order_changed' => FALSE,
+      'fallback_reason' => NULL,
+      'latency_ms' => NULL,
+      'enabled' => FALSE,
+    ];
+
+    if ($this->voyageReranker && method_exists($this->voyageReranker, 'getRuntimeSummary')) {
+      $runtime = $this->voyageReranker->getRuntimeSummary();
+      $summary['enabled'] = (bool) ($runtime['enabled'] ?? FALSE);
+      $summary['model'] = $runtime['rerank_model'] ?? NULL;
+    }
+
+    $meta = $this->lastRerankMeta;
+    if (is_array($meta)) {
+      $summary['attempted'] = (bool) ($meta['attempted'] ?? FALSE);
+      $summary['used'] = (bool) ($meta['applied'] ?? FALSE);
+      $summary['model'] = $meta['model'] ?? $summary['model'];
+      $summary['input_count'] = (int) ($meta['input_count'] ?? 0);
+      // Output count = number of items the reranker actually returned to
+      // the controller (input minus any malformed entries, plus any
+      // overflow appended). When applied, this matches the post-rerank
+      // result list size up to max_candidates.
+      $summary['output_count'] = $summary['used'] ? $summary['input_count'] : 0;
+      $summary['order_changed'] = (bool) ($meta['order_changed'] ?? FALSE);
+      $summary['fallback_reason'] = $meta['fallback_reason'] ?? NULL;
+      $summary['latency_ms'] = $meta['latency_ms'] ?? NULL;
+    }
+
+    return $summary;
   }
 
   /**
@@ -5390,6 +5836,243 @@ class AssistantApiController extends ControllerBase {
       ],
       time() + self::CONVERSATION_STATE_TTL
     );
+  }
+
+  /**
+   * Stores eviction topic context when the first turn exits via safety routing.
+   */
+  protected function persistEvictionSafetyExitContext(?string $conversation_id, array $server_history, string $user_message, array $safety_classification, array $safety_flags, ?string $response_type, string $session_fingerprint): void {
+    if ($conversation_id === NULL || ($safety_classification['class'] ?? '') !== SafetyClassifier::CLASS_EVICTION_EMERGENCY) {
+      return;
+    }
+
+    $server_history[] = [
+      'role' => 'user',
+      'text' => PiiRedactor::redactForStorage($user_message, 200),
+      'intent' => 'topic_housing_eviction',
+      'route_source' => 'safety_exit',
+      'safety_flags' => $safety_flags,
+      'timestamp' => time(),
+      'area' => 'housing',
+      'topic_id' => NULL,
+      'topic' => 'eviction',
+      'response_type' => $response_type,
+    ];
+    $cache_data = array_slice($server_history, -10);
+    if ($this->conversationContextSummary) {
+      $cache_data['conversation_context_summary'] = $this->conversationContextSummary->summarizeTurn(
+        $user_message,
+        [
+          'type' => 'topic_housing_eviction',
+          'area' => 'housing',
+          'topic' => 'eviction',
+          'source' => 'safety_exit',
+          'extraction' => [],
+        ],
+        [
+          'type' => $response_type ?? 'escalation',
+          'response_mode' => 'navigate',
+          'links' => [
+            ['label' => 'Legal Advice Line', 'url' => '/Legal-Advice-Line', 'type' => 'hotline'],
+            ['label' => 'Apply for Help', 'url' => '/apply-for-help', 'type' => 'apply'],
+          ],
+        ],
+        [],
+        ['safety_flags' => $safety_flags],
+      );
+    }
+    if ($session_fingerprint !== '') {
+      $cache_data['_session_fp'] = $session_fingerprint;
+    }
+
+    $this->conversationCache->set(
+      'ilas_conv:' . $conversation_id,
+      $cache_data,
+      time() + self::CONVERSATION_STATE_TTL
+    );
+  }
+
+  /**
+   * Infers a broad service area from a topic intent key.
+   */
+  protected function inferAreaFromIntentType(string $intent_type): ?string {
+    if (str_starts_with($intent_type, 'topic_housing')) {
+      return 'housing';
+    }
+    if (str_starts_with($intent_type, 'topic_family')) {
+      return 'family';
+    }
+    if (str_starts_with($intent_type, 'topic_consumer')) {
+      return 'consumer';
+    }
+    if (str_starts_with($intent_type, 'topic_seniors')) {
+      return 'seniors';
+    }
+    if (str_starts_with($intent_type, 'topic_health') || str_starts_with($intent_type, 'topic_benefits')) {
+      return 'health';
+    }
+    if (str_starts_with($intent_type, 'topic_civil_rights') || str_starts_with($intent_type, 'topic_employment')) {
+      return 'civil_rights';
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Adds non-sensitive continuity hints from the conversation summary.
+   */
+  protected function applyConversationContextResponseHints(array $response, array $summary, array $canonical_urls): array {
+    $summary = $this->conversationContextSummary
+      ? $this->conversationContextSummary->normalizeStoredSummary($summary)
+      : [];
+    if ($summary === [] || ($summary['service_area'] ?? '') === '') {
+      return $response;
+    }
+
+    $followup_parts = [];
+    if (($summary['deadline_or_notice'] ?? '') === '3_day_notice') {
+      $followup_parts[] = (string) $this->t('You mentioned a 3-day notice, so getting help quickly is important.');
+    }
+    elseif (($summary['deadline_or_notice'] ?? '') === 'lockout') {
+      $followup_parts[] = (string) $this->t('A lockout can be urgent, so quick follow-up may be important.');
+    }
+
+    if (!empty($summary['household_context']['children_present']) && ($summary['service_area'] ?? '') === 'housing') {
+      $followup_parts[] = (string) $this->t('Because children are involved, prompt human help may be especially important.');
+    }
+
+    $county = (string) ($summary['county'] ?? '');
+    if ($county !== '') {
+      $office = (new OfficeLocationResolver())->resolve($county . ' county');
+      if (is_array($office)) {
+        $followup_parts[] = (string) $this->t('If you need local help in @county County, the @office office serves that area.', [
+          '@county' => ucfirst($county),
+          '@office' => $office['name'] ?? $this->t('nearest'),
+        ]);
+        $response = $this->appendSecondaryAction($response, [
+          'label' => (string) $this->t('Nearest office: @office', ['@office' => $office['name'] ?? $this->t('Office')]),
+          'url' => $office['url'] ?? $canonical_urls['offices'],
+        ]);
+      }
+    }
+
+    if ($followup_parts !== []) {
+      $existing = trim((string) ($response['followup'] ?? ''));
+      $response['followup'] = trim(implode(' ', array_unique(array_filter(array_merge(
+        $existing !== '' ? [$existing] : [],
+        $followup_parts,
+      )))));
+    }
+
+    return $response;
+  }
+
+  /**
+   * Replaces a generic clarify with context-aware next steps when possible.
+   */
+  protected function recoverClarifyFromConversationContext(array $response, array $summary, array $canonical_urls): array {
+    $summary = $this->conversationContextSummary
+      ? $this->conversationContextSummary->normalizeStoredSummary($summary)
+      : [];
+    if ($summary === [] || ($summary['current_topic'] ?? '') === '') {
+      return $response;
+    }
+
+    $links = $this->buildConversationContextLinks($summary, $canonical_urls);
+    if ($links === []) {
+      return $response;
+    }
+
+    $topic_label = $this->labelForConversationTopic((string) ($summary['current_topic'] ?? ''), (string) ($summary['service_area'] ?? ''));
+    $response['type'] = 'context_recovery';
+    $response['response_mode'] = 'navigate';
+    $response['message'] = (string) $this->t('You\'re still asking about @topic. I can\'t tell you what to say to win, but here are the safest next steps I can offer right now.', [
+      '@topic' => $topic_label,
+    ]);
+    $response['links'] = $links;
+    $response['primary_action'] = $links[0];
+    $response['reason_code'] = 'conversation_context_recovery';
+    unset($response['topic_suggestions'], $response['suggestions']);
+
+    return $response;
+  }
+
+  /**
+   * Builds safe navigation links from the stored summary.
+   */
+  protected function buildConversationContextLinks(array $summary, array $canonical_urls): array {
+    $links = [];
+    $action_map = [
+      'apply' => ['label' => (string) $this->t('Apply for Help'), 'url' => $canonical_urls['apply'], 'type' => 'apply'],
+      'hotline' => ['label' => (string) $this->t('Legal Advice Line'), 'url' => $canonical_urls['hotline'], 'type' => 'hotline'],
+      'forms' => ['label' => (string) $this->t('Find Forms'), 'url' => $canonical_urls['forms'], 'type' => 'forms'],
+      'guides' => ['label' => (string) $this->t('Find Guides'), 'url' => $canonical_urls['guides'], 'type' => 'guides'],
+      'resources' => ['label' => (string) $this->t('Browse Resources'), 'url' => $canonical_urls['resources'], 'type' => 'resources'],
+      'services' => ['label' => (string) $this->t('Our Services'), 'url' => $canonical_urls['services'], 'type' => 'services'],
+      'office' => ['label' => (string) $this->t('Office Locations'), 'url' => $canonical_urls['offices'], 'type' => 'office'],
+    ];
+
+    foreach ((array) ($summary['last_offered_actions'] ?? []) as $token) {
+      if (isset($action_map[$token])) {
+        $links[] = $action_map[$token];
+      }
+    }
+
+    $service_area = (string) ($summary['service_area'] ?? '');
+    if ($service_area !== '' && isset($canonical_urls['service_areas'][$service_area])) {
+      $links[] = [
+        'label' => (string) $this->t('Browse @area Help', ['@area' => ucfirst(str_replace('_', ' ', $service_area))]),
+        'url' => $canonical_urls['service_areas'][$service_area],
+        'type' => 'services',
+      ];
+    }
+
+    if ($links === []) {
+      $links[] = $action_map['hotline'];
+      $links[] = $action_map['apply'];
+    }
+
+    $deduped = [];
+    $seen = [];
+    foreach ($links as $link) {
+      $key = ($link['label'] ?? '') . '|' . ($link['url'] ?? '');
+      if (isset($seen[$key])) {
+        continue;
+      }
+      $seen[$key] = TRUE;
+      $deduped[] = $link;
+    }
+
+    return array_slice($deduped, 0, 4);
+  }
+
+  /**
+   * Appends a secondary action while avoiding duplicates.
+   */
+  protected function appendSecondaryAction(array $response, array $action): array {
+    $existing = is_array($response['secondary_actions'] ?? NULL) ? $response['secondary_actions'] : [];
+    foreach ($existing as $item) {
+      if (($item['url'] ?? '') === ($action['url'] ?? '')) {
+        return $response;
+      }
+    }
+
+    $existing[] = $action;
+    $response['secondary_actions'] = $existing;
+    return $response;
+  }
+
+  /**
+   * Returns a user-facing topic label for continuity copy.
+   */
+  protected function labelForConversationTopic(string $topic, string $service_area): string {
+    return match ($topic) {
+      'housing_eviction' => 'eviction help',
+      'family_custody' => 'custody help',
+      default => $service_area !== ''
+        ? strtolower(str_replace('_', ' ', $service_area)) . ' help'
+        : 'that topic',
+    };
   }
 
   /**
