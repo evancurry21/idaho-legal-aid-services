@@ -6337,17 +6337,17 @@
         },
         {
             "name": "drupal/google_cse",
-            "version": "5.0.3",
+            "version": "5.0.4",
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/google_cse.git",
-                "reference": "5.0.3"
+                "reference": "5.0.4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://ftp.drupal.org/files/projects/google_cse-5.0.3.zip",
-                "reference": "5.0.3",
-                "shasum": "e4034201156ca025ae501ca455005205626b5277"
+                "url": "https://ftp.drupal.org/files/projects/google_cse-5.0.4.zip",
+                "reference": "5.0.4",
+                "shasum": "efbf6a0beaa9434b2b4c8170e29feff4cfe0f5a3"
             },
             "require": {
                 "drupal/core": "^10|| ^11"
@@ -6355,8 +6355,8 @@
             "type": "drupal-module",
             "extra": {
                 "drupal": {
-                    "version": "5.0.3",
-                    "datestamp": "1766420448",
+                    "version": "5.0.4",
+                    "datestamp": "1777059154",
                     "security-coverage": {
                         "status": "covered",
                         "message": "Covered by Drupal's security advisory policy"
@@ -12049,16 +12049,16 @@
         },
         {
             "name": "mck89/peast",
-            "version": "v1.17.5",
+            "version": "v1.17.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mck89/peast.git",
-                "reference": "e19a8bd896b7f04941a38fd38a140c9a6531c84f"
+                "reference": "b8b4184b1e6912669f9af155caef9050509d9f18"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mck89/peast/zipball/e19a8bd896b7f04941a38fd38a140c9a6531c84f",
-                "reference": "e19a8bd896b7f04941a38fd38a140c9a6531c84f",
+                "url": "https://api.github.com/repos/mck89/peast/zipball/b8b4184b1e6912669f9af155caef9050509d9f18",
+                "reference": "b8b4184b1e6912669f9af155caef9050509d9f18",
                 "shasum": ""
             },
             "require": {
@@ -12071,7 +12071,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "1.17.5-dev"
+                    "dev-master": "1.17.6-dev"
                 }
             },
             "autoload": {
@@ -12092,9 +12092,9 @@
             "description": "Peast is PHP library that generates AST for JavaScript code",
             "support": {
                 "issues": "https://github.com/mck89/peast/issues",
-                "source": "https://github.com/mck89/peast/tree/v1.17.5"
+                "source": "https://github.com/mck89/peast/tree/v1.17.6"
             },
-            "time": "2026-03-15T10:47:07+00:00"
+            "time": "2026-04-24T08:04:05+00:00"
         },
         {
             "name": "mtownsend/xml-to-array",
@@ -16267,7 +16267,7 @@
         },
         {
             "name": "symfony/polyfill-php80",
-            "version": "v1.36.0",
+            "version": "v1.37.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php80.git",
@@ -16327,7 +16327,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php80/tree/v1.36.0"
+                "source": "https://github.com/symfony/polyfill-php80/tree/v1.37.0"
             },
             "funding": [
                 {
@@ -16351,7 +16351,7 @@
         },
         {
             "name": "symfony/polyfill-php81",
-            "version": "v1.36.0",
+            "version": "v1.37.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php81.git",
@@ -16407,7 +16407,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php81/tree/v1.36.0"
+                "source": "https://github.com/symfony/polyfill-php81/tree/v1.37.0"
             },
             "funding": [
                 {
@@ -16431,7 +16431,7 @@
         },
         {
             "name": "symfony/polyfill-php83",
-            "version": "v1.36.0",
+            "version": "v1.37.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php83.git",
@@ -16487,7 +16487,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php83/tree/v1.36.0"
+                "source": "https://github.com/symfony/polyfill-php83/tree/v1.37.0"
             },
             "funding": [
                 {
