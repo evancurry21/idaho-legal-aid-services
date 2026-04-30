@@ -3549,8 +3549,8 @@ class AssistantApiController extends ControllerBase {
       $public_meta['grounding']['used'] = !empty($response['citations']) || !empty($response['sources']);
       $this->recordIntentDiagnostics(
         $public_meta,
-        is_array($intent ?? NULL) ? $intent : NULL,
-        is_array($intent ?? NULL) ? ($intent['source'] ?? NULL) : NULL,
+        $intent,
+        $intent['source'] ?? NULL,
         isset($gate_decision['intent_confidence']) ? (float) $gate_decision['intent_confidence'] : NULL
       );
       $response['meta'] = $public_meta;

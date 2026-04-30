@@ -36,8 +36,9 @@ final class CitationContractTest extends TestCase {
     $config->method('get')->willReturn(NULL);
     $configFactory = $this->createStub(ConfigFactoryInterface::class);
     $configFactory->method('get')
-      ->with('ilas_site_assistant.settings')
-      ->willReturn($config);
+      ->willReturnMap([
+        ['ilas_site_assistant.settings', $config],
+      ]);
     $state = $this->createStub(StateInterface::class);
     $logger = $this->createStub(LoggerInterface::class);
 
