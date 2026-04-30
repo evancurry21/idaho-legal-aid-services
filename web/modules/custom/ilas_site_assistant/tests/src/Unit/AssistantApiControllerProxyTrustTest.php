@@ -328,7 +328,7 @@ final class ProxyTrustTestableController extends AssistantApiController {
   /**
    * {@inheritdoc}
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = [], array $conversation_context_summary = []) {
     return [
       'type' => 'faq',
       'message' => 'Test FAQ response',

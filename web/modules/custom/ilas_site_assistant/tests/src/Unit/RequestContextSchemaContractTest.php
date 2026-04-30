@@ -346,7 +346,7 @@ final class RequestContextSchemaTestableController extends AssistantApiControlle
   /**
    * {@inheritdoc}
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = [], array $conversation_context_summary = []) {
     $this->lastProcessIntentContext = $context;
 
     return [

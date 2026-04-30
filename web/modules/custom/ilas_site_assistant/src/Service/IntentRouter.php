@@ -160,7 +160,9 @@ class IntentRouter {
           '/\bayuda\s*(legal|con\s*mi\s*caso)/i',
           '/\babogado\s*gratis/i',
           // Gap 2: free lawyer / pro bono patterns (also matches normalized free_lawyer token).
-          '/\bfree[_\s]lawyer\b|\bfree[_\s]legal\b|\bfree[_\s]attorney\b/i',
+          // The "free_legal" branch excludes "free legal services" / "free legal service"
+          // — that is a services-overview question, not an apply intent.
+          '/\bfree[_\s]lawyer\b|\bfree[_\s]legal\b(?![_\s]services?\b)|\bfree[_\s]attorney\b/i',
           '/\b(free|pro\s*bono)\s+(lawyer|attorney|legal\s+(?:aid|help))\b/i',
           // Gap 4: veterans seeking legal help.
           '/\bveteran[_\s]legal[_\s]help\b/i',
@@ -247,6 +249,11 @@ class IntentRouter {
           '/\bservices\s*(overview|offered|available)/i',
           '/\btell\s*me\s*about\s*(idaho\s*legal\s*aid|ilas)/i',
           '/\b(que\s*servicios|servicios\s*que\s*ofrecen)/i',
+          // Concrete phrasings with intervening qualifiers (free / legal /
+          // civil) that the disambiguator no longer intercepts.
+          '/\bwhat\s+(?:[a-z]+\s+){0,3}services\s+(?:do|does|are|can|will|would)\s+(?:you|ilas)\b/i',
+          '/\b(free|civil)\s+legal\s+services\b/i',
+          '/\bwhat\s+(?:do|does)\s+(?:you|ilas)\s+(?:provide|offer|cover|help\s+with)\b/i',
         ],
         'keywords' => ['services', 'what_do_you_do', 'types_of_help', 'practice_areas', 'servicios'],
         'weight' => 0.85,

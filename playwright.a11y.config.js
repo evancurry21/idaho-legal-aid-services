@@ -42,6 +42,14 @@ module.exports = defineConfig({
     browserName: 'chromium',
     headless: true,
     ignoreHTTPSErrors: true,
+    // Reduced motion: scroll-reveal entry animations on the home page (e.g.
+    // .animate-1 fadeInLeft on .impact-card-col) start at opacity:0 and run
+    // for 0.6s. axe-core scans run immediately after domcontentloaded and
+    // catch the page mid-animation, producing false-positive color-contrast
+    // violations through alpha-blended ancestors. The theme's SCSS already
+    // honors prefers-reduced-motion by disabling these animations and
+    // setting opacity:1, which is also what motion-sensitive users see.
+    reducedMotion: 'reduce',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

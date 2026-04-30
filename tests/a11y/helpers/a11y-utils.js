@@ -52,7 +52,13 @@ function formatViolations(violations) {
 
 async function gotoIfPresent(page, route) {
   if (!route) return false;
-  const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
+  // Force reduced motion BEFORE navigation so initial-load animations
+  // (e.g. .animate-1 fadeInLeft on the home page impact cards) are skipped
+  // and elements settle at their final paint state by the time axe scans.
+  // Setting `use.reducedMotion: 'reduce'` in the playwright config does not
+  // reliably propagate to matchMedia in Chromium — page.emulateMedia does.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const response = await page.goto(route, { waitUntil: 'load' });
   if (!response) return false;
   if (response.status() >= 400) {
     return false;

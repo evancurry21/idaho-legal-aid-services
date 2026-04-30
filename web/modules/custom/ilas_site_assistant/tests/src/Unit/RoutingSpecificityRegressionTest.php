@@ -157,4 +157,31 @@ class RoutingSpecificityRegressionTest extends TestCase {
     $this->assertContains('services_overview', $option_intents);
   }
 
+  /**
+   * Tests that concrete services questions skip disambiguation.
+   *
+   * "What free legal services do you offer?" is a question the assistant can
+   * answer directly with a services overview — it should NOT be intercepted
+   * by the services_overview vague family.
+   */
+  #[DataProvider('concreteServicesQueryProvider')]
+  public function testConcreteServicesQueriesSkipDisambiguation(string $input): void {
+    $disambiguator = new Disambiguator();
+    $result = $disambiguator->check($input, []);
+    $this->assertTrue(
+      $result === NULL || ($result['reason'] ?? '') !== 'vague_query',
+      "Concrete services query '$input' must not be intercepted by vague_query family"
+    );
+  }
+
+  /**
+   * Data provider for concrete services queries.
+   */
+  public static function concreteServicesQueryProvider(): array {
+    return [
+      ['what free legal services do you offer'],
+      ['what civil legal services are available'],
+    ];
+  }
+
 }

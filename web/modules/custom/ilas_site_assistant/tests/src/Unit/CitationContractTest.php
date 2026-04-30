@@ -26,6 +26,9 @@ final class CitationContractTest extends TestCase {
 
   private ResponseGrounder $grounder;
 
+  /**
+   * Boots a ResponseGrounder backed by stub config/state/logger services.
+   */
   protected function setUp(): void {
     parent::setUp();
 
@@ -42,6 +45,9 @@ final class CitationContractTest extends TestCase {
     $this->grounder = new ResponseGrounder($governance);
   }
 
+  /**
+   * Grounded sources expose source_class and supported:TRUE, preserving topic.
+   */
   public function testGroundedSourcesCarryTopicAndSourceClassAndSupportedFlag(): void {
     $response = ['message' => 'Eviction info follows.', 'type' => 'topic'];
     $results = [
@@ -76,6 +82,9 @@ final class CitationContractTest extends TestCase {
     $this->assertSame('eviction', $grounded['sources'][0]['topic'] ?? NULL);
   }
 
+  /**
+   * With no results, the grounder must not synthesize a sources[] key.
+   */
   public function testEmptyResultsLeaveSourcesArrayUnset(): void {
     $response = ['message' => 'No results yet.', 'type' => 'topic'];
     $grounded = $this->grounder->groundResponse($response, []);

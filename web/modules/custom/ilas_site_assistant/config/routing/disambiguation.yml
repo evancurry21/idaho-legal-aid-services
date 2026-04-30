@@ -347,7 +347,12 @@ families:
       - 'phone'
       - 'where'
       - 'how'
-    max_token_count: 5
+      # Qualifiers below signal a concrete services question; route to the
+      # services_overview answer in IntentRouter rather than re-asking.
+      - 'free'
+      - 'legal'
+      - 'civil'
+    max_token_count: 4
 
   apply_path:
     stable_family: apply_path

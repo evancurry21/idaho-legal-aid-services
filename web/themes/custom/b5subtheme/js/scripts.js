@@ -288,104 +288,56 @@
       }
 
       /**
-       * Flip a card to the specified state
+       * Flip a card to the specified state. The trigger button (front face)
+       * owns aria-expanded; the back face toggles aria-hidden + inert. The
+       * card root itself is non-interactive — it carries no role/tabindex.
        */
       function flipCard(card, shouldFlip) {
-        var front = card.querySelector('.card-front');
-        var back = card.querySelector('.card-back');
+        var front   = card.querySelector('.card-front');
+        var back    = card.querySelector('.card-back');
+        var trigger = card.querySelector('.impact-card__trigger');
+
         if (shouldFlip) {
           card.classList.add('is-flipped');
-          card.setAttribute('aria-expanded', 'true');
-          // Inactive face must be inert so descendants are not focusable and
-          // axe nested-interactive does not flag the role="button" wrapper.
+          if (trigger) trigger.setAttribute('aria-expanded', 'true');
           if (front) front.setAttribute('inert', '');
-          if (back) back.removeAttribute('inert');
+          if (back) {
+            back.removeAttribute('inert');
+            back.setAttribute('aria-hidden', 'false');
+          }
 
-          // Focus management for accessibility
+          // Focus the close button after the flip animation completes.
           setTimeout(function () {
             var closeButton = card.querySelector('.impact-card__back-close');
-            if (closeButton) {
-              closeButton.focus();
-            }
+            if (closeButton) closeButton.focus();
           }, 250);
         } else {
           card.classList.remove('is-flipped');
-          card.setAttribute('aria-expanded', 'false');
-          if (back) back.setAttribute('inert', '');
+          if (trigger) trigger.setAttribute('aria-expanded', 'false');
+          if (back) {
+            back.setAttribute('inert', '');
+            back.setAttribute('aria-hidden', 'true');
+          }
           if (front) front.removeAttribute('inert');
 
-          // Return focus to the card itself
+          // Return focus to the trigger (NOT the card root, which is non-interactive).
           setTimeout(function () {
-            card.focus();
+            if (trigger) trigger.focus();
           }, 100);
         }
       }
 
       /**
-       * Handle card click events
+       * Click handler bound to the trigger button. Native <button> already
+       * handles Enter/Space activation, so no keydown listener is needed
+       * (Escape is handled by the global document-level listener below).
        */
-      function handleCardClick(event) {
-        var card = event.currentTarget;
-
-        // On mobile, disable flip functionality and let links work
-        if (isMobileDevice()) {
-          card.classList.remove('is-flipped');
-          var clickedLink = event.target.closest('a');
-          if (clickedLink && clickedLink.getAttribute('href')) {
-            return; // Let browser handle link
-          }
-          return;
-        }
-
-        // If clicking on the close button, only close the card
-        if (event.target.closest('.impact-card__back-close')) {
-          event.stopPropagation();
-          flipCard(card, false);
-          return;
-        }
-
-        // Don't flip if clicking on links/buttons in flipped state
-        if (card.classList.contains('is-flipped')) {
-          var target = event.target;
-          if (target.tagName === 'A' || target.tagName === 'BUTTON' || target.closest('a, button')) {
-            return;
-          }
-        }
-
-        // For front-side links, prevent navigation and flip instead
-        var frontLink = event.target.closest('.card-front a');
-        if (frontLink && !card.classList.contains('is-flipped')) {
-          event.preventDefault();
-          event.stopPropagation();
-          flipCard(card, true);
-          return;
-        }
-
-        // Otherwise toggle flip state
+      function handleTriggerClick(event) {
+        var card = event.currentTarget.closest('.impact-card');
+        if (!card) return;
+        if (isMobileDevice()) return; // mobile: button click is a no-op
         event.preventDefault();
-        event.stopPropagation();
         flipCard(card, !card.classList.contains('is-flipped'));
-      }
-
-      /**
-       * Handle keyboard events
-       */
-      function handleCardKeydown(event) {
-        var card = event.currentTarget;
-
-        if (isMobileDevice()) {
-          return;
-        }
-
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          flipCard(card, !card.classList.contains('is-flipped'));
-        }
-
-        if (event.key === 'Escape' && card.classList.contains('is-flipped')) {
-          event.preventDefault();
-          flipCard(card, false);
-        }
       }
 
       /**
@@ -405,22 +357,20 @@
           return;
         }
 
-        // On mobile, add mobile class and skip flip setup
+        var trigger  = card.querySelector('.impact-card__trigger');
+        var closeBtn = card.querySelector('.impact-card__back-close');
+
+        // On mobile, mark the card and skip flip wiring entirely.
         if (isMobileDevice()) {
           card.classList.add('mobile-card');
           return;
         }
 
-        // Desktop setup
-        card.setAttribute('tabindex', '0');
-        card.setAttribute('role', 'button');
-        card.setAttribute('aria-expanded', 'false');
+        // Desktop: bind the trigger button. NO role/tabindex/aria-expanded on the card root.
+        if (trigger) {
+          trigger.addEventListener('click', handleTriggerClick);
+        }
 
-        card.addEventListener('click', handleCardClick);
-        card.addEventListener('keydown', handleCardKeydown);
-
-        // Close button handler
-        var closeBtn = card.querySelector('.impact-card__back-close');
         if (closeBtn) {
           closeBtn.addEventListener('click', function (e) {
             e.preventDefault();

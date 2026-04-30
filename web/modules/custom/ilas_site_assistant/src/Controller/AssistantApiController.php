@@ -3130,10 +3130,10 @@ class AssistantApiController extends ControllerBase {
 
       // Process based on intent.
       $this->langfuseTracer?->startSpan('intent.process', ['intent_type' => $intent['type'] ?? 'unknown']);
-      $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history);
+      $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history, $conversation_context_summary);
       if ($this->shouldRecoverRepeatedSelectionMenu($resolved_selection, $response, (string) ($selection_state['last_menu_signature'] ?? ''))) {
         $intent = $this->buildSelectionIntent($resolved_selection, $user_message, FALSE, 'selection_recovery');
-        $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history);
+        $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history, $conversation_context_summary);
         if ($debug_mode) {
           $debug_meta['processing_stages'][] = 'selection_repeat_menu_recovered';
           $debug_meta['intent_selected'] = $intent['type'];
@@ -3254,6 +3254,17 @@ class AssistantApiController extends ControllerBase {
       }
 
       if ($this->conversationContextSummary && !empty($conversation_context_summary)) {
+        // Overlay facts from the current message before applying hints — the
+        // stored summary reflects only prior turns, so a county or notice
+        // mentioned just now would otherwise be invisible until the post-turn
+        // summarize step (which runs after the response is finalised).
+        $current_facts = $this->conversationContextSummary->extractMessageFacts($user_message);
+        if (!empty($current_facts['county'])) {
+          $conversation_context_summary['county'] = $current_facts['county'];
+        }
+        if (!empty($current_facts['deadline_or_notice'])) {
+          $conversation_context_summary['deadline_or_notice'] = $current_facts['deadline_or_notice'];
+        }
         $response = $this->applyConversationContextResponseHints(
         $response,
         $conversation_context_summary,
@@ -5013,7 +5024,7 @@ class AssistantApiController extends ControllerBase {
    * @return array
    *   Response data.
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = [], array $conversation_context_summary = []) {
     $config = $this->configFactory->get('ilas_site_assistant.settings');
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
 
@@ -5396,7 +5407,7 @@ class AssistantApiController extends ControllerBase {
         break;
 
       case 'services':
-        $response['message'] = $this->t('Idaho Legal Aid Services provides free civil legal help in areas including housing, family law, consumer issues, public benefits, and more. Here\'s an overview of our services:');
+        $response['message'] = $this->t('Idaho Legal Aid Services provides free civil legal help to eligible Idahoans in areas including housing, family safety, consumer issues, seniors, public benefits, and other civil legal issues. You can apply for help, call our Legal Advice Line, or browse our resources, forms, and FAQs.');
         $response['service_areas'] = [
           ['label' => $this->t('Housing'), 'url' => $canonical_urls['service_areas']['housing']],
           ['label' => $this->t('Family'), 'url' => $canonical_urls['service_areas']['family']],
@@ -5519,13 +5530,32 @@ class AssistantApiController extends ControllerBase {
         $area = $intent['area'] ?? '';
         $area_label = ucfirst(str_replace('_', ' ', $area));
 
+        // Detect a prior eviction context so the follow-up can name the
+        // specific situation and offer concrete next steps instead of a
+        // generic resource list.
+        $is_housing_eviction_followup = ($area === 'housing')
+          && self::isHousingEvictionFollowup($conversation_context_summary, $server_history, $message);
+
         // Follow-up detection: if user already visited this service area,
         // try to show deeper resources instead of repeating the same link.
         if ($config->get('enable_resources') && $this->isFollowUpInSameArea($intent, $server_history)) {
           $resource_results = $this->resourceFinder->findResources($area . ' ' . $message, 6);
           if (!empty($resource_results)) {
             $response['type'] = 'resources';
-            $response['message'] = $this->t('Here are @area resources that may help:', ['@area' => $area_label]);
+            if ($is_housing_eviction_followup) {
+              $response['message'] = $this->t("For your eviction notice, don't miss any court deadlines. Gather the notice, your lease, payment records, and any communications from your landlord. Here are housing and eviction resources that may help:");
+              $response['primary_action'] = [
+                'label' => $this->t('Apply for Help'),
+                'url' => $canonical_urls['apply'],
+              ];
+              $response['secondary_actions'] = [
+                ['label' => $this->t('Call Legal Advice Line'), 'url' => $canonical_urls['hotline']],
+                ['label' => $this->t('Apply for Help'), 'url' => $canonical_urls['apply']],
+              ];
+            }
+            else {
+              $response['message'] = $this->t('Here are @area resources that may help:', ['@area' => $area_label]);
+            }
             $response['results'] = $resource_results;
             $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
             $response['fallback_url'] = $canonical_urls['service_areas'][$area] ?? $canonical_urls['services'];
@@ -5539,7 +5569,12 @@ class AssistantApiController extends ControllerBase {
           }
           // No resource results — show actionable options instead of dead-end.
           $area_url = $canonical_urls['service_areas'][$area] ?? $canonical_urls['services'];
-          $response['message'] = $this->t('I can help you find more @area resources. Here are some options:', ['@area' => $area_label]);
+          if ($is_housing_eviction_followup) {
+            $response['message'] = $this->t("For your eviction notice, don't miss any court deadlines. Gather the notice, your lease, payment records, and any communications, and reach out for help right away. Here are options:");
+          }
+          else {
+            $response['message'] = $this->t('I can help you find more @area resources. Here are some options:', ['@area' => $area_label]);
+          }
           $response['links'] = [
             ['label' => $this->t('Browse @area Page', ['@area' => $area_label]), 'url' => $area_url, 'type' => 'services'],
             ['label' => $this->t('Find @area Forms', ['@area' => $area_label]), 'url' => $canonical_urls['forms'], 'type' => 'forms'],
@@ -6527,6 +6562,46 @@ class AssistantApiController extends ControllerBase {
 
   /**
    * Returns TRUE if message is asking for office details.
+   */
+  /**
+   * Returns TRUE when the current housing turn follows an eviction conversation.
+   *
+   * Checks the conversation context summary first (cheap & deterministic), then
+   * falls back to scanning recent history texts for eviction keywords.
+   */
+  public static function isHousingEvictionFollowup(array $conversation_context_summary, array $server_history, string $current_message): bool {
+    $current_topic = (string) ($conversation_context_summary['current_topic'] ?? '');
+    if ($current_topic === 'housing_eviction') {
+      return TRUE;
+    }
+    $deadline = (string) ($conversation_context_summary['deadline_or_notice'] ?? '');
+    if (in_array($deadline, ['3_day_notice', 'lockout', 'eviction_notice'], TRUE)) {
+      return TRUE;
+    }
+    $eviction_re = '/\b(eviction|evict(?:ed|ing)?|notice\s+to\s+(?:vacate|quit)|lockout|unlawful\s+detainer|3[\s-]?day\s+notice)\b/i';
+    if (preg_match($eviction_re, $current_message)) {
+      return TRUE;
+    }
+    $recent = array_slice($server_history, -6);
+    foreach ($recent as $entry) {
+      $text = (string) ($entry['text'] ?? '');
+      if ($text !== '' && preg_match($eviction_re, $text)) {
+        return TRUE;
+      }
+      $entry_topic = (string) ($entry['topic'] ?? '');
+      if ($entry_topic === 'eviction') {
+        return TRUE;
+      }
+      $entry_intent = (string) ($entry['intent'] ?? '');
+      if (str_starts_with($entry_intent, 'topic_housing_eviction')) {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Returns TRUE when the message asks for office-detail information.
    */
   protected function isOfficeDetailRequest(string $message): bool {
     $normalized = mb_strtolower(trim($message));

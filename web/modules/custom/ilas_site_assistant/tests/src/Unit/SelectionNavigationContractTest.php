@@ -789,7 +789,7 @@ final class SelectionRepeatGuardTestableController extends AssistantApiControlle
   /**
    * {@inheritdoc}
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = [], array $conversation_context_summary = []) {
     $selection = is_array($intent['selection'] ?? NULL) ? $intent['selection'] : [];
     if (($selection['button_id'] ?? '') !== 'forms_topic_family_divorce' || $this->forcedRepeatCount > 0) {
       return parent::processIntent($intent, $message, $context, $request_id, $server_history);

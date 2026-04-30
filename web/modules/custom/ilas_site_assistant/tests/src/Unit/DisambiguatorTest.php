@@ -294,6 +294,12 @@ class DisambiguatorTest extends TestCase {
       ['where is the Boise office'],
       ['how do i apply'],
       ['contact boise office'],
+      // Concrete services questions with qualifiers ("free", "legal", "civil")
+      // must NOT be intercepted by the services_overview vague family — they
+      // should fall through to IntentRouter pattern matching so the user gets
+      // a real services overview answer.
+      ['what free legal services do you offer'],
+      ['what civil legal services are available'],
     ];
   }
 

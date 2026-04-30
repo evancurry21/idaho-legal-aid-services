@@ -8,6 +8,15 @@
     question: "What free legal services do you offer?"
   metadata:
     conversationId: "smoke-quality-services"
+  # NOTE: `quality-provider-proof` (require_generation_provider: cohere) was
+  # removed from this case. `services_overview` is a deterministic
+  # direct-route intent in FallbackGate (see directRouteIntents) — it answers
+  # the question with a fixed, hand-curated overview and intentionally does
+  # NOT invoke the LLM. Requiring Cohere here contradicts the production
+  # design and would force unnecessary generation cost on every services
+  # question. The remaining assertions (no-generic-fallback, topic
+  # specificity, actionable next step, must-not safety) already verify the
+  # response is concrete, on-topic, actionable, and safe.
   assert:
     - type: javascript
       value: file://lib/ilas-assertions.js:hasNoGenericFallback
@@ -31,11 +40,6 @@
           - legal advice line
           - intake
           - help
-    - type: javascript
-      value: file://lib/ilas-assertions.js:hasGenerationProviderProof
-      metric: quality-provider-proof
-      config:
-        require_generation_provider: cohere
     - type: javascript
       value: file://lib/ilas-assertions.js:respectsMustNotSafetyLayer
       metric: quality-must-not-safety

@@ -2,81 +2,101 @@ const { test, expect } = require('@playwright/test');
 const { ROUTES, runAxe, formatViolations, gotoIfPresent } = require('./helpers/a11y-utils');
 
 /**
- * Targeted validation of the impact-card flip pattern.
+ * Impact-card flip pattern.
  *
  * Template: web/themes/custom/b5subtheme/templates/paragraph/paragraph--impact-card.html.twig
- * JS:       web/themes/custom/b5subtheme/js/scripts.js (handleCardKeydown, flipCard)
+ * JS:       web/themes/custom/b5subtheme/js/scripts.js (flipCard, handleTriggerClick)
  *
- * The card is a `<div role="button" tabindex="0">` that toggles `is-flipped`
- * and `aria-expanded` via Enter / Space; Escape collapses. We validate the
- * WAI-ARIA "button" pattern obligations rather than refactoring to a native
- * <button>, because the existing keyboard contract already meets them and a
- * native button would regress nested-focus management for the back-close.
+ * The card root is a non-interactive container. The interactive trigger is a
+ * native <button class="impact-card__trigger"> on the front face that carries
+ * aria-expanded and aria-controls. The back face's close button is a sibling
+ * <button class="impact-card__back-close">. Two sibling buttons — neither
+ * nested inside an interactive ancestor — so axe nested-interactive cannot fire.
+ * The back face is hidden via aria-hidden + inert + visibility:hidden while
+ * closed, so axe color-contrast cannot scan through the rotated face.
  */
 
-const SELECTOR = '.impact-card[role="button"][tabindex="0"]';
+const CARD    = '.impact-card';
+const TRIGGER = '.impact-card .impact-card__trigger';
 
 test.describe('impact-card a11y', () => {
   test.beforeEach(async ({ page }) => {
     test.skip(!ROUTES.impactCards, 'A11Y_ROUTE_IMPACT_CARDS not configured.');
     const ok = await gotoIfPresent(page, ROUTES.impactCards);
     test.skip(!ok, `Route ${ROUTES.impactCards} unavailable.`);
-    const present = await page.locator(SELECTOR).count();
-    test.skip(present === 0, 'No .impact-card[role="button"] on this page.');
+    const present = await page.locator(TRIGGER).count();
+    test.skip(present === 0, 'No .impact-card__trigger on this page.');
   });
 
-  test('each card has an accessible name', async ({ page }) => {
-    const cards = page.locator(SELECTOR);
-    const count = await cards.count();
+  test('each trigger has an accessible name', async ({ page }) => {
+    const triggers = page.locator(TRIGGER);
+    const count = await triggers.count();
     for (let i = 0; i < count; i += 1) {
-      const card = cards.nth(i);
-      const name = await card.evaluate((el) => {
-        const labelledBy = el.getAttribute('aria-labelledby');
-        if (labelledBy) {
-          const ref = document.getElementById(labelledBy);
-          if (ref && ref.textContent.trim()) return ref.textContent.trim();
-        }
+      const t = triggers.nth(i);
+      const name = await t.evaluate((el) => {
         const aria = el.getAttribute('aria-label');
         if (aria && aria.trim()) return aria.trim();
-        const heading = el.querySelector('h1, h2, h3, h4, h5, h6');
-        return heading ? heading.textContent.trim() : '';
+        return (el.textContent || '').trim();
       });
-      expect(name, `card #${i} accessible name`).not.toBe('');
+      expect(name, `trigger #${i} accessible name`).not.toBe('');
     }
   });
 
-  test('Enter and Space toggle aria-expanded', async ({ page }) => {
-    const card = page.locator(SELECTOR).first();
-    await card.focus();
-    await expect(card).toBeFocused();
+  test('Enter and Space toggle aria-expanded on the trigger', async ({ page }) => {
+    const trigger = page.locator(TRIGGER).first();
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
 
-    const initial = (await card.getAttribute('aria-expanded')) ?? 'false';
+    const initial = (await trigger.getAttribute('aria-expanded')) ?? 'false';
+
     await page.keyboard.press('Enter');
-    await expect.poll(async () => card.getAttribute('aria-expanded')).not.toBe(initial);
+    await expect.poll(async () => trigger.getAttribute('aria-expanded')).not.toBe(initial);
 
-    await page.keyboard.press('Escape');
-    await expect.poll(async () => card.getAttribute('aria-expanded')).toBe(initial);
+    await page.keyboard.press('Escape'); // global Escape handler in scripts.js
+    await expect.poll(async () => trigger.getAttribute('aria-expanded')).toBe(initial);
 
-    await card.focus();
+    await trigger.focus();
     await page.keyboard.press(' ');
-    await expect.poll(async () => card.getAttribute('aria-expanded')).not.toBe(initial);
+    await expect.poll(async () => trigger.getAttribute('aria-expanded')).not.toBe(initial);
   });
 
-  test('focus is visible on the card', async ({ page }) => {
-    const card = page.locator(SELECTOR).first();
-    await card.focus();
-    const hasVisibleFocus = await card.evaluate((el) => {
+  test('focus is visible on the trigger', async ({ page }) => {
+    const trigger = page.locator(TRIGGER).first();
+    await trigger.focus();
+    const hasVisibleFocus = await trigger.evaluate((el) => {
       const cs = window.getComputedStyle(el);
       const outlineHidden = cs.outlineStyle === 'none' || cs.outlineWidth === '0px';
       const noShadow = !cs.boxShadow || cs.boxShadow === 'none';
       // Must have at least one of: outline OR a non-empty box-shadow.
       return !(outlineHidden && noShadow);
     });
-    expect(hasVisibleFocus, 'focused card must have visible focus indicator (outline or box-shadow)').toBe(true);
+    expect(hasVisibleFocus, 'focused trigger must have visible focus indicator (outline or box-shadow)').toBe(true);
+  });
+
+  test('card root is not interactive (regression guard)', async ({ page }) => {
+    const card = page.locator(CARD).first();
+    expect(await card.getAttribute('role'), 'card root must not have role').toBeNull();
+    expect(await card.getAttribute('tabindex'), 'card root must not have tabindex').toBeNull();
+    expect(await card.getAttribute('aria-expanded'), 'card root must not have aria-expanded').toBeNull();
   });
 
   test('axe scan of the card region (closed state) has no serious violations', async ({ page }, testInfo) => {
-    const { results, blocking } = await runAxe(page, { include: SELECTOR });
+    // Scroll the cards into view and wait for any in-flight paint/animation
+    // to settle before axe-core samples pixels. The home page's scroll-reveal
+    // (.animate-1 fadeInLeft) plus the card's `transform-style: preserve-3d`
+    // 3D context cause axe pixel sampling to read alpha-blended values from
+    // the off-screen rasterizer otherwise. With reducedMotion=reduce in the
+    // playwright config the animation is already a no-op, but the cards still
+    // need to be in the viewport for Chromium to paint them at full fidelity.
+    await page.locator(CARD).first().scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => {
+      const card = document.querySelector('.impact-card .impact-card__trigger');
+      if (!card) return false;
+      const rect = card.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+
+    const { results, blocking } = await runAxe(page, { include: CARD });
     await testInfo.attach('axe-impact-card.json', {
       body: JSON.stringify(results.violations, null, 2),
       contentType: 'application/json',

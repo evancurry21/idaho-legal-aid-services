@@ -1264,7 +1264,7 @@ class ContractTestableController extends AssistantApiController {
   /**
    * {@inheritdoc}
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = [], array $conversation_context_summary = []) {
     if ($this->deferToParentProcessIntent) {
       return parent::processIntent($intent, $message, $context, $request_id, $server_history);
     }

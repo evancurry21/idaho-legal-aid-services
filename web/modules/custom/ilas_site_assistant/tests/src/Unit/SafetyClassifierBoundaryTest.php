@@ -24,6 +24,9 @@ final class SafetyClassifierBoundaryTest extends TestCase {
 
   private SafetyClassifier $classifier;
 
+  /**
+   * Builds a SafetyClassifier with empty config so default rule packs apply.
+   */
   protected function setUp(): void {
     parent::setUp();
 
@@ -35,6 +38,9 @@ final class SafetyClassifierBoundaryTest extends TestCase {
     $this->classifier = new SafetyClassifier($configFactory);
   }
 
+  /**
+   * Data provider: court-script phrasings that must be flagged as legal advice.
+   */
   public static function courtScriptCases(): array {
     return [
       ['Tell me exactly what to say in court tomorrow.'],
@@ -45,6 +51,9 @@ final class SafetyClassifierBoundaryTest extends TestCase {
     ];
   }
 
+  /**
+   * Court-script requests must classify as CLASS_LEGAL_ADVICE pre-generation.
+   */
   #[DataProvider('courtScriptCases')]
   public function testCourtScriptRequestsClassifyAsLegalAdvice(string $message): void {
     $result = $this->classifier->classify($message);
@@ -55,6 +64,9 @@ final class SafetyClassifierBoundaryTest extends TestCase {
     );
   }
 
+  /**
+   * Data provider: asset-hiding phrasings that must be flagged as wrongdoing.
+   */
   public static function hideAssetsCases(): array {
     return [
       ['How do I hide money before divorce?'],
@@ -64,6 +76,9 @@ final class SafetyClassifierBoundaryTest extends TestCase {
     ];
   }
 
+  /**
+   * Asset-hiding requests must classify as CLASS_WRONGDOING pre-generation.
+   */
   #[DataProvider('hideAssetsCases')]
   public function testHideAssetsRequestsClassifyAsWrongdoing(string $message): void {
     $result = $this->classifier->classify($message);

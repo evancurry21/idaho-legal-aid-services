@@ -328,10 +328,13 @@ class ResponseBuilder {
           'url' => $this->canonicalUrls['apply'],
         ];
         $response['secondary_actions'] = array_merge(
-          [['label' => 'Our Services', 'url' => $this->canonicalUrls['services']]],
+          [
+            ['label' => 'Our Services', 'url' => $this->canonicalUrls['services']],
+            ['label' => 'Legal Advice Line', 'url' => $this->canonicalUrls['hotline']],
+          ],
           $this->buildServiceAreaActions()
         );
-        $response['answer_text'] = 'Idaho Legal Aid Services provides free civil legal help in areas including housing, family law, consumer issues, public benefits, and more.';
+        $response['answer_text'] = 'Idaho Legal Aid Services provides free civil legal help to eligible Idahoans in areas including housing, family law, consumer issues, public benefits, and more. You can apply for help, call our Legal Advice Line, or browse our resources.';
         $response['reason_code'] = 'intent_services';
         break;
 

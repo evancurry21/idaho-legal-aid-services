@@ -32,7 +32,10 @@
   position: relative;
   width: 100%;
   overflow: visible;
-  perspective: 1000px;
+  // perspective is applied only when .is-flipped — see below. Keeping it off
+  // the closed state ensures axe-core's color-contrast pixel sampler reads
+  // the trigger's text against its real opaque background, instead of
+  // alpha-blended values from a 3D rendering context.
   transition: border-color 0.3s ease,
               box-shadow   0.3s ease,
               transform     0.1s ease;
@@ -49,54 +52,61 @@
     height: auto;                 // Allow content to dictate height
     max-height: none;             // Remove restriction to prevent text truncation
     border-width: 3px;
-    perspective: none;
-    
-    &[role="button"] {
-      cursor: default;
-      
-      &:hover, &:active {
-        transform: none;
-      }
-    }
   }
 
   .card-inner {
     position: relative;
     width: 100%;
     height: 100%;
-    transform-style: preserve-3d;
+    // Default to flat 2D. preserve-3d is applied only while the card is
+    // .is-flipped — that's when the rotateY animation needs a 3D context.
+    // In the closed state, .card-back is visibility:hidden so its
+    // rotateY(180deg) never paints; we don't need preserve-3d here. Keeping
+    // the closed-state inner flat avoids axe-core's color-contrast pixel
+    // sampler reading alpha-blended pixels through a 3D rasterizer.
+    transform-style: flat;
     transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-                
+
     @include mobile {
       transform-style: initial;
     }
   }
-  
-  &.is-flipped .card-inner { 
+
+  &.is-flipped .card-inner {
+    transform-style: preserve-3d;
     transform: rotateY(180deg);
-    
+
     @include mobile {
       transform: none;
     }
   }
   
-  // All flipped cards get primary blue border
+  // All flipped cards get primary blue border + 3D context for the rotation.
   &.is-flipped {
     border-color: $color-primary;
+    perspective: 1000px;
   }
 
   .card-front,
   .card-back {
     position: absolute;
-    top: 0; 
+    top: 0;
     left: 0;
-    width: 100%; 
+    width: 100%;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  // backface-visibility is applied only when flipping. In the closed state
+  // .card-back is visibility:hidden so its rotation is invisible and the front
+  // face doesn't need backface-visibility either. Keeping these properties
+  // off the closed state avoids axe-core's 3D-context pixel-sampling fallback.
+  &.is-flipped .card-front,
+  &.is-flipped .card-back {
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    display: flex; 
-    flex-direction: column;
-    
+
     @include mobile {
       backface-visibility: visible;
       -webkit-backface-visibility: visible;
@@ -119,11 +129,24 @@
     color: $color-primary;
     padding: 1rem 1.5rem 1rem 1.5rem;
     position: relative;
-    transition: box-shadow 0.3s ease;
-    
+    transition: box-shadow 0.3s ease,
+                visibility 0s linear 0.7s; // delay matches the .card-inner flip duration
+    // Default (closed): hidden from AT, paint, AND axe color-contrast.
+    // backface-visibility: hidden alone is not enough — axe-core does not
+    // honor it and walks up transparent ancestors when computing the effective
+    // background, producing false-positive contrast violations. visibility:hidden
+    // defeats this; axe respects it.
+    visibility: hidden;
+
     @include mobile {
       display: none;
     }
+  }
+
+  &.is-flipped .card-back {
+    visibility: visible;
+    transition: box-shadow 0.3s ease,
+                visibility 0s linear 0s; // visible immediately when flipping in
   }
 
   /* Mobile-specific class styling */
@@ -148,26 +171,41 @@
 
   /* Blue card variant */
   &.impact-card--blue {
+    // Opaque background on the card root itself so axe-core's color-contrast
+    // walk-up from descendant text always reaches an opaque ancestor before
+    // it has to traverse the .card-inner that owns transform-style:preserve-3d.
+    // Without this, axe falls back to pixel-sampling through the 3D-context
+    // raster and reports alpha-blended values.
+    background-color: $color-primary;
+
     .card-front {
       background-color: $color-primary;
       color: $color-white;
     }
-    
+
+    // Mirror the bg+color on the trigger so the immediate ancestor of the
+    // text content is itself opaque (axe stops walking here in 99% of cases).
+    .impact-card__trigger {
+      background-color: $color-primary;
+      color: $color-white;
+    }
+
     &:not(.is-flipped):hover {
       border-color: $color-primary;
       box-shadow: $shadow-glow-primary;
-      
+
       .card-front {
         background-color: $color-white;
         color: $color-primary;
       }
-      
-      .impact-card__title { 
-        color: $color-primary; 
+
+      .impact-card__trigger {
+        background-color: $color-white;
+        color: $color-primary;
       }
-      
-      .impact-card__link  { 
-        color: $color-primary; 
+
+      .impact-card__title {
+        color: $color-primary;
       }
       
       /* Show underline under impact number on hover */
@@ -181,18 +219,19 @@
         border-color: $color-white;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         transform: none;
-        
+
         .card-front {
           background-color: $color-primary;
           color: $color-white;
         }
-        
-        .impact-card__title { 
-          color: inherit; 
+
+        .impact-card__trigger {
+          background-color: $color-primary;
+          color: $color-white;
         }
-        
-        .impact-card__link  { 
-          color: inherit; 
+
+        .impact-card__title {
+          color: inherit;
         }
       }
     }
@@ -200,7 +239,16 @@
 
   /* Gray card variant */
   &.impact-card--gray {
+    // See blue variant comment — opaque bg on the card root anchors axe's
+    // contrast walk-up against the 3D-transformed .card-inner descendant.
+    background-color: $color-gray-card;
+
     .card-front {
+      background-color: $color-gray-card;
+      color: $color-white;
+    }
+
+    .impact-card__trigger {
       background-color: $color-gray-card;
       color: $color-white;
     }
@@ -214,11 +262,12 @@
         color: $color-gray-card;
       }
 
-      .impact-card__title {
+      .impact-card__trigger {
+        background-color: $color-white;
         color: $color-gray-card;
       }
 
-      .impact-card__link {
+      .impact-card__title {
         color: $color-gray-card;
       }
 
@@ -239,11 +288,12 @@
           color: $color-white;
         }
 
-        .impact-card__title {
-          color: inherit;
+        .impact-card__trigger {
+          background-color: $color-gray-card;
+          color: $color-white;
         }
 
-        .impact-card__link {
+        .impact-card__title {
           color: inherit;
         }
       }
@@ -308,21 +358,50 @@
     }
   }
 
-  /* Card link styling */
-  .impact-card__link {
+  /* Trigger button — front-face activator. Native <button> reset so the
+     existing front-face layout/colors carry through. NOTE: descendant <p>
+     from CKEditor is technically invalid inside a <button>, but browsers
+     render it correctly and axe does not flag it. We accept this trade-off
+     to satisfy axe nested-interactive (the previous role="button" wrapper
+     contained the back-close <button>).
+
+     Background must be a real opaque color (not `transparent`) — axe-core
+     walks up through `transform-style: preserve-3d` / `backface-visibility`
+     ancestors to find an opaque background and ends up alpha-blending values,
+     producing false-positive contrast violations. `background: inherit`
+     resolves to the parent .card-front color directly so axe reads the
+     correct value without walking 3D-transformed ancestors. */
+  .impact-card__trigger {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: inherit;
+    border: 0;
+    margin: 0;
+    font: inherit;
+    text-align: left;
+    width: 100%;
     display: flex;
     flex-direction: column;
-    width: 100%;
     height: 100%;
     color: inherit;
     text-decoration: none;
     padding: 1.5rem 1.5rem .25rem;
     flex: 1;
-    
-    &:hover { 
-      text-decoration: none; 
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: none;
     }
-    
+
+    // Focus-visible lives on the trigger now (was on the card root).
+    &:focus:not(:focus-visible) {
+      outline: none;
+    }
+    &:focus-visible {
+      outline: 3px solid $color-primary;
+      outline-offset: 2px;
+    }
+
     @include mobile {
       padding: 0.75rem;
       cursor: pointer;
@@ -539,36 +618,24 @@
     }
   }
 
-  /* Interactive states */
-  &:not(.is-flipped) { 
-    cursor: pointer; 
-    
-    &:active { 
+  /* Interactive states (cursor + focus moved to .impact-card__trigger).
+     Tactile press feedback stays on the whole card. */
+  &:not(.is-flipped) {
+    &:active {
       transform: scale(0.98);
-      
+
       @include mobile {
         transform: none;
       }
     }
   }
-  
-  // Remove outline for mouse users, but keep for keyboard navigation
-  &:focus:not(:focus-visible) {
-    outline: none;
-  }
-  
-  // Show outline only for keyboard navigation
-  &:focus-visible {
-    outline: 3px solid $color-primary; 
-    outline-offset: 2px; 
-  }
-  
+
   &.is-flipped {
     cursor: default;
-    
-    a { 
-      pointer-events: auto; 
-      cursor: pointer; 
+
+    a {
+      pointer-events: auto;
+      cursor: pointer;
     }
   }
 }
@@ -595,14 +662,28 @@
     transition: none;
   }
 
-  // Disable flip animation entirely
+  // Disable flip animation entirely. Also drop the 3D context — `transform: none`
+  // alone leaves `transform-style: preserve-3d` in place, which keeps axe-core's
+  // color-contrast pixel sampler reading alpha-blended values from the
+  // 3D-rasterized layer. `transform-style: flat` + `backface-visibility: visible`
+  // collapse the descendants into a normal 2D paint pass.
+  .impact-card .card-inner {
+    transform-style: flat;
+  }
   .impact-card.is-flipped .card-inner {
     transform: none;
+  }
+
+  .impact-card .card-front,
+  .impact-card .card-back {
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
   }
 
   .impact-card .card-back {
     transform: none;
     position: static;
+    visibility: visible; // reduced-motion: back face is part of layout, no flip-hide
   }
 
   .impact-card.is-flipped .card-front {

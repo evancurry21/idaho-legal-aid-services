@@ -22,6 +22,9 @@ final class ResponseBuilderSpanishTest extends TestCase {
 
   private ResponseBuilder $builder;
 
+  /**
+   * Boots a ResponseBuilder with the canonical action URL map.
+   */
   protected function setUp(): void {
     parent::setUp();
     $this->builder = new ResponseBuilder([
@@ -36,6 +39,9 @@ final class ResponseBuilderSpanishTest extends TestCase {
     ]);
   }
 
+  /**
+   * Spanish topic-intent input gets a bilingual postscript with action cues.
+   */
   public function testSpanishInputAppendsBilingualPostscriptOnTopic(): void {
     $response = $this->builder->buildFromIntent(
       ['type' => 'topic', 'confidence' => 0.85],
@@ -50,6 +56,9 @@ final class ResponseBuilderSpanishTest extends TestCase {
     $this->assertStringContainsStringIgnoringCase('solicite', $text);
   }
 
+  /**
+   * Spanish clarify-intent input still receives the bilingual postscript.
+   */
   public function testSpanishInputAppendsBilingualPostscriptOnClarify(): void {
     $response = $this->builder->buildFromIntent(
       ['type' => 'clarify', 'confidence' => 0.30],
@@ -61,6 +70,9 @@ final class ResponseBuilderSpanishTest extends TestCase {
     $this->assertStringContainsStringIgnoringCase('línea', $text);
   }
 
+  /**
+   * English input must not trigger the Spanish postscript text.
+   */
   public function testEnglishInputDoesNotEmitSpanishPostscript(): void {
     $response = $this->builder->buildFromIntent(
       ['type' => 'topic', 'confidence' => 0.85],
@@ -72,15 +84,24 @@ final class ResponseBuilderSpanishTest extends TestCase {
     $this->assertStringNotContainsString('solicite', $text);
   }
 
+  /**
+   * looksLikeSpanish() returns TRUE when input contains Spanish accents.
+   */
   public function testSpanishDetectorFiresOnAccents(): void {
     $this->assertTrue(ResponseBuilder::looksLikeSpanish('¿Dónde está la oficina?'));
   }
 
+  /**
+   * looksLikeSpanish() returns TRUE for Spanish legal cue words sans accents.
+   */
   public function testSpanishDetectorFiresOnLegalCueWords(): void {
     $this->assertTrue(ResponseBuilder::looksLikeSpanish('necesito un abogado'));
     $this->assertTrue(ResponseBuilder::looksLikeSpanish('Aviso de desalojo'));
   }
 
+  /**
+   * looksLikeSpanish() returns FALSE for plain English sentences.
+   */
   public function testSpanishDetectorIgnoresPlainEnglish(): void {
     $this->assertFalse(ResponseBuilder::looksLikeSpanish('I got an eviction notice'));
     $this->assertFalse(ResponseBuilder::looksLikeSpanish('What free legal services do you offer?'));
