@@ -15,6 +15,9 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class HousingEvictionFollowupTest extends TestCase {
 
+  /**
+   * Tests that current_topic = housing_eviction triggers the follow-up.
+   */
   public function testCurrentTopicHousingEvictionTriggersFollowup(): void {
     $summary = ['current_topic' => 'housing_eviction'];
     $this->assertTrue(
@@ -22,6 +25,9 @@ final class HousingEvictionFollowupTest extends TestCase {
     );
   }
 
+  /**
+   * Tests that eviction deadline/notice values trigger the follow-up.
+   */
   public function testDeadlineNoticeTriggersFollowup(): void {
     foreach (['3_day_notice', 'lockout', 'eviction_notice'] as $deadline) {
       $summary = ['deadline_or_notice' => $deadline];
@@ -32,6 +38,9 @@ final class HousingEvictionFollowupTest extends TestCase {
     }
   }
 
+  /**
+   * Tests that eviction keywords in the current user message trigger the follow-up.
+   */
   public function testEvictionKeywordInCurrentMessageTriggers(): void {
     $this->assertTrue(
       AssistantApiController::isHousingEvictionFollowup([], [], 'My landlord just gave me a notice to vacate.')
@@ -41,6 +50,9 @@ final class HousingEvictionFollowupTest extends TestCase {
     );
   }
 
+  /**
+   * Tests that an eviction keyword in recent conversation history triggers the follow-up.
+   */
   public function testEvictionKeywordInRecentHistoryTriggers(): void {
     $history = [
       ['role' => 'user', 'text' => 'I got an eviction notice'],
@@ -51,6 +63,9 @@ final class HousingEvictionFollowupTest extends TestCase {
     );
   }
 
+  /**
+   * Tests that a history turn tagged with topic = eviction triggers the follow-up.
+   */
   public function testHistoryTopicEvictionTriggers(): void {
     $history = [
       [
@@ -65,6 +80,9 @@ final class HousingEvictionFollowupTest extends TestCase {
     );
   }
 
+  /**
+   * Tests that a plain housing turn with no eviction signal does not trigger the follow-up.
+   */
   public function testNonEvictionHousingTurnDoesNotTrigger(): void {
     // Plain housing follow-up without any eviction signal — must not trigger.
     $history = [
@@ -75,6 +93,9 @@ final class HousingEvictionFollowupTest extends TestCase {
     );
   }
 
+  /**
+   * Tests that empty summary, history, and message inputs return FALSE.
+   */
   public function testEmptyInputsReturnFalse(): void {
     $this->assertFalse(
       AssistantApiController::isHousingEvictionFollowup([], [], 'next steps?')

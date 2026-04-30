@@ -6561,9 +6561,6 @@ class AssistantApiController extends ControllerBase {
   }
 
   /**
-   * Returns TRUE if message is asking for office details.
-   */
-  /**
    * Returns TRUE when the current housing turn follows an eviction conversation.
    *
    * Checks the conversation context summary first (cheap & deterministic), then
