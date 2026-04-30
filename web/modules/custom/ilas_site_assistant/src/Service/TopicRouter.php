@@ -2,6 +2,8 @@
 
 namespace Drupal\ilas_site_assistant\Service;
 
+use Symfony\Component\Yaml\Yaml;
+
 /**
  * Routes short/single-token queries to canonical topic landing pages.
  *
@@ -380,11 +382,12 @@ class TopicRouter {
     $yaml_content = file_get_contents($yaml_path);
     // Use Symfony YAML parser if available, otherwise basic parsing.
     if (class_exists('\Symfony\Component\Yaml\Yaml')) {
-      $this->topicMap = \Symfony\Component\Yaml\Yaml::parse($yaml_content) ?: [];
+      $this->topicMap = Yaml::parse($yaml_content) ?: [];
     }
     else {
       // Fallback: use Drupal's Yaml parser.
       if (class_exists('\Drupal\Component\Serialization\Yaml')) {
+        // phpcs:ignore Drupal.Classes.FullyQualifiedNamespace.UseStatementMissing -- Intentional fallback when Symfony Yaml is unavailable.
         $this->topicMap = \Drupal\Component\Serialization\Yaml::decode($yaml_content) ?: [];
       }
       else {

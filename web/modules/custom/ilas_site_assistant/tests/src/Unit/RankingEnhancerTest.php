@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
  * - expandQuery() exact and multi-word matching
  * - Canonical URL boost
  * - De-duplication
- * - Field weight scoring
+ * - Field weight scoring.
  */
 #[CoversClass(RankingEnhancer::class)]
 #[Group('ilas_site_assistant')]
@@ -160,6 +160,9 @@ class RankingEnhancerTest extends TestCase {
     $this->assertGreaterThanOrEqual($expectedMinBoost, $boost);
   }
 
+  /**
+   *
+   */
   public static function canonicalBoostProvider(): array {
     return [
       'apply-for-help' => ['https://idaholegalaid.org/apply-for-help', 30],

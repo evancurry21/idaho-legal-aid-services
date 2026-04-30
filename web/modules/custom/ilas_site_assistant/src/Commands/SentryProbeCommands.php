@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_site_assistant\Commands;
 
+use Sentry\State\Scope;
 use Drupal\ilas_site_assistant\EventSubscriber\SentryOptionsSubscriber;
 use Drupal\ilas_site_assistant\Service\ObservabilityProofTaxonomy;
 use Drush\Commands\DrushCommands;
@@ -49,7 +50,7 @@ class SentryProbeCommands extends DrushCommands {
 
     // Set a fixed fingerprint so all probes for the same environment group
     // into a single Sentry issue instead of fragmenting (R-4).
-    \Sentry\configureScope(function (\Sentry\State\Scope $scope) use ($context): void {
+    \Sentry\configureScope(function (Scope $scope) use ($context): void {
       $scope->setFingerprint(['sentry-probe', $context['environment']]);
     });
 

@@ -24,7 +24,7 @@ final class EnvironmentDetectorTest extends TestCase {
   }
 
   /**
-   * getenv() wins when a live environment value is present.
+   * Getenv() wins when a live environment value is present.
    */
   public function testDetectsLiveViaGetenv(): void {
     putenv('PANTHEON_ENVIRONMENT=live');

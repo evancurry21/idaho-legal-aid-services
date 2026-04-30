@@ -159,7 +159,7 @@ class NoLegalAdviceGovernanceTest extends TestCase {
   }
 
   /**
-   * legal_advice must always be in the audit domain.
+   * Legal_advice must always be in the audit domain.
    */
   public function testAuditDomainContainsLegalAdviceClass(): void {
     $install = self::installConfig();
@@ -168,7 +168,7 @@ class NoLegalAdviceGovernanceTest extends TestCase {
   }
 
   /**
-   * document_drafting must always be in the audit domain.
+   * Document_drafting must always be in the audit domain.
    */
   public function testAuditDomainContainsDocumentDraftingClass(): void {
     $install = self::installConfig();

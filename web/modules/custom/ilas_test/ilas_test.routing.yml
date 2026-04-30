@@ -12,6 +12,7 @@ ilas_test.run:
     _controller: '\Drupal\ilas_test\Controller\TestDashboardController::runTests'
   requirements:
     _permission: 'run ilas tests'
+    _csrf_token: 'TRUE'
     _format: 'json'
   methods: [POST]
 

@@ -63,7 +63,7 @@ final class RetrievalContractTest extends TestCase {
   }
 
   /**
-   * assertApprovedSourceClass throws for unknown source class.
+   * AssertApprovedSourceClass throws for unknown source class.
    */
   public function testAssertApprovedSourceClassThrowsForUnknown(): void {
     $this->expectException(\InvalidArgumentException::class);
@@ -72,7 +72,7 @@ final class RetrievalContractTest extends TestCase {
   }
 
   /**
-   * isPrimarySource returns correct results for all approved classes.
+   * IsPrimarySource returns correct results for all approved classes.
    */
   #[DataProvider('allApprovedSourceClassesProvider')]
   public function testIsPrimarySourceCorrect(string $source_class, bool $expected_primary): void {
@@ -80,7 +80,7 @@ final class RetrievalContractTest extends TestCase {
   }
 
   /**
-   * isSupplementSource returns correct results for all approved classes.
+   * IsSupplementSource returns correct results for all approved classes.
    */
   #[DataProvider('allApprovedSourceClassesProvider')]
   public function testIsSupplementSourceCorrect(string $source_class, bool $expected_primary): void {

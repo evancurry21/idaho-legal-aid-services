@@ -20,8 +20,8 @@
 (function (Drupal, drupalSettings, once) {
   'use strict';
 
-  // Enable for scroll-related debug logging.
-  var SCROLL_DEBUG = false;
+  // Enable for scroll-related debug logging. Gated by drupalSettings.ilasDebug.
+  var SCROLL_DEBUG = !!(drupalSettings && drupalSettings.ilasDebug);
 
   /**
    * Shared Scroll Manager.

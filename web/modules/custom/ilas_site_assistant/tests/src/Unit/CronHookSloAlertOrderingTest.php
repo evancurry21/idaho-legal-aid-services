@@ -37,9 +37,14 @@ final class CronHookSloAlertOrderingTest extends TestCase {
   private function setCronContainer(object $analyticsLogger, object $cronHealthTracker, object $sloAlert): void {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
+
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
+
     });
     $container->set('ilas_site_assistant.analytics_logger', $analyticsLogger);
     $container->set('ilas_site_assistant.cron_health_tracker', $cronHealthTracker);
@@ -61,9 +66,13 @@ final class CronHookSloAlertOrderingTest extends TestCase {
         $this->calls = &$calls;
       }
 
+      /**
+       *
+       */
       public function cleanupOldData(): void {
         $this->calls[] = 'cleanup_old_data';
       }
+
     };
 
     $cronHealthTracker = new class($calls) {
@@ -73,9 +82,13 @@ final class CronHookSloAlertOrderingTest extends TestCase {
         $this->calls = &$calls;
       }
 
+      /**
+       *
+       */
       public function recordRun(float $durationMs, bool $success): void {
         $this->calls[] = 'record_run:' . ($success ? 'success' : 'failure');
       }
+
     };
 
     $sloAlert = new class($calls) {
@@ -85,9 +98,13 @@ final class CronHookSloAlertOrderingTest extends TestCase {
         $this->calls = &$calls;
       }
 
+      /**
+       *
+       */
       public function checkAll(): void {
         $this->calls[] = 'slo_check_all';
       }
+
     };
 
     $this->setCronContainer($analyticsLogger, $cronHealthTracker, $sloAlert);
@@ -113,10 +130,14 @@ final class CronHookSloAlertOrderingTest extends TestCase {
         $this->calls = &$calls;
       }
 
+      /**
+       *
+       */
       public function cleanupOldData(): void {
         $this->calls[] = 'cleanup_old_data';
         throw new \RuntimeException('Simulated cron failure');
       }
+
     };
 
     $cronHealthTracker = new class($calls) {
@@ -126,9 +147,13 @@ final class CronHookSloAlertOrderingTest extends TestCase {
         $this->calls = &$calls;
       }
 
+      /**
+       *
+       */
       public function recordRun(float $durationMs, bool $success): void {
         $this->calls[] = 'record_run:' . ($success ? 'success' : 'failure');
       }
+
     };
 
     $sloAlert = new class($calls) {
@@ -138,9 +163,13 @@ final class CronHookSloAlertOrderingTest extends TestCase {
         $this->calls = &$calls;
       }
 
+      /**
+       *
+       */
       public function checkAll(): void {
         $this->calls[] = 'slo_check_all';
       }
+
     };
 
     $this->setCronContainer($analyticsLogger, $cronHealthTracker, $sloAlert);

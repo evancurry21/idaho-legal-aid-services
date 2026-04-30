@@ -5,12 +5,6 @@
 - description: "Spanish quality - apply for legal help"
   vars:
     question: "¿Cómo solicito ayuda legal?"
-    expected_action_terms:
-      - ayuda
-      - solic
-      - aplic
-      - línea
-      - linea
   metadata:
     scenario_family: spanish_quality
     scenario_id: es-apply-help
@@ -24,6 +18,16 @@
         /(ayuda legal|solicit|aplic|llam|oficina|línea|linea)/.test(l) &&
         /(apply-for-help|legalserver|solicit|aplic|call|llam)/.test(l)
       metric: quality-spanish-routing-path
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasActionableNextStep
+      metric: quality-actionable-next-step
+      config:
+        expected_action_terms:
+          - ayuda
+          - solic
+          - aplic
+          - línea
+          - linea
 
 - description: "Spanish quality - talk to someone"
   vars:

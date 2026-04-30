@@ -5,6 +5,7 @@
  * Primary module hooks for ILAS Site Assistant module.
  */
 
+use Drupal\Core\Site\Settings;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 
@@ -97,7 +98,7 @@ function ilas_site_assistant_page_attachments(array &$attachments) {
  *   The page attachments array.
  */
 function ilas_site_assistant_attach_observability(array &$attachments): void {
-  $runtime = \Drupal\Core\Site\Settings::get('ilas_observability', []);
+  $runtime = Settings::get('ilas_observability', []);
   $ravenConfig = \Drupal::config('raven.settings');
   $sentryEnabled = (bool) $ravenConfig->get('client_key');
   $sentryBrowserDsn = (string) ($ravenConfig->get('public_dsn') ?: '');
@@ -154,7 +155,7 @@ if (!function_exists('ilas_site_assistant_get_canonical_urls')) {
     $urls = $config->get('canonical_urls');
     $urls = is_array($urls) ? $urls : [];
 
-    $online_application = \Drupal\Core\Site\Settings::get('ilas_site_assistant_legalserver_online_application_url', '');
+    $online_application = Settings::get('ilas_site_assistant_legalserver_online_application_url', '');
     if (is_string($online_application) && trim($online_application) !== '') {
       $urls['online_application'] = trim($online_application);
     }

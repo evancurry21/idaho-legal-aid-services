@@ -73,6 +73,9 @@ final class SelectionNavigationContractTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
@@ -411,7 +414,8 @@ final class SelectionNavigationContractTest extends TestCase {
         'title' => 'I want to get involved. How can I help?',
         'url' => 'https://idaholegalaid.org/get-involved',
         'score' => 0.99,
-      ]]
+      ]
+]
     );
 
     $response = $controller->message($this->buildJsonRequest([
@@ -452,7 +456,8 @@ final class SelectionNavigationContractTest extends TestCase {
         'title' => 'I want to get involved. How can I help?',
         'url' => 'https://idaholegalaid.org/get-involved',
         'score' => 0.99,
-      ]]
+      ]
+]
     );
     $conversationId = '77777777-7777-4777-8777-777777777777';
 

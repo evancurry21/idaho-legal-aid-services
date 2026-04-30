@@ -91,31 +91,40 @@ function ilas_resources_install() {
   }
 }
 
-/* ----------  Helper functions ---------- */
-
+/**
+ * ----------  Helper functions ----------
+ */
 function _ilas_resources_create_vocab($machine, $label) {
   $vocab = Vocabulary::load($machine) ?: Vocabulary::create(['vid' => $machine, 'name' => $label]);
   $vocab->save();
   return $vocab;
 }
 
+/**
+ *
+ */
 function _ilas_resources_term_exists($name, $vid) {
   return !empty(\Drupal::entityTypeManager()
     ->getStorage('taxonomy_term')
     ->loadByProperties(['name' => $name, 'vid' => $vid]));
 }
 
+/**
+ *
+ */
 function _ilas_resources_add_field($bundle, $field_name, $type, $label, array $settings = []) {
-  // Determine entity type based on bundle
+  // Determine entity type based on bundle.
   $entity_type = 'node';
-  
-  // Special handling for entity reference revisions
+
+  // Special handling for entity reference revisions.
   if ($type === 'entity_reference_revisions') {
-    $cardinality = -1; // Unlimited
-  } else {
+    // Unlimited.
+    $cardinality = -1;
+  }
+  else {
     $cardinality = ($type === 'entity_reference' && isset($settings['handler_settings'])) ? -1 : 1;
   }
-  
+
   if (!FieldStorageConfig::loadByName($entity_type, $field_name)) {
     FieldStorageConfig::create([
       'entity_type' => $entity_type,
@@ -214,7 +223,7 @@ function ilas_resources_update_10001() {
     'Adult Name Change'       => ['Family Safety & Stability'],
     'Minor Name Change'       => ['Family Safety & Stability'],
     'Juvenile Guardianship'   => ['Family Safety & Stability'],
-    'Juvenile Conservatorship'=> ['Family Safety & Stability'],
+    'Juvenile Conservatorship' => ['Family Safety & Stability'],
     'Minor Guardianship'      => ['Family Safety & Stability'],
     'Minor Conservatorship'   => ['Family Safety & Stability'],
     'Accounting'              => ['Family Safety & Stability'],
@@ -251,7 +260,7 @@ function ilas_resources_update_10001() {
     'Security Deposits'       => ['Safe & Stable Housing'],
     'Reasonable Accommodations' => ['Safe & Stable Housing'],
     'Housing Discrimination'  => ['Safe & Stable Housing'],
-    'Federal Fair Housing Act'=> ['Safe & Stable Housing'],
+    'Federal Fair Housing Act' => ['Safe & Stable Housing'],
     'Tenant Rights'           => ['Safe & Stable Housing'],
     'Renter Safety'           => ['Safe & Stable Housing'],
     'Utility Shutoffs'        => ['Safe & Stable Housing'],

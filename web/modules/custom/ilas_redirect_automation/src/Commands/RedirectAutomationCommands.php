@@ -57,7 +57,7 @@ class RedirectAutomationCommands extends DrushCommands {
     RedirectApplierService $applier,
     CsvExportService $csv_export,
     ConfigFactoryInterface $config_factory,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
   ) {
     parent::__construct();
     $this->analyzer = $analyzer;
@@ -126,13 +126,15 @@ class RedirectAutomationCommands extends DrushCommands {
    * @usage redirect:preview --output=/tmp/redirects.csv
    *   Save to specific file
    */
-  public function preview($options = [
-    'category' => NULL,
-    'min-confidence' => 0,
-    'min-hits' => 1,
-    'output' => NULL,
-    'limit' => 0,
-  ]) {
+  public function preview(
+    $options = [
+      'category' => NULL,
+      'min-confidence' => 0,
+      'min-hits' => 1,
+      'output' => NULL,
+      'limit' => 0,
+    ],
+  ) {
     $this->output()->writeln('<info>Generating redirect preview...</info>');
     $this->output()->writeln('');
 
@@ -143,7 +145,7 @@ class RedirectAutomationCommands extends DrushCommands {
       'limit' => (int) $options['limit'],
     ];
 
-    // Analyze 404 data
+    // Analyze 404 data.
     $this->output()->writeln('Analyzing 404 entries...');
     $proposals = $this->analyzer->analyze($analyzeOptions);
 
@@ -152,7 +154,7 @@ class RedirectAutomationCommands extends DrushCommands {
       return 0;
     }
 
-    // Count by status
+    // Count by status.
     $counts = [
       'pending' => 0,
       'low_confidence' => 0,
@@ -174,13 +176,13 @@ class RedirectAutomationCommands extends DrushCommands {
     $this->output()->writeln(sprintf('  No match found:     %d', $counts['no_match']));
     $this->output()->writeln('');
 
-    // Generate output filename
+    // Generate output filename.
     $outputPath = $options['output'];
     if (empty($outputPath)) {
       $outputPath = '/tmp/' . $this->csvExport->generateFilename();
     }
 
-    // Export to CSV
+    // Export to CSV.
     $this->output()->writeln('Exporting to CSV...');
     $success = $this->csvExport->exportProposals($proposals, $outputPath);
 
@@ -215,10 +217,13 @@ class RedirectAutomationCommands extends DrushCommands {
    * @usage redirect:apply /path/to/approved.csv --dry-run
    *   Preview what would be applied without changes
    */
-  public function apply($file, $options = [
-    'dry-run' => FALSE,
-    'skip-validation' => FALSE,
-  ]) {
+  public function apply(
+    $file,
+    $options = [
+      'dry-run' => FALSE,
+      'skip-validation' => FALSE,
+    ],
+  ) {
     if (empty($file)) {
       $this->output()->writeln('<error>Please specify a CSV file path.</error>');
       return 1;
@@ -241,7 +246,7 @@ class RedirectAutomationCommands extends DrushCommands {
     }
     $this->output()->writeln('');
 
-    // Validate CSV format
+    // Validate CSV format.
     $this->output()->writeln('Validating CSV format...');
     $validation = $this->csvExport->validateCsvFormat($file);
 
@@ -261,14 +266,14 @@ class RedirectAutomationCommands extends DrushCommands {
       return 0;
     }
 
-    // Parse approved entries
+    // Parse approved entries.
     $entries = $this->csvExport->parseApprovedCsv($file);
 
-    // Get config for status code
+    // Get config for status code.
     $config = $this->configFactory->get('ilas_redirect_automation.settings');
     $statusCode = $config->get('default_status_code') ?? 301;
 
-    // Apply redirects
+    // Apply redirects.
     $this->output()->writeln('Processing redirects...');
     $results = $this->applier->applyFromEntries($entries, $statusCode, $dryRun, $skipValidation);
 
@@ -316,11 +321,13 @@ class RedirectAutomationCommands extends DrushCommands {
    * @usage redirect:ignore --remove="/wp-*"
    *   Remove a pattern from the ignore list
    */
-  public function ignore($options = [
-    'add' => NULL,
-    'remove' => NULL,
-    'list' => FALSE,
-  ]) {
+  public function ignore(
+    $options = [
+      'add' => NULL,
+      'remove' => NULL,
+      'list' => FALSE,
+    ],
+  ) {
     $config = $this->configFactory->getEditable('ilas_redirect_automation.settings');
     $patterns = $config->get('ignore_patterns') ?? [];
 

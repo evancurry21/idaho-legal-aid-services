@@ -17,11 +17,17 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class LlmEnhancerApiKeyTest extends TestCase {
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testCohereTransportSendsBearerHeaderAndParsesJsonPayload(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-test-key',
@@ -83,6 +89,9 @@ final class LlmEnhancerApiKeyTest extends TestCase {
     $this->assertSame(['input' => 11, 'output' => 4, 'total' => 15], $result['usage'] ?? NULL);
   }
 
+  /**
+   *
+   */
   public function testCohereTransportAcceptsFencedJsonResponses(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-test-key',

@@ -155,6 +155,7 @@ class AcronymExpander {
       $raw = Yaml::parse($yaml_content) ?: [];
     }
     elseif (class_exists('\Drupal\Component\Serialization\Yaml')) {
+      // phpcs:ignore Drupal.Classes.FullyQualifiedNamespace.UseStatementMissing -- Intentional fallback when Symfony Yaml is unavailable.
       $raw = \Drupal\Component\Serialization\Yaml::decode($yaml_content) ?: [];
     }
     else {

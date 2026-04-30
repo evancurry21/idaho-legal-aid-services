@@ -8,9 +8,10 @@
     "watch": "npx mix watch",
     "watch-poll": "npx mix watch -- --watch-options-poll=1000",
     "hot": "npx mix watch --hot",
-    "prod": "npx mix --production",
+    "prod": "npx mix --production && node scripts/strip-css-sourcemaps.js",
     "optimize-images": "node optimize-images.js",
-    "build": "npm run prod && npm run optimize-images",
+    "check:critical": "test -s css/critical.css && grep -q 'site-header' css/critical.css && grep -q 'utility-bar' css/critical.css",
+    "build": "npm run prod && npm run check:critical && npm run optimize-images",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

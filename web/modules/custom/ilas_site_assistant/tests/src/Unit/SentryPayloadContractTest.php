@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Sentry\ExceptionDataBag;
+use Sentry\Breadcrumb;
+use Sentry\Context\RuntimeContext;
+use Sentry\Context\OsContext;
+use Sentry\UserDataBag;
+use Sentry\Event;
 use Drupal\ilas_site_assistant\EventSubscriber\SentryOptionsSubscriber;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -40,7 +46,7 @@ class SentryPayloadContractTest extends TestCase {
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
     foreach ($expectedSensitive as $key) {
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setExtra([$key => 'secret-value-12345']);
       $result = $callback($event, NULL);
       $this->assertNotNull($result, "Event should not be dropped for key: {$key}");
@@ -69,7 +75,7 @@ class SentryPayloadContractTest extends TestCase {
     $piiString = 'Contact john@example.com for details';
 
     foreach ($expectedBodyLike as $key) {
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setExtra([$key => $piiString]);
       $result = $callback($event, NULL);
       $this->assertNotNull($result, "Event should not be dropped for key: {$key}");
@@ -160,7 +166,7 @@ class SentryPayloadContractTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setTags([
       'environment' => 'test',
       'os' => 'Linux',
@@ -210,8 +216,8 @@ class SentryPayloadContractTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
-    $event->setUser(\Sentry\UserDataBag::createFromArray(['id' => '0']));
+    $event = Event::createEvent();
+    $event->setUser(UserDataBag::createFromArray(['id' => '0']));
 
     $result = $callback($event, NULL);
     $this->assertNotNull($result);
@@ -226,7 +232,7 @@ class SentryPayloadContractTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setRequest([
       'url' => 'http://localhost/',
       'method' => 'GET',
@@ -246,14 +252,14 @@ class SentryPayloadContractTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
-    $event->setOsContext(new \Sentry\Context\OsContext(
+    $event = Event::createEvent();
+    $event->setOsContext(new OsContext(
       'Linux',
       '5.15.0',
       '5.15.0-generic',
       'x86_64',
     ));
-    $event->setRuntimeContext(new \Sentry\Context\RuntimeContext(
+    $event->setRuntimeContext(new RuntimeContext(
       'php',
       '8.3.0',
     ));
@@ -272,29 +278,29 @@ class SentryPayloadContractTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
 
     // Breadcrumb with PII in message.
-    $bc1 = new \Sentry\Breadcrumb(
-      \Sentry\Breadcrumb::LEVEL_INFO,
-      \Sentry\Breadcrumb::TYPE_DEFAULT,
+    $bc1 = new Breadcrumb(
+      Breadcrumb::LEVEL_INFO,
+      Breadcrumb::TYPE_DEFAULT,
       'test',
       'User email is john@example.com',
     );
 
     // Breadcrumb with sensitive key in metadata.
-    $bc2 = new \Sentry\Breadcrumb(
-      \Sentry\Breadcrumb::LEVEL_INFO,
-      \Sentry\Breadcrumb::TYPE_HTTP,
+    $bc2 = new Breadcrumb(
+      Breadcrumb::LEVEL_INFO,
+      Breadcrumb::TYPE_HTTP,
       'http',
       'GET /api/data',
       ['authorization' => 'Bearer secret-token-123'],
     );
 
     // Breadcrumb with PII in metadata string value.
-    $bc3 = new \Sentry\Breadcrumb(
-      \Sentry\Breadcrumb::LEVEL_INFO,
-      \Sentry\Breadcrumb::TYPE_DEFAULT,
+    $bc3 = new Breadcrumb(
+      Breadcrumb::LEVEL_INFO,
+      Breadcrumb::TYPE_DEFAULT,
       'app',
       'Form submitted',
       ['detail' => 'Contact jane@example.com for info'],
@@ -333,7 +339,7 @@ class SentryPayloadContractTest extends TestCase {
   }
 
   /**
-   * scrub_opacity and exception_class tags are in APPROVED_TAGS.
+   * Scrub_opacity and exception_class tags are in APPROVED_TAGS.
    */
   public function testMinimumContextTagsAreApproved(): void {
     $approved = SentryOptionsSubscriber::APPROVED_TAGS;
@@ -349,9 +355,9 @@ class SentryPayloadContractTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $exception = new \LogicException('');
-    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $exceptionBag = new ExceptionDataBag($exception);
     $exceptionBag->setValue('');
     $event->setExceptions([$exceptionBag]);
 

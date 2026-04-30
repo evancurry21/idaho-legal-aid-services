@@ -13,10 +13,16 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class PhaseThreeNoNetNewAssistantChannelsOrModelExpansionGuardTest extends TestCase {
 
+  /**
+   *
+   */
   private static function repoRoot(): string {
     return dirname(__DIR__, 7);
   }
 
+  /**
+   *
+   */
   private static function readFile(string $relativePath): string {
     $path = self::repoRoot() . '/' . ltrim($relativePath, '/');
     self::assertFileExists($path);
@@ -25,6 +31,9 @@ final class PhaseThreeNoNetNewAssistantChannelsOrModelExpansionGuardTest extends
     return $contents;
   }
 
+  /**
+   *
+   */
   public function testAssistantChannelSurfaceRemainsUnchanged(): void {
     $routing = self::readFile('web/modules/custom/ilas_site_assistant/ilas_site_assistant.routing.yml');
 
@@ -35,6 +44,9 @@ final class PhaseThreeNoNetNewAssistantChannelsOrModelExpansionGuardTest extends
     $this->assertStringContainsString("path: '/assistant/api/faq'", $routing);
   }
 
+  /**
+   *
+   */
   public function testProviderContractIsCohereRequestTimeWithVoyageEmbeddings(): void {
     $services = self::readFile('web/modules/custom/ilas_site_assistant/ilas_site_assistant.services.yml');
     $enhancer = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php');
@@ -48,6 +60,9 @@ final class PhaseThreeNoNetNewAssistantChannelsOrModelExpansionGuardTest extends
     $this->assertStringContainsString('Gemini residual', $systemMap);
   }
 
+  /**
+   *
+   */
   public function testUiAndConfigRemainSecretlessAndDoNotExposeProviderDropdowns(): void {
     $form = self::readFile('web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php');
     $schema = self::readFile('web/modules/custom/ilas_site_assistant/config/schema/ilas_site_assistant.schema.yml');

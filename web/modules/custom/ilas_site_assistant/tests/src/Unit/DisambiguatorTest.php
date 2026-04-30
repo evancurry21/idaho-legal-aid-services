@@ -54,6 +54,9 @@ class DisambiguatorTest extends TestCase {
     $this->assertContains('legal_advice_line', $option_intents);
   }
 
+  /**
+   *
+   */
   public static function exactTopicProvider(): array {
     return [
       ['custody', 'family'],
@@ -78,6 +81,9 @@ class DisambiguatorTest extends TestCase {
     $this->assertNotEmpty($result['options']);
   }
 
+  /**
+   *
+   */
   public static function modifierTopicProvider(): array {
     return [
       ['custody now', 'family'],
@@ -119,6 +125,9 @@ class DisambiguatorTest extends TestCase {
     $this->assertContains('legal_advice_line', $option_intents);
   }
 
+  /**
+   *
+   */
   public static function genericHelpTopicProvider(): array {
     return [
       ['I need help with desalojo', 'housing'],
@@ -141,6 +150,9 @@ class DisambiguatorTest extends TestCase {
     $this->assertNotEmpty($result['options']);
   }
 
+  /**
+   *
+   */
   public static function vagueQueryProvider(): array {
     return [
       ['help'],
@@ -177,6 +189,9 @@ class DisambiguatorTest extends TestCase {
     $this->assertSame($expectedFamily, $result['family']);
   }
 
+  /**
+   *
+   */
   public static function generalizedVagueQueryProvider(): array {
     return [
       ['could you please help me', 'generic_help'],
@@ -270,6 +285,9 @@ class DisambiguatorTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function specificQueryProvider(): array {
     return [
       ['custody forms'],

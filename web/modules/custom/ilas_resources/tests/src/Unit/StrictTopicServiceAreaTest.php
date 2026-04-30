@@ -48,7 +48,7 @@ class StrictTopicServiceAreaTest extends UnitTestCase {
     // Mock the entity type manager and term storage.
     $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
     $termStorage = $this->createMock(EntityStorageInterface::class);
-    
+
     $this->entityTypeManager->expects($this->any())
       ->method('getStorage')
       ->with('taxonomy_term')
@@ -58,7 +58,7 @@ class StrictTopicServiceAreaTest extends UnitTestCase {
     $configuration = [];
     $plugin_id = 'strict_topic_service_area';
     $plugin_definition = [];
-    
+
     $this->filter = new StrictTopicServiceArea(
       $configuration,
       $plugin_id,
@@ -68,7 +68,8 @@ class StrictTopicServiceAreaTest extends UnitTestCase {
 
     // Mock the view.
     $this->view = $this->createMock(ViewExecutable::class);
-    $this->view->args = [123]; // Service area TID
+    // Service area TID.
+    $this->view->args = [123];
     $this->filter->view = $this->view;
   }
 
@@ -77,9 +78,12 @@ class StrictTopicServiceAreaTest extends UnitTestCase {
    */
   public function testPostExecuteFiltersCorrectly() {
     // Create mock nodes and terms.
-    $topic1 = $this->createMockTerm(1, [123]); // Has service area 123
-    $topic2 = $this->createMockTerm(2, [456]); // Different service area
-    $topic3 = $this->createMockTerm(3, [123, 456]); // Has both
+    // Has service area 123.
+    $topic1 = $this->createMockTerm(1, [123]);
+    // Different service area.
+    $topic2 = $this->createMockTerm(2, [456]);
+    // Has both.
+    $topic3 = $this->createMockTerm(3, [123, 456]);
 
     // Mock term storage to return our topics.
     $termStorage = $this->entityTypeManager->getStorage('taxonomy_term');
@@ -93,10 +97,14 @@ class StrictTopicServiceAreaTest extends UnitTestCase {
       ]);
 
     // Create mock nodes.
-    $node1 = $this->createMockNode([1]); // Should pass (topic has service area 123)
-    $node2 = $this->createMockNode([2]); // Should be filtered out
-    $node3 = $this->createMockNode([3]); // Should pass (topic has service area 123)
-    $node4 = $this->createMockNode([1, 2]); // Should pass (has topic 1)
+    // Should pass (topic has service area 123)
+    $node1 = $this->createMockNode([1]);
+    // Should be filtered out.
+    $node2 = $this->createMockNode([2]);
+    // Should pass (topic has service area 123)
+    $node3 = $this->createMockNode([3]);
+    // Should pass (has topic 1)
+    $node4 = $this->createMockNode([1, 2]);
 
     // Create result rows.
     $result = [
@@ -121,15 +129,15 @@ class StrictTopicServiceAreaTest extends UnitTestCase {
    */
   public function testPostExecuteWithNoArgument() {
     $this->view->args = [];
-    
+
     $result = [
       (object) ['_entity' => $this->createMockNode([1])],
       (object) ['_entity' => $this->createMockNode([2])],
     ];
-    
+
     $original_count = count($result);
     $this->filter->postExecute($result);
-    
+
     // Result should be unchanged.
     $this->assertCount($original_count, $result);
   }
@@ -139,24 +147,24 @@ class StrictTopicServiceAreaTest extends UnitTestCase {
    */
   protected function createMockNode(array $topic_tids) {
     $node = $this->createMock(NodeInterface::class);
-    
+
     $field = $this->createMock(FieldItemListInterface::class);
     $field->expects($this->any())
       ->method('getValue')
-      ->willReturn(array_map(function($tid) {
+      ->willReturn(array_map(function ($tid) {
         return ['target_id' => $tid];
       }, $topic_tids));
-    
+
     $node->expects($this->any())
       ->method('hasField')
       ->with('field_topics')
       ->willReturn(TRUE);
-    
+
     $node->expects($this->any())
       ->method('get')
       ->with('field_topics')
       ->willReturn($field);
-    
+
     return $node;
   }
 
@@ -165,24 +173,24 @@ class StrictTopicServiceAreaTest extends UnitTestCase {
    */
   protected function createMockTerm($tid, array $service_area_tids) {
     $term = $this->createMock(TermInterface::class);
-    
+
     $field = $this->createMock(FieldItemListInterface::class);
     $field->expects($this->any())
       ->method('getValue')
-      ->willReturn(array_map(function($tid) {
+      ->willReturn(array_map(function ($tid) {
         return ['target_id' => $tid];
       }, $service_area_tids));
-    
+
     $term->expects($this->any())
       ->method('hasField')
       ->with('field_service_areas')
       ->willReturn(TRUE);
-    
+
     $term->expects($this->any())
       ->method('get')
       ->with('field_service_areas')
       ->willReturn($field);
-    
+
     return $term;
   }
 

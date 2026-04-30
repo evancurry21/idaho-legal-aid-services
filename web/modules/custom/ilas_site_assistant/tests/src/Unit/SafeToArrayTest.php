@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
  * Drupal's RouteProvider::getAllRoutes() returns an ArrayIterator, not an array.
  * Calling array_keys() on it crashes on PHP 8.x with:
  *   TypeError: array_keys(): Argument #1 ($array) must be of type array,
- *              ArrayIterator given
+ *              ArrayIterator given.
  *
  * This test verifies that the safe conversion pattern used in
  * scripts/drush/route-names.php works correctly for all iterable types.
@@ -71,7 +71,6 @@ class SafeToArrayTest extends TestCase {
     $iter = new \ArrayIterator(['a' => 1, 'b' => 2]);
 
     $this->expectException(\TypeError::class);
-    // @phpstan-ignore-next-line Intentional type error to verify PHP behavior.
     array_keys($iter);
   }
 
@@ -81,6 +80,9 @@ class SafeToArrayTest extends TestCase {
   public function testIteratorAggregate(): void {
     $aggregate = new class implements \IteratorAggregate {
 
+      /**
+       *
+       */
       public function getIterator(): \ArrayIterator {
         return new \ArrayIterator(['route.x' => 'X', 'route.y' => 'Y']);
       }

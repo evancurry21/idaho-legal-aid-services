@@ -47,7 +47,7 @@ class TestRunner {
   public function __construct(
     LoggerChannelFactoryInterface $logger_factory,
     MessengerInterface $messenger,
-    FileSystemInterface $file_system
+    FileSystemInterface $file_system,
   ) {
     $this->logger = $logger_factory->get('ilas_test');
     $this->messenger = $messenger;
@@ -59,30 +59,30 @@ class TestRunner {
    */
   public function runAllTests() {
     $this->logger->info('Starting comprehensive test suite');
-    
+
     $start_time = microtime(TRUE);
-    
-    // Run different test categories
+
+    // Run different test categories.
     $this->runUnitTests();
     $this->runIntegrationTests();
     $this->runFunctionalTests();
     $this->runPerformanceTests();
     $this->runSecurityTests();
     $this->runAccessibilityTests();
-    
+
     $end_time = microtime(TRUE);
     $duration = round($end_time - $start_time, 2);
-    
-    // Generate report
+
+    // Generate report.
     $report = $this->generateTestReport($duration);
-    
-    // Save report
+
+    // Save report.
     $this->saveTestReport($report);
-    
+
     $this->logger->info('Test suite completed in @duration seconds', [
       '@duration' => $duration,
     ]);
-    
+
     return $report;
   }
 
@@ -96,17 +96,17 @@ class TestRunner {
       'failed' => 0,
       'errors' => [],
     ];
-    
-    // Test donation manager
+
+    // Test donation manager.
     $this->testDonationManager();
-    
-    // Test event manager
+
+    // Test event manager.
     $this->testEventManager();
-    
-    // Test report generator
+
+    // Test report generator.
     $this->testReportGenerator();
-    
-    // Test sync service
+
+    // Test sync service.
     $this->testSyncService();
   }
 
@@ -120,17 +120,17 @@ class TestRunner {
       'failed' => 0,
       'errors' => [],
     ];
-    
-    // Test CiviCRM integration
+
+    // Test CiviCRM integration.
     $this->testCiviCrmIntegration();
-    
-    // Test payment processing
+
+    // Test payment processing.
     $this->testPaymentProcessing();
-    
-    // Test email notifications
+
+    // Test email notifications.
     $this->testEmailNotifications();
-    
-    // Test data synchronization
+
+    // Test data synchronization.
     $this->testDataSync();
   }
 
@@ -144,17 +144,17 @@ class TestRunner {
       'failed' => 0,
       'errors' => [],
     ];
-    
-    // Test user workflows
+
+    // Test user workflows.
     $this->testUserWorkflows();
-    
-    // Test form submissions
+
+    // Test form submissions.
     $this->testFormSubmissions();
-    
-    // Test navigation
+
+    // Test navigation.
     $this->testNavigation();
-    
-    // Test permissions
+
+    // Test permissions.
     $this->testPermissions();
   }
 
@@ -166,17 +166,17 @@ class TestRunner {
       'metrics' => [],
       'warnings' => [],
     ];
-    
-    // Test page load times
+
+    // Test page load times.
     $this->testPageLoadTimes();
-    
-    // Test database queries
+
+    // Test database queries.
     $this->testDatabasePerformance();
-    
-    // Test cache effectiveness
+
+    // Test cache effectiveness.
     $this->testCachePerformance();
-    
-    // Test concurrent users
+
+    // Test concurrent users.
     $this->testConcurrency();
   }
 
@@ -188,17 +188,17 @@ class TestRunner {
       'vulnerabilities' => [],
       'passed_checks' => [],
     ];
-    
-    // Test access controls
+
+    // Test access controls.
     $this->testAccessControls();
-    
-    // Test input validation
+
+    // Test input validation.
     $this->testInputValidation();
-    
-    // Test XSS protection
+
+    // Test XSS protection.
     $this->testXssProtection();
-    
-    // Test SQL injection protection
+
+    // Test SQL injection protection.
     $this->testSqlInjectionProtection();
   }
 
@@ -211,17 +211,17 @@ class TestRunner {
       'warnings' => [],
       'compliance_level' => 'Unknown',
     ];
-    
-    // Test WCAG compliance
+
+    // Test WCAG compliance.
     $this->testWcagCompliance();
-    
-    // Test keyboard navigation
+
+    // Test keyboard navigation.
     $this->testKeyboardNavigation();
-    
-    // Test screen reader compatibility
+
+    // Test screen reader compatibility.
     $this->testScreenReaderCompatibility();
-    
-    // Test color contrast
+
+    // Test color contrast.
     $this->testColorContrast();
   }
 
@@ -237,13 +237,13 @@ class TestRunner {
    */
   protected function testCiviCrmIntegration() {
     $test_name = 'CiviCRM Integration';
-    
+
     try {
       \Drupal::service('civicrm')->initialize();
-      
-      // Test API connectivity
+
+      // Test API connectivity.
       $result = civicrm_api3('System', 'get', []);
-      
+
       if ($result['is_error'] == 0) {
         $this->recordTestResult('integration', $test_name, TRUE);
       }
@@ -266,22 +266,22 @@ class TestRunner {
       '/donate' => 2.5,
       '/admin/reports/dashboard' => 5.0,
     ];
-    
+
     foreach ($pages as $path => $threshold) {
       $start = microtime(TRUE);
-      
+
       try {
-        // Simulate page load
+        // Simulate page load.
         $response = \Drupal::httpClient()->get(\Drupal::request()->getSchemeAndHttpHost() . $path);
-        
+
         $load_time = microtime(TRUE) - $start;
-        
+
         $this->results['performance']['metrics'][$path] = [
           'load_time' => round($load_time, 3),
           'threshold' => $threshold,
           'passed' => $load_time <= $threshold,
         ];
-        
+
         if ($load_time > $threshold) {
           $this->results['performance']['warnings'][] = sprintf(
             'Page %s loaded in %s seconds (threshold: %s)',
@@ -315,10 +315,10 @@ class TestRunner {
         'should_allow' => FALSE,
       ],
     ];
-    
+
     foreach ($test_cases as $test) {
       $passed = $this->checkAccessControl($test['path'], $test['permission'], $test['should_allow']);
-      
+
       if ($passed) {
         $this->results['security']['passed_checks'][] = sprintf(
           'Access control for %s',
@@ -340,18 +340,18 @@ class TestRunner {
   protected function testWcagCompliance() {
     $pages = ['/', '/events', '/donate'];
     $total_issues = 0;
-    
+
     foreach ($pages as $page) {
-      // This would use a real accessibility testing tool
+      // This would use a real accessibility testing tool.
       $issues = $this->checkPageAccessibility($page);
-      
+
       if (!empty($issues)) {
         $this->results['accessibility']['issues'][$page] = $issues;
         $total_issues += count($issues);
       }
     }
-    
-    // Determine compliance level
+
+    // Determine compliance level.
     if ($total_issues == 0) {
       $this->results['accessibility']['compliance_level'] = 'AA';
     }
@@ -368,7 +368,7 @@ class TestRunner {
    */
   protected function recordTestResult($category, $test_name, $passed, $error = NULL) {
     $this->results[$category]['total']++;
-    
+
     if ($passed) {
       $this->results[$category]['passed']++;
     }
@@ -391,7 +391,7 @@ class TestRunner {
       'results' => $this->results,
       'summary' => $this->generateSummary(),
     ];
-    
+
     return $report;
   }
 
@@ -402,7 +402,7 @@ class TestRunner {
     $total_tests = 0;
     $total_passed = 0;
     $total_failed = 0;
-    
+
     foreach (['unit', 'integration', 'functional'] as $category) {
       if (isset($this->results[$category])) {
         $total_tests += $this->results[$category]['total'];
@@ -410,9 +410,9 @@ class TestRunner {
         $total_failed += $this->results[$category]['failed'];
       }
     }
-    
+
     $pass_rate = $total_tests > 0 ? round(($total_passed / $total_tests) * 100, 1) : 0;
-    
+
     return [
       'total_tests' => $total_tests,
       'passed' => $total_passed,
@@ -430,12 +430,12 @@ class TestRunner {
   protected function saveTestReport($report) {
     $directory = 'private://test-reports';
     $this->fileSystem->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY);
-    
+
     $filename = 'test-report-' . date('Y-m-d-His') . '.json';
     $filepath = $directory . '/' . $filename;
-    
+
     file_put_contents($filepath, json_encode($report, JSON_PRETTY_PRINT));
-    
+
     $this->logger->info('Test report saved to @file', ['@file' => $filepath]);
   }
 
@@ -443,88 +443,149 @@ class TestRunner {
    * Helper methods for specific tests.
    */
   protected function testEventManager() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testReportGenerator() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testSyncService() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testPaymentProcessing() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testEmailNotifications() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testDataSync() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testUserWorkflows() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testFormSubmissions() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testNavigation() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testPermissions() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testDatabasePerformance() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testCachePerformance() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testConcurrency() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testInputValidation() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testXssProtection() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testSqlInjectionProtection() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testKeyboardNavigation() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testScreenReaderCompatibility() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function testColorContrast() {
-    // Implementation
+    // Implementation.
   }
 
+  /**
+   *
+   */
   protected function checkAccessControl($path, $permission, $should_allow) {
-    // Implementation
+    // Implementation.
     return TRUE;
   }
 
+  /**
+   *
+   */
   protected function checkPageAccessibility($page) {
-    // Implementation
+    // Implementation.
     return [];
   }
+
 }

@@ -183,7 +183,7 @@ class AssistantFlowRunner {
    *   require_followup_prompt: bool,
    *   max_turns: int,
    *   ttl_seconds: int
-   * }
+   *   }
    *   Normalized flow config.
    */
   private function getOfficeFollowupConfig(): array {

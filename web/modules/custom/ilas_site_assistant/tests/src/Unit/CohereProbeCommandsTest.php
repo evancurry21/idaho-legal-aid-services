@@ -24,11 +24,17 @@ use Symfony\Component\Console\Output\BufferedOutput;
 #[Group('ilas_site_assistant')]
 final class CohereProbeCommandsTest extends TestCase {
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testCommandPrintsJsonAndReturnsSuccessForExpectedProbe(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -47,6 +53,9 @@ final class CohereProbeCommandsTest extends TestCase {
     $this->assertArrayNotHasKey('api_key', $decoded);
   }
 
+  /**
+   *
+   */
   public function testCommandReturnsFailureWhenDisabled(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -61,6 +70,9 @@ final class CohereProbeCommandsTest extends TestCase {
     $this->assertSame(1, $command->cohereProbe());
   }
 
+  /**
+   *
+   */
   private function buildProbe(ClientInterface $client, bool $enabled): CohereGenerationProbe {
     $resolver = new LlmRuntimeConfigResolver($this->buildConfigFactory($enabled));
     return new CohereGenerationProbe(
@@ -70,6 +82,9 @@ final class CohereProbeCommandsTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   private function buildConfigFactory(bool $enabled): ConfigFactoryInterface {
     $values = [
       'llm.enabled' => $enabled,
@@ -87,14 +102,23 @@ final class CohereProbeCommandsTest extends TestCase {
     return $factory;
   }
 
+  /**
+   *
+   */
   private function buildState(): StateInterface {
-    return new class implements StateInterface {
+    return new class() implements StateInterface {
       private array $storage = [];
 
+      /**
+       *
+       */
       public function get($key, $default = NULL): mixed {
         return $this->storage[$key] ?? $default;
       }
 
+      /**
+       *
+       */
       public function getMultiple(array $keys): array {
         $values = [];
         foreach ($keys as $key) {
@@ -105,11 +129,17 @@ final class CohereProbeCommandsTest extends TestCase {
         return $values;
       }
 
+      /**
+       *
+       */
       public function set($key, $value = NULL) {
         $this->storage[$key] = $value;
         return $this;
       }
 
+      /**
+       *
+       */
       public function setMultiple(array $data) {
         foreach ($data as $key => $value) {
           $this->storage[$key] = $value;
@@ -117,11 +147,17 @@ final class CohereProbeCommandsTest extends TestCase {
         return $this;
       }
 
+      /**
+       *
+       */
       public function delete($key) {
         unset($this->storage[$key]);
         return TRUE;
       }
 
+      /**
+       *
+       */
       public function deleteMultiple(array $keys) {
         foreach ($keys as $key) {
           unset($this->storage[$key]);
@@ -129,15 +165,25 @@ final class CohereProbeCommandsTest extends TestCase {
         return TRUE;
       }
 
+      /**
+       *
+       */
       public function resetCache() {}
 
+      /**
+       *
+       */
       public function getValuesSetDuringRequest(string $key): ?array {
         $value = $this->storage[$key] ?? NULL;
         return is_array($value) ? $value : NULL;
       }
+
     };
   }
 
+  /**
+   *
+   */
   private function buildCohereResponse(string $text): Response {
     return new Response(200, [], json_encode([
       'message' => [

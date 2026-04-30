@@ -659,7 +659,8 @@ class LangfuseTracer {
           'metadata' => $metadata ?: NULL,
           'startTime' => $timestamp,
         ], fn($value) => $value !== NULL),
-      ]];
+      ]
+];
       $this->traceFinalized = TRUE;
     }
     catch (\Throwable $e) {

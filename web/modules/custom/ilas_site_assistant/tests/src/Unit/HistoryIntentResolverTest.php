@@ -99,9 +99,12 @@ class HistoryIntentResolverTest extends TestCase {
   public function testStaleHistoryIgnored(): void {
     $now = 1000000;
     $history = [
-      $this->entry('topic_housing', $now - 700),  // >600s ago
-      $this->entry('topic_housing', $now - 650),  // >600s ago
-      $this->entry('topic_housing', $now - 620),  // >600s ago
+    // >600s ago
+      $this->entry('topic_housing', $now - 700),
+    // >600s ago
+      $this->entry('topic_housing', $now - 650),
+    // >600s ago
+      $this->entry('topic_housing', $now - 620),
     ];
 
     $result = HistoryIntentResolver::resolveFromHistory(
@@ -267,7 +270,7 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * extractTopicContext returns area from enriched history entry.
+   * ExtractTopicContext returns area from enriched history entry.
    */
   public function testExtractTopicContextReturnsArea(): void {
     $history = [
@@ -294,7 +297,7 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * extractTopicContext returns NULL when no area in history.
+   * ExtractTopicContext returns NULL when no area in history.
    */
   public function testExtractTopicContextReturnsNullWithoutArea(): void {
     $history = [
@@ -311,7 +314,7 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * resolveFromHistory includes topic_context in return.
+   * ResolveFromHistory includes topic_context in return.
    */
   public function testResolveFromHistoryIncludesTopicContext(): void {
     $now = 1000000;
@@ -337,7 +340,7 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * resolveFromHistory infers topic_context for old entries without area.
+   * ResolveFromHistory infers topic_context for old entries without area.
    */
   public function testResolveFromHistoryTopicContextInferredWithoutArea(): void {
     $now = 1000000;

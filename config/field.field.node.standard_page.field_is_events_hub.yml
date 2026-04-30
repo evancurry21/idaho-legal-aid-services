@@ -1,0 +1,23 @@
+uuid: 72b3c97d-3ba4-454b-a7e0-8eb139fad368
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_is_events_hub
+    - node.type.standard_page
+id: node.standard_page.field_is_events_hub
+field_name: field_is_events_hub
+entity_type: node
+bundle: standard_page
+label: 'Is Events Hub'
+description: 'When checked, this standard page is treated as the Events hub: it receives the custom Events hub node template and the page-level custom layout class. There should be exactly one Events hub at a time.'
+required: false
+translatable: true
+default_value:
+  -
+    value: 0
+default_value_callback: ''
+settings:
+  on_label: 'On'
+  off_label: 'Off'
+field_type: boolean

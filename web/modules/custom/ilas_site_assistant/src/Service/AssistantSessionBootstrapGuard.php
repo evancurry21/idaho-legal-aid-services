@@ -66,7 +66,7 @@ final class AssistantSessionBootstrapGuard {
    *     rate_limit_per_hour: int,
    *     observation_window_hours: int
    *   }
-   * }
+   *   }
    *   Guard decision payload.
    */
   public function evaluate(Request $request): array {
@@ -169,7 +169,7 @@ final class AssistantSessionBootstrapGuard {
    *   rate_limit_per_minute: int,
    *   rate_limit_per_hour: int,
    *   observation_window_hours: int
-   * }
+   *   }
    *   Normalized thresholds.
    */
   private function getThresholds(): array {

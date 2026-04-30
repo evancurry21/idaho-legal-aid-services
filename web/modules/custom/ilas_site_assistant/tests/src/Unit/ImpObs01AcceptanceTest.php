@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\Core\State\StateInterface;
+use Drupal\Core\Queue\QueueFactory;
+use Drupal\Core\Queue\QueueInterface;
+use Sentry\ExceptionDataBag;
+use Sentry\Event;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\ilas_site_assistant\EventSubscriber\SentryOptionsSubscriber;
@@ -21,7 +26,7 @@ use Symfony\Component\Yaml\Yaml;
  *
  * Validates Sentry and Langfuse story completion:
  * - Sentry: synthetic events get environment tags, PII scrubbed, runbook doc-lock
- * - Langfuse: full lifecycle, queue health, install config policy-cap
+ * - Langfuse: full lifecycle, queue health, install config policy-cap.
  */
 #[Group('ilas_site_assistant')]
 class ImpObs01AcceptanceTest extends TestCase {
@@ -87,7 +92,7 @@ class ImpObs01AcceptanceTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage('User email john@example.com called from 208-555-1234');
     $sentryEvent->setTags([
       'pantheon_env' => 'test',
@@ -141,7 +146,7 @@ class ImpObs01AcceptanceTest extends TestCase {
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
     // Test message redaction.
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setMessage($allPii);
     $result = $callback($event, NULL);
     $this->assertNotNull($result);
@@ -150,9 +155,9 @@ class ImpObs01AcceptanceTest extends TestCase {
     }
 
     // Test exception redaction.
-    $event2 = \Sentry\Event::createEvent();
+    $event2 = Event::createEvent();
     $exception = new \RuntimeException($allPii);
-    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $exceptionBag = new ExceptionDataBag($exception);
     $event2->setExceptions([$exceptionBag]);
     $result2 = $callback($event2, NULL);
     $this->assertNotNull($result2);
@@ -161,7 +166,7 @@ class ImpObs01AcceptanceTest extends TestCase {
     }
 
     // Test extra context redaction.
-    $event3 = \Sentry\Event::createEvent();
+    $event3 = Event::createEvent();
     $event3->setExtra(['context' => $allPii]);
     $result3 = $callback($event3, NULL);
     $this->assertNotNull($result3);
@@ -235,23 +240,23 @@ class ImpObs01AcceptanceTest extends TestCase {
     $slo->method('getQueueMaxDepth')->willReturn(100);
 
     // Build a queue stub reporting 50 items (50% utilization, below 80%).
-    $healthyQueue = $this->createStub(\Drupal\Core\Queue\QueueInterface::class);
+    $healthyQueue = $this->createStub(QueueInterface::class);
     $healthyQueue->method('numberOfItems')->willReturn(50);
 
-    $healthyQueueFactory = $this->createStub(\Drupal\Core\Queue\QueueFactory::class);
+    $healthyQueueFactory = $this->createStub(QueueFactory::class);
     $healthyQueueFactory->method('get')->willReturn($healthyQueue);
 
-    $state = $this->createStub(\Drupal\Core\State\StateInterface::class);
+    $state = $this->createStub(StateInterface::class);
 
     $monitor = new QueueHealthMonitor($healthyQueueFactory, $state);
     $status = $monitor->getQueueHealthStatus($slo);
     $this->assertSame('healthy', $status['status']);
 
     // Build a queue stub reporting 90 items (90% utilization, above 80%).
-    $backloggedQueue = $this->createStub(\Drupal\Core\Queue\QueueInterface::class);
+    $backloggedQueue = $this->createStub(QueueInterface::class);
     $backloggedQueue->method('numberOfItems')->willReturn(90);
 
-    $backloggedQueueFactory = $this->createStub(\Drupal\Core\Queue\QueueFactory::class);
+    $backloggedQueueFactory = $this->createStub(QueueFactory::class);
     $backloggedQueueFactory->method('get')->willReturn($backloggedQueue);
 
     $backlogMonitor = new QueueHealthMonitor($backloggedQueueFactory, $state);

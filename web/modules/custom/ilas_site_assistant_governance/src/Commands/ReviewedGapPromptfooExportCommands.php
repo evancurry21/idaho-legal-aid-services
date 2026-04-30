@@ -44,15 +44,17 @@ final class ReviewedGapPromptfooExportCommands extends DrushCommands {
    * @usage ilas:export-reviewed-gaps-to-promptfoo --write
    *   Write promptfoo-evals/output/reviewed-gaps.candidate.yaml.
    */
-  public function exportReviewedGapsToPromptfoo(array $options = [
-    'days' => ReviewedGapPromptfooCandidateExporter::DEFAULT_DAYS,
-    'limit' => ReviewedGapPromptfooCandidateExporter::DEFAULT_LIMIT,
-    'states' => 'reviewed,resolved',
-    'output' => self::DEFAULT_RELATIVE_OUTPUT,
-    'write' => FALSE,
-    'include-held' => FALSE,
-    'include-archived' => FALSE,
-  ]): int {
+  public function exportReviewedGapsToPromptfoo(
+    array $options = [
+      'days' => ReviewedGapPromptfooCandidateExporter::DEFAULT_DAYS,
+      'limit' => ReviewedGapPromptfooCandidateExporter::DEFAULT_LIMIT,
+      'states' => 'reviewed,resolved',
+      'output' => self::DEFAULT_RELATIVE_OUTPUT,
+      'write' => FALSE,
+      'include-held' => FALSE,
+      'include-archived' => FALSE,
+    ],
+  ): int {
     $write = $this->toBool($options['write'] ?? FALSE);
     $output_path = $this->resolveOutputPath((string) ($options['output'] ?? self::DEFAULT_RELATIVE_OUTPUT));
 

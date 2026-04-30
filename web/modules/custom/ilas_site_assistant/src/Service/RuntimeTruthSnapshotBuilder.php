@@ -1096,9 +1096,9 @@ class RuntimeTruthSnapshotBuilder {
       'resource_server_engine' => $resourceEngine,
       'server_alignment_ok' => $serverAligned,
       'runtime_ready' => $apiKeyPresent
-        && $providerId === 'ilas_voyage'
-        && $modelId === 'voyage-law-2'
-        && $serverAligned,
+      && $providerId === 'ilas_voyage'
+      && $modelId === 'voyage-law-2'
+      && $serverAligned,
     ];
   }
 

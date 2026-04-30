@@ -20,11 +20,17 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class RuntimeTruthSnapshotBuilderTest extends TestCase {
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testBuildSnapshotReportsCohereProviderAndRedactsSecrets(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -84,6 +90,9 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
     $this->assertStringNotContainsString('vertex-secret-value', $json);
   }
 
+  /**
+   *
+   */
   public function testLangfuseOverrideChannelDefaultsToLiveOnlyTogglePolicy(): void {
     new Settings([
       'ilas_observability' => ['environment' => 'local'],
@@ -107,6 +116,9 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public function testFallbackRuntimeReadyUsesCohereSettingWhenEnhancerUnavailable(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -130,6 +142,9 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   private function buildConfigFactory(bool $llmEnabled): ConfigFactoryInterface {
     $assistant = [
       'llm' => [
@@ -225,6 +240,9 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
     return $factory;
   }
 
+  /**
+   *
+   */
   private function buildStorage(bool $llmEnabled): StorageInterface {
     $storage = $this->createStub(StorageInterface::class);
     $storage->method('read')
@@ -285,6 +303,9 @@ final class RuntimeTruthSnapshotBuilderTest extends TestCase {
     return $storage;
   }
 
+  /**
+   *
+   */
   private static function nestedValue(array $data, string $key): mixed {
     $cursor = $data;
     foreach (explode('.', $key) as $segment) {

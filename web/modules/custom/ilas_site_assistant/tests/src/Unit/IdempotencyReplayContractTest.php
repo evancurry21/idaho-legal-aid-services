@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -78,6 +81,9 @@ class IdempotencyReplayContractTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
@@ -178,8 +184,8 @@ class IdempotencyReplayContractTest extends TestCase {
       $cache,
       $logger,
       assistant_flow_runner: $this->createStub(AssistantFlowRunner::class),
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      selection_registry: new SelectionRegistry(new TopIntentsPack()),
+      selection_state_store: new SelectionStateStore($cache),
       pre_routing_decision_engine: new PreRoutingDecisionEngine($policyFilter),
     );
 
@@ -217,7 +223,7 @@ class IdempotencyReplayContractTest extends TestCase {
   // ─── Test 1: Valid UUID4 header accepted ──────────────────────────────
 
   /**
-   * resolveCorrelationId accepts a valid UUID4 header and returns it.
+   * ResolveCorrelationId accepts a valid UUID4 header and returns it.
    */
   public function testValidUuid4HeaderAccepted(): void {
     $controller = $this->buildController();
@@ -233,7 +239,7 @@ class IdempotencyReplayContractTest extends TestCase {
   // ─── Test 2: Missing header generates new UUID4 ──────────────────────
 
   /**
-   * resolveCorrelationId generates a valid UUID4 when header is missing.
+   * ResolveCorrelationId generates a valid UUID4 when header is missing.
    */
   public function testMissingHeaderGeneratesNewUuid4(): void {
     $controller = $this->buildController();
@@ -247,7 +253,7 @@ class IdempotencyReplayContractTest extends TestCase {
   // ─── Test 3: Invalid header generates new UUID4 ──────────────────────
 
   /**
-   * resolveCorrelationId rejects an invalid header and generates a new UUID4.
+   * ResolveCorrelationId rejects an invalid header and generates a new UUID4.
    */
   public function testInvalidHeaderGeneratesNewUuid4(): void {
     $controller = $this->buildController();
@@ -263,7 +269,7 @@ class IdempotencyReplayContractTest extends TestCase {
   // ─── Test 4: UUID v1 header rejected ─────────────────────────────────
 
   /**
-   * resolveCorrelationId rejects UUID v1 and generates a new UUID4.
+   * ResolveCorrelationId rejects UUID v1 and generates a new UUID4.
    */
   public function testUuidV1HeaderRejected(): void {
     $controller = $this->buildController();
@@ -280,7 +286,7 @@ class IdempotencyReplayContractTest extends TestCase {
   // ─── Test 5: Injection attempt header rejected ───────────────────────
 
   /**
-   * resolveCorrelationId rejects XSS payload and generates a new UUID4.
+   * ResolveCorrelationId rejects XSS payload and generates a new UUID4.
    */
   public function testInjectionAttemptHeaderRejected(): void {
     $controller = $this->buildController();
@@ -296,7 +302,7 @@ class IdempotencyReplayContractTest extends TestCase {
   // ─── Test 6: jsonResponse includes X-Correlation-ID header ───────────
 
   /**
-   * jsonResponse sets X-Correlation-ID header when request_id is provided.
+   * JsonResponse sets X-Correlation-ID header when request_id is provided.
    */
   public function testJsonResponseIncludesCorrelationIdHeader(): void {
     $controller = $this->buildController();
@@ -316,7 +322,7 @@ class IdempotencyReplayContractTest extends TestCase {
   // ─── Test 7: jsonResponse body request_id matches header ─────────────
 
   /**
-   * jsonResponse body request_id equals the X-Correlation-ID header.
+   * JsonResponse body request_id equals the X-Correlation-ID header.
    */
   public function testJsonResponseBodyRequestIdMatchesHeader(): void {
     $controller = $this->buildController();
@@ -336,7 +342,7 @@ class IdempotencyReplayContractTest extends TestCase {
   // ─── Test 8: jsonResponse omits X-Correlation-ID when empty ──────────
 
   /**
-   * jsonResponse does not set X-Correlation-ID when request_id is empty.
+   * JsonResponse does not set X-Correlation-ID when request_id is empty.
    */
   public function testJsonResponseOmitsCorrelationIdWhenEmpty(): void {
     $controller = $this->buildController();

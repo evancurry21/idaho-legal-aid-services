@@ -52,6 +52,10 @@ conversation_logging:
   redact_pii: true
   show_user_notice: true
 llm:
+  # NOTE: Active deployment config keeps this FALSE so CI / local dev never
+  # silently depend on live Cohere. Production enables it via Drupal Settings
+  # override (`$settings['ilas_site_assistant_llm_enabled'] = TRUE;` or admin
+  # form). See VectorRetrievalLiveEnablementTest for the matching guardrail.
   enabled: false
   provider: cohere
   model: command-a-03-2025
@@ -106,12 +110,17 @@ retrieval_contract:
     - faq_vector
     - resource_vector
 vector_search:
+  # NOTE: Active deployment config keeps this FALSE so CI / local dev never
+  # silently call Pinecone. Production enables it through admin form or a
+  # Drupal Settings override; see VectorRetrievalLiveEnablementTest.
   enabled: false
   fallback_threshold: 2
   min_vector_score: 0.7
   score_normalization_factor: 100
   min_lexical_score: 0
 voyage:
+  # NOTE: Active deployment config keeps this FALSE so CI / local dev never
+  # call Voyage. Production enables it via admin form / Settings override.
   enabled: false
   rerank_model: rerank-2
   api_timeout: 3.0
@@ -263,7 +272,7 @@ cost_control:
   pricing:
     model: command-a-03-2025
     input_per_1m_tokens: 2.5
-    output_per_1m_tokens: 10
+    output_per_1m_tokens: 10.0
   alert_cooldown_minutes: 60
 langfuse:
   enabled: false

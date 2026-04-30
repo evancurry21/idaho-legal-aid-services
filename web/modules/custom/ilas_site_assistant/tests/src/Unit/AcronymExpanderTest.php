@@ -40,6 +40,9 @@ class AcronymExpanderTest extends TestCase {
     $this->assertArrayHasKey('snap', $map);
   }
 
+  /**
+ *
+ */
   #[DataProvider('acronymExpansionProvider')]
   public function testAcronymExpansion(string $input, string $expected_substring, string $description): void {
     $result = $this->expander->expand($input);
@@ -51,6 +54,9 @@ class AcronymExpanderTest extends TestCase {
     $this->assertNotEmpty($result['expansions'], "Expected at least one expansion for '$input'");
   }
 
+  /**
+   *
+   */
   public static function acronymExpansionProvider(): array {
     return [
       // === Domestic / Safety (5 cases) ===
@@ -119,6 +125,9 @@ class AcronymExpanderTest extends TestCase {
     ];
   }
 
+  /**
+ *
+ */
   #[DataProvider('noExpansionProvider')]
   public function testNoFalseExpansion(string $input, string $description): void {
     $result = $this->expander->expand($input);
@@ -128,6 +137,9 @@ class AcronymExpanderTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function noExpansionProvider(): array {
     return [
       ['I need help with divorce', 'No acronyms present'],

@@ -5,7 +5,7 @@
  * @file
  * Quick verification script for OOS response template changes.
  *
- * Run: php verify-oos-templates.php
+ * Run: php verify-oos-templates.php.
  */
 
 // Bootstrap the module classes.
@@ -189,12 +189,32 @@ echo "\nSafetyResponseTemplates: {$safety_passed} passed, {$safety_failed} faile
 // Golden dataset edge cases.
 echo "Testing Golden Dataset Edge Cases...\n";
 
-// Mock config factory for classifiers.
+/**
+ * Mock config factory for classifiers.
+ */
 class MockConfig {
-  public function get($key) { return []; }
+
+  /**
+   *
+   */
+  public function get($key) {
+    return [];
+  }
+
 }
+
+/**
+ *
+ */
 class MockConfigFactory {
-  public function get($name) { return new MockConfig(); }
+
+  /**
+   *
+   */
+  public function get($name) {
+    return new MockConfig();
+  }
+
 }
 
 $config_factory = new MockConfigFactory();
@@ -202,23 +222,23 @@ $oos_classifier = new OutOfScopeClassifier($config_factory);
 $safety_classifier = new SafetyClassifier($config_factory);
 
 $golden_cases = [
-  ['message' => 'I need a criminal defense lawyer', 'expected_oos' => true],
-  ['message' => 'can you help with my DUI', 'expected_oos' => true],
-  ['message' => 'I was arrested last night', 'expected_oos' => true],
-  ['message' => 'I live in Oregon can you help', 'expected_oos' => true],
-  ['message' => 'help with my washington state case', 'expected_oos' => true],
-  ['message' => 'immigration lawyer needed', 'expected_oos' => true],
-  ['message' => 'green card application help', 'expected_oos' => true],
-  ['message' => 'i want to sue for a million dollars', 'expected_oos' => true],
-  ['message' => 'help me start a business', 'expected_oos' => true],
-  ['message' => 'patent my invention', 'expected_oos' => true],
+  ['message' => 'I need a criminal defense lawyer', 'expected_oos' => TRUE],
+  ['message' => 'can you help with my DUI', 'expected_oos' => TRUE],
+  ['message' => 'I was arrested last night', 'expected_oos' => TRUE],
+  ['message' => 'I live in Oregon can you help', 'expected_oos' => TRUE],
+  ['message' => 'help with my washington state case', 'expected_oos' => TRUE],
+  ['message' => 'immigration lawyer needed', 'expected_oos' => TRUE],
+  ['message' => 'green card application help', 'expected_oos' => TRUE],
+  ['message' => 'i want to sue for a million dollars', 'expected_oos' => TRUE],
+  ['message' => 'help me start a business', 'expected_oos' => TRUE],
+  ['message' => 'patent my invention', 'expected_oos' => TRUE],
   // Edge cases.
-  ['message' => 'criminal record expungement', 'expected_oos' => true],
-  ['message' => 'asylum help needed', 'expected_oos' => true],
-  ['message' => 'startup LLC formation', 'expected_oos' => true],
+  ['message' => 'criminal record expungement', 'expected_oos' => TRUE],
+  ['message' => 'asylum help needed', 'expected_oos' => TRUE],
+  ['message' => 'startup LLC formation', 'expected_oos' => TRUE],
   // In-scope should pass.
-  ['message' => 'help with my eviction', 'expected_oos' => false],
-  ['message' => 'I need a divorce', 'expected_oos' => false],
+  ['message' => 'help with my eviction', 'expected_oos' => FALSE],
+  ['message' => 'I need a divorce', 'expected_oos' => FALSE],
 ];
 
 $golden_passed = 0;

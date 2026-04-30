@@ -6,7 +6,6 @@ namespace Drupal\ilas_site_assistant\Service;
 
 use Drupal\Core\Site\Settings;
 use GuzzleHttp\ClientInterface;
-use RuntimeException;
 
 /**
  * Cohere transport for bounded request-time classification calls.
@@ -55,7 +54,7 @@ class CohereLlmTransport implements RequestTimeLlmTransportInterface {
   public function completeStructuredJson(array $messages, array $schema, array $options = []): array {
     $api_key = $this->getApiKey();
     if ($api_key === '') {
-      throw new RuntimeException('Missing ILAS_COHERE_API_KEY runtime secret.');
+      throw new \RuntimeException('Missing ILAS_COHERE_API_KEY runtime secret.');
     }
 
     $response = $this->httpClient->request('POST', self::API_ENDPOINT, [
@@ -84,7 +83,7 @@ class CohereLlmTransport implements RequestTimeLlmTransportInterface {
     $body = json_decode((string) $response->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
     $text = $this->extractTextPayload($body);
     if ($text === '') {
-      throw new RuntimeException('Cohere response did not contain structured text content.');
+      throw new \RuntimeException('Cohere response did not contain structured text content.');
     }
 
     /** @var array<string, mixed> $payload */
@@ -110,7 +109,7 @@ class CohereLlmTransport implements RequestTimeLlmTransportInterface {
   public function completeText(array $messages, array $options = []): array {
     $api_key = $this->getApiKey();
     if ($api_key === '') {
-      throw new RuntimeException('Missing ILAS_COHERE_API_KEY runtime secret.');
+      throw new \RuntimeException('Missing ILAS_COHERE_API_KEY runtime secret.');
     }
 
     $response = $this->httpClient->request('POST', self::API_ENDPOINT, [

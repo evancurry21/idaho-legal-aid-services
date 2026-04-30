@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\ilas_site_assistant\Kernel;
 
+use Drupal\ilas_site_assistant\Service\PolicyFilter;
 use Drupal\KernelTests\KernelTestBase;
 
 /**
@@ -537,7 +538,7 @@ abstract class AssistantKernelTestBase extends KernelTestBase {
    */
   protected function createMockPolicyFilter() {
     $configFactory = $this->createMockConfigFactory();
-    return new \Drupal\ilas_site_assistant\Service\PolicyFilter($configFactory);
+    return new PolicyFilter($configFactory);
   }
 
   /**

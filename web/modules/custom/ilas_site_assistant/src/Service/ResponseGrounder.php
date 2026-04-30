@@ -8,7 +8,7 @@ namespace Drupal\ilas_site_assistant\Service;
  * Ensures responses:
  * - Cite sources (title + link) for retrieved content
  * - Don't invent addresses, phone numbers, or facts not in retrieved content
- * - Include appropriate caveats for legal information
+ * - Include appropriate caveats for legal information.
  */
 class ResponseGrounder {
 
@@ -203,12 +203,30 @@ class ResponseGrounder {
       $freshness = $result['freshness']['status'] ?? 'unknown';
 
       if ($url) {
-        $sources[] = [
+        $source = [
           'title' => $this->truncateTitle($title, 60),
           'url' => $url,
           'type' => $result['type'] ?? 'resource',
           'freshness' => $freshness,
+          'supported' => TRUE,
         ];
+        // Carry through any source_class / topic metadata the retrieval layer
+        // attached. These are non-PII signals the public response contract
+        // exposes for grounding-proof and topic-specificity assertions.
+        if (!empty($result['source_class']) && is_string($result['source_class'])) {
+          $source['source_class'] = $result['source_class'];
+        }
+        if (!empty($result['source']) && is_string($result['source'])) {
+          $source['source'] = $result['source'];
+        }
+        foreach (['topic', 'topic_id', 'category'] as $topic_key) {
+          if (!empty($result[$topic_key])) {
+            $source[$topic_key] = is_array($result[$topic_key])
+              ? reset($result[$topic_key])
+              : $result[$topic_key];
+          }
+        }
+        $sources[] = $source;
       }
     }
 

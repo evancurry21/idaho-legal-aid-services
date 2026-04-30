@@ -101,7 +101,7 @@ class DonationInquiryController extends ControllerBase {
     LanguageManagerInterface $languageManager,
     ClientInterface $httpClient,
     LoggerChannelFactoryInterface $loggerFactory,
-    FloodInterface $flood
+    FloodInterface $flood,
   ) {
     $this->donationMailManager = $mailManager;
     $this->donationEmailValidator = $emailValidator;

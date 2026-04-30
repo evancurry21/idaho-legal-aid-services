@@ -1,7 +1,28 @@
+critical-styles:
+  version: 1.0
+  header: true
+  css:
+    base:
+      css/critical.css: { weight: -500 }
+
 global-styling:
   css:
     theme:
       css/style.css: {}
+
+ga4:
+  version: 1.0
+  header: true
+  js:
+    js/ga4-init.js: { weight: -100 }
+  dependencies:
+    - core/drupalSettings
+
+admin-toolbar-state:
+  version: 1.0
+  header: true
+  js:
+    js/admin-toolbar-state.js: { weight: -200 }
 
 # bootstrap-icons library removed - not used in any templates
 # Savings: ~87KB CSS

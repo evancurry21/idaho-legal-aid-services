@@ -2,7 +2,6 @@
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
-use Drupal;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
@@ -101,13 +100,13 @@ class LangfuseExportWorkerTest extends TestCase {
   private function withQueueHealthMonitor(QueueHealthMonitor $monitor, callable $callback): void {
     $container = new ContainerBuilder();
     $container->set('ilas_site_assistant.queue_health_monitor', $monitor);
-    Drupal::setContainer($container);
+    \Drupal::setContainer($container);
 
     try {
       $callback();
     }
     finally {
-      Drupal::setContainer(new ContainerBuilder());
+      \Drupal::setContainer(new ContainerBuilder());
     }
   }
 

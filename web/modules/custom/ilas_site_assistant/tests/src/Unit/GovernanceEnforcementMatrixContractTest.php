@@ -167,7 +167,7 @@ final class GovernanceEnforcementMatrixContractTest extends TestCase {
   }
 
   /**
-   * getEnforcementLevel() throws on unknown signals.
+   * GetEnforcementLevel() throws on unknown signals.
    */
   public function testGetEnforcementLevelThrowsOnUnknownSignal(): void {
     $this->expectException(\InvalidArgumentException::class);

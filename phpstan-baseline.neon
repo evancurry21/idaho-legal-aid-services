@@ -1,0 +1,1031 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 2
+			path: web/modules/custom/employment_application/src/Commands/EmploymentApplicationCommands.php
+
+		-
+			message: '#^Access to an undefined property Drupal\\Core\\Field\\FieldItemInterface\:\:\$entity\.$#'
+			identifier: property.notFound
+			count: 1
+			path: web/modules/custom/employment_application/src/Controller/EmploymentApplicationController.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Database\\Query\\ExtendableInterface\:\:limit\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/employment_application/src/Controller/EmploymentApplicationController.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 9
+			path: web/modules/custom/employment_application/src/Controller/EmploymentApplicationController.php
+
+		-
+			message: '''
+				#^Fetching deprecated class constant EXISTS_RENAME of interface Drupal\\Core\\File\\FileSystemInterface\:
+				in drupal\:10\.3\.0 and is removed from drupal\:12\.0\.0\. Use
+				\\Drupal\\Core\\File\\FileExists\:\:Rename instead\.$#
+			'''
+			identifier: classConstant.deprecated
+			count: 1
+			path: web/modules/custom/employment_application/src/Controller/EmploymentApplicationController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/employment_application/src/Controller/EmploymentApplicationController.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 6
+			path: web/modules/custom/employment_application/src/Controller/EmploymentApplicationController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/employment_application/src/Form/ApplicationDeleteForm.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 1
+			path: web/modules/custom/employment_application/src/Form/ApplicationDeleteForm.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Field\\FieldItemInterface\:\:getUrl\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_adept/ilas_adept.module
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Field\\FieldItemInterface\:\:getUrl\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_announcement_overlay/ilas_announcement_overlay.module
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Field\\FieldItemInterface\:\:getUrl\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_announcement_overlay/src/Plugin/Block/HomepageAnnouncementOverlayBlock.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_announcement_overlay/src/Plugin/Block/HomepageAnnouncementOverlayBlock.php
+
+		-
+			message: '#^Static method Drupal\\Component\\Serialization\\Json\:\:decode\(\) invoked with 2 parameters, 1 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: web/modules/custom/ilas_donation_inquiry/src/Controller/DonationInquiryController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_donation_inquiry/src/Controller/DonationInquiryController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_hotspot/src/Plugin/Block/IlasHotspotBlock.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 2
+			path: web/modules/custom/ilas_hotspot/src/Plugin/Block/IlasHotspotBlock.php
+
+		-
+			message: '#^Cannot access property \$alias on array\|object\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: web/modules/custom/ilas_redirect_automation/src/Service/PathMatcherService.php
+
+		-
+			message: '#^Array has 2 duplicate keys with value ''Pensions'' \(''Pensions'', ''Pensions''\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: web/modules/custom/ilas_resources/ilas_resources.post_update.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_resources/src/Plugin/views/argument/CurrentServiceTid.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_resources/src/Plugin/views/filter/StrictTopicServiceArea.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\taxonomy\\TermStorage\:\:expects\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_resources/tests/src/Unit/StrictTopicServiceAreaTest.php
+
+		-
+			message: '#^Access to an undefined property Drupal\\Core\\Field\\FieldItemInterface\:\:\$country_code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: web/modules/custom/ilas_seo/ilas_seo.module
+
+		-
+			message: '#^Access to an undefined property Drupal\\Core\\Field\\FieldItemInterface\:\:\$end_value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: web/modules/custom/ilas_seo/ilas_seo.module
+
+		-
+			message: '#^Access to an undefined property Drupal\\Core\\Field\\FieldItemInterface\:\:\$value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: web/modules/custom/ilas_seo/ilas_seo.module
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: web/modules/custom/ilas_seo/ilas_seo.module
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:hasField\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_seo/ilas_seo.module
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Field\\FieldItemInterface\:\:getUrl\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: web/modules/custom/ilas_seo/ilas_seo.module
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Access\\AccessResultInterface\:\:setCacheMaxAge\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Access/AssistantDiagnosticsAccessCheck.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Access\\AccessResultInterface\:\:setCacheMaxAge\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/Access/StrictCsrfRequestHeaderAccessCheck.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/Commands/KbImportCommands.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Commands/SentryProbeCommands.php
+
+		-
+			message: '#^Call to an undefined static method Drupal\\ilas_site_assistant\\Service\\ObservabilityPayloadMinimizer\:\:hashText\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+		-
+			message: '#^Call to an undefined static method Drupal\\ilas_site_assistant\\Service\\ObservabilityPayloadMinimizer\:\:lengthBucket\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+		-
+			message: '#^Variable \$request_id on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+		-
+			message: '#^Variable \$response_menu_signature on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+		-
+			message: '#^Variable \$vector_provider on left side of \?\? always exists and is always null\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantPageController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantReportController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Controller/AssistantSessionBootstrapController.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/LangfuseTerminateSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:assetCandidateUrls\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:assetUrlReferencesStaleOwner\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:ensureMinimumContext\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:hasAssetControllerSignal\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:hasBadRequestHttpException\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:isBodyLikeKey\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:isDrupalAggregateAssetUrl\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:isHandledExceptionEvent\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:isMalformedAggregateAssetUrl\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:isSensitiveKey\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:isTransientAiProviderException\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:isTransientProviderMessage\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:mergeObservabilityTags\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:queryArgumentsFromUrl\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:resolveRuntimeContext\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:sanitizeTransactionName\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:scrubEvent\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:scrubStructuredValue\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe call to private method Drupal\\ilas_site_assistant\\EventSubscriber\\SentryOptionsSubscriber\:\:telemetryTagsFromExtra\(\) through static\:\:\.$#'
+			identifier: staticClassAccess.privateMethod
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/EventSubscriber/SentryOptionsSubscriber.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Plugin/QueueWorker/LangfuseExportWorker.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/Plugin/QueueWorker/LangfuseExportWorker.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/Service/AnalyticsLogger.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/src/Service/ConversationLogger.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 11
+			path: web/modules/custom/ilas_site_assistant/src/Service/FaqIndex.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Service/KeywordExtractor.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\ilas_site_assistant\\Service\\LlmCircuitBreaker\:\:canAttempt\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 13
+			path: web/modules/custom/ilas_site_assistant/src/Service/ResourceFinder.php
+
+		-
+			message: '#^Function Drupal\\Tests\\ilas_site_assistant\\checkMatch invoked with 2 parameters, 4 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/IntentRouterHarness.php
+
+		-
+			message: '#^Function Drupal\\Tests\\ilas_site_assistant\\checkMatch invoked with 3 parameters, 4 required\.$#'
+			identifier: arguments.count
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/tests/IntentRouterHarness.php
+
+		-
+			message: '#^Call to an undefined method GuzzleHttp\\ClientInterface\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php
+
+		-
+			message: '#^Call to an undefined method GuzzleHttp\\ClientInterface\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantApiFunctionalTest.php
+
+		-
+			message: '#^Call to an undefined method GuzzleHttp\\ClientInterface\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php
+
+		-
+			message: '#^Call to an undefined method GuzzleHttp\\ClientInterface\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php
+
+		-
+			message: '#^Call to an undefined method GuzzleHttp\\ClientInterface\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantMultiTurnFunctionalTest.php
+
+		-
+			message: '#^Call to an undefined method GuzzleHttp\\ClientInterface\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantMultiTurnFunctionalTest.php
+
+		-
+			message: '#^Cannot access property \$count on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$date on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$event_type on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$event_value on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 8
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$language_hint on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$length_bucket on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$query_hash on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$redaction_profile on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/AnalyticsLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$message_hash on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$message_length_bucket on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$redaction_profile on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/ConversationLoggerKernelTest.php
+
+		-
+			message: '#^Cannot access property \$count on array\|object\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/SearchAnalyticsKernelTest.php
+
+		-
+			message: '#^Cannot access property \$count on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/SearchAnalyticsKernelTest.php
+
+		-
+			message: '#^Cannot access property \$event_type on array\|object\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/SearchAnalyticsKernelTest.php
+
+		-
+			message: '#^Cannot access property \$event_value on array\|object\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/SearchAnalyticsKernelTest.php
+
+		-
+			message: '#^Cannot access property \$event_value on array\|object\|false\.$#'
+			identifier: property.nonObject
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Kernel/SearchAnalyticsKernelTest.php
+
+		-
+			message: '#^Method Drupal\\Tests\\ilas_site_assistant\\Support\\MultilingualRoutingEvalConfigFactory\:\:clearStaticCache\(\) should return \$this\(Drupal\\Tests\\ilas_site_assistant\\Support\\MultilingualRoutingEvalConfigFactory\) but return statement is missing\.$#'
+			identifier: return.missing
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Support/MultilingualRoutingEvalRunner.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantApiControllerDebugGuardTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\ilas_site_assistant\\Form\\AssistantSettingsForm\:\:publicBuildLegalServerRuntimeNotice\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/AssistantSettingsFormLegalServerSummaryTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/CitationFreshnessEnforcementTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/CohereGenerationProbeTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/CohereProbeCommandsTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Access\\CsrfTokenGenerator\:\:method\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/CsrfAuthMatrixTest.php
+
+		-
+			message: '#^Call to an undefined method Psr\\Log\\LoggerInterface\:\:expects\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/CsrfAuthMatrixTest.php
+
+		-
+			message: '#^PHPDoc tag @return with type Drupal\\Core\\Session\\AccountInterface\|PHPUnit\\Framework\\MockObject\\MockObject is not subtype of native type Drupal\\Core\\Session\\AccountInterface\.$#'
+			identifier: return.phpDocType
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/CsrfAuthMatrixTest.php
+
+		-
+			message: '#^PHPDoc tag @var for property Drupal\\Tests\\ilas_site_assistant\\Unit\\CsrfAuthMatrixTest\:\:\$csrfTokenGenerator with type Drupal\\Core\\Access\\CsrfTokenGenerator\|PHPUnit\\Framework\\MockObject\\MockObject is not subtype of native type Drupal\\Core\\Access\\CsrfTokenGenerator\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/CsrfAuthMatrixTest.php
+
+		-
+			message: '#^PHPDoc tag @var for property Drupal\\Tests\\ilas_site_assistant\\Unit\\CsrfAuthMatrixTest\:\:\$logger with type PHPUnit\\Framework\\MockObject\\MockObject\|Psr\\Log\\LoggerInterface is not subtype of native type Psr\\Log\\LoggerInterface\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/CsrfAuthMatrixTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\search_api\\Item\\ItemInterface\:\:getPayload\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/DependencyFailureDegradeContractTest.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$index$#'
+			identifier: parameter.notFound
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/DependencyFailureDegradeContractTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\search_api\\Item\\ItemInterface\:\:getPayload\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/FaqLanguageIsolationTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/GovernanceEnforcementMatrixContractTest.php
+
+		-
+			message: '#^Variable \$controller might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/IdempotencyReplayContractTest.php
+
+		-
+			message: '#^Variable \$request might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/IdempotencyReplayContractTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseExportWorkerTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseProbeCommandTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseStatusCommandsOutputTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseTerminateSubscriberTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/LangfuseTraceLookupServiceTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmEnhancerHardeningTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/LlmRuntimeConfigResolverTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/LoggerInjectionContractTest.php
+
+		-
+			message: '#^Variable \$stored on left side of \?\? always exists and is always null\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/PerformanceMonitorTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/ResourceFinderDocumentRetrievalTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/ResponseContractNormalizationTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/ResponseGrounderTest.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$index$#'
+			identifier: parameter.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/RetrievalColdStartGuardTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\search_api\\IndexInterface\:\:method\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/RetrievalConfigurationServiceTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/RetrievalConfigurationServiceTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/RuntimeDiagnosticsCommandsTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/RuntimeDiagnosticsMatrixContractTest.php
+
+		-
+			message: '#^Access to an undefined property Drupal\\ilas_site_assistant\\Controller\\AssistantApiController\:\:\$forcedRepeatCount\.$#'
+			identifier: property.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/SelectionNavigationContractTest.php
+
+		-
+			message: '#^Call to an undefined method ReflectionType\:\:getName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/SentryProbeCommandTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/SourceGovernanceServiceTest.php
+
+		-
+			message: '''
+				#^Call to deprecated method isType\(\) of class PHPUnit\\Framework\\Assert\:
+				https\://github\.com/sebastianbergmann/phpunit/issues/6052$#
+			'''
+			identifier: staticMethod.deprecated
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/SourceGovernanceServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\search_api\\IndexInterface\:\:expects\(\)\.$#'
+			identifier: method.notFound
+			count: 35
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorIndexHygieneServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\search_api\\Tracker\\TrackerInterface\:\:method\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorIndexHygieneServiceTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorIndexHygieneServiceTest.php
+
+		-
+			message: '''
+				#^Call to deprecated method isType\(\) of class PHPUnit\\Framework\\Assert\:
+				https\://github\.com/sebastianbergmann/phpunit/issues/6052$#
+			'''
+			identifier: staticMethod.deprecated
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorIndexHygieneServiceTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\search_api\\IndexInterface\:\:expects\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorMaintenanceCommandsTest.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\search_api\\Tracker\\TrackerInterface\:\:method\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorMaintenanceCommandsTest.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/VectorMaintenanceCommandsTest.php
+
+		-
+			message: '#^Method Drupal\\Core\\Database\\Schema\:\:addIndex\(\) invoked with 3 parameters, 4 required\.$#'
+			identifier: arguments.count
+			count: 2
+			path: web/modules/custom/ilas_site_assistant_governance/ilas_site_assistant_governance.install
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:setNewRevision\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: web/modules/custom/ilas_site_assistant_governance/ilas_site_assistant_governance.post_update.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:setRevisionLogMessage\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: web/modules/custom/ilas_site_assistant_governance/ilas_site_assistant_governance.post_update.php
+
+		-
+			message: '#^Cannot call method execute\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/ilas_site_assistant_governance.post_update.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 2
+			path: web/modules/custom/ilas_site_assistant_governance/src/AssistantGapItemListBuilder.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Controller/GapReviewWorkflowController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Controller/GovernanceConversationController.php
+
+		-
+			message: '#^Call to an undefined static method Drupal\\Core\\Form\\ConfirmFormBase\:\:cancelForm\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Form/AssistantGapItemBulkDispositionForm.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\ContentEntityInterface\|Drupal\\Core\\Entity\\RevisionLogInterface\:\:getReviewState\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Form/AssistantGapItemForm.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Form/AssistantGapItemForm.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Plugin/Action/AssignAssistantGapItemToCurrentUser.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Plugin/Action/AssistantGapItemDeferredCloseActionBase.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Plugin/Action/AssistantGapItemFlagActionBase.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Plugin/Action/AssistantGapItemStateActionBase.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Plugin/Action/PlaceAssistantGapItemLegalHold.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Plugin/Action/ReleaseAssistantGapItemLegalHold.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: web/modules/custom/ilas_site_assistant_governance/src/Service/GapItemManager.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:set\(\)\.$#'
+			identifier: method.notFound
+			count: 6
+			path: web/modules/custom/ilas_site_assistant_governance/src/Service/GapItemManager.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:setNewRevision\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Service/GapItemManager.php
+
+		-
+			message: '#^Call to an undefined method Drupal\\Core\\Entity\\EntityInterface\:\:setRevisionLogMessage\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/src/Service/GapItemManager.php
+
+		-
+			message: '#^Call to an undefined method GuzzleHttp\\ClientInterface\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/tests/src/Functional/GapReviewLoggingFunctionalTest.php
+
+		-
+			message: '#^Call to an undefined method GuzzleHttp\\ClientInterface\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_site_assistant_governance/tests/src/Functional/GapReviewLoggingFunctionalTest.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_test/src/Controller/TestDashboardController.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 1
+			path: web/modules/custom/ilas_test/src/Controller/TestDashboardController.php
+
+		-
+			message: '#^Unsafe usage of new static\(\)\.$#'
+			identifier: new.static
+			count: 1
+			path: web/modules/custom/ilas_test/src/Form/ExecuteTestsForm.php
+
+		-
+			message: '#^Function civicrm_api3 not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: web/modules/custom/ilas_test/src/TestRunner.php
+
+		-
+			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
+			identifier: globalDrupalDependencyInjection.useDependencyInjection
+			count: 3
+			path: web/modules/custom/ilas_test/src/TestRunner.php
+
+		-
+			message: '#^Call to an undefined method Psr\\Http\\Client\\ClientInterface\:\:request\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_voyage_ai_provider/src/Plugin/AiProvider/VoyageAiProvider.php
+
+		-
+			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: web/modules/custom/ilas_voyage_ai_provider/tests/src/Unit/VoyageAiProviderTest.php
+
+		-
+			message: '#^Access to an undefined property Drupal\\Core\\Field\\FieldItemInterface\:\:\$entity\.$#'
+			identifier: property.notFound
+			count: 1
+			path: web/themes/custom/b5subtheme/b5subtheme.theme

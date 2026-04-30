@@ -28,9 +28,14 @@ class DependencyFailureDegradeContractTest extends TestCase {
 
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
+
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
+
     });
 
     \Drupal::setContainer($container);
@@ -67,25 +72,51 @@ class DependencyFailureDegradeContractTest extends TestCase {
   public function testFaqSearchApiQueryFailureFallsBackToLegacy(): void {
     $legacy = [['id' => 'faq_legacy', 'score' => 7.5, 'source' => 'legacy']];
     $index = new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
+      /**
+       *
+       */
       public function query(): object {
         return new class {
+
+          /**
+           *
+           */
           public function keys(string $query): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function range(int $start, int $length): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function addCondition(string $field, string $value): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function execute(): object {
             throw new \RuntimeException('Search backend timeout');
           }
+
         };
       }
+
     };
 
     $faq = new ContractFaqIndex($index, $legacy);
@@ -119,28 +150,58 @@ class DependencyFailureDegradeContractTest extends TestCase {
   public function testResourceSearchApiQueryFailureFallsBackToLegacy(): void {
     $legacy = [['id' => 202, 'score' => 8.0, 'source' => 'legacy']];
     $index = new class {
+
+      /**
+       *
+       */
       public function id(): string {
         return 'assistant_resources';
       }
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
+      /**
+       *
+       */
       public function query(): object {
         return new class {
+
+          /**
+           *
+           */
           public function keys(string $query): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function addCondition(string $field, string|int $value): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function range(int $start, int $length): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function execute(): object {
             throw new \RuntimeException('Search API transport failure');
           }
+
         };
       }
+
     };
 
     $finder = new ContractResourceFinder($index, $legacy);
@@ -163,7 +224,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
       'parent_url' => '/resources/evictions',
       'url' => '/resources/evictions#faq-1',
       'source_url' => '/resources/evictions#faq-1',
-    ]];
+    ]
+];
     $faq = new ContractFaqIndex(
       NULL,
       [],
@@ -208,7 +270,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
       'parent_url' => '/resources/evictions',
       'url' => '/resources/evictions#faq-1',
       'source_url' => '/resources/evictions#faq-1',
-    ]];
+    ]
+];
     $vector_config = ['enabled' => TRUE, 'fallback_threshold' => 2, 'min_lexical_score' => 0];
     $index = new FakeFaqSearchIndex($lexical);
 
@@ -219,7 +282,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
       'elapsed_ms' => 2501,
       'cacheable' => FALSE,
       'items' => [],
-    ]]);
+    ]
+]);
 
     $first_result = $first->search('eviction notice', 3);
 
@@ -246,7 +310,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
           'source_url' => '/resources/evictions#faq-99',
         ],
       ],
-    ]]);
+    ]
+]);
 
     $second_result = $second->search('eviction notice', 3);
 
@@ -269,7 +334,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
       'parent_url' => '/resources/custody',
       'url' => '/resources/custody#faq-1',
       'source_url' => '/resources/custody#faq-1',
-    ]];
+    ]
+];
     $healthy = new CacheAwareFaqIndex(
       $healthy_cache,
       new FakeFaqSearchIndex($lexical),
@@ -291,7 +357,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
             'source_url' => '/resources/custody#faq-42',
           ],
         ],
-      ]]
+      ]
+]
     );
 
     $healthy_result = $healthy->search('custody', 3);
@@ -330,7 +397,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
       'elapsed_ms' => 2100,
       'cacheable' => FALSE,
       'items' => [],
-    ]]);
+    ]
+]);
 
     $first_result = $first->findResources('forms');
 
@@ -349,7 +417,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
       'items' => [
         ['id' => 9, 'score' => 80.0, 'source' => 'vector'],
       ],
-    ]]);
+    ]
+]);
 
     $second_result = $second->findResources('forms');
 
@@ -374,7 +443,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
         'parent_url' => '/resources/evictions',
         'url' => '/resources/evictions#faq-1',
         'source_url' => '/resources/evictions#faq-1',
-      ]]),
+      ]
+]),
       ['enabled' => TRUE, 'fallback_threshold' => 2, 'min_lexical_score' => 0],
       [[
         'attempted' => TRUE,
@@ -383,7 +453,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
         'elapsed_ms' => NULL,
         'cacheable' => FALSE,
         'items' => [],
-      ]]
+      ]
+]
     );
 
     $faq->search('eviction notice', 3);
@@ -401,7 +472,8 @@ class DependencyFailureDegradeContractTest extends TestCase {
         'items' => [
           ['id' => 9, 'score' => 80.0, 'source' => 'vector'],
         ],
-      ]]
+      ]
+]
     );
 
     $result = $resource->findResources('guides');
@@ -696,9 +768,14 @@ class CacheAwareResourceFinder extends ResourceFinder {
    */
   protected function getIndex() {
     return new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
     };
   }
 
@@ -752,10 +829,16 @@ final class FakeFaqSearchIndex {
 
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function status(): bool {
     return TRUE;
   }
 
+  /**
+   *
+   */
   public function query(): FakeFaqSearchQuery {
     return new FakeFaqSearchQuery($this->items);
   }
@@ -772,20 +855,32 @@ final class FakeFaqSearchQuery {
 
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function keys(string $query): self {
     return $this;
   }
 
+  /**
+   *
+   */
   public function range(int $start, int $length): self {
     $this->start = $start;
     $this->length = $length;
     return $this;
   }
 
+  /**
+   *
+   */
   public function addCondition(string $field, string $value): self {
     return $this;
   }
 
+  /**
+   *
+   */
   public function execute(): FakeFaqSearchResultSet {
     return new FakeFaqSearchResultSet(array_slice($this->items, $this->start, $this->length));
   }
@@ -799,6 +894,9 @@ final class FakeFaqSearchResultSet {
 
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function getResultItems(): array {
     return array_map(static fn(array $payload) => new FakeFaqSearchResultItem($payload), $this->items);
   }
@@ -812,6 +910,9 @@ final class FakeFaqSearchResultItem {
 
   public function __construct(private array $payload) {}
 
+  /**
+   *
+   */
   public function getPayload(): array {
     return $this->payload;
   }

@@ -8,3 +8,13 @@ services:
     class: Drupal\ilas_seo\EventSubscriber\CspEnhancementSubscriber
     tags:
       - { name: event_subscriber }
+  ilas_seo.graph_builder:
+    class: Drupal\ilas_seo\StructuredData\GraphBuilder
+    arguments:
+      - '@path.matcher'
+      - '@router.admin_context'
+      - '@current_route_match'
+      - '@request_stack'
+      - '@entity_field.manager'
+      - '@breadcrumb'
+      - '@title_resolver'

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -50,6 +53,9 @@ final class OfficeFollowupGuardContractTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
@@ -112,8 +118,8 @@ final class OfficeFollowupGuardContractTest extends TestCase {
       $cache,
       new NullLogger(),
       assistant_flow_runner: $assistantFlowRunner,
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      selection_registry: new SelectionRegistry(new TopIntentsPack()),
+      selection_state_store: new SelectionStateStore($cache),
     );
   }
 
@@ -310,37 +316,62 @@ final class OfficeFollowupTestableController extends AssistantApiController {
     return [];
   }
 
+  /**
+   *
+   */
   public function exposedLoadOfficeFollowupState(string $conversation_id, string $session_fingerprint = ''): ?array {
     return $this->loadOfficeFollowupState($conversation_id, $session_fingerprint);
   }
 
+  /**
+   *
+   */
   public function exposedSaveOfficeFollowupState(string $conversation_id, array $state, string $session_fingerprint = ''): void {
     $this->saveOfficeFollowupState($conversation_id, $state, $session_fingerprint);
   }
 
+  /**
+   *
+   */
   public function exposedIsLocationLikeOfficeReply(string $message): bool {
     return $this->isLocationLikeOfficeReply($message);
   }
 
+  /**
+   *
+   */
   public function exposedIsExplicitOfficeFollowupTurn(string $message): bool {
     return $this->isExplicitOfficeFollowupTurn($message);
   }
 
+  /**
+   *
+   */
   public function exposedIsOfficeDetailRequest(string $message): bool {
     return $this->isOfficeDetailRequest($message);
   }
 
+  /**
+   *
+   */
   public function exposedResolveOfficeFromMessageOrHistory(string $message, array $server_history, OfficeLocationResolver $resolver): ?array {
     return $this->resolveOfficeFromMessageOrHistory($message, $server_history, $resolver);
   }
 
+  /**
+   *
+   */
   public function exposedProcessIntent(array $intent, string $message, array $server_history): array {
     return $this->processIntent($intent, $message, [], 'req-unit-test', $server_history);
   }
 
+  /**
+   *
+   */
   public function exposedIsExplicitServiceAreaShift(string $message, string $historyArea): bool {
     return $this->isExplicitServiceAreaShift($message, $historyArea);
   }
+
 }
 
 /**
@@ -371,10 +402,16 @@ final class RecordingConversationStateStore extends ConversationStateStore {
     $this->currentTime = $currentTime ?? time();
   }
 
+  /**
+   *
+   */
   public function setCurrentTime(int $currentTime): void {
     $this->currentTime = $currentTime;
   }
 
+  /**
+   *
+   */
   public function loadOfficeFollowupState(string $conversation_id, string $session_fingerprint = ''): ?array {
     $row = $this->rows[$conversation_id] ?? NULL;
     if (!is_array($row)) {
@@ -407,6 +444,9 @@ final class RecordingConversationStateStore extends ConversationStateStore {
     ];
   }
 
+  /**
+   *
+   */
   public function saveOfficeFollowupState(string $conversation_id, array $state, string $session_fingerprint, int $ttl_seconds): void {
     if ($conversation_id === '') {
       return;
@@ -429,6 +469,9 @@ final class RecordingConversationStateStore extends ConversationStateStore {
     $this->saveCalls[] = ['conversation_id' => $conversation_id, 'ttl_seconds' => $ttl_seconds] + $row;
   }
 
+  /**
+   *
+   */
   public function clear(string $conversation_id): void {
     unset($this->rows[$conversation_id]);
   }

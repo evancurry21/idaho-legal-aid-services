@@ -1,0 +1,122 @@
+          <fieldset class="wizard-step" data-step="3" role="group" aria-labelledby="step3-heading" hidden>
+            <div class="step-header">
+              <h2 id="step3-heading">Application Questions</h2>
+            </div>
+            
+            <div class="step-content">
+              <div class="form-grid">
+                
+                {# Attorney-Specific Questions #}
+                <div id="attorney-questions" class="attorney-specific-section" style="display: none;">
+                  
+                  <div class="form-group">
+                    <label for="idaho_bar_licensed" class="form-label required">
+                      Are you currently licensed to practice law in Idaho?
+                      <span class="visually-hidden">(required)</span>
+                    </label>
+                    <select id="idaho_bar_licensed" 
+                            name="idaho_bar_licensed" 
+                            class="form-control" 
+                            required
+                            aria-required="true">
+                      <option value="">Please select</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                      <option value="licensed_other_state">Licensed in Another State</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="aba_law_school" class="form-label required">
+                      Have you graduated from an ABA-accredited law school?
+                      <span class="visually-hidden">(required)</span>
+                    </label>
+                    <select id="aba_law_school" 
+                            name="aba_law_school" 
+                            class="form-control" 
+                            required
+                            aria-required="true">
+                      <option value="">Please select</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="bar_discipline" class="form-label required">
+                      Have you ever been subject to discipline by any state bar association?
+                      <span class="visually-hidden">(required)</span>
+                    </label>
+                    <select id="bar_discipline" 
+                            name="bar_discipline" 
+                            class="form-control" 
+                            required
+                            aria-required="true">
+                      <option value="">Please select</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </div>
+
+                </div>
+
+                {# Universal Questions for All Positions #}
+                <div class="universal-questions-section">
+
+                  {# Sensitive Background Section #}
+                  <div class="sensitive-questions-section">
+                    <p class="sensitive-questions-intro">We have a few questions we ask applicants due to the sensitive nature of some of our legal work.</p>
+                    
+                    <div class="form-group">
+                      <label for="criminal_conviction" class="form-label required">
+                        Have you ever been charged with or convicted of a misdemeanor or felony related to domestic violence or other violent crime(s)?
+                        <span class="visually-hidden">(required)</span>
+                      </label>
+                      <select id="criminal_conviction" 
+                              name="criminal_conviction" 
+                              class="form-control" 
+                              required
+                              aria-required="true">
+                        <option value="">Please select</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="protection_order" class="form-label required">
+                        Have you ever been the subject of a civil protection order or restraining order?
+                        <span class="visually-hidden">(required)</span>
+                      </label>
+                      <select id="protection_order" 
+                              name="protection_order" 
+                              class="form-control" 
+                              required
+                              aria-required="true">
+                        <option value="">Please select</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label for="sexual_harassment" class="form-label required">
+                        Have you ever been found by an employer to have engaged in sexual harassment?
+                        <span class="visually-hidden">(required)</span>
+                      </label>
+                      <select id="sexual_harassment" 
+                              name="sexual_harassment" 
+                              class="form-control" 
+                              required
+                              aria-required="true">
+                        <option value="">Please select</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                      </select>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </fieldset>

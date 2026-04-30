@@ -29,15 +29,24 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
 
   private const MATRIX_BUILDER_SERVICE = 'ilas_site_assistant.runtime_diagnostics_matrix_builder';
 
+  /**
+   *
+   */
   private static function repoRoot(): string {
     return dirname(__DIR__, 7);
   }
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testRuntimeDiagnosticsPrintsRequestedSectionAsJson(): void {
     $builder = $this->buildMatrixBuilder();
 
@@ -66,6 +75,9 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
     $this->assertNotContains('llm.google_generation_reachable', array_column($decoded, 'fact_key'));
   }
 
+  /**
+   *
+   */
   public function testRuntimeDiagnosticsFailsWhenBuilderServiceIsMissing(): void {
     $container = $this->createMock(ContainerInterface::class);
     $container->method('has')->with(self::MATRIX_BUILDER_SERVICE)->willReturn(FALSE);
@@ -80,6 +92,9 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
     $this->assertSame(1, $command->runtimeDiagnostics());
   }
 
+  /**
+   *
+   */
   public function testDrushServicesUseServiceContainerForRuntimeDiagnostics(): void {
     $drushServicesPath = self::repoRoot() . '/web/modules/custom/ilas_site_assistant/drush.services.yml';
     $this->assertFileExists($drushServicesPath);
@@ -91,6 +106,9 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
     $this->assertSame(['@service_container'], $service['arguments'] ?? NULL);
   }
 
+  /**
+   *
+   */
   private function buildMatrixBuilder(): RuntimeDiagnosticsMatrixBuilder {
     new Settings([
       'ilas_site_assistant_legalserver_online_application_url' => 'https://example.com/intake?pid=60&h=test',
@@ -164,6 +182,9 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   private function buildRetrievalConfiguration(): RetrievalConfigurationService {
     $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')
@@ -213,9 +234,14 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
       });
 
     $server = new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
     };
     $servers = [
       'database' => $server,
@@ -242,6 +268,9 @@ final class RuntimeDiagnosticsCommandsTest extends TestCase {
     return new RetrievalConfigurationService($configFactory, $entityTypeManager);
   }
 
+  /**
+   *
+   */
   private function buildIndex(string $serverId): IndexInterface {
     $index = $this->createMock(IndexInterface::class);
     $index->method('status')->willReturn(TRUE);

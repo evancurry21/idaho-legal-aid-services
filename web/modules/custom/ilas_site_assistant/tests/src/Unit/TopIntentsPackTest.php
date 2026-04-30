@@ -39,7 +39,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * getAllKeys returns a non-empty set of intent keys.
+   * GetAllKeys returns a non-empty set of intent keys.
    */
   public function testGetAllKeysNonEmpty(): void {
     $keys = $this->pack->getAllKeys();
@@ -48,14 +48,14 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * lookup returns NULL for unknown keys.
+   * Lookup returns NULL for unknown keys.
    */
   public function testLookupUnknownReturnsNull(): void {
     $this->assertNull($this->pack->lookup('nonexistent_intent_xyz'));
   }
 
   /**
-   * lookup returns full entry for a known intent.
+   * Lookup returns full entry for a known intent.
    */
   public function testLookupKnownReturnsEntry(): void {
     $entry = $this->pack->lookup('apply_for_help');
@@ -68,7 +68,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * getChips returns non-empty array for known intents.
+   * GetChips returns non-empty array for known intents.
    */
   public function testGetChipsReturnsArray(): void {
     $chips = $this->pack->getChips('topic_family');
@@ -82,7 +82,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * getChips returns empty array for unknown intents.
+   * GetChips returns empty array for unknown intents.
    */
   public function testGetChipsUnknownReturnsEmpty(): void {
     $chips = $this->pack->getChips('nonexistent_xyz');
@@ -90,7 +90,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * getClarifier returns NULL for intents without clarifiers.
+   * GetClarifier returns NULL for intents without clarifiers.
    */
   public function testGetClarifierReturnsNull(): void {
     $clarifier = $this->pack->getClarifier('apply_for_help');
@@ -98,7 +98,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * matchSynonyms finds "custody" -> topic_family_custody.
+   * MatchSynonyms finds "custody" -> topic_family_custody.
    */
   public function testMatchSynonymsCustody(): void {
     $result = $this->pack->matchSynonyms('custody');
@@ -106,7 +106,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * matchSynonyms finds "eviction" -> topic_housing_eviction.
+   * MatchSynonyms finds "eviction" -> topic_housing_eviction.
    */
   public function testMatchSynonymsEviction(): void {
     $result = $this->pack->matchSynonyms('eviction');
@@ -114,7 +114,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * matchSynonyms finds Spanish synonym.
+   * MatchSynonyms finds Spanish synonym.
    */
   public function testMatchSynonymsSpanish(): void {
     $result = $this->pack->matchSynonyms('custodia');
@@ -122,7 +122,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * matchSynonyms returns NULL for gibberish.
+   * MatchSynonyms returns NULL for gibberish.
    */
   public function testMatchSynonymsNoMatch(): void {
     $result = $this->pack->matchSynonyms('qwerty asdf zxcvb');
@@ -228,7 +228,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * getClarifier returns structured data for intents with clarifiers.
+   * GetClarifier returns structured data for intents with clarifiers.
    */
   public function testGetClarifierReturnsStructuredData(): void {
     foreach (['topic_housing', 'topic_family', 'topic_consumer'] as $key) {
@@ -246,7 +246,7 @@ class TopIntentsPackTest extends TestCase {
   }
 
   /**
-   * getClarifier returns NULL for intents without clarifiers defined.
+   * GetClarifier returns NULL for intents without clarifiers defined.
    */
   public function testGetClarifierReturnsNullWhenNotDefined(): void {
     // Sub-topic intents should not have clarifiers.

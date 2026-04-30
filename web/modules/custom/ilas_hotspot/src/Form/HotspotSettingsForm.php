@@ -72,14 +72,15 @@ class HotspotSettingsForm extends ConfigFormBase {
   public function validateForm(array &$form, FormStateInterface $form_state) {
     parent::validateForm($form, $form_state);
 
-    // Validate JSON format
+    // Validate JSON format.
     $hotspot_data = $form_state->getValue('hotspot_data');
     if ($hotspot_data) {
       $decoded = json_decode($hotspot_data, TRUE);
       if (json_last_error() !== JSON_ERROR_NONE) {
         $form_state->setErrorByName('hotspot_data', $this->t('Hotspot data must be valid JSON.'));
-      } else {
-        // Validate required fields
+      }
+      else {
+        // Validate required fields.
         foreach ($decoded as $index => $hotspot) {
           if (!isset($hotspot['title']) || !isset($hotspot['content'])) {
             $form_state->setErrorByName('hotspot_data', $this->t('Hotspot #@num is missing required fields (title, content).', ['@num' => $index + 1]));
@@ -95,7 +96,7 @@ class HotspotSettingsForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $config = $this->config('ilas_hotspot.settings');
 
-    // Process hotspot data
+    // Process hotspot data.
     $hotspot_data = $form_state->getValue('hotspot_data');
     $hotspot_data_array = $hotspot_data ? json_decode($hotspot_data, TRUE) : [];
 

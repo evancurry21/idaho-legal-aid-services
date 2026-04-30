@@ -7,7 +7,6 @@ namespace Drupal\Tests\ilas_site_assistant\Unit;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * Contract tests locking PII redaction token constants and method contracts.
@@ -35,7 +34,7 @@ class PiiRedactorContractTest extends TestCase {
       'TOKEN_CASE',
     ];
 
-    $ref = new ReflectionClass(PiiRedactor::class);
+    $ref = new \ReflectionClass(PiiRedactor::class);
     $tokenConstants = array_filter(
       array_keys($ref->getConstants()),
       fn(string $name) => str_starts_with($name, 'TOKEN_'),
@@ -50,7 +49,7 @@ class PiiRedactorContractTest extends TestCase {
    * No TOKEN_* constant may be an empty string.
    */
   public function testTokenConstantValuesAreNonEmpty(): void {
-    $ref = new ReflectionClass(PiiRedactor::class);
+    $ref = new \ReflectionClass(PiiRedactor::class);
     $tokenConstants = array_filter(
       $ref->getConstants(),
       fn(string $name) => str_starts_with($name, 'TOKEN_'),
@@ -66,7 +65,7 @@ class PiiRedactorContractTest extends TestCase {
    * All TOKEN_* values must follow the bracketed format [REDACTED-TYPE].
    */
   public function testTokenConstantValuesFollowBracketedFormat(): void {
-    $ref = new ReflectionClass(PiiRedactor::class);
+    $ref = new \ReflectionClass(PiiRedactor::class);
     $tokenConstants = array_filter(
       $ref->getConstants(),
       fn(string $name) => str_starts_with($name, 'TOKEN_'),
@@ -86,7 +85,7 @@ class PiiRedactorContractTest extends TestCase {
    * All TOKEN_* values must be unique (no duplicate tokens).
    */
   public function testTokenConstantValuesAreUnique(): void {
-    $ref = new ReflectionClass(PiiRedactor::class);
+    $ref = new \ReflectionClass(PiiRedactor::class);
     $tokenConstants = array_filter(
       $ref->getConstants(),
       fn(string $name) => str_starts_with($name, 'TOKEN_'),
@@ -103,7 +102,7 @@ class PiiRedactorContractTest extends TestCase {
   }
 
   /**
-   * redactForStorage() must truncate to 500 chars by default.
+   * RedactForStorage() must truncate to 500 chars by default.
    */
   public function testRedactForStorageDefaultTruncation(): void {
     // 600 chars of safe input (no PII to redact).
@@ -113,7 +112,7 @@ class PiiRedactorContractTest extends TestCase {
   }
 
   /**
-   * redactForLog() must truncate to 100 chars by default.
+   * RedactForLog() must truncate to 100 chars by default.
    */
   public function testRedactForLogDefaultTruncation(): void {
     // 200 chars of safe input (no PII to redact).

@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_site_assistant\Service;
 
+use Drupal\search_api\SearchApiException;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -186,10 +187,10 @@ class ResourceFinder {
     TopicResolver $topic_resolver,
     CacheBackendInterface $cache,
     LanguageManagerInterface $language_manager,
-    RankingEnhancer $ranking_enhancer = NULL,
-    ConfigFactoryInterface $config_factory = NULL,
-    RetrievalConfigurationService $retrieval_configuration = NULL,
-    SourceGovernanceService $source_governance = NULL,
+    ?RankingEnhancer $ranking_enhancer = NULL,
+    ?ConfigFactoryInterface $config_factory = NULL,
+    ?RetrievalConfigurationService $retrieval_configuration = NULL,
+    ?SourceGovernanceService $source_governance = NULL,
     ?TopIntentsPack $top_intents_pack = NULL,
     ?FileUrlGeneratorInterface $file_url_generator = NULL,
   ) {
@@ -1994,7 +1995,7 @@ class ResourceFinder {
       $level = 'error';
       $category = 'unexpected';
 
-      if ($e instanceof \Drupal\search_api\SearchApiException) {
+      if ($e instanceof SearchApiException) {
         $category = 'search_api';
         $level = 'warning';
       }

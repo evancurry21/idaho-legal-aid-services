@@ -169,7 +169,7 @@ final class VectorMaintenanceCommands extends DrushCommands {
       'embedding_model' => $embedding_model,
       'metric' => $observed['metric'] ?? ($expected['metric'] ?? NULL),
       'expected_dimensions' => $expected['dimensions']
-        ?? ($index_snapshot['expected_dimensions'] ?? NULL),
+      ?? ($index_snapshot['expected_dimensions'] ?? NULL),
       'actual_dimensions' => $observed['dimensions'] ?? NULL,
       'metadata_drift_fields' => array_values(is_array($index_snapshot['drift_fields'] ?? NULL) ? $index_snapshot['drift_fields'] : []),
       'hygiene_status' => $index_snapshot['status'] ?? 'unknown',

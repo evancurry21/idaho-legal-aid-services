@@ -34,7 +34,7 @@ class PhaseOneDeterministicDegradeContractTest extends TestCase {
   }
 
   /**
-   * current-state.md must formalize deterministic degrade behavior in 4B/4D.
+   * Current-state.md must formalize deterministic degrade behavior in 4B/4D.
    */
   public function testCurrentStateFormalizesDeterministicDependencyDegradeContracts(): void {
     $currentState = self::readFile('docs/aila/current-state.md');
@@ -49,7 +49,7 @@ class PhaseOneDeterministicDegradeContractTest extends TestCase {
   }
 
   /**
-   * runbook.md section 2 must include local deterministic degrade verification.
+   * Runbook.md section 2 must include local deterministic degrade verification.
    */
   public function testRunbookContainsDeterministicDependencyDegradeVerificationSteps(): void {
     $runbook = self::readFile('docs/aila/runbook.md');

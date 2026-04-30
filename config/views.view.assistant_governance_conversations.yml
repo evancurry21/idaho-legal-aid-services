@@ -21,59 +21,6 @@ display:
     position: 0
     display_options:
       title: 'Conversation Logs'
-      access:
-        type: perm
-        options:
-          perm: 'view assistant governance conversations'
-      cache:
-        type: tag
-        options: {  }
-      query:
-        type: views_query
-        options: {  }
-      exposed_form:
-        type: basic
-        options: {  }
-      pager:
-        type: full
-        options:
-          items_per_page: 50
-          offset: 0
-      style:
-        type: table
-        options:
-          columns:
-            conversation_id: conversation_id
-            last_message_at: last_message_at
-            exchange_count: exchange_count
-            last_intent: last_intent
-            last_response_type: last_response_type
-            has_unresolved_gap: has_unresolved_gap
-            has_no_answer: has_no_answer
-            is_held: is_held
-            latest_gap_item_id: latest_gap_item_id
-          default: last_message_at
-          info:
-            conversation_id:
-              sortable: false
-            last_message_at:
-              sortable: false
-            exchange_count:
-              sortable: false
-            last_intent:
-              sortable: false
-            last_response_type:
-              sortable: false
-            has_unresolved_gap:
-              sortable: false
-            has_no_answer:
-              sortable: false
-            is_held:
-              sortable: false
-            latest_gap_item_id:
-              sortable: false
-      row:
-        type: fields
       fields:
         conversation_id:
           id: conversation_id
@@ -533,7 +480,29 @@ display:
           empty_zero: true
           hide_alter_empty: true
           separator: ''
-      filters: {  }
+      pager:
+        type: full
+        options:
+          offset: 0
+          items_per_page: 50
+      exposed_form:
+        type: basic
+        options: {  }
+      access:
+        type: perm
+        options:
+          perm: 'view assistant governance conversations'
+      cache:
+        type: tag
+        options: {  }
+      empty:
+        area_text_custom:
+          id: area_text_custom
+          table: views
+          field: area_text_custom
+          plugin_id: text_custom
+          empty: true
+          content: 'No canonical conversation logs are available yet.'
       sorts:
         last_message_at:
           id: last_message_at
@@ -548,16 +517,47 @@ display:
             label: ''
             field_identifier: last_message_at
           exposed: false
-      empty:
-        area_text_custom:
-          id: area_text_custom
-          table: views
-          field: area_text_custom
-          plugin_id: text_custom
-          empty: true
-          content: 'No canonical conversation logs are available yet.'
-      relationships: {  }
       arguments: {  }
+      filters: {  }
+      style:
+        type: table
+        options:
+          columns:
+            conversation_id: conversation_id
+            last_message_at: last_message_at
+            exchange_count: exchange_count
+            last_intent: last_intent
+            last_response_type: last_response_type
+            has_unresolved_gap: has_unresolved_gap
+            has_no_answer: has_no_answer
+            is_held: is_held
+            latest_gap_item_id: latest_gap_item_id
+          default: last_message_at
+          info:
+            conversation_id:
+              sortable: false
+            last_message_at:
+              sortable: false
+            exchange_count:
+              sortable: false
+            last_intent:
+              sortable: false
+            last_response_type:
+              sortable: false
+            has_unresolved_gap:
+              sortable: false
+            has_no_answer:
+              sortable: false
+            is_held:
+              sortable: false
+            latest_gap_item_id:
+              sortable: false
+      row:
+        type: fields
+      query:
+        type: views_query
+        options: {  }
+      relationships: {  }
       header: {  }
       footer: {  }
   page_all:

@@ -9,7 +9,6 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * Source-level contract tests for RAUD-11 observability surfaces.
- *
  */
 #[Group('ilas_site_assistant')]
 class ObservabilitySurfaceContractTest extends TestCase {

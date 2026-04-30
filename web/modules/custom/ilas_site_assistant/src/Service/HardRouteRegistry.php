@@ -95,15 +95,24 @@ class HardRouteRegistry {
    * @var array
    */
   protected const SOFT_ROUTE_INTENTS = [
-    'navigation',      // URL comes from NavigationIntent detection.
-    'topic',           // URL comes from topic resolution.
-    'service_area',    // URL comes from intent['area'] parameter.
-    'disambiguation',  // URL depends on competing intents.
-    'clarify',         // Fallback URL is ok.
-    'greeting',        // No URL required.
-    'unknown',         // Fallback URL is ok.
-    'fallback',        // Fallback URL is ok.
-    'multi_intent',    // Handled specially.
+  // URL comes from NavigationIntent detection.
+    'navigation',
+  // URL comes from topic resolution.
+    'topic',
+  // URL comes from intent['area'] parameter.
+    'service_area',
+  // URL depends on competing intents.
+    'disambiguation',
+  // Fallback URL is ok.
+    'clarify',
+  // No URL required.
+    'greeting',
+  // Fallback URL is ok.
+    'unknown',
+  // Fallback URL is ok.
+    'fallback',
+  // Handled specially.
+    'multi_intent',
   ];
 
   /**
@@ -138,7 +147,8 @@ class HardRouteRegistry {
 
     // Check for service_area with specific area.
     if ($intent_type === 'service_area') {
-      return FALSE; // service_area without specific area is soft-route.
+      // service_area without specific area is soft-route.
+      return FALSE;
     }
 
     return FALSE;

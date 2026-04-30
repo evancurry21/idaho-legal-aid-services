@@ -19,10 +19,16 @@ use Symfony\Component\Yaml\Yaml;
 #[Group('ilas_site_assistant')]
 final class VectorRetrievalLiveEnablementTest extends TestCase {
 
+  /**
+   *
+   */
   private static function repoRoot(): string {
     return dirname(__DIR__, 7);
   }
 
+  /**
+   *
+   */
   private static function readYaml(string $relativePath): array {
     $path = self::repoRoot() . '/' . ltrim($relativePath, '/');
     self::assertFileExists($path, "Expected YAML file does not exist: {$relativePath}");
@@ -31,6 +37,9 @@ final class VectorRetrievalLiveEnablementTest extends TestCase {
     return $parsed;
   }
 
+  /**
+   *
+   */
   public function testActiveConfigKeepsVectorAndVoyageDisabledByDefault(): void {
     $active = self::readYaml('config/ilas_site_assistant.settings.yml');
 
@@ -53,6 +62,9 @@ final class VectorRetrievalLiveEnablementTest extends TestCase {
     $this->assertNotEmpty($active['retrieval']['resource_vector_index_id'] ?? NULL);
   }
 
+  /**
+   *
+   */
   public function testProvenanceSmokeAssertsPineconeAndVoyage(): void {
     $script = self::repoRoot() . '/scripts/ci/run-vector-provenance-smoke.js';
     $this->assertFileExists($script);
@@ -70,6 +82,9 @@ final class VectorRetrievalLiveEnablementTest extends TestCase {
       'Smoke must fail when the assistant returns the generic OOS fallback.');
   }
 
+  /**
+   *
+   */
   public function testRunbookDocumentsLiveEnablement(): void {
     $runbook = self::repoRoot() . '/docs/aila/runbook.md';
     $this->assertFileExists($runbook);

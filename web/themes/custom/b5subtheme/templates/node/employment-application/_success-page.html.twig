@@ -1,0 +1,41 @@
+      <div class="application-success-server" role="main">
+        <div class="container">
+          <div class="success-content">
+            <div class="success-icon-wrapper">
+              <i class="fas fa-check-circle" aria-hidden="true"></i>
+            </div>
+            <h1>Application Submitted Successfully</h1>
+            <p class="success-message">Thank you for your interest in joining our team. We've received your application and will review it carefully.</p>
+
+            {% if application_id %}
+              <div class="application-reference">
+                <span class="reference-label">Your Application Reference:</span>
+                <span class="reference-id">{{ application_id }}</span>
+              </div>
+            {% endif %}
+
+            {% if application_position %}
+              <p class="success-position">
+                <strong>Position:</strong>
+                {{ application_position }}{% if application_location %} &mdash; {{ application_location }}{% endif %}
+              </p>
+            {% endif %}
+
+            <div class="next-steps">
+              <h2>What happens next?</h2>
+              <ul>
+                <li>We'll acknowledge receipt of your application within 24 hours</li>
+                <li>Our team will review your qualifications</li>
+                <li>If you're a good fit, we'll contact you within 1-2 weeks for next steps</li>
+              </ul>
+            </div>
+
+            <div class="success-actions">
+              <a href="/employment" class="btn btn-primary">
+                <i class="fas fa-briefcase" aria-hidden="true"></i> View Other Positions
+              </a>
+              <a href="/" class="btn btn-outline-secondary">Return Home</a>
+            </div>
+          </div>
+        </div>
+      </div>

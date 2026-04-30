@@ -119,7 +119,7 @@ class GapItemManager {
         && in_array($current_assignment_source, ['unknown', 'legacy_none', ''], TRUE)
         && $topic_context['assignment_source'] !== 'unknown'
       ) {
-          $entity->set('topic_assignment_source', $topic_context['assignment_source']);
+        $entity->set('topic_assignment_source', $topic_context['assignment_source']);
       }
 
       if ($entity->isNew()) {

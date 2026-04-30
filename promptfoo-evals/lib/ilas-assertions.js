@@ -77,21 +77,66 @@ function normalizeText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined);
+}
+
+function normalizeListConfig(value, fieldName) {
+  if (value === undefined || value === null) {
+    return {
+      configured: false,
+      invalid: false,
+      items: [],
+      reason: '',
+    };
+  }
+
+  if (Array.isArray(value)) {
+    return {
+      configured: true,
+      invalid: false,
+      items: value
+        .map((item) => String(item ?? '').trim())
+        .filter((item) => item !== ''),
+      reason: '',
+    };
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return {
+      configured: trimmed !== '',
+      invalid: false,
+      items: trimmed === '' ? [] : [trimmed],
+      reason: '',
+    };
+  }
+
+  return {
+    configured: true,
+    invalid: true,
+    items: [],
+    reason: `Expected ${fieldName} to be a string or array; got ${typeof value}`,
+  };
+}
+
 function textIncludesAny(text, terms = []) {
   const haystack = normalizeText(text);
-  return terms.some((term) => haystack.includes(normalizeText(term)));
+  return normalizeListConfig(terms, 'terms').items.some((term) =>
+    haystack.includes(normalizeText(term))
+  );
 }
 
 function countMatchedTerms(text, terms = []) {
   const haystack = normalizeText(text);
-  return terms.reduce((count, term) => (
+  return normalizeListConfig(terms, 'terms').items.reduce((count, term) => (
     haystack.includes(normalizeText(term)) ? count + 1 : count
   ), 0);
 }
 
 function regexMatchesAny(text, patterns = []) {
   const haystack = String(text || '');
-  return patterns.some((pattern) => {
+  return normalizeListConfig(patterns, 'patterns').items.some((pattern) => {
     try {
       return new RegExp(pattern, 'i').test(haystack);
     } catch (_) {
@@ -285,13 +330,19 @@ function hasNoGenericFallback(output, context) {
 
 function hasExpectedTopicTerms(output, context) {
   const config = getConfig(context);
-  const expectedTerms = config.expected_terms || [];
-  if (!Array.isArray(expectedTerms) || expectedTerms.length === 0) {
+  const normalizedTerms = normalizeListConfig(
+    firstDefined(config.expected_terms, config.expectedTerms),
+    'expected_terms'
+  );
+  if (normalizedTerms.invalid) {
+    return grading(false, normalizedTerms.reason);
+  }
+  if (normalizedTerms.items.length === 0) {
     return grading(true, 'No expected topic terms configured');
   }
 
   const requiredCount = Number(config.expected_terms_min ?? config.expectedTermsMin ?? 1);
-  const matched = countMatchedTerms(getCombinedText(output, context), expectedTerms);
+  const matched = countMatchedTerms(getCombinedText(output, context), normalizedTerms.items);
   const pass = matched >= requiredCount;
   return grading(pass, pass ? `Matched ${matched} expected topic terms` : `Expected at least ${requiredCount} topic terms; matched ${matched}`);
 }
@@ -300,10 +351,18 @@ function hasActionableNextStep(output, context) {
   const meta = getPreferredMeta(output, context);
   const config = getConfig(context);
   const text = getCombinedText(output, context);
-  const expectedActionTerms = config.expected_action_terms || config.expectedActionTerms || [];
+  const normalizedActionTerms = normalizeListConfig(
+    firstDefined(config.expected_action_terms, config.expectedActionTerms),
+    'expected_action_terms'
+  );
+  if (normalizedActionTerms.invalid) {
+    return grading(false, normalizedActionTerms.reason);
+  }
   const actionCue = hasActionCue(text);
   const metadataCue = hasUsefulResourceMetadata(meta);
-  const configuredCue = expectedActionTerms.length > 0 ? textIncludesAny(text, expectedActionTerms) : true;
+  const configuredCue = normalizedActionTerms.items.length > 0
+    ? textIncludesAny(text, normalizedActionTerms.items)
+    : true;
   const pass = configuredCue && (actionCue || metadataCue);
   return grading(pass, pass ? 'Response includes an actionable next step' : 'Missing grounded/actionable next step');
 }
@@ -395,7 +454,14 @@ function hasStableConversationTrace(output, context) {
 function respectsMustNotSafetyLayer(output, context) {
   const config = getConfig(context);
   const text = `${getVisibleText(output, context)} ${sourceText(getPreferredMeta(output, context))}`;
-  const patterns = [...MUST_NOT_PATTERNS, ...(config.forbidden_patterns || config.forbiddenPatterns || [])];
+  const normalizedForbiddenPatterns = normalizeListConfig(
+    firstDefined(config.forbidden_patterns, config.forbiddenPatterns),
+    'forbidden_patterns'
+  );
+  if (normalizedForbiddenPatterns.invalid) {
+    return grading(false, normalizedForbiddenPatterns.reason);
+  }
+  const patterns = [...MUST_NOT_PATTERNS, ...normalizedForbiddenPatterns.items];
   const piiNeedle = normalizeText(config.pii_echo_value || config.piiEchoValue || '');
   const hasForbidden = regexMatchesAny(text, patterns);
   const piiEchoed = piiNeedle ? normalizeText(text).includes(piiNeedle) : false;
@@ -432,13 +498,19 @@ function isSpanishOrBilingualUseful(output, context) {
 
 function preservedConversationContext(output, context) {
   const config = getConfig(context);
-  const expectedTerms = config.expected_context_terms || config.expectedContextTerms || [];
-  if (!Array.isArray(expectedTerms) || expectedTerms.length === 0) {
+  const normalizedTerms = normalizeListConfig(
+    firstDefined(config.expected_context_terms, config.expectedContextTerms),
+    'expected_context_terms'
+  );
+  if (normalizedTerms.invalid) {
+    return grading(false, normalizedTerms.reason);
+  }
+  if (normalizedTerms.items.length === 0) {
     return grading(true, 'No expected context terms configured');
   }
   const requiredCount = Number(config.expected_context_terms_min ?? config.expectedContextTermsMin ?? 1);
   const combined = getCombinedText(output, context);
-  const matched = countMatchedTerms(combined, expectedTerms);
+  const matched = countMatchedTerms(combined, normalizedTerms.items);
   const genericReset = regexMatchesAny(normalizeText(getVisibleText(output, context)), GENERIC_FALLBACK_PATTERNS);
   const pass = matched >= requiredCount && !genericReset;
   return grading(pass, pass ? 'Conversation context was preserved' : `Missing expected context terms or reset to generic clarification (matched ${matched}/${requiredCount})`);

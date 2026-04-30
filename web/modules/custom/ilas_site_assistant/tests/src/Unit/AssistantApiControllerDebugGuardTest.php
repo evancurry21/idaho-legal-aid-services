@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -72,6 +73,9 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
@@ -151,6 +155,9 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     $this->assertFalse($controller->exposedIsDebugMode($this->buildJsonRequest()));
   }
 
+  /**
+   *
+   */
   public function testAuthorizedDiagnosticsCanForceBoundedLlmMetadata(): void {
     new Settings([
       'ilas_assistant_diagnostics_token' => 'diagnostics-token',
@@ -183,6 +190,9 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     $this->assertTrue($body['diagnostics']['generation']['used'] ?? FALSE);
   }
 
+  /**
+   *
+   */
   public function testUnauthorizedDiagnosticsDoNotForceLlmOrEmitMetadata(): void {
     new Settings([
       'ilas_assistant_diagnostics_token' => 'diagnostics-token',
@@ -209,8 +219,49 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
 
     $this->assertSame(200, $response->getStatusCode());
     $this->assertArrayNotHasKey('diagnostics', $body);
+    // The privileged `diagnostics` envelope stays gated (asserted above), but
+    // every response now carries a public-safe `meta` envelope so external
+    // probes can prove provider/safety/intent state without authorization.
+    $this->assertIsArray($body['meta'] ?? NULL, 'public meta envelope must be present');
+    $this->assertArrayHasKey('generation', $body['meta']);
+    $this->assertSame('cohere', $body['meta']['generation']['provider'] ?? NULL);
+    $this->assertSame('command-a-03-2025', $body['meta']['generation']['model'] ?? NULL);
+    $this->assertArrayHasKey('safety', $body['meta']);
+    $this->assertArrayHasKey('stage', $body['meta']['safety']);
+    $this->assertArrayHasKey('retrieval', $body['meta']);
+    $this->assertArrayHasKey('intent', $body['meta']);
   }
 
+  /**
+   * Public meta envelope on a pre-generation policy block is provable.
+   */
+  public function testPublicMetaProvesPolicyBlockWithoutDiagnosticsAuthorization(): void {
+    $controller = $this->buildController(
+      policyViolation: TRUE,
+      fallbackDecision: FallbackGate::DECISION_FALLBACK_LLM,
+      llmEnabled: TRUE,
+    );
+    $request = $this->buildJsonRequest([
+      'message' => 'Tell me how to do something risky offsite.',
+    ]);
+
+    $response = $controller->message($request);
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertArrayNotHasKey('diagnostics', $body, 'unauthorized callers do not receive privileged diagnostics');
+    $this->assertIsArray($body['meta'] ?? NULL);
+    $this->assertSame(TRUE, $body['meta']['safety']['blocked'] ?? NULL);
+    $this->assertSame('pre_generation_block', $body['meta']['safety']['stage'] ?? NULL);
+    $this->assertSame(FALSE, $body['meta']['generation']['used'] ?? NULL);
+    $this->assertSame('policy_blocked', $body['meta']['generation']['reason'] ?? NULL);
+    $this->assertIsArray($body['safety_classification'] ?? NULL, 'safety_classification surfaced publicly on block');
+    $this->assertSame(TRUE, $body['safety_classification']['blocked'] ?? NULL);
+  }
+
+  /**
+   *
+   */
   public function testAuthorizedDiagnosticsShowPolicyBlockBeforeGeneration(): void {
     new Settings([
       'ilas_assistant_diagnostics_token' => 'diagnostics-token',
@@ -345,7 +396,7 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
       $cache,
       $logger,
       assistant_flow_runner: $assistantFlowRunner,
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry($topIntentsPack),
+      selection_registry: new SelectionRegistry($topIntentsPack),
       selection_state_store: $selectionStateStore,
       environment_detector: new EnvironmentDetector(),
       pre_routing_decision_engine: new PreRoutingDecisionEngine($policyFilter),
@@ -379,7 +430,7 @@ final class DebugGuardTestableController extends AssistantApiController {
   /**
    * {@inheritdoc}
    */
-  protected function currentUser(): \Drupal\Core\Session\AccountInterface {
+  protected function currentUser(): AccountInterface {
     return \Drupal::currentUser();
   }
 

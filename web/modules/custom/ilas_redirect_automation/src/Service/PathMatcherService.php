@@ -50,7 +50,7 @@ class PathMatcherService {
   public function __construct(
     Connection $database,
     EntityTypeManagerInterface $entity_type_manager,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
   ) {
     $this->database = $database;
     $this->entityTypeManager = $entity_type_manager;
@@ -67,7 +67,7 @@ class PathMatcherService {
    *   Match result with keys: destination, confidence, match_type, notes.
    */
   public function match(string $oldPath): ?array {
-    // Pattern 1: /node/NID/alias
+    // Pattern 1: /node/NID/alias.
     if (preg_match('#^/node/\d+/(.+)$#', $oldPath, $matches)) {
       return $this->matchAlias($matches[1], 'node');
     }
@@ -77,7 +77,7 @@ class PathMatcherService {
       return $this->matchByOldNodeId($matches[1]);
     }
 
-    // Pattern 3: /topics/TID/alias
+    // Pattern 3: /topics/TID/alias.
     if (preg_match('#^/topics/\d+/(.+)$#', $oldPath, $matches)) {
       return $this->matchAlias($matches[1], 'topics');
     }
@@ -87,7 +87,7 @@ class PathMatcherService {
       return $this->matchByOldTopicId($matches[1]);
     }
 
-    // Pattern 5: /taxonomy/term/TID
+    // Pattern 5: /taxonomy/term/TID.
     if (preg_match('#^/taxonomy/term/(\d+)$#', $oldPath, $matches)) {
       return $this->matchTaxonomyTerm($matches[1]);
     }
@@ -107,19 +107,19 @@ class PathMatcherService {
    *   Match result.
    */
   protected function matchAlias(string $alias, string $sourceType): ?array {
-    // Remove query string if present
+    // Remove query string if present.
     $alias = strtok($alias, '?');
 
-    // Normalize the alias for comparison
+    // Normalize the alias for comparison.
     $normalizedAlias = $this->normalizeAlias($alias);
 
-    // PRIORITY 1: Try direct /resources/name match first
+    // PRIORITY 1: Try direct /resources/name match first.
     $resourceMatch = $this->findResourceMatch($alias);
     if ($resourceMatch) {
       return $resourceMatch;
     }
 
-    // PRIORITY 2: Check if this matches a topic that's connected to a resource
+    // PRIORITY 2: Check if this matches a topic that's connected to a resource.
     $topicResourceMatch = $this->findResourceByTopicName($alias);
     if ($topicResourceMatch) {
       return $topicResourceMatch;
@@ -136,7 +136,7 @@ class PathMatcherService {
       ];
     }
 
-    // PRIORITY 4: Try normalized match with resource preference
+    // PRIORITY 4: Try normalized match with resource preference.
     $normalizedMatch = $this->findNormalizedAliasMatch($normalizedAlias);
     if ($normalizedMatch) {
       return [
@@ -147,7 +147,7 @@ class PathMatcherService {
       ];
     }
 
-    // PRIORITY 5: Try fuzzy match with resource preference
+    // PRIORITY 5: Try fuzzy match with resource preference.
     $fuzzyMatch = $this->findFuzzyAliasMatch($normalizedAlias);
     if ($fuzzyMatch) {
       return [
@@ -158,7 +158,7 @@ class PathMatcherService {
       ];
     }
 
-    // PRIORITY 6: Try resource title match
+    // PRIORITY 6: Try resource title match.
     $titleMatch = $this->findResourceTitleMatch($alias);
     if ($titleMatch) {
       return $titleMatch;
@@ -179,7 +179,7 @@ class PathMatcherService {
   protected function findResourceMatch(string $alias): ?array {
     $alias = ltrim($alias, '/');
 
-    // Try exact resource path
+    // Try exact resource path.
     $resourcePath = '/resources/' . $alias;
 
     $result = $this->database->select('path_alias', 'pa')
@@ -198,7 +198,7 @@ class PathMatcherService {
       ];
     }
 
-    // Try with normalized alias
+    // Try with normalized alias.
     $normalizedAlias = $this->normalizeAlias($alias);
     $resourcePath = '/resources/' . str_replace(' ', '-', $normalizedAlias);
 
@@ -231,15 +231,15 @@ class PathMatcherService {
    *   Match result or null.
    */
   protected function findResourceByTopicName(string $alias): ?array {
-    // Build cache if needed
+    // Build cache if needed.
     if ($this->topicResourceCache === NULL) {
       $this->buildTopicResourceCache();
     }
 
-    // Normalize the alias for lookup
+    // Normalize the alias for lookup.
     $normalizedAlias = $this->normalizeAlias($alias);
 
-    // Try exact match in cache
+    // Try exact match in cache.
     if (isset($this->topicResourceCache[$normalizedAlias])) {
       $resource = $this->topicResourceCache[$normalizedAlias];
       return [
@@ -250,14 +250,14 @@ class PathMatcherService {
       ];
     }
 
-    // Try partial match - check if any cached topic contains our search terms
+    // Try partial match - check if any cached topic contains our search terms.
     $searchWords = $this->extractWords($normalizedAlias);
 
     foreach ($this->topicResourceCache as $topicNormalized => $resource) {
       $topicWords = $this->extractWords($topicNormalized);
       $matchingWords = array_intersect($searchWords, $topicWords);
 
-      // If we match most words, consider it a match
+      // If we match most words, consider it a match.
       if (count($matchingWords) >= 1 && count($matchingWords) >= count($searchWords) * 0.6) {
         return [
           'destination' => $resource['alias'],
@@ -277,7 +277,7 @@ class PathMatcherService {
   protected function buildTopicResourceCache(): void {
     $this->topicResourceCache = [];
 
-    // Query all topics connected to resources
+    // Query all topics connected to resources.
     $query = $this->database->select('node__field_topics', 'ft');
     $query->join('node_field_data', 'n', 'ft.entity_id = n.nid');
     $query->join('taxonomy_term_field_data', 't', 'ft.field_topics_target_id = t.tid');
@@ -325,7 +325,7 @@ class PathMatcherService {
 
     $results = $query->execute()->fetchAll();
 
-    // Sort results to prefer /resources/ over /topics/
+    // Sort results to prefer /resources/ over /topics/.
     $resourceMatches = [];
     $topicMatches = [];
     $otherMatches = [];
@@ -344,7 +344,7 @@ class PathMatcherService {
       }
     }
 
-    // Return best match in priority order
+    // Return best match in priority order.
     $bestResult = $resourceMatches[0] ?? $otherMatches[0] ?? $topicMatches[0] ?? NULL;
 
     if ($bestResult) {
@@ -383,7 +383,8 @@ class PathMatcherService {
       if ($currentNormalized === $normalizedAlias) {
         if (str_starts_with($result->alias, '/resources/')) {
           $resourceMatch = $result;
-          break; // Best possible match
+          // Best possible match.
+          break;
         }
         elseif (str_starts_with($result->alias, '/topics/') && !$topicMatch) {
           $topicMatch = $result;
@@ -456,11 +457,11 @@ class PathMatcherService {
       }
     }
 
-    // Sort by score descending
+    // Sort by score descending.
     usort($resourceMatches, fn($a, $b) => $b['score'] <=> $a['score']);
     usort($otherMatches, fn($a, $b) => $b['score'] <=> $a['score']);
 
-    // Prefer resource matches
+    // Prefer resource matches.
     $bestMatch = $resourceMatches[0] ?? $otherMatches[0] ?? NULL;
 
     return $bestMatch;
@@ -484,7 +485,7 @@ class PathMatcherService {
       return NULL;
     }
 
-    // Search resource node titles only
+    // Search resource node titles only.
     $nodeStorage = $this->entityTypeManager->getStorage('node');
     $query = $nodeStorage->getQuery()
       ->accessCheck(FALSE)
@@ -495,7 +496,7 @@ class PathMatcherService {
     $nids = $query->execute();
 
     if (empty($nids)) {
-      // Try individual significant words
+      // Try individual significant words.
       $words = explode(' ', $searchTerms);
       $significantWords = array_filter($words, fn($w) => strlen($w) >= 4);
 
@@ -523,7 +524,7 @@ class PathMatcherService {
       return NULL;
     }
 
-    // Get the node's alias
+    // Get the node's alias.
     $aliasQuery = $this->database->select('path_alias', 'pa')
       ->fields('pa', ['alias'])
       ->condition('path', '/node/' . $nid)
@@ -599,13 +600,13 @@ class PathMatcherService {
       ];
     }
 
-    // First, try to find a resource that references this term
+    // First, try to find a resource that references this term.
     $resourceMatch = $this->findResourceByTopicName($term->getName());
     if ($resourceMatch) {
       return $resourceMatch;
     }
 
-    // Fall back to the term's alias
+    // Fall back to the term's alias.
     $aliasQuery = $this->database->select('path_alias', 'pa')
       ->fields('pa', ['alias'])
       ->condition('path', '/taxonomy/term/' . $tid)

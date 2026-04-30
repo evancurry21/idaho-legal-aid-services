@@ -24,7 +24,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * - G-2: Paraphrase bypass of legal advice patterns
  * - G-4: Homoglyph bypass via Cyrillic/Greek confusables
  * - G-5: Mixed EN/ES code-switching
- * - Navigation-negative: paraphrased navigation must NOT trigger exits
+ * - Navigation-negative: paraphrased navigation must NOT trigger exits.
  */
 #[Group('ilas_site_assistant')]
 class SafetyEnforcementChainContractTest extends TestCase {

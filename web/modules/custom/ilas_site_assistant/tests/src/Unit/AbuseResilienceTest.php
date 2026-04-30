@@ -2,6 +2,8 @@
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
 use Drupal\ilas_site_assistant\Service\InputNormalizer;
 use Drupal\ilas_site_assistant\Service\SafetyClassifier;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -47,10 +49,10 @@ class AbuseResilienceTest extends TestCase {
     parent::setUp();
 
     // SafetyClassifier requires a config factory; provide a minimal stub.
-    $config = $this->createStub(\Drupal\Core\Config\ImmutableConfig::class);
+    $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')->willReturn(NULL);
 
-    $configFactory = $this->createStub(\Drupal\Core\Config\ConfigFactoryInterface::class);
+    $configFactory = $this->createStub(ConfigFactoryInterface::class);
     $configFactory->method('get')->willReturn($config);
 
     $this->classifier = new SafetyClassifier($configFactory);

@@ -67,6 +67,9 @@ final class RequestContextSchemaContractTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }

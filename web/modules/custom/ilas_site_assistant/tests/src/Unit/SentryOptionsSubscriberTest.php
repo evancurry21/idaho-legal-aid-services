@@ -2,6 +2,21 @@
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Sentry\Breadcrumb;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Exception\ConnectException;
+use Sentry\ExceptionMechanism;
+use Sentry\Frame;
+use Sentry\Stacktrace;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Drupal\Component\Utility\UrlHelper;
+use Drupal\ai\Exception\AiRequestErrorException;
+use Sentry\Logs\LogLevel;
+use Sentry\Logs\Log;
+use Sentry\ExceptionDataBag;
+use Sentry\EventHint;
+use Sentry\Event;
+use Drupal\raven\Event\OptionsAlter;
 use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\EventSubscriber\SentryOptionsSubscriber;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
@@ -55,7 +70,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireRaven();
 
     $options = ['send_default_pii' => TRUE];
-    $event = new \Drupal\raven\Event\OptionsAlter($options);
+    $event = new OptionsAlter($options);
 
     $subscriber = new SentryOptionsSubscriber();
     $subscriber->onOptionsAlter($event);
@@ -71,7 +86,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireRaven();
 
     $options = [];
-    $event = new \Drupal\raven\Event\OptionsAlter($options);
+    $event = new OptionsAlter($options);
 
     $subscriber = new SentryOptionsSubscriber();
     $subscriber->onOptionsAlter($event);
@@ -95,7 +110,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       new Settings([]);
 
       $options = [];
-      $event = new \Drupal\raven\Event\OptionsAlter($options);
+      $event = new OptionsAlter($options);
 
       $subscriber = new SentryOptionsSubscriber();
       $subscriber->onOptionsAlter($event);
@@ -136,7 +151,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $options = [
         'tags' => ['custom_tag' => 'custom_value'],
       ];
-      $event = new \Drupal\raven\Event\OptionsAlter($options);
+      $event = new OptionsAlter($options);
 
       $subscriber = new SentryOptionsSubscriber();
       $subscriber->onOptionsAlter($event);
@@ -166,20 +181,20 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $previousCalled = FALSE;
-    $previousCallback = static function (\Sentry\Event $event, ?\Sentry\EventHint $hint = NULL) use (&$previousCalled): ?\Sentry\Event {
+    $previousCallback = static function (Event $event, ?EventHint $hint = NULL) use (&$previousCalled): ?Event {
       $previousCalled = TRUE;
       $event->setMessage('modified-by-previous: ' . $event->getMessage());
       return $event;
     };
 
     $options = ['before_send' => $previousCallback];
-    $event = new \Drupal\raven\Event\OptionsAlter($options);
+    $event = new OptionsAlter($options);
 
     $subscriber = new SentryOptionsSubscriber();
     $subscriber->onOptionsAlter($event);
 
     // Call the chained before_send.
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage('test message');
     $result = ($event->options['before_send'])($sentryEvent, NULL);
 
@@ -194,12 +209,12 @@ class SentryOptionsSubscriberTest extends TestCase {
   public function testBeforeSendChainingRespectsNull(): void {
     $this->requireSentry();
 
-    $droppingCallback = static function (\Sentry\Event $event, ?\Sentry\EventHint $hint = NULL): ?\Sentry\Event {
+    $droppingCallback = static function (Event $event, ?EventHint $hint = NULL): ?Event {
       return NULL;
     };
 
     $callback = SentryOptionsSubscriber::beforeSendCallback($droppingCallback);
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage('should be dropped');
     $result = $callback($sentryEvent, NULL);
 
@@ -214,7 +229,7 @@ class SentryOptionsSubscriberTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage('Error for user john@example.com with SSN 123-45-6789');
 
     $result = $callback($sentryEvent, NULL);
@@ -250,7 +265,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     ];
     $formatted = '[EA-abc12345] Nonce validation failed from 203.0.113.42 [invalid_nonce] [likely_browser]';
 
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage($template, $params, $formatted);
 
     $result = $callback($sentryEvent, NULL);
@@ -274,7 +289,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $params = ['@email' => 'john@example.com'];
     $formatted = 'Error for user john@example.com';
 
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage($template, $params, $formatted);
 
     $result = $callback($sentryEvent, NULL);
@@ -295,9 +310,9 @@ class SentryOptionsSubscriberTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $exception = new \RuntimeException('User called 208-555-1234 for help');
-    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $exceptionBag = new ExceptionDataBag($exception);
     $sentryEvent->setExceptions([$exceptionBag]);
 
     $result = $callback($sentryEvent, NULL);
@@ -318,7 +333,7 @@ class SentryOptionsSubscriberTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setExtra([
       'user_input' => 'my name is John Smith',
       'count' => 42,
@@ -342,7 +357,7 @@ class SentryOptionsSubscriberTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage('Clean message with no PII');
 
     $result = $callback($sentryEvent, NULL);
@@ -357,7 +372,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendTransactionCallback();
-    $transaction = \Sentry\Event::createTransaction();
+    $transaction = Event::createTransaction();
     $transaction->setTransaction('/assistant/api/message/12345678-1234-4123-8123-123456789abc?message=my email is john@example.com');
 
     $result = $callback($transaction);
@@ -375,10 +390,10 @@ class SentryOptionsSubscriberTest extends TestCase {
     }
 
     $callback = SentryOptionsSubscriber::beforeSendLogCallback();
-    $log = new \Sentry\Logs\Log(
+    $log = new Log(
       microtime(TRUE),
       'trace-id',
-      \Sentry\Logs\LogLevel::error(),
+      LogLevel::error(),
       'Assistant failure for john@example.com'
     );
     $log->setAttribute('authorization', 'Bearer secret-token');
@@ -559,7 +574,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     try {
       putenv('PANTHEON_ENVIRONMENT=dev');
 
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('simple_sitemap');
       $event->setMessage('The custom path /events has been omitted from the XML sitemaps as it does not exist.');
 
@@ -589,7 +604,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     try {
       putenv('PANTHEON_ENVIRONMENT=test');
 
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('simple_sitemap');
       // Set raw message as template, formatted as resolved string.
       $event->setMessage(
@@ -624,7 +639,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     try {
       putenv('PANTHEON_ENVIRONMENT=dev');
 
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('simple_sitemap');
       // Simulate an edge case where getMessage() returns a template without
       // the needle but getMessageFormatted() has the full resolved text.
@@ -660,7 +675,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     try {
       putenv('PANTHEON_ENVIRONMENT=live');
 
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('simple_sitemap');
       $event->setMessage('The custom path /events has been omitted from the XML sitemaps as it does not exist.');
 
@@ -690,7 +705,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     try {
       putenv('PANTHEON_ENVIRONMENT=dev');
 
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('system');
       $event->setMessage('has been omitted from the XML sitemaps');
 
@@ -718,11 +733,11 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger('cron');
     $event->setMessage('cURL error 28 while fetching ' . self::DRUPAL_ANNOUNCEMENTS_URL);
 
-    $result = $callback($event, \Sentry\EventHint::fromArray([
+    $result = $callback($event, EventHint::fromArray([
       'exception' => $this->createConnectException(self::DRUPAL_ANNOUNCEMENTS_URL),
     ]));
 
@@ -735,11 +750,11 @@ class SentryOptionsSubscriberTest extends TestCase {
   public function testAnnouncementsTimeoutNoiseFilterMatchesBreadcrumbUrl(): void {
     $this->requireSentry();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger('announcements_feed');
     $event->setMessage('Unable to fetch Drupal announcements feed.');
     $event->setExceptions([
-      new \Sentry\ExceptionDataBag($this->createConnectException(self::DRUPAL_ANNOUNCEMENTS_URL)),
+      new ExceptionDataBag($this->createConnectException(self::DRUPAL_ANNOUNCEMENTS_URL)),
     ]);
     $event->setBreadcrumb([
       $this->createHttpBreadcrumb(self::DRUPAL_ANNOUNCEMENTS_URL),
@@ -758,14 +773,14 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $otherUrl = 'https://www.drupal.org/security';
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger('cron');
     $event->setMessage('cURL error 28 while fetching ' . $otherUrl);
 
     $this->assertFalse(
       SentryOptionsSubscriber::isDrupalAnnouncementsTimeoutNoise(
         $event,
-        \Sentry\EventHint::fromArray([
+        EventHint::fromArray([
           'exception' => $this->createConnectException($otherUrl),
         ]),
       ),
@@ -779,14 +794,14 @@ class SentryOptionsSubscriberTest extends TestCase {
   public function testAnnouncementsTimeoutNoiseFilterIgnoresOtherLoggers(): void {
     $this->requireSentry();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger('system');
     $event->setMessage('cURL error 28 while fetching ' . self::DRUPAL_ANNOUNCEMENTS_URL);
 
     $this->assertFalse(
       SentryOptionsSubscriber::isDrupalAnnouncementsTimeoutNoise(
         $event,
-        \Sentry\EventHint::fromArray([
+        EventHint::fromArray([
           'exception' => $this->createConnectException(self::DRUPAL_ANNOUNCEMENTS_URL),
         ]),
       ),
@@ -800,14 +815,14 @@ class SentryOptionsSubscriberTest extends TestCase {
   public function testAnnouncementsTimeoutNoiseFilterIgnoresOtherExceptionClasses(): void {
     $this->requireSentry();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger('cron');
     $event->setMessage('cURL error 28 while fetching ' . self::DRUPAL_ANNOUNCEMENTS_URL);
 
     $this->assertFalse(
       SentryOptionsSubscriber::isDrupalAnnouncementsTimeoutNoise(
         $event,
-        \Sentry\EventHint::fromArray([
+        EventHint::fromArray([
           'exception' => new \RuntimeException('Different transport failure for ' . self::DRUPAL_ANNOUNCEMENTS_URL),
         ]),
       ),
@@ -823,18 +838,18 @@ class SentryOptionsSubscriberTest extends TestCase {
 
     $previousCalled = FALSE;
     $callback = SentryOptionsSubscriber::beforeSendCallback(
-      static function (\Sentry\Event $event, ?\Sentry\EventHint $hint = NULL) use (&$previousCalled): ?\Sentry\Event {
+      static function (Event $event, ?EventHint $hint = NULL) use (&$previousCalled): ?Event {
         $previousCalled = TRUE;
         $event->setMessage('modified-by-previous: ' . ($event->getMessage() ?? ''));
         return $event;
       },
     );
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger('cron');
     $event->setMessage('cURL error 28 while fetching ' . self::DRUPAL_ANNOUNCEMENTS_URL);
 
-    $result = $callback($event, \Sentry\EventHint::fromArray([
+    $result = $callback($event, EventHint::fromArray([
       'exception' => new \RuntimeException('Generic timeout for ' . self::DRUPAL_ANNOUNCEMENTS_URL),
     ]));
 
@@ -857,7 +872,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'cron'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('mail');
       $event->setMessage('SMTP response: 421 temporary system problem');
 
@@ -887,7 +902,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'core:cron'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('symfony_mailer_lite');
       $event->setMessage(
         'An attempt to send an e-mail message failed.',
@@ -928,7 +943,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = [];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('mail');
       $event->setMessage('SMTP response: 421 temporary system problem');
 
@@ -961,7 +976,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'status'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('mail');
       $event->setMessage('SMTP response: 421 temporary system problem');
 
@@ -1008,7 +1023,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'cron'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setLogger('symfony_mailer_lite');
       $event->setMessage($failureMessage);
 
@@ -1040,7 +1055,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'cron'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setMessage('Error invoking model response: The service is currently unavailable.');
       $event->setExceptions([
         $this->createAiRequestErrorExceptionBag('Error invoking model response: The service is currently unavailable.'),
@@ -1076,13 +1091,13 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'cron'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setMessage('Error invoking model response: The service is currently unavailable.');
 
-      $exception = new \Drupal\ai\Exception\AiRequestErrorException(
+      $exception = new AiRequestErrorException(
         'Error invoking model response: The service is currently unavailable.',
       );
-      $hint = \Sentry\EventHint::fromArray(['exception' => $exception]);
+      $hint = EventHint::fromArray(['exception' => $exception]);
 
       $result = $callback($event, $hint);
 
@@ -1110,7 +1125,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'status'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setMessage('Error invoking model response: The service is currently unavailable.');
       $event->setExceptions([
         $this->createAiRequestErrorExceptionBag('Error invoking model response: The service is currently unavailable.'),
@@ -1142,7 +1157,7 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'cron'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setMessage('Error invoking model response: Authentication failed.');
       $event->setExceptions([
         $this->createAiRequestErrorExceptionBag('Error invoking model response: Authentication failed.'),
@@ -1174,10 +1189,10 @@ class SentryOptionsSubscriberTest extends TestCase {
       $_SERVER['argv'] = ['/code/vendor/bin/drush', 'cron'];
 
       $callback = SentryOptionsSubscriber::beforeSendCallback();
-      $event = \Sentry\Event::createEvent();
+      $event = Event::createEvent();
       $event->setMessage('The service is currently unavailable.');
       $event->setExceptions([
-        new \Sentry\ExceptionDataBag(new \RuntimeException('The service is currently unavailable.')),
+        new ExceptionDataBag(new \RuntimeException('The service is currently unavailable.')),
       ]);
 
       $result = $callback($event, NULL);
@@ -1200,9 +1215,9 @@ class SentryOptionsSubscriberTest extends TestCase {
    * Uses a real ExceptionDataBag with overridden type to avoid a hard
    * dependency on the ai module in test infrastructure.
    */
-  private function createAiRequestErrorExceptionBag(string $message): \Sentry\ExceptionDataBag {
+  private function createAiRequestErrorExceptionBag(string $message): ExceptionDataBag {
     $exception = new \RuntimeException($message);
-    $bag = new \Sentry\ExceptionDataBag($exception);
+    $bag = new ExceptionDataBag($exception);
     // Override the type to simulate AiRequestErrorException serialization.
     $reflection = new \ReflectionClass($bag);
     $typeProp = $reflection->getProperty('type');
@@ -1219,7 +1234,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setMessage('Attempting to re-run cron while it is already running.');
 
     $result = $callback($event, NULL);
@@ -1234,7 +1249,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     // Simulate event arriving from web context (no CLI argv).
     $event->setMessage('Attempting to re-run cron while it is already running.');
 
@@ -1250,7 +1265,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setMessage('Cron completed successfully.');
 
     $result = $callback($event, NULL);
@@ -1266,7 +1281,7 @@ class SentryOptionsSubscriberTest extends TestCase {
   public function testStaleAggregateAssetFilterDropsLegacyThemeRequest(): void {
     $this->requireSentry();
 
-    $include = \Drupal\Component\Utility\UrlHelper::compressQueryParameter(implode(',', [
+    $include = UrlHelper::compressQueryParameter(implode(',', [
       'addtoany/addtoany.front',
       'system/base',
       'bootstrap_barrio/global-styling',
@@ -1292,7 +1307,7 @@ class SentryOptionsSubscriberTest extends TestCase {
   public function testStaleAggregateAssetFilterKeepsCurrentThemeRequest(): void {
     $this->requireSentry();
 
-    $include = \Drupal\Component\Utility\UrlHelper::compressQueryParameter('system/base,b5subtheme/global-styling');
+    $include = UrlHelper::compressQueryParameter('system/base,b5subtheme/global-styling');
     $url = 'https://idaholegalaid.org/sites/default/files/js/js_currentthemehash.js'
       . '?delta=1&include=' . $include . '&language=en&scope=header&theme=b5subtheme';
 
@@ -1330,10 +1345,10 @@ class SentryOptionsSubscriberTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     // Exception with an empty value simulates a fully redacted event.
     $exception = new \RuntimeException('');
-    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $exceptionBag = new ExceptionDataBag($exception);
     $exceptionBag->setValue('');
     $event->setExceptions([$exceptionBag]);
     // No message — event is fully opaque.
@@ -1354,7 +1369,7 @@ class SentryOptionsSubscriberTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setMessage('Error in module XYZ');
 
     $result = $callback($event, NULL);
@@ -1372,9 +1387,9 @@ class SentryOptionsSubscriberTest extends TestCase {
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
 
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $exception = new \InvalidArgumentException('Bad input detected');
-    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $exceptionBag = new ExceptionDataBag($exception);
     $event->setExceptions([$exceptionBag]);
 
     $result = $callback($event, NULL);
@@ -1387,8 +1402,8 @@ class SentryOptionsSubscriberTest extends TestCase {
   /**
    * Builds a handled AssetControllerBase BadRequest event for filter tests.
    */
-  private function createAssetControllerBadRequestEvent(string $url, string $message = 'Invalid filename.'): \Sentry\Event {
-    $event = \Sentry\Event::createEvent();
+  private function createAssetControllerBadRequestEvent(string $url, string $message = 'Invalid filename.'): Event {
+    $event = Event::createEvent();
     $event->setLogger('client error');
     $event->setMessage(
       'Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException: '
@@ -1404,23 +1419,23 @@ class SentryOptionsSubscriberTest extends TestCase {
       ],
     ]);
 
-    $exception = new \Symfony\Component\HttpKernel\Exception\BadRequestHttpException($message);
+    $exception = new BadRequestHttpException($message);
     $event->setExceptions([
-      new \Sentry\ExceptionDataBag(
+      new ExceptionDataBag(
         $exception,
-        new \Sentry\Stacktrace([
-          new \Sentry\Frame(
+        new Stacktrace([
+          new Frame(
             'Drupal\\system\\Controller\\AssetControllerBase::deliver',
             '/core/modules/system/src/Controller/AssetControllerBase.php',
             181,
           ),
-          new \Sentry\Frame(
+          new Frame(
             'Drupal\\system\\Controller\\AssetControllerBase::getGroup',
             '/core/modules/system/src/Controller/AssetControllerBase.php',
             235,
           ),
         ]),
-        new \Sentry\ExceptionMechanism(\Sentry\ExceptionMechanism::TYPE_GENERIC, TRUE),
+        new ExceptionMechanism(ExceptionMechanism::TYPE_GENERIC, TRUE),
       ),
     ]);
 
@@ -1430,20 +1445,20 @@ class SentryOptionsSubscriberTest extends TestCase {
   /**
    * Builds a ConnectException for a URL without making any network request.
    */
-  private function createConnectException(string $url): \GuzzleHttp\Exception\ConnectException {
-    return new \GuzzleHttp\Exception\ConnectException(
+  private function createConnectException(string $url): ConnectException {
+    return new ConnectException(
       'cURL error 28: Operation timed out for ' . $url,
-      new \GuzzleHttp\Psr7\Request('GET', $url),
+      new Request('GET', $url),
     );
   }
 
   /**
    * Builds a Sentry HTTP breadcrumb for a URL.
    */
-  private function createHttpBreadcrumb(string $url): \Sentry\Breadcrumb {
-    return new \Sentry\Breadcrumb(
-      \Sentry\Breadcrumb::LEVEL_ERROR,
-      \Sentry\Breadcrumb::TYPE_HTTP,
+  private function createHttpBreadcrumb(string $url): Breadcrumb {
+    return new Breadcrumb(
+      Breadcrumb::LEVEL_ERROR,
+      Breadcrumb::TYPE_HTTP,
       'http',
       NULL,
       ['http.url' => $url],
@@ -1487,7 +1502,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger($logger);
     $event->setMessage($message);
 
@@ -1503,7 +1518,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger('csp');
     $event->setMessage("Blocked 'script' from 'unknown-suspicious-domain.com'");
 
@@ -1519,7 +1534,7 @@ class SentryOptionsSubscriberTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $event = \Sentry\Event::createEvent();
+    $event = Event::createEvent();
     $event->setLogger('php');
     $event->setMessage('Error connecting to google.com service');
 

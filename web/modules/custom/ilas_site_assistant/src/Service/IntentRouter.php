@@ -89,7 +89,7 @@ class IntentRouter {
   /**
    * Constructs an IntentRouter object.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, TopicResolver $topic_resolver, KeywordExtractor $keyword_extractor, TopicRouter $topic_router = NULL, NavigationIntent $navigation_intent = NULL, Disambiguator $disambiguator = NULL, TopIntentsPack $top_intents_pack = NULL) {
+  public function __construct(ConfigFactoryInterface $config_factory, TopicResolver $topic_resolver, KeywordExtractor $keyword_extractor, ?TopicRouter $topic_router = NULL, ?NavigationIntent $navigation_intent = NULL, ?Disambiguator $disambiguator = NULL, ?TopIntentsPack $top_intents_pack = NULL) {
     $this->configFactory = $config_factory;
     $this->topicResolver = $topic_resolver;
     $this->keywordExtractor = $keyword_extractor;
@@ -573,12 +573,12 @@ class IntentRouter {
           // Sued for debt (not escalation)
           '/\bsued\s*(for\s*)?(a\s*)?(debt|money|bill)/i',
           '/\b(got|received)\s*(court\s*papers?|summons)\s*(for\s*)?(debt|money)/i',
-          // Garnishment variants
+          // Garnishment variants.
           '/\b(wage|wages|salary|paycheck)\s*(is\s*)?(being\s*)?(garnish|garnished|garnishment)/i',
           '/\b(garnish|garnished|garnishment)\s*(my\s*)?(wage|wages|salary|paycheck)/i',
           '/\b(bank\s*account)\s*(frozen|levy|levied|seized)/i',
           '/\b(froze|freeze|frozen)\s*(my\s*)?(bank|account)/i',
-          // Repossession variants
+          // Repossession variants.
           '/\b(car|vehicle|auto)\s*(repossess|repossessed|repossession|repo)/i',
           '/\b(repossess|repossessed|repo)\s*(my\s*)?(car|vehicle|auto)/i',
           '/\b(my\s*)?(car|vehicle|auto)\s*(was|got|is\s*being)\s*(repossess|repossessed|repo)/i',
@@ -589,7 +589,7 @@ class IntentRouter {
           // Debt collector rights (consumer topic, not escalation)
           '/\b(rights|right)\s*(with|against|when)\s*(debt|bill)?\s*(collector|creditor)/i',
           '/\bwhat\s*(are)?\s*(my)?\s*rights\s*(with|when|if)\s*(debt|collector|creditor)/i',
-          // Spanish - debt collection
+          // Spanish - debt collection.
           '/\b(estafa|fraude|deuda|deudas|bancarrota)/i',
           '/\brobaron\s*mi\s*identidad/i',
           '/\bme\s*estafaron/i',

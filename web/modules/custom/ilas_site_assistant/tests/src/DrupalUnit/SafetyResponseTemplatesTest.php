@@ -15,8 +15,7 @@ use PHPUnit\Framework\Attributes\Group;
  * - Return type 'escalation' for OOS cases (criminal, immigration, external)
  * - Include appropriate limitation language
  * - Do not hard-route to /services as primary action for OOS
- * - Include external referrals where appropriate
- *
+ * - Include external referrals where appropriate.
  */
 #[CoversClass(SafetyResponseTemplates::class)]
 #[Group('ilas_site_assistant')]

@@ -163,21 +163,24 @@ class FallbackTreeEvaluatorTest extends TestCase {
       'Level 1 - unknown intent' => ['unknown', []],
       'Level 2 - repeated area' => ['topic_housing', [
         ['intent' => 'topic_housing', 'area' => 'housing', 'response_type' => 'fallback', 'timestamp' => $now - 60],
-      ]],
+      ]
+],
       'Level 3 - two failures' => ['unknown', [
         ['intent' => 'unknown', 'response_type' => 'fallback', 'timestamp' => $now - 120],
         ['intent' => 'unknown', 'response_type' => 'fallback', 'timestamp' => $now - 60],
-      ]],
+      ]
+],
       'Level 4 - three failures' => ['unknown', [
         ['intent' => 'unknown', 'response_type' => 'fallback', 'timestamp' => $now - 180],
         ['intent' => 'unknown', 'response_type' => 'fallback', 'timestamp' => $now - 120],
         ['intent' => 'unknown', 'response_type' => 'fallback', 'timestamp' => $now - 60],
-      ]],
+      ]
+],
     ];
   }
 
   /**
-   * resolveArea maps intent keys to service areas.
+   * ResolveArea maps intent keys to service areas.
    */
   public function testResolveAreaMappings(): void {
     $this->assertEquals('housing', FallbackTreeEvaluator::resolveArea('topic_housing'));

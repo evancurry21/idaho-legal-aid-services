@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -78,8 +81,8 @@ final class ResponseContractNormalizationTest extends TestCase {
       $cache,
       $logger,
       assistant_flow_runner: $this->createStub(AssistantFlowRunner::class),
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      selection_registry: new SelectionRegistry(new TopIntentsPack()),
+      selection_state_store: new SelectionStateStore($cache),
       source_governance: $sourceGovernance,
     );
   }

@@ -9,7 +9,7 @@
  * - "representaion" -> "representation"
  * - "adress" -> "address"
  * - "where r u located" -> "where are you located"
- * - "child custody forms" NOT detected as greeting
+ * - "child custody forms" NOT detected as greeting.
  *
  * Usage:
  *   php run_normalization_regression_tests.php [--verbose]
@@ -72,7 +72,7 @@ $text_speak_tests = [
   ['where r u', 'where are you', 'r u at end of sentence'],
   ['r u there', 'are you', 'r u standalone'],
 
-  // u r variants.
+  // U r variants.
   ['u r closed', 'you are', 'u r -> you are'],
   ['u r the best', 'you are', 'u r in context'],
 
@@ -223,11 +223,11 @@ function detectsAsGreeting($message, $greeting_patterns, $greeting_keywords, $to
 
   // Only detect as greeting if:
   // 1. Matches pattern OR keyword
-  // 2. AND does NOT have topic keywords
+  // 2. AND does NOT have topic keywords.
   return ($matches_pattern || $matches_keyword) && !$has_topic;
 }
 
-// Test cases: [input, should_be_greeting, description]
+// Test cases: [input, should_be_greeting, description].
 $greeting_tests = [
   // Should NOT be detected as greeting (topic queries).
   ['child custody forms', FALSE, 'EVAL FAILURE: child custody forms must NOT be greeting'],

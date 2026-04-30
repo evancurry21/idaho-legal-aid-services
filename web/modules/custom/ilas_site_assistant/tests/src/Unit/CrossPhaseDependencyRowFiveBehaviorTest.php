@@ -215,7 +215,7 @@ final class CrossPhaseDependencyRowFiveBehaviorTest extends BehavioralDependency
    *     count_fail: bool,
    *     fail: bool
    *   }>
-   * } $report
+   *   } $report
    *   The parsed metric report.
    *
    * @return string[]

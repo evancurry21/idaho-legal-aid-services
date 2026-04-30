@@ -224,9 +224,9 @@ class ConversationContextSummary {
       'detected_area' => $detected_area,
       'asks_next_step' => $asks_next_step,
       'has_contextual_facts' => $county !== ''
-        || $deadline_or_notice !== ''
-        || in_array(TRUE, $household_context, TRUE)
-        || $asks_next_step,
+      || $deadline_or_notice !== ''
+      || in_array(TRUE, $household_context, TRUE)
+      || $asks_next_step,
       'has_topic_signal' => $detected_area !== '',
     ];
   }

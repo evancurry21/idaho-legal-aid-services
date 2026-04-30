@@ -34,7 +34,7 @@ class IlasLiveProvider {
     return this.providerId;
   }
 
-  getConversationId(prompt, context) {
+  getConversationIds(prompt, context) {
     const vars = context?.vars || {};
     const metadata =
       context?.metadata ||
@@ -49,8 +49,30 @@ class IlasLiveProvider {
       vars.conversationId ||
       null;
 
+    // The trace identity is the value the assertion library hashes via
+    // `computeExpectedConversationHash(context)` — it reads from the same
+    // metadata fields. When a fixture provides one, it is the stable identity
+    // for the whole multi-turn conversation.
+    const traceConversationId = explicitConversationId || null;
+
     if (!this.evalRunId) {
-      return explicitConversationId || crypto.randomUUID();
+      const apiConversationId = explicitConversationId || crypto.randomUUID();
+      return { apiConversationId, traceConversationId: traceConversationId || apiConversationId };
+    }
+
+    // When an evalRunId is set, derive a deterministic UUID for the API so the
+    // server-side cache key is stable across re-runs. The trace identity above
+    // remains the user-visible conversationId used by assertions.
+    //
+    // IMPORTANT: when a fixture has an explicit conversationId, the API UUID is
+    // a pure function of (evalRunId, explicitConversationId). It must NOT mix
+    // in `metadata.turn`, otherwise each turn would get a fresh API
+    // conversation_id and the server would lose its multi-turn history.
+    if (explicitConversationId) {
+      return {
+        apiConversationId: deterministicUuidV4(`${this.evalRunId}:${explicitConversationId}`),
+        traceConversationId,
+      };
     }
 
     const stableFallbackKey = [
@@ -64,8 +86,15 @@ class IlasLiveProvider {
       .filter((value) => value !== null && value !== undefined && value !== '')
       .join('|');
 
-    const baseKey = explicitConversationId || stableFallbackKey || crypto.randomUUID();
-    return deterministicUuidV4(`${this.evalRunId}:${baseKey}`);
+    const baseKey = stableFallbackKey || crypto.randomUUID();
+    const apiConversationId = deterministicUuidV4(`${this.evalRunId}:${baseKey}`);
+    return { apiConversationId, traceConversationId: apiConversationId };
+  }
+
+  // Back-compat shim: older callers may still invoke getConversationId(); keep
+  // it returning the API conversation id.
+  getConversationId(prompt, context) {
+    return this.getConversationIds(prompt, context).apiConversationId;
   }
 
   logProgress(question, context) {
@@ -82,7 +111,7 @@ class IlasLiveProvider {
     this.transport.resolveUrls();
 
     const question = context?.vars?.question || prompt;
-    const conversationId = this.getConversationId(prompt, context);
+    const { apiConversationId, traceConversationId } = this.getConversationIds(prompt, context);
     const priorHistory = Array.isArray(context?.vars?.history) ? context.vars.history : [];
     const requestContext =
       context?.vars?.request_context && typeof context.vars.request_context === 'object'
@@ -94,7 +123,7 @@ class IlasLiveProvider {
 
     const result = await this.transport.callMessageApi({
       question,
-      conversationId,
+      conversationId: apiConversationId,
       history,
       requestContext,
     });
@@ -105,7 +134,7 @@ class IlasLiveProvider {
         this.transport.options.siteBaseUrl,
         {
           providerMode: 'live_api',
-          conversationId,
+          conversationId: traceConversationId,
           transportMeta: result.transport || null,
           errors: [result.error],
         }
@@ -121,7 +150,7 @@ class IlasLiveProvider {
       this.transport.options.siteBaseUrl,
       {
         providerMode: 'live_api',
-        conversationId,
+        conversationId: traceConversationId,
         transportMeta: result.transport || null,
         requestId: result.data?.request_id || null,
       }

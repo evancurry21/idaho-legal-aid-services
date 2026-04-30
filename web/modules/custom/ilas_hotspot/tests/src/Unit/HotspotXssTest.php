@@ -112,7 +112,7 @@ class HotspotXssTest extends TestCase {
     $this->assertStringNotContainsString('<script>', $content_attr,
       'data-bs-content must not contain <script> tags.');
 
-    // onerror event handler must be stripped.
+    // Onerror event handler must be stripped.
     $this->assertStringNotContainsString('onerror', $content_attr,
       'data-bs-content must not contain event handler attributes.');
 

@@ -2,6 +2,11 @@
 
 namespace Drupal\ilas_site_assistant\EventSubscriber;
 
+use Sentry\ExceptionDataBag;
+use GuzzleHttp\Exception\ConnectException;
+use Sentry\Logs\Log;
+use Sentry\EventHint;
+use Sentry\Event;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
@@ -148,7 +153,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    *   A callback compatible with Sentry's before_send option.
    */
   public static function beforeSendCallback(?callable $previous = NULL): callable {
-    return static function (\Sentry\Event $sentryEvent, ?\Sentry\EventHint $hint = NULL) use ($previous): ?\Sentry\Event {
+    return static function (Event $sentryEvent, ?EventHint $hint = NULL) use ($previous): ?Event {
       // Chain previous callback first.
       if ($previous !== NULL) {
         $sentryEvent = $previous($sentryEvent, $hint);
@@ -223,7 +228,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    *   A callback compatible with Sentry's before_send_transaction option.
    */
   public static function beforeSendTransactionCallback(?callable $previous = NULL): callable {
-    return static function (\Sentry\Event $transaction) use ($previous): ?\Sentry\Event {
+    return static function (Event $transaction) use ($previous): ?Event {
       if ($previous !== NULL) {
         $transaction = $previous($transaction);
         if ($transaction === NULL) {
@@ -245,7 +250,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    *   A callback compatible with Sentry's before_send_log option.
    */
   public static function beforeSendLogCallback(?callable $previous = NULL): callable {
-    return static function (\Sentry\Logs\Log $log) use ($previous): ?\Sentry\Logs\Log {
+    return static function (Log $log) use ($previous): ?Log {
       if ($previous !== NULL) {
         $log = $previous($log);
         if ($log === NULL) {
@@ -336,7 +341,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @return bool
    *   TRUE if the event should be dropped as sitemap custom path noise.
    */
-  public static function isSitemapCustomPathNoise(\Sentry\Event $sentryEvent): bool {
+  public static function isSitemapCustomPathNoise(Event $sentryEvent): bool {
     if ($sentryEvent->getLogger() !== 'simple_sitemap') {
       return FALSE;
     }
@@ -375,16 +380,16 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @return bool
    *   TRUE if the event should be dropped as announcements timeout noise.
    */
-  public static function isDrupalAnnouncementsTimeoutNoise(\Sentry\Event $sentryEvent, ?\Sentry\EventHint $hint = NULL): bool {
+  public static function isDrupalAnnouncementsTimeoutNoise(Event $sentryEvent, ?EventHint $hint = NULL): bool {
     if (!in_array($sentryEvent->getLogger(), ['cron', 'announcements_feed'], TRUE)) {
       return FALSE;
     }
 
-    $isConnectException = $hint?->exception instanceof \GuzzleHttp\Exception\ConnectException;
+    $isConnectException = $hint?->exception instanceof ConnectException;
     if (!$isConnectException) {
       $firstException = $sentryEvent->getExceptions()[0] ?? NULL;
-      $isConnectException = $firstException instanceof \Sentry\ExceptionDataBag
-        && $firstException->getType() === \GuzzleHttp\Exception\ConnectException::class;
+      $isConnectException = $firstException instanceof
+      ExceptionDataBag        && $firstException->getType() === ConnectException::class;
     }
     if (!$isConnectException) {
       return FALSE;
@@ -420,7 +425,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @return bool
    *   TRUE if the event should be dropped as temporary cron mail noise.
    */
-  public static function isTemporaryCronMailNoise(\Sentry\Event $sentryEvent): bool {
+  public static function isTemporaryCronMailNoise(Event $sentryEvent): bool {
     if (!in_array($sentryEvent->getLogger(), ['mail', 'symfony_mailer_lite'], TRUE)) {
       return FALSE;
     }
@@ -480,7 +485,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @return bool
    *   TRUE if the event should be dropped as transient AI provider noise.
    */
-  public static function isTransientAiProviderCronNoise(\Sentry\Event $sentryEvent, ?\Sentry\EventHint $hint = NULL): bool {
+  public static function isTransientAiProviderCronNoise(Event $sentryEvent, ?EventHint $hint = NULL): bool {
     if (static::resolveRuntimeContext() !== 'drush-cron') {
       return FALSE;
     }
@@ -554,7 +559,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @return bool
    *   TRUE if the event should be dropped as cron lock noise.
    */
-  public static function isCronRerunNoise(\Sentry\Event $sentryEvent): bool {
+  public static function isCronRerunNoise(Event $sentryEvent): bool {
     $message = $sentryEvent->getMessage() ?? '';
     return str_contains($message, 'Attempting to re-run cron while it is already running');
   }
@@ -627,7 +632,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @return bool
    *   TRUE if the event should be dropped as CSP extension/ad noise.
    */
-  public static function isCspExtensionNoise(\Sentry\Event $sentryEvent): bool {
+  public static function isCspExtensionNoise(Event $sentryEvent): bool {
     if (!in_array($sentryEvent->getLogger(), ['csp', 'seckit'], TRUE)) {
       return FALSE;
     }
@@ -665,7 +670,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @return bool
    *   TRUE if the event should be dropped as stale aggregate asset noise.
    */
-  public static function isStaleAggregateAssetClientError(\Sentry\Event $sentryEvent, ?\Sentry\EventHint $hint = NULL): bool {
+  public static function isStaleAggregateAssetClientError(Event $sentryEvent, ?EventHint $hint = NULL): bool {
     if (!static::hasBadRequestHttpException($sentryEvent, $hint)) {
       return FALSE;
     }
@@ -694,7 +699,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
   /**
    * Returns TRUE when the event/hint carries BadRequestHttpException.
    */
-  private static function hasBadRequestHttpException(\Sentry\Event $sentryEvent, ?\Sentry\EventHint $hint = NULL): bool {
+  private static function hasBadRequestHttpException(Event $sentryEvent, ?EventHint $hint = NULL): bool {
     $badRequestClass = 'Symfony\\Component\\HttpKernel\\Exception\\BadRequestHttpException';
 
     if ($hint?->exception instanceof $badRequestClass) {
@@ -713,7 +718,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
   /**
    * Returns TRUE when no Sentry mechanism marks the exception as unhandled.
    */
-  private static function isHandledExceptionEvent(\Sentry\Event $sentryEvent): bool {
+  private static function isHandledExceptionEvent(Event $sentryEvent): bool {
     foreach ($sentryEvent->getExceptions() as $exceptionBag) {
       $mechanism = $exceptionBag->getMechanism();
       if ($mechanism !== NULL && !$mechanism->isHandled()) {
@@ -727,7 +732,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
   /**
    * Returns TRUE when message or stacktrace points to AssetControllerBase.
    */
-  private static function hasAssetControllerSignal(\Sentry\Event $sentryEvent): bool {
+  private static function hasAssetControllerSignal(Event $sentryEvent): bool {
     $candidates = [
       $sentryEvent->getMessage() ?? '',
       $sentryEvent->getMessageFormatted() ?? '',
@@ -757,7 +762,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @return string[]
    *   Unique non-empty URL candidates.
    */
-  private static function assetCandidateUrls(\Sentry\Event $sentryEvent): array {
+  private static function assetCandidateUrls(Event $sentryEvent): array {
     $urls = [];
 
     $contexts = $sentryEvent->getContexts();
@@ -983,7 +988,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
   /**
    * Applies consistent scrubbing and tagging to a Sentry event.
    */
-  private static function scrubEvent(\Sentry\Event $sentryEvent, bool $transaction = FALSE): \Sentry\Event {
+  private static function scrubEvent(Event $sentryEvent, bool $transaction = FALSE): Event {
     $message = $sentryEvent->getMessage();
     if ($message !== NULL && $message !== '') {
       $params = $sentryEvent->getMessageParams();
@@ -991,7 +996,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
       $sentryEvent->setMessage(
         PiiRedactor::redact($message),
         $params,
-        $formatted !== null ? PiiRedactor::redact($formatted) : null
+        $formatted !== NULL ? PiiRedactor::redact($formatted) : NULL
       );
     }
 
@@ -1077,7 +1082,7 @@ class SentryOptionsSubscriber implements EventSubscriberInterface {
    * @param \Sentry\Event $sentryEvent
    *   The Sentry event to inspect and annotate.
    */
-  private static function ensureMinimumContext(\Sentry\Event $sentryEvent): void {
+  private static function ensureMinimumContext(Event $sentryEvent): void {
     $message = $sentryEvent->getMessage() ?? '';
     $formatted = $sentryEvent->getMessageFormatted() ?? '';
     $hasMessage = $message !== '' || $formatted !== '';

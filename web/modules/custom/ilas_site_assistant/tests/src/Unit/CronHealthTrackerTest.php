@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\Core\State\StateInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\ilas_site_assistant\Service\CronHealthTracker;
@@ -29,8 +30,8 @@ class CronHealthTrackerTest extends TestCase {
   /**
    * Builds a mock StateInterface backed by the in-memory store.
    */
-  private function buildState(): \Drupal\Core\State\StateInterface {
-    $state = $this->createMock(\Drupal\Core\State\StateInterface::class);
+  private function buildState(): StateInterface {
+    $state = $this->createMock(StateInterface::class);
 
     $state->method('get')
       ->willReturnCallback(function (string $key, $default = NULL) {

@@ -12,7 +12,6 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Unit tests for PolicyFilter service.
- *
  */
 #[CoversClass(PolicyFilter::class)]
 #[Group('ilas_site_assistant')]

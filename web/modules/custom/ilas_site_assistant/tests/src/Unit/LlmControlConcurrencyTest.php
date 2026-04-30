@@ -24,6 +24,9 @@ class LlmControlConcurrencyTest extends TestCase {
 
   private string $tempDir;
 
+  /**
+   *
+   */
   protected function setUp(): void {
     parent::setUp();
 
@@ -35,6 +38,9 @@ class LlmControlConcurrencyTest extends TestCase {
     mkdir($this->tempDir, 0777, TRUE);
   }
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     if (isset($this->tempDir) && is_dir($this->tempDir)) {
       $this->removeDirectory($this->tempDir);
@@ -305,7 +311,7 @@ class LlmControlConcurrencyTest extends TestCase {
       $this->assertTrue(pcntl_wifexited($status), "Child {$index} did not exit cleanly.");
       $this->assertSame(0, pcntl_wexitstatus($status), "Child {$index} exited with failure.");
 
-      $payload = unserialize((string) file_get_contents($child['result_file']));
+      $payload = unserialize((string) file_get_contents($child['result_file']), ['allowed_classes' => FALSE]);
       $this->assertIsArray($payload);
       if (isset($payload['exception'])) {
         $this->fail("Child {$index} threw an exception: {$payload['exception']}");

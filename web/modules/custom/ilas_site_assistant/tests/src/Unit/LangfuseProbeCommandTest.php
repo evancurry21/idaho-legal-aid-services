@@ -27,7 +27,6 @@ use Symfony\Component\Yaml\Yaml;
  * Validates that the probe command exists, produces deterministic PII-free
  * payloads matching the approved Langfuse ingestion format, and that the
  * Drush service entry is correctly registered.
- *
  */
 #[Group('ilas_site_assistant')]
 class LangfuseProbeCommandTest extends TestCase {
@@ -76,10 +75,14 @@ class LangfuseProbeCommandTest extends TestCase {
 
     // PII regex patterns.
     $piiPatterns = [
-      '/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/',  // email
-      '/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/',                     // phone
-      '/\b\d{3}-\d{2}-\d{4}\b/',                              // SSN
-      '/\b(?:4\d{12}(?:\d{3})?|5[1-5]\d{14})\b/',             // CC
+    // Email.
+      '/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/',
+    // Phone.
+      '/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/',
+    // SSN.
+      '/\b\d{3}-\d{2}-\d{4}\b/',
+    // CC.
+      '/\b(?:4\d{12}(?:\d{3})?|5[1-5]\d{14})\b/',
     ];
 
     $json = json_encode($payload);
@@ -566,6 +569,9 @@ class LangfuseProbeCommandTest extends TestCase {
 
 }
 
+/**
+ *
+ */
 final class TestableLangfuseProbeCommands extends LangfuseProbeCommands {
 
   /**

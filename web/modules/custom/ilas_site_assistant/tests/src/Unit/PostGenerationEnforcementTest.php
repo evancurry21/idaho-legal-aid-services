@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -50,6 +54,9 @@ final class PostGenerationEnforcementTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
@@ -198,8 +205,8 @@ final class PostGenerationEnforcementTest extends TestCase {
       conversation_cache: $cache,
       logger: new NullLogger(),
       assistant_flow_runner: $this->createStub(AssistantFlowRunner::class),
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      selection_registry: new SelectionRegistry(new TopIntentsPack()),
+      selection_state_store: new SelectionStateStore($cache),
       response_grounder: new ResponseGrounder($sourceGovernance),
       source_governance: $sourceGovernance,
       pre_routing_decision_engine: new PreRoutingDecisionEngine($policyFilter),
@@ -607,14 +614,23 @@ final class PostGenerationEnforcementTest extends TestCase {
   private function translationStub(): TranslationInterface {
     return new class implements TranslationInterface {
 
+      /**
+       *
+       */
       public function translate($string, array $args = [], array $options = []) {
         return strtr($string, $args);
       }
 
-      public function translateString(\Drupal\Core\StringTranslation\TranslatableMarkup $translated_string) {
+      /**
+       *
+       */
+      public function translateString(TranslatableMarkup $translated_string) {
         return strtr($translated_string->getUntranslatedString(), $translated_string->getArguments());
       }
 
+      /**
+       *
+       */
       public function formatPlural($count, $singular, $plural, array $args = [], array $options = []) {
         return strtr($count == 1 ? $singular : $plural, $args);
       }

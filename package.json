@@ -17,6 +17,10 @@
     "test:assistant:playwright:install": "playwright install chromium",
     "test:assistant:playwright:mocked-smoke": "playwright test --config=playwright.config.js web/modules/custom/ilas_site_assistant/tests/playwright/assistant.mocked.spec.js --grep \"rapid double click|widget assistant buttons\"",
     "test:assistant:smoke": "node scripts/smoke/assistant-smoke.mjs",
+    "test:a11y": "playwright test --config=playwright.a11y.config.js",
+    "test:a11y:headed": "playwright test --config=playwright.a11y.config.js --headed",
+    "test:a11y:install": "playwright install chromium",
+    "test:a11y:report": "playwright show-report output/playwright-a11y/report",
     "test:phpunit:host": "bash scripts/ci/run-host-phpunit.sh",
     "eval:promptfoo": "bash promptfoo-evals/scripts/run-promptfoo.sh eval",
     "eval:promptfoo:quality": "bash scripts/ci/run-promptfoo-gate.sh --env ${CI_PROMPTFOO_ENV:-dev} --mode blocking --config promptfooconfig.quality.yaml --no-deep-eval",
@@ -27,6 +31,7 @@
     "view:promptfoo:win": "powershell -ExecutionPolicy Bypass -File promptfoo-evals/scripts/run-promptfoo.ps1 -Action view"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
     "@playwright/test": "^1.59.1",
     "jest-environment-jsdom": "^30.3.0",
     "promptfoo": "^0.121.7"

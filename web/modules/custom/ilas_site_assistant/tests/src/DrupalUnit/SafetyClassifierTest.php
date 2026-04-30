@@ -10,7 +10,6 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Unit tests for SafetyClassifier service.
- *
  */
 #[CoversClass(SafetyClassifier::class)]
 #[Group('ilas_site_assistant')]

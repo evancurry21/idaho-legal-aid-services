@@ -12,7 +12,6 @@ use Psr\Log\LoggerInterface;
  *
  * Tests the generic_answer, feedback_helpful, and feedback_not_helpful
  * event types added for the search quality analytics dashboard.
- *
  */
 #[Group('ilas_site_assistant')]
 class SearchAnalyticsKernelTest extends AssistantKernelTestBase {
@@ -81,7 +80,7 @@ class SearchAnalyticsKernelTest extends AssistantKernelTestBase {
     $logger->log('feedback_helpful', 'faq');
     $logger->log('feedback_helpful', 'resources');
 
-    // faq should have count=2, resources count=1.
+    // Faq should have count=2, resources count=1.
     $faq_row = $this->database->select('ilas_site_assistant_stats', 's')
       ->fields('s', ['count'])
       ->condition('event_type', 'feedback_helpful')

@@ -467,7 +467,7 @@ PROMPT;
    * @return array{
    *   payload: array<string, mixed>,
    *   usage?: array<string, int>
-   * }
+   *   }
    *   Structured response and optional usage.
    */
   protected function dispatchStructuredJsonRequest(array $messages, array $schema, array $options = []): array {

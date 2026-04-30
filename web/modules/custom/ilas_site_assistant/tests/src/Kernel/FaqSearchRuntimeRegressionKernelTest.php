@@ -215,7 +215,8 @@ final class FaqSearchRuntimeRegressionKernelTest extends KernelTestBase {
       'field_faq_items' => [[
         'target_id' => $faq_item->id(),
         'target_revision_id' => $faq_item->getRevisionId(),
-      ]],
+      ]
+],
     ]);
     $faq_section->save();
 
@@ -227,7 +228,8 @@ final class FaqSearchRuntimeRegressionKernelTest extends KernelTestBase {
       'field_faq_section' => [[
         'target_id' => $faq_section->id(),
         'target_revision_id' => $faq_section->getRevisionId(),
-      ]],
+      ]
+],
     ]);
     $node->save();
 

@@ -133,4 +133,5 @@ class LangfuseStatusCommandsOutputTest extends TestCase {
     $this->assertTrue($decoded['export']['action_required']);
     $this->assertSame(1, $decoded['export']['alertable_loss_totals']['event_count']);
   }
+
 }

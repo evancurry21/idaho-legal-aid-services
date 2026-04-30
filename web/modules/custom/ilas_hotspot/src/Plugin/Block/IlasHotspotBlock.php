@@ -72,33 +72,33 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
    */
   public function build() {
     $config = $this->configFactory->get('ilas_hotspot.settings');
-    
-    // Get hotspot data from configuration
+
+    // Get hotspot data from configuration.
     $hotspots = $config->get('hotspot_data');
-    
-    // If no configuration exists, use defaults
+
+    // If no configuration exists, use defaults.
     if (empty($hotspots)) {
       $hotspots = $this->getDefaultHotspots();
     }
-    
-    // Get image path from configuration
+
+    // Get image path from configuration.
     $image_path = $config->get('hotspot_image') ?: '/themes/custom/b5subtheme/images/icons/impact-graphic-2.svg';
 
-    // Get annual report PDF URL from media entity
+    // Get annual report PDF URL from media entity.
     $annual_report_path = $this->getAnnualReportUrl($config->get('annual_report_media'));
-    
-    // Create the hotspot render array
+
+    // Create the hotspot render array.
     $hotspot_render = ilas_hotspot_create($image_path, $hotspots, TRUE);
-    
-    // Create container with two columns
+
+    // Create container with two columns.
     $build = [
       '#type' => 'container',
       '#attributes' => [
         'class' => ['ilas-impact-wrapper'],
       ],
     ];
-    
-    // Add header for accessibility
+
+    // Add header for accessibility.
     $build['header'] = [
       '#type' => 'html_tag',
       '#tag' => 'h2',
@@ -107,8 +107,8 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
         'class' => ['impact-header'],
       ],
     ];
-    
-    // Add a table for layout
+
+    // Add a table for layout.
     $build['table'] = [
       '#type' => 'html_tag',
       '#tag' => 'table',
@@ -117,13 +117,13 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
         'role' => 'presentation',
       ],
     ];
-    
+
     $build['table']['row'] = [
       '#type' => 'html_tag',
       '#tag' => 'tr',
     ];
-    
-    // Hotspot cell
+
+    // Hotspot cell.
     $build['table']['row']['hotspot_cell'] = [
       '#type' => 'html_tag',
       '#tag' => 'td',
@@ -132,8 +132,8 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
       ],
       'content' => $hotspot_render,
     ];
-    
-    // Annual report cell - only render if a media entity is selected
+
+    // Annual report cell - only render if a media entity is selected.
     if (!empty($annual_report_path)) {
       $build['table']['row']['annual_report_cell'] = [
         '#type' => 'html_tag',
@@ -167,8 +167,8 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
         ],
       ];
     }
-    
-    // Add cache tags for the media entity and configuration
+
+    // Add cache tags for the media entity and configuration.
     $cache_tags = ['config:ilas_hotspot.settings'];
     $media_id = $config->get('annual_report_media');
     if (!empty($media_id)) {
@@ -179,9 +179,9 @@ class IlasHotspotBlock extends BlockBase implements ContainerFactoryPluginInterf
       'tags' => $cache_tags,
       'contexts' => ['url'],
     ];
-    
+
     $build['#attached']['library'][] = 'ilas_hotspot/hotspot';
-    
+
     return $build;
   }
 

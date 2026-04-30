@@ -1,0 +1,30 @@
+          <nav class="wizard-navigation" role="navigation" aria-label="Form navigation">
+            <div class="nav-left">
+              <button type="button" 
+                      class="btn btn-nav btn-prev"
+                      style="display: none;"
+                      aria-label="Go to previous step">
+                <i class="fas fa-arrow-left" aria-hidden="true"></i> Previous
+              </button>
+            </div>
+            
+            <div class="nav-center">
+              <div class="step-indicator" aria-live="polite" aria-atomic="true">
+                Step <span class="current-step">1</span> of <span class="total-steps">5</span>
+              </div>
+            </div>
+            
+            <div class="nav-right">
+              <button type="button" 
+                      class="btn btn-primary btn-next"
+                      aria-label="Go to next step">
+                Next <i class="fas fa-arrow-right" aria-hidden="true"></i>
+              </button>
+              <button type="submit" 
+                      class="btn btn-success btn-submit" 
+                      style="display: none;"
+                      aria-label="Submit application">
+                <i class="fas fa-paper-plane" aria-hidden="true"></i> Submit Application
+              </button>
+            </div>
+          </nav>

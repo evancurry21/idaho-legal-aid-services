@@ -37,7 +37,7 @@ interface RequestTimeLlmTransportInterface {
    * @return array{
    *   payload: array<string, mixed>,
    *   usage?: array<string, int>
-   * }
+   *   }
    *   Structured payload and optional token usage.
    */
   public function completeStructuredJson(array $messages, array $schema, array $options = []): array;

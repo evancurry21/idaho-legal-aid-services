@@ -14,7 +14,6 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * Regression tests for keyword extraction.
  *
  * These tests cover previously failing cases from the evaluation harness.
- *
  */
 #[CoversClass(KeywordExtractor::class)]
 #[Group('ilas_site_assistant')]
@@ -36,10 +35,16 @@ class KeywordExtractionRegressionTest extends UnitTestCase {
     $module_path = dirname(__DIR__, 3);
     $container = new ContainerBuilder();
     $container->set('extension.list.module', new class($module_path) {
+
       public function __construct(private string $modulePath) {}
+
+      /**
+       *
+       */
       public function getPath(string $module): string {
         return $this->modulePath;
       }
+
     });
     \Drupal::setContainer($container);
 

@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_test\Form;
 
+use Drupal\Core\Url;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -66,35 +67,35 @@ class ExecuteTestsForm extends FormBase {
         'accessibility',
       ],
     ];
-    
+
     $form['options'] = [
       '#type' => 'details',
       '#title' => $this->t('Options'),
       '#open' => FALSE,
     ];
-    
+
     $form['options']['verbose'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Verbose output'),
       '#description' => $this->t('Show detailed test output.'),
     ];
-    
+
     $form['options']['stop_on_failure'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Stop on failure'),
       '#description' => $this->t('Stop execution when a test fails.'),
     ];
-    
+
     $form['options']['email_results'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Email results'),
       '#description' => $this->t('Send test results via email when complete.'),
     ];
-    
+
     $form['actions'] = [
       '#type' => 'actions',
     ];
-    
+
     $form['actions']['submit'] = [
       '#type' => 'submit',
       '#value' => $this->t('Run Tests'),
@@ -108,12 +109,12 @@ class ExecuteTestsForm extends FormBase {
         ],
       ],
     ];
-    
+
     $form['results'] = [
       '#type' => 'container',
       '#attributes' => ['id' => 'test-results'],
     ];
-    
+
     return $form;
   }
 
@@ -122,10 +123,10 @@ class ExecuteTestsForm extends FormBase {
    */
   public function runTestsAjax(array &$form, FormStateInterface $form_state) {
     $categories = array_filter($form_state->getValue('test_categories'));
-    
+
     try {
       $report = $this->testRunner->runAllTests();
-      
+
       $form['results']['summary'] = [
         '#theme' => 'item_list',
         '#title' => $this->t('Test Results'),
@@ -137,7 +138,7 @@ class ExecuteTestsForm extends FormBase {
         ],
         '#attributes' => ['class' => ['test-summary']],
       ];
-      
+
       if ($report['summary']['failed'] > 0) {
         $form['results']['failures'] = [
           '#type' => 'details',
@@ -145,24 +146,24 @@ class ExecuteTestsForm extends FormBase {
           '#open' => TRUE,
           '#attributes' => ['class' => ['test-failures']],
         ];
-        
+
         foreach ($report['results'] as $category => $results) {
           if (!empty($results['errors'])) {
             $form['results']['failures'][$category] = [
               '#theme' => 'item_list',
               '#title' => $this->t('@category errors', ['@category' => ucfirst($category)]),
-              '#items' => array_map(function($error) {
+              '#items' => array_map(function ($error) {
                 return $error['test'] . ': ' . $error['error'];
               }, $results['errors']),
             ];
           }
         }
       }
-      
+
       $form['results']['report_link'] = [
         '#type' => 'link',
         '#title' => $this->t('View Full Report'),
-        '#url' => \Drupal\Core\Url::fromRoute('ilas_test.report', [
+        '#url' => Url::fromRoute('ilas_test.report', [
           'report_id' => $report['id'],
         ]),
         '#attributes' => ['class' => ['button']],
@@ -174,11 +175,11 @@ class ExecuteTestsForm extends FormBase {
       ]);
       $form['results']['error'] = [
         '#markup' => '<div class="messages messages--error">' .
-                    $this->t('Test execution failed. Check the site logs for details.') .
-                    '</div>',
+        $this->t('Test execution failed. Check the site logs for details.') .
+        '</div>',
       ];
     }
-    
+
     return $form['results'];
   }
 
@@ -186,6 +187,7 @@ class ExecuteTestsForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    // Handled by AJAX
+    // Handled by AJAX.
   }
+
 }

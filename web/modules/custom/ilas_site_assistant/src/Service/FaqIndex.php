@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_site_assistant\Service;
 
+use Drupal\search_api\SearchApiException;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -148,8 +149,8 @@ class FaqIndex {
     ConfigFactoryInterface $config_factory,
     LanguageManagerInterface $language_manager,
     RetrievalConfigurationService $retrieval_configuration,
-    RankingEnhancer $ranking_enhancer = NULL,
-    SourceGovernanceService $source_governance = NULL
+    ?RankingEnhancer $ranking_enhancer = NULL,
+    ?SourceGovernanceService $source_governance = NULL,
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->cache = $cache;
@@ -697,14 +698,17 @@ class FaqIndex {
       $item['question'] = $this->getFieldValue($paragraph, 'field_faq_question');
       $item['answer'] = $this->getFieldValue($paragraph, 'field_faq_answer', TRUE);
       $item['answer_snippet'] = $this->truncate($item['answer'], 200);
-      $item['title'] = $item['question']; // Alias for consistency.
+      // Alias for consistency.
+      $item['title'] = $item['question'];
     }
     elseif ($type === 'accordion_item') {
       $item['title'] = $this->getFieldValue($paragraph, 'field_accordion_title');
       $item['body'] = $this->getFieldValue($paragraph, 'field_accordion_body', TRUE);
-      $item['answer'] = $item['body']; // Alias for FAQ-like response.
+      // Alias for FAQ-like response.
+      $item['answer'] = $item['body'];
       $item['answer_snippet'] = $this->truncate($item['body'], 200);
-      $item['question'] = $item['title']; // Alias for consistency.
+      // Alias for consistency.
+      $item['question'] = $item['title'];
     }
 
     // Get anchor ID.
@@ -960,7 +964,8 @@ class FaqIndex {
 
     // Get all items and group by parent.
     $search_query = $index->query();
-    $search_query->range(0, 1000); // Get all.
+    // Get all.
+    $search_query->range(0, 1000);
     $search_query->addCondition('search_api_language', $this->getCurrentLanguage());
     $search_query->addCondition('paragraph_type', 'faq_item');
 
@@ -1600,7 +1605,7 @@ class FaqIndex {
       $level = 'error';
       $category = 'unexpected';
 
-      if ($e instanceof \Drupal\search_api\SearchApiException) {
+      if ($e instanceof SearchApiException) {
         $category = 'search_api';
         $level = 'warning';
       }

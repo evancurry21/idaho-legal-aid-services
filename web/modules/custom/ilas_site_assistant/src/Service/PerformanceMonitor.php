@@ -87,7 +87,7 @@ class PerformanceMonitor {
   public function __construct(
     StateInterface $state,
     LoggerChannelInterface $logger,
-    ?SloDefinitions $slo_definitions = NULL
+    ?SloDefinitions $slo_definitions = NULL,
   ) {
     $this->state = $state;
     $this->logger = $logger;

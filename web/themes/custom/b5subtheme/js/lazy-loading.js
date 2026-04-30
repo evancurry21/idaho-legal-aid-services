@@ -7,6 +7,28 @@
   'use strict';
 
   /**
+   * Resolve a candidate URL and confirm it is same-origin.
+   * Returns the resolved URL string, or null when invalid / cross-origin.
+   */
+  function resolveSameOriginUrl(candidate) {
+    if (!candidate || typeof candidate !== 'string') {
+      return null;
+    }
+    try {
+      const resolved = new URL(candidate, window.location.origin);
+      if (resolved.origin !== window.location.origin) {
+        return null;
+      }
+      if (resolved.protocol !== window.location.protocol) {
+        return null;
+      }
+      return resolved.toString();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
    * Initialize lazy loading for images and content.
    */
   Drupal.behaviors.ilasLazyLoading = {
@@ -173,10 +195,14 @@
      * Load content via AJAX.
      */
     loadAjaxContent: function(element) {
-      const url = element.getAttribute('data-lazy-src');
-      if (!url) return;
+      const raw = element.getAttribute('data-lazy-src');
+      const url = resolveSameOriginUrl(raw);
+      if (!url) {
+        element.classList.add('lazy-error');
+        return;
+      }
 
-      fetch(url)
+      fetch(url, { credentials: 'same-origin' })
         .then(response => response.text())
         .then(html => {
           // Parse response as DOM to safely insert HTML and prevent XSS

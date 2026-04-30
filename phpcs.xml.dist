@@ -1,0 +1,82 @@
+<?xml version="1.0"?>
+<ruleset name="ILAS Custom">
+  <description>Drupal + DrupalPractice coding standards for ILAS custom modules and themes only.</description>
+
+  <file>web/modules/custom</file>
+  <file>web/themes/custom</file>
+
+  <arg name="extensions" value="php,module,inc,install,test,profile,theme"/>
+  <arg name="colors"/>
+  <arg value="np"/>
+
+  <exclude-pattern>*/node_modules/*</exclude-pattern>
+  <exclude-pattern>*/vendor/*</exclude-pattern>
+  <exclude-pattern>*/dist/*</exclude-pattern>
+  <exclude-pattern>*/build/*</exclude-pattern>
+  <exclude-pattern>*/tests/fixtures/*</exclude-pattern>
+
+  <rule ref="Drupal">
+    <!--
+      Initial-introduction baseline: docblock/array-style sniffs produce ~900
+      pre-existing legacy findings across 13 custom modules. They are silenced
+      project-wide so CI gates real issues (security, naming, undefined
+      variables, deprecated API usage) without requiring a sweeping docblock
+      cleanup as part of this patch.
+      TODO: re-enable each sniff individually as legacy findings are remediated.
+    -->
+    <exclude name="Drupal.Commenting.DocComment.Empty"/>
+    <exclude name="Drupal.Commenting.DocComment.MissingShort"/>
+    <exclude name="Drupal.Commenting.DocComment.ShortNotCapital"/>
+    <exclude name="Drupal.Commenting.DocComment.ShortSingleLine"/>
+    <exclude name="Drupal.Commenting.DocComment.ShortFullStop"/>
+    <exclude name="Drupal.Commenting.FunctionComment.MissingReturnComment"/>
+    <exclude name="Drupal.Commenting.FunctionComment.MissingParamComment"/>
+    <exclude name="Drupal.Commenting.FunctionComment.MissingParamName"/>
+    <exclude name="Drupal.Commenting.FunctionComment.ParamNameNoMatch"/>
+    <exclude name="Drupal.Commenting.FunctionComment.ParamMissingDefinition"/>
+    <exclude name="Drupal.Commenting.FunctionComment.ParamCommentNotCapital"/>
+    <exclude name="Drupal.Commenting.FunctionComment.SeeAdditionalText"/>
+    <exclude name="Drupal.Commenting.VariableComment.Missing"/>
+    <exclude name="Drupal.Arrays.Array.LongLineDeclaration"/>
+
+    <!--
+      Legacy naming-convention findings across pre-existing custom code
+      (test method names like test_something, snake_case helpers, $Foo
+      variables, global $variable_name, ad-hoc test runner scripts whose
+      filename does not match a Drupal class name). Suppressed to keep this
+      patch focused on tooling introduction.
+      TODO: incrementally rename per-module and lift each exclusion.
+    -->
+    <exclude name="Drupal.NamingConventions.ValidFunctionName.ScopeNotCamelCaps"/>
+    <exclude name="Drupal.NamingConventions.ValidFunctionName.InvalidName"/>
+    <exclude name="Drupal.NamingConventions.ValidVariableName.LowerStart"/>
+    <exclude name="Drupal.NamingConventions.ValidGlobal.GlobalUnderScore"/>
+    <exclude name="Drupal.Classes.ClassFileName.NoMatch"/>
+    <exclude name="Drupal.Classes.UseGlobalClass.RedundantUseStatement"/>
+  </rule>
+  <rule ref="DrupalPractice">
+    <!--
+      sirbrillig/phpcs-variable-analysis 2.13 crashes on some PHP 8.x list
+      shorthand patterns. Disabled until upstream fix lands.
+      TODO: re-enable once sirbrillig/phpcs-variable-analysis ships a fix for
+      the "Undefined array key bracket_closer" runtime error.
+    -->
+    <exclude name="DrupalPractice.CodeAnalysis.VariableAnalysis"/>
+
+    <!--
+      Drupal kernel tests historically declare $strictConfigSchema = FALSE.
+      The schema_metatag-driven config in this project legitimately requires
+      it for some tests.
+      TODO: tighten per-test as schema definitions are completed.
+    -->
+    <exclude name="DrupalPractice.Objects.StrictSchemaDisabled.StrictConfigSchema"/>
+  </rule>
+
+  <!--
+    Style suggestion not enforced as a hard gate.
+    TODO: re-enable when the assistant module's prompt-string assembly is refactored.
+  -->
+  <rule ref="Generic.Strings.UnnecessaryStringConcat">
+    <severity>0</severity>
+  </rule>
+</ruleset>

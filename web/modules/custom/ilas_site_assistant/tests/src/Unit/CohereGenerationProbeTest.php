@@ -24,11 +24,17 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class CohereGenerationProbeTest extends TestCase {
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testProbeSucceedsOnExactExpectedContent(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -66,6 +72,9 @@ final class CohereGenerationProbeTest extends TestCase {
     $this->assertStringNotContainsString('cohere-secret-value', $json);
   }
 
+  /**
+   *
+   */
   public function testProbeDoesNotCallProviderWhenDisabled(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -87,6 +96,9 @@ final class CohereGenerationProbeTest extends TestCase {
     $this->assertSame('disabled', $result['reason']);
   }
 
+  /**
+   *
+   */
   public function testProbeReportsUnexpectedContentAsFailureWithoutLeakingResponse(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -110,6 +122,9 @@ final class CohereGenerationProbeTest extends TestCase {
     $this->assertStringNotContainsString('different', json_encode($result, JSON_THROW_ON_ERROR));
   }
 
+  /**
+   *
+   */
   public function testProbeDoesNotCallProviderWhenProviderIsNotCohere(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -130,6 +145,9 @@ final class CohereGenerationProbeTest extends TestCase {
     $this->assertSame('provider_not_cohere', $result['reason']);
   }
 
+  /**
+   *
+   */
   public function testReadinessSummaryFallsBackToDefaultModelWhenStoredModelIsBlank(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -149,6 +167,9 @@ final class CohereGenerationProbeTest extends TestCase {
     $this->assertTrue($summary['runtime_ready'] ?? FALSE);
   }
 
+  /**
+   *
+   */
   public function testProbeSanitizesTransportErrors(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -175,6 +196,9 @@ final class CohereGenerationProbeTest extends TestCase {
     $this->assertStringNotContainsString('cohere-secret-value', json_encode($result, JSON_THROW_ON_ERROR));
   }
 
+  /**
+   *
+   */
   public function testReadinessSummaryReplaysLastStoredProbeState(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -210,6 +234,9 @@ final class CohereGenerationProbeTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   private function buildConfigFactory(array $values): ConfigFactoryInterface {
     $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')
@@ -223,14 +250,23 @@ final class CohereGenerationProbeTest extends TestCase {
     return $factory;
   }
 
+  /**
+   *
+   */
   private function buildState(): StateInterface {
-    return new class implements StateInterface {
+    return new class() implements StateInterface {
       private array $storage = [];
 
+      /**
+       *
+       */
       public function get($key, $default = NULL): mixed {
         return $this->storage[$key] ?? $default;
       }
 
+      /**
+       *
+       */
       public function getMultiple(array $keys): array {
         $values = [];
         foreach ($keys as $key) {
@@ -241,11 +277,17 @@ final class CohereGenerationProbeTest extends TestCase {
         return $values;
       }
 
+      /**
+       *
+       */
       public function set($key, $value = NULL) {
         $this->storage[$key] = $value;
         return $this;
       }
 
+      /**
+       *
+       */
       public function setMultiple(array $data) {
         foreach ($data as $key => $value) {
           $this->storage[$key] = $value;
@@ -253,11 +295,17 @@ final class CohereGenerationProbeTest extends TestCase {
         return $this;
       }
 
+      /**
+       *
+       */
       public function delete($key) {
         unset($this->storage[$key]);
         return TRUE;
       }
 
+      /**
+       *
+       */
       public function deleteMultiple(array $keys) {
         foreach ($keys as $key) {
           unset($this->storage[$key]);
@@ -265,15 +313,25 @@ final class CohereGenerationProbeTest extends TestCase {
         return TRUE;
       }
 
+      /**
+       *
+       */
       public function resetCache() {}
 
+      /**
+       *
+       */
       public function getValuesSetDuringRequest(string $key): ?array {
         $value = $this->storage[$key] ?? NULL;
         return is_array($value) ? $value : NULL;
       }
+
     };
   }
 
+  /**
+   *
+   */
   private function buildCohereResponse(string $text): Response {
     return new Response(200, [], json_encode([
       'message' => [

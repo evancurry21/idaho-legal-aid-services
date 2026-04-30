@@ -174,7 +174,7 @@ final class AccessibilityMobileUxAcceptanceGateTest extends TestCase {
   // =========================================================================
 
   /**
-   * callApi must check navigator.onLine === false.
+   * CallApi must check navigator.onLine === false.
    */
   public function testOfflineCheckInCallApi(): void {
     $js = self::widgetJs();
@@ -183,7 +183,7 @@ final class AccessibilityMobileUxAcceptanceGateTest extends TestCase {
   }
 
   /**
-   * openPanel must check navigator.onLine for proactive offline warning.
+   * OpenPanel must check navigator.onLine for proactive offline warning.
    */
   public function testOfflineCheckOnPanelOpen(): void {
     $js = self::widgetJs();

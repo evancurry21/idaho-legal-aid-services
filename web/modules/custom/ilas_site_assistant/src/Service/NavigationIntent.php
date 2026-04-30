@@ -2,6 +2,8 @@
 
 namespace Drupal\ilas_site_assistant\Service;
 
+use Symfony\Component\Yaml\Yaml;
+
 /**
  * Detects navigation-style queries and matches them to canonical pages.
  *
@@ -29,7 +31,7 @@ class NavigationIntent {
    * @var string[]
    */
   protected const NAV_PATTERNS = [
-    // English
+    // English.
     '/\b(where\s*(do|can|would)\s*i\s*(find|go|look|see|get\s*to))\b/i',
     '/\b(where\s*(do|can)\s*i\s*(apply|donate|file|submit|start|access))\b/i',
     '/\b(where\s*(are|is)\s*(the|your|you))\b/i',
@@ -44,7 +46,7 @@ class NavigationIntent {
     '/\b(can\s*you\s*(show|direct|point|send)\s*me\s*to)\b/i',
     // "X page" pattern (e.g., "forms page", "donation page", "FAQ page")
     '/\b\w+\s+page\b/i',
-    // Spanish
+    // Spanish.
     '/\b(donde\s*(encuentro|esta|puedo\s*(encontrar|ver|ir)))\b/i',
     '/\b(llevame\s*a|muestrame|pagina\s*(de|para|sobre))\b/i',
     '/\b(enlace\s*(a|de|para))\b/i',
@@ -79,7 +81,7 @@ class NavigationIntent {
     if (!file_exists($yaml_path)) {
       return new self();
     }
-    $data = \Symfony\Component\Yaml\Yaml::parseFile($yaml_path);
+    $data = Yaml::parseFile($yaml_path);
     if (!is_array($data)) {
       return new self();
     }

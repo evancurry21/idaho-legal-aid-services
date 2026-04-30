@@ -182,7 +182,7 @@ final class QualityGateEnforcementContractTest extends TestCase {
   public function testWorkflowTriggersCoverAllBlockingBranches(): void {
     $workflow = self::readFile('.github/workflows/quality-gate.yml');
 
-    // push section must include all blocking branches.
+    // Push section must include all blocking branches.
     $pushPos = strpos($workflow, 'push:');
     $this->assertNotFalse($pushPos, 'push trigger must exist in workflow');
 

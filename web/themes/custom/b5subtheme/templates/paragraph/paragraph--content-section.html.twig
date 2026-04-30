@@ -14,6 +14,14 @@
  */
 #}
 
+{#
+  field_section_style is a list_string with allowed_values "default" and
+  "highlighted"; field_section_id is a string with is_ascii=true. Both are
+  consumed in attribute / class-string contexts where `content.field_*` would
+  inject a wrapper div and break rendering. Twig autoescape applies in HTML
+  attribute context, and the field-level enum/ASCII constraints prevent any
+  HTML metacharacters from reaching output.
+#}
 {% set style = paragraph.field_section_style.value|default('default') %}
 {% set section_id = paragraph.field_section_id.value %}
 
@@ -24,6 +32,12 @@
 
 <section{{ attributes.addClass(classes) }}{% if section_id %} id="{{ section_id }}"{% endif %}>
   {% if paragraph.field_section_title.value %}
+    {# field_section_title is a plain `string` field with no text format; there
+       is no filter pipeline to bypass. Twig autoescape encodes any HTML
+       metacharacters in the output. Avoiding `content.field_section_title`
+       here keeps the h2 free of Drupal's field-wrapper markup and prevents
+       the double-encoding that would result from `|render|striptags|trim`
+       (which discards the Markup safety wrapper). #}
     <h2 class="content-section__title">
       {{ paragraph.field_section_title.value }}
     </h2>

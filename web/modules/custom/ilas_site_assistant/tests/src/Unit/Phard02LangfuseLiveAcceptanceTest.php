@@ -28,8 +28,7 @@ use Symfony\Component\Yaml\Yaml;
  * - No PII in batch event bodies
  * - Sampling policy documented
  * - Queue SLO alert route
- * - Drush probe command registration
- *
+ * - Drush probe command registration.
  */
 #[Group('ilas_site_assistant')]
 class Phard02LangfuseLiveAcceptanceTest extends TestCase {

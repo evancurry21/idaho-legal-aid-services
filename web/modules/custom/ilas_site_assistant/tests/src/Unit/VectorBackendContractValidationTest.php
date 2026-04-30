@@ -25,9 +25,14 @@ final class VectorBackendContractValidationTest extends TestCase {
 
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
+
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
+
     });
 
     \Drupal::setContainer($container);
@@ -41,12 +46,21 @@ final class VectorBackendContractValidationTest extends TestCase {
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testFaqValidatorAcceptsVoyageBackedCosineContract(): void {
     $probe = new class extends FaqIndex {
+
       public function __construct() {}
+
+      /**
+       *
+       */
       public function validateBackendContract(mixed $index): bool {
         return $this->validateVectorMetric($index);
       }
+
     };
 
     $this->assertTrue($probe->validateBackendContract($this->buildVectorIndex([
@@ -56,12 +70,21 @@ final class VectorBackendContractValidationTest extends TestCase {
     ])));
   }
 
+  /**
+   *
+   */
   public function testFaqValidatorRejectsLegacyGoogleEmbeddingsEngine(): void {
     $probe = new class extends FaqIndex {
+
       public function __construct() {}
+
+      /**
+       *
+       */
       public function validateBackendContract(mixed $index): bool {
         return $this->validateVectorMetric($index);
       }
+
     };
 
     $this->assertFalse($probe->validateBackendContract($this->buildVectorIndex([
@@ -71,12 +94,21 @@ final class VectorBackendContractValidationTest extends TestCase {
     ])));
   }
 
+  /**
+   *
+   */
   public function testResourceValidatorRejectsNonCosineMetric(): void {
     $probe = new class extends ResourceFinder {
+
       public function __construct() {}
+
+      /**
+       *
+       */
       public function validateBackendContract(mixed $index): bool {
         return $this->validateVectorMetric($index);
       }
+
     };
 
     $this->assertFalse($probe->validateBackendContract($this->buildVectorIndex([
@@ -86,12 +118,21 @@ final class VectorBackendContractValidationTest extends TestCase {
     ])));
   }
 
+  /**
+   *
+   */
   public function testResourceValidatorRejectsWrongDimensions(): void {
     $probe = new class extends ResourceFinder {
+
       public function __construct() {}
+
+      /**
+       *
+       */
       public function validateBackendContract(mixed $index): bool {
         return $this->validateVectorMetric($index);
       }
+
     };
 
     $this->assertFalse($probe->validateBackendContract($this->buildVectorIndex([
@@ -106,17 +147,29 @@ final class VectorBackendContractValidationTest extends TestCase {
    */
   private function buildVectorIndex(array $backendConfig): object {
     $server = new class($backendConfig) {
+
       public function __construct(private array $backendConfig) {}
+
+      /**
+       *
+       */
       public function getBackendConfig(): array {
         return $this->backendConfig;
       }
+
     };
 
     return new class($server) {
+
       public function __construct(private object $server) {}
+
+      /**
+       *
+       */
       public function getServerInstance(): object {
         return $this->server;
       }
+
     };
   }
 

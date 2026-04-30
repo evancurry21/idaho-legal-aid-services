@@ -16,8 +16,10 @@ class ApplicationValidator {
    * File upload configuration.
    */
   public const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx'];
-  public const MAX_FILE_SIZE = 5242880; // 5MB
-  public const MAX_TOTAL_UPLOAD_SIZE = 26214400; // 25MB
+  // 5MB
+  public const MAX_FILE_SIZE = 5242880;
+  // 25MB
+  public const MAX_TOTAL_UPLOAD_SIZE = 26214400;
 
   /**
    * MIME types accepted per extension.

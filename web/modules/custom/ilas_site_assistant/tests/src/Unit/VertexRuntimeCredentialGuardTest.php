@@ -13,10 +13,16 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class VertexRuntimeCredentialGuardTest extends TestCase {
 
+  /**
+   *
+   */
   private static function repoRoot(): string {
     return dirname(__DIR__, 7);
   }
 
+  /**
+   *
+   */
   private static function readFile(string $relativePath): string {
     $path = self::repoRoot() . '/' . ltrim($relativePath, '/');
     self::assertFileExists($path);
@@ -25,6 +31,9 @@ final class VertexRuntimeCredentialGuardTest extends TestCase {
     return $contents;
   }
 
+  /**
+   *
+   */
   public function testSettingsPhpNoLongerLoadsVertexAssistantSecret(): void {
     $settings = self::readFile('web/sites/default/settings.php');
 
@@ -32,6 +41,9 @@ final class VertexRuntimeCredentialGuardTest extends TestCase {
     $this->assertStringNotContainsString('ilas_vertex_sa_json', $settings);
   }
 
+  /**
+   *
+   */
   public function testAssistantCodeNoLongerContainsVertexTransportSurface(): void {
     $enhancer = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php');
     $readme = self::readFile('web/modules/custom/ilas_site_assistant/README.md');
@@ -41,6 +53,9 @@ final class VertexRuntimeCredentialGuardTest extends TestCase {
     $this->assertStringNotContainsString('ILAS_VERTEX_SA_JSON', $readme);
   }
 
+  /**
+   *
+   */
   public function testRuntimeSiteSettingKeyProviderDefaultIsNoLongerVertexSpecific(): void {
     $provider = self::readFile('web/modules/custom/ilas_site_assistant/src/Plugin/KeyProvider/RuntimeSiteSettingKeyProvider.php');
 

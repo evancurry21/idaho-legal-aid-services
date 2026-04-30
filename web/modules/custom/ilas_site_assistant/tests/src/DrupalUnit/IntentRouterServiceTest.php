@@ -18,7 +18,6 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Unit tests for IntentRouter service.
- *
  */
 #[CoversClass(IntentRouter::class)]
 #[Group('ilas_site_assistant')]
@@ -468,28 +467,28 @@ class IntentRouterServiceTest extends UnitTestCase {
    */
   public static function consumerDebtProvider(): array {
     return [
-      // English - debt collection
+      // English - debt collection.
       'debt collector calling' => ['a debt collector keeps calling me at work', 'service_area', 'consumer'],
       'bill collector' => ['a bill collector is harassing me', 'service_area', 'consumer'],
       'collection calls' => ['collection agency calling me constantly', 'service_area', 'consumer'],
-      // English - garnishment
+      // English - garnishment.
       'wage garnishment' => ['how do I stop wage garnishment', 'service_area', 'consumer'],
       'wages garnished' => ['my wages are being garnished', 'unknown', NULL],
       // English - medical debt (CRITICAL: should NOT route to health)
       'medical bills' => ['I have a lot of medical bills I can not pay', 'service_area', 'consumer'],
       'hospital debt' => ['hospital debt is overwhelming', 'service_area', 'consumer'],
-      // English - debt lawsuits
+      // English - debt lawsuits.
       'sued for debt' => ['I was sued for a debt', 'service_area', 'consumer'],
       'court papers debt' => ['got court papers for a debt', 'forms_finder', NULL],
-      // English - repossession
+      // English - repossession.
       'car repossessed' => ['my car was repossessed', 'service_area', 'consumer'],
-      // English - bankruptcy
+      // English - bankruptcy.
       'file bankruptcy' => ['can I file bankruptcy', 'service_area', 'consumer'],
-      // English - credit report
+      // English - credit report.
       'credit report error' => ['there is an error on my credit report', 'service_area', 'consumer'],
-      // English - old debt
+      // English - old debt.
       'old debt' => ['can they still collect on a debt from 10 years ago', 'service_area', 'consumer'],
-      // English - bank levy
+      // English - bank levy.
       'bank account frozen' => ['creditor froze my bank account', 'service_area', 'consumer'],
     ];
   }
@@ -509,15 +508,15 @@ class IntentRouterServiceTest extends UnitTestCase {
    */
   public static function consumerDebtSpanishProvider(): array {
     return [
-      // Spanish - debt collector
+      // Spanish - debt collector.
       'cobrador llama' => ['un cobrador me llama todos los dias', 'consumer'],
       'cobrador de deudas' => ['el cobrador de deudas no me deja en paz', 'consumer'],
-      // Spanish - garnishment
+      // Spanish - garnishment.
       'embargando sueldo' => ['me estan embargando el sueldo', 'consumer'],
       // Spanish - medical debt (CRITICAL: should NOT route to health)
       'deudas medicas' => ['tengo muchas deudas medicas', 'consumer'],
       'facturas medicas' => ['tengo muchas facturas medicas que no puedo pagar', 'consumer'],
-      // Spanish - repossession
+      // Spanish - repossession.
       'quitaron carro' => ['me quitaron el carro', 'consumer'],
     ];
   }

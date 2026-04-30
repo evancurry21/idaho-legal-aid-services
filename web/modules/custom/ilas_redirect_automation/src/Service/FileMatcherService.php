@@ -36,7 +36,7 @@ class FileMatcherService {
    */
   public function __construct(
     FileSystemInterface $file_system,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
   ) {
     $this->fileSystem = $file_system;
     $this->logger = $logger_factory->get('ilas_redirect_automation');
@@ -54,19 +54,19 @@ class FileMatcherService {
    *   Match result with keys: destination, confidence, match_type, notes.
    */
   public function match(string $oldPath, array $searchDirectories): ?array {
-    // Extract filename from old path
+    // Extract filename from old path.
     $filename = $this->extractFilename($oldPath);
 
     if (empty($filename)) {
       return NULL;
     }
 
-    // Build file cache if needed
+    // Build file cache if needed.
     if ($this->fileCache === NULL) {
       $this->buildFileCache($searchDirectories);
     }
 
-    // Try exact filename match
+    // Try exact filename match.
     $exactMatch = $this->findExactFileMatch($filename);
     if ($exactMatch) {
       return [
@@ -77,7 +77,7 @@ class FileMatcherService {
       ];
     }
 
-    // Try normalized filename match
+    // Try normalized filename match.
     $normalizedMatch = $this->findNormalizedFileMatch($filename);
     if ($normalizedMatch) {
       return [
@@ -88,7 +88,7 @@ class FileMatcherService {
       ];
     }
 
-    // Try fuzzy match
+    // Try fuzzy match.
     $fuzzyMatch = $this->findFuzzyFileMatch($filename);
     if ($fuzzyMatch) {
       return [
@@ -115,11 +115,11 @@ class FileMatcherService {
     // Handle various old path formats
     // /files/filename.pdf
     // /sites/default/files/filename.pdf
-    // /sites/default/files/subfolder/filename.pdf
+    // /sites/default/files/subfolder/filename.pdf.
 
     $path = ltrim($path, '/');
 
-    // Remove common prefixes
+    // Remove common prefixes.
     $prefixes = [
       'sites/default/files/',
       'files/',
@@ -135,7 +135,7 @@ class FileMatcherService {
     // Get just the filename (basename)
     $filename = basename($path);
 
-    // Validate it looks like a file
+    // Validate it looks like a file.
     if (empty($filename) || strpos($filename, '.') === FALSE) {
       return NULL;
     }
@@ -266,12 +266,12 @@ class FileMatcherService {
       $fileWords = $this->extractFileWords($file['filename']);
       $fileExtension = pathinfo($file['filename'], PATHINFO_EXTENSION);
 
-      // Extension must match
+      // Extension must match.
       if (strtolower($searchExtension) !== strtolower($fileExtension)) {
         continue;
       }
 
-      // Calculate word overlap
+      // Calculate word overlap.
       $matchingWords = array_intersect($searchWords, $fileWords);
       $matchCount = count($matchingWords);
 
@@ -302,22 +302,22 @@ class FileMatcherService {
    *   The normalized filename.
    */
   protected function normalizeFilename(string $filename): string {
-    // Get extension
+    // Get extension.
     $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-    // Get name without extension
+    // Get name without extension.
     $name = pathinfo($filename, PATHINFO_FILENAME);
 
-    // Lowercase
+    // Lowercase.
     $name = strtolower($name);
 
-    // Replace separators with spaces
+    // Replace separators with spaces.
     $name = str_replace(['-', '_', '.', ' '], ' ', $name);
 
-    // Remove extra whitespace
+    // Remove extra whitespace.
     $name = preg_replace('/\s+/', ' ', $name);
 
-    // Trim
+    // Trim.
     $name = trim($name);
 
     return $name . '.' . $extension;
@@ -333,16 +333,16 @@ class FileMatcherService {
    *   Array of significant words.
    */
   protected function extractFileWords(string $filename): array {
-    // Get name without extension
+    // Get name without extension.
     $name = pathinfo($filename, PATHINFO_FILENAME);
 
-    // Lowercase and split
+    // Lowercase and split.
     $name = strtolower($name);
     $name = str_replace(['-', '_', '.'], ' ', $name);
 
     $words = explode(' ', $name);
 
-    // Filter short words
+    // Filter short words.
     return array_filter($words, function ($word) {
       return strlen($word) >= 3;
     });
@@ -360,7 +360,7 @@ class FileMatcherService {
   protected function buildFileUrl(string $filepath): string {
     $basePath = DRUPAL_ROOT;
 
-    // Make path relative to web root
+    // Make path relative to web root.
     if (str_starts_with($filepath, $basePath)) {
       $relativePath = substr($filepath, strlen($basePath));
     }
@@ -368,7 +368,7 @@ class FileMatcherService {
       $relativePath = $filepath;
     }
 
-    // Ensure leading slash
+    // Ensure leading slash.
     return '/' . ltrim($relativePath, '/');
   }
 

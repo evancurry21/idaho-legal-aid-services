@@ -21,7 +21,7 @@ use Psr\Log\LoggerInterface;
  * - F-13: _requires_review enforcement for legal-advice patterns
  * - Official phone/address validation
  * - Caveat logic
- * - Complete grounding flows
+ * - Complete grounding flows.
  */
 #[CoversClass(ResponseGrounder::class)]
 #[Group('ilas_site_assistant')]
@@ -197,6 +197,9 @@ class ResponseGrounderTest extends TestCase {
     $this->assertLessThanOrEqual(60, mb_strlen($result['sources'][0]['title']));
   }
 
+  /**
+   *
+   */
   public static function allowedCitationUrlProvider(): array {
     return [
       'relative' => ['/faq#housing'],
@@ -204,6 +207,9 @@ class ResponseGrounderTest extends TestCase {
     ];
   }
 
+  /**
+   *
+   */
   public static function disallowedCitationUrlProvider(): array {
     return [
       'javascript' => ['javascript:alert(1)'],
@@ -251,6 +257,9 @@ class ResponseGrounderTest extends TestCase {
     $this->assertStringContainsString($phone, $result['message']);
   }
 
+  /**
+   *
+   */
   public static function officialPhoneProvider(): array {
     return [
       'Boise' => ['(208) 345-0106'],
@@ -279,6 +288,9 @@ class ResponseGrounderTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function legalAdvicePatternProvider(): array {
     return [
       'you should file' => ['you should file a complaint with the court'],
@@ -324,6 +336,9 @@ class ResponseGrounderTest extends TestCase {
     $this->assertStringContainsString('general guidance', $result['caveat']);
   }
 
+  /**
+   *
+   */
   public static function caveatTypeProvider(): array {
     return [
       'faq' => ['faq'],
@@ -387,11 +402,16 @@ class ResponseGrounderTest extends TestCase {
   public function testAllOfficialPhonesRecognized(): void {
     // We test via validateInformation — official phones should NOT be flagged.
     $official_numbers = [
-      '(208) 345-0106',  // Boise
-      '(208) 233-0079',  // Pocatello
-      '(208) 734-7024',  // Twin Falls
-      '(208) 746-7541',  // Lewiston / Hotline
-      '(208) 524-3660',  // Idaho Falls
+    // Boise.
+      '(208) 345-0106',
+    // Pocatello.
+      '(208) 233-0079',
+    // Twin Falls.
+      '(208) 734-7024',
+    // Lewiston / Hotline.
+      '(208) 746-7541',
+    // Idaho Falls.
+      '(208) 524-3660',
     ];
 
     foreach ($official_numbers as $number) {

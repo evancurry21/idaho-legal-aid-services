@@ -14,7 +14,15 @@
  */
 #}
 
+{# field_stat_color is a list_string with allowed_values "blue"/"gray";
+   consumed in a class string where `content.field_*` would inject a wrapper div.
+   Enum constraint plus Twig attribute autoescape keep this safe. #}
 {% set color_class = paragraph.field_stat_color.value|default('blue') %}
+
+{# field_stat_label is a plain `string` field (no text format); the label is
+   captured as a plain Twig string for the mobile_labels map lookup below.
+   Twig autoescape encodes the value when it is later rendered inside the
+   `<span>` elements. #}
 {% set label = paragraph.field_stat_label.value %}
 
 {# Mobile label mappings - shorter versions for small screens #}
@@ -31,6 +39,9 @@
 ] %}
 
 <div{{ attributes.addClass(classes) }}>
+  {# field_stat_number is a plain `string` field (no text format). Output via
+     `.value` so Twig autoescape encodes characters once; using the render
+     pipeline + `|striptags|trim` would double-encode `&` characters. #}
   <div class="quick-fact__number">
     {{ paragraph.field_stat_number.value }}
   </div>
@@ -38,6 +49,8 @@
     <span class="d-none d-md-inline">{{ label }}</span>
     <span class="d-md-none">{{ mobile_label }}</span>
   </div>
+  {# field_stat_detail is a plain `string_long` field (no text format). Same
+     reasoning as field_stat_number above. #}
   {% if paragraph.field_stat_detail.value %}
     <div class="quick-fact__detail">
       {{ paragraph.field_stat_detail.value }}

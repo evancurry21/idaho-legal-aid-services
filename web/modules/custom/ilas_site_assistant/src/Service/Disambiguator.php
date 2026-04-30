@@ -81,7 +81,7 @@ class Disambiguator {
    * 1. Exact family alias match
    * 2. Short family match from token sets / lead patterns
    * 3. Topic-only / topic-enriched clarification
-   * 4. Confidence-delta and known-pair fallbacks
+   * 4. Confidence-delta and known-pair fallbacks.
    *
    * @param string $message
    *   The user's message.

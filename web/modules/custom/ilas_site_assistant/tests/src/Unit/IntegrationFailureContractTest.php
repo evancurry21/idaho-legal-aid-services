@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Drupal\Core\Database\Schema;
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
+use Drupal\Tests\ilas_site_assistant\Support\PassThroughTranslation;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -87,12 +93,15 @@ class IntegrationFailureContractTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
 
     });
-    $container->set('string_translation', new \Drupal\Tests\ilas_site_assistant\Support\PassThroughTranslation());
+    $container->set('string_translation', new PassThroughTranslation());
     $container->set('config.factory', $configFactory);
 
     \Drupal::setContainer($container);
@@ -221,8 +230,8 @@ class IntegrationFailureContractTest extends TestCase {
       $logger,
       assistant_flow_runner: $assistantFlowRunner,
       langfuse_tracer: $langfuseTracer,
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      selection_registry: new SelectionRegistry(new TopIntentsPack()),
+      selection_state_store: new SelectionStateStore($cache),
       pre_routing_decision_engine: new PreRoutingDecisionEngine($policyFilter),
     );
 
@@ -958,7 +967,7 @@ class IntegrationFailureContractTest extends TestCase {
    * ConversationLogger::logExchange() swallows database exceptions internally.
    */
   public function testConversationLoggerInternalCatchSwallowsException(): void {
-    $schema = $this->createStub(\Drupal\Core\Database\Schema::class);
+    $schema = $this->createStub(Schema::class);
     $schema->method('tableExists')->willReturn(TRUE);
 
     $database = $this->createMock(Connection::class);
@@ -1288,7 +1297,7 @@ class ContractTestableController extends AssistantApiController {
   /**
    * Exposes jsonResponse for direct unit testing.
    */
-  public function exposedJsonResponse(array $data, int $status = 200, array $extra_headers = [], string $request_id = ''): \Symfony\Component\HttpFoundation\JsonResponse {
+  public function exposedJsonResponse(array $data, int $status = 200, array $extra_headers = [], string $request_id = ''): JsonResponse {
     return $this->jsonResponse($data, $status, $extra_headers, $request_id);
   }
 

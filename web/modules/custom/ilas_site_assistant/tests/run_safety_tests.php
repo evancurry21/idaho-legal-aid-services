@@ -23,15 +23,28 @@ use Drupal\ilas_site_assistant\Service\SafetyClassifier;
  * Mock Config Factory for standalone testing.
  */
 class MockConfigFactory {
+
+  /**
+   *
+   */
   public function get($name) {
     return new MockConfig();
   }
+
 }
 
+/**
+ *
+ */
 class MockConfig {
+
+  /**
+   *
+   */
   public function get($key) {
     return [];
   }
+
 }
 
 /**
@@ -403,10 +416,16 @@ class SafetyTestRunner {
     return $this->results;
   }
 
+  /**
+   *
+   */
   public function setVerbose(bool $verbose): void {
     $this->verbose = $verbose;
   }
 
+  /**
+   *
+   */
   public function setCategoryFilter(?string $category): void {
     $this->categoryFilter = $category;
   }

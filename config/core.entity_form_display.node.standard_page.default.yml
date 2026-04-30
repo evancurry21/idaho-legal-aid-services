@@ -5,6 +5,7 @@ dependencies:
   config:
     - field.field.node.standard_page.field_daa_items
     - field.field.node.standard_page.field_faq_section
+    - field.field.node.standard_page.field_is_events_hub
     - field.field.node.standard_page.field_main_content
     - field.field.node.standard_page.field_partner_sections
     - field.field.node.standard_page.field_sections
@@ -61,6 +62,13 @@ content:
       features:
         collapse_edit_all: collapse_edit_all
         duplicate: duplicate
+    third_party_settings: {  }
+  field_is_events_hub:
+    type: boolean_checkbox
+    weight: 50
+    region: content
+    settings:
+      display_label: true
     third_party_settings: {  }
   field_main_content:
     type: text_textarea

@@ -246,6 +246,10 @@ final class DocumentRetrievalTestFinder extends ResourceFinder {
   ) {
     $this->topIntentsPack = new TopIntentsPack();
     $this->topicResolver = new class {
+
+      /**
+       *
+       */
       public function resolveFromText(string $text): ?array {
         $normalized = strtolower(trim($text));
         return match (TRUE) {
@@ -255,29 +259,64 @@ final class DocumentRetrievalTestFinder extends ResourceFinder {
           default => NULL,
         };
       }
+
     };
     $this->cache = new class {
-      public function get(string $cid) { return FALSE; }
+
+      /**
+       *
+       */
+      public function get(string $cid) {
+        return FALSE;
+      }
+
+      /**
+       *
+       */
       public function set(string $cid, $data, $expire = -1, array $tags = []) {}
+
     };
     $this->languageManager = new class {
+
+      /**
+       *
+       */
       public function getCurrentLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
+
+      /**
+       *
+       */
       public function getDefaultLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
+
+      /**
+       *
+       */
       public function getLanguages(): array {
         return ['en' => new \stdClass()];
       }
+
     };
     $this->rankingEnhancer = NULL;
     $this->sourceGovernance = $source_governance;

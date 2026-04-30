@@ -17,11 +17,17 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class LlmRuntimeConfigResolverTest extends TestCase {
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testResolveReportsExplicitCohereConfigAndSourcesWithoutSecrets(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -49,6 +55,9 @@ final class LlmRuntimeConfigResolverTest extends TestCase {
     $this->assertStringNotContainsString('cohere-secret-value', $json);
   }
 
+  /**
+   *
+   */
   public function testResolveFallsBackToSafeDefaultsAndRequiresEnablement(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -70,6 +79,9 @@ final class LlmRuntimeConfigResolverTest extends TestCase {
     $this->assertSame('code default', $summary['sources']['provider'] ?? NULL);
   }
 
+  /**
+   *
+   */
   public function testResolveMarksRuntimeNotReadyWhenProviderIsNotCohere(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -90,6 +102,9 @@ final class LlmRuntimeConfigResolverTest extends TestCase {
     $this->assertFalse($summary['runtime_ready']);
   }
 
+  /**
+   *
+   */
   public function testResolveFallsBackToDefaultModelWhenStoredModelIsBlank(): void {
     new Settings([
       'ilas_cohere_api_key' => 'cohere-secret-value',
@@ -114,6 +129,9 @@ final class LlmRuntimeConfigResolverTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   private function buildConfigFactory(array $values): ConfigFactoryInterface {
     $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')

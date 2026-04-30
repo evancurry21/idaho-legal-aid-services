@@ -56,7 +56,7 @@ class ConversationLogger {
     Connection $database,
     ConfigFactoryInterface $config_factory,
     TimeInterface $time,
-    LoggerInterface $logger
+    LoggerInterface $logger,
   ) {
     $this->database = $database;
     $this->configFactory = $config_factory;

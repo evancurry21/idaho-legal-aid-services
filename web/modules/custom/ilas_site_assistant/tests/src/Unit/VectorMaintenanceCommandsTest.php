@@ -92,7 +92,8 @@ final class VectorMaintenanceCommandsTest extends TestCase {
                 'query' => 'custody',
                 'top_k' => 2,
                 'min_results' => 1,
-              ]],
+              ]
+],
             ],
             'resource_vector' => [
               'owner_role' => 'Content Operations Lead',
@@ -106,7 +107,8 @@ final class VectorMaintenanceCommandsTest extends TestCase {
                 'langcode' => 'en',
                 'top_k' => 1,
                 'min_results' => 1,
-              ]],
+              ]
+],
             ],
           ],
         ],
@@ -225,6 +227,9 @@ final class VectorMaintenanceCommandsTest extends TestCase {
     return $index;
   }
 
+  /**
+   *
+   */
   public function testVectorStatusPrintsSingleIndexJson(): void {
     $faqIndex = $this->buildIndex('pinecone_vector_faq', 10, 5, 5);
     $faqIndex->expects($this->never())->method('indexItems');
@@ -249,6 +254,9 @@ final class VectorMaintenanceCommandsTest extends TestCase {
     $this->assertSame('faq_accordion_vector', $decoded['index_id']);
   }
 
+  /**
+   *
+   */
   public function testVectorBackfillPrintsProgressJson(): void {
     $tracker = $this->createMock(TrackerInterface::class);
     $tracker->method('getTotalItemsCount')->willReturn(12);
@@ -278,6 +286,9 @@ final class VectorMaintenanceCommandsTest extends TestCase {
     $this->assertSame('batch_limit_reached', $decoded['stop_reason']);
   }
 
+  /**
+   *
+   */
   public function testDrushServicesRegisterVectorMaintenanceCommands(): void {
     $drushServicesPath = self::repoRoot() . '/' . self::MODULE_PATH . '/drush.services.yml';
     $this->assertFileExists($drushServicesPath);

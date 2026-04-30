@@ -54,7 +54,7 @@ class AuditBaselineAcceptanceTest extends TestCase {
   }
 
   /**
-   * context-latest.txt must exist and be non-empty.
+   * Context-latest.txt must exist and be non-empty.
    */
   public function testContextLatestFileExists(): void {
     $path = self::repoRoot() . '/' . self::DOCS_PATH . '/artifacts/context-latest.txt';
@@ -66,7 +66,7 @@ class AuditBaselineAcceptanceTest extends TestCase {
   }
 
   /**
-   * context-latest.txt must contain valid metadata fields.
+   * Context-latest.txt must contain valid metadata fields.
    */
   public function testContextLatestContainsValidMetadata(): void {
     $meta = self::contextLatest();

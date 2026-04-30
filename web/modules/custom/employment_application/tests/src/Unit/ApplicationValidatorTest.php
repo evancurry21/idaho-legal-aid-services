@@ -34,21 +34,26 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // generateApplicationId()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testGenerateApplicationIdFormat(): void {
     $id = $this->validator->generateApplicationId([
       'full_name' => 'Jane Doe',
       'job_title' => 'Staff Attorney',
     ]);
 
-    // Format: "Doe, Jane - Staff Attorney (YYYY-MM-DD HH-MM-SS-RANDOM)"
+    // Format: "Doe, Jane - Staff Attorney (YYYY-MM-DD HH-MM-SS-RANDOM)".
     $this->assertMatchesRegularExpression(
       '/^Doe, Jane - Staff Attorney \(\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}-[a-f0-9]{6}\)$/',
       $id
     );
   }
 
+  /**
+   *
+   */
   public function testGenerateApplicationIdUniqueness(): void {
     $data = ['full_name' => 'Jane Doe', 'job_title' => 'Paralegal'];
     $id1 = $this->validator->generateApplicationId($data);
@@ -58,6 +63,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertNotEquals($id1, $id2);
   }
 
+  /**
+   *
+   */
   public function testGenerateApplicationIdMaxLength(): void {
     $id = $this->validator->generateApplicationId([
       'full_name' => 'Jane Doe',
@@ -67,6 +75,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertLessThanOrEqual(191, strlen($id));
   }
 
+  /**
+   *
+   */
   public function testGenerateApplicationIdMissingName(): void {
     $id = $this->validator->generateApplicationId([
       'job_title' => 'Paralegal',
@@ -76,6 +87,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertStringStartsWith('Unknown, Unknown - Paralegal', $id);
   }
 
+  /**
+   *
+   */
   public function testGenerateApplicationIdSingleName(): void {
     $id = $this->validator->generateApplicationId([
       'full_name' => 'Madonna',
@@ -86,6 +100,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertStringStartsWith('Unknown, Madonna - Outreach Coordinator', $id);
   }
 
+  /**
+   *
+   */
   public function testGenerateApplicationIdMultiPartName(): void {
     $id = $this->validator->generateApplicationId([
       'full_name' => 'Mary Jane Watson-Parker',
@@ -96,6 +113,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertStringStartsWith('Watson-Parker, Mary - Legal Assistant', $id);
   }
 
+  /**
+   *
+   */
   public function testGenerateApplicationIdPreservesRandomSuffixOnTruncation(): void {
     $longTitle = str_repeat('X', 300);
     $id = $this->validator->generateApplicationId([
@@ -109,18 +129,26 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // validateEmail()
-  // ---------------------------------------------------------------
 
+  /**
+ * ---------------------------------------------------------------
+ */
   #[DataProvider('validEmailProvider')]
   public function testValidateEmailAcceptsValid(string $email): void {
     $this->assertTrue($this->validator->validateEmail($email));
   }
 
+  /**
+ *
+ */
   #[DataProvider('invalidEmailProvider')]
   public function testValidateEmailRejectsInvalid(string $email): void {
     $this->assertFalse($this->validator->validateEmail($email));
   }
 
+  /**
+   *
+   */
   public static function validEmailProvider(): array {
     return [
       'simple' => ['user@example.com'],
@@ -130,6 +158,9 @@ class ApplicationValidatorTest extends TestCase {
     ];
   }
 
+  /**
+   *
+   */
   public static function invalidEmailProvider(): array {
     return [
       'no at sign' => ['userexample.com'],
@@ -143,18 +174,26 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // validatePhone()
-  // ---------------------------------------------------------------
 
+  /**
+ * ---------------------------------------------------------------
+ */
   #[DataProvider('validPhoneProvider')]
   public function testValidatePhoneAcceptsValid(string $phone): void {
     $this->assertTrue($this->validator->validatePhone($phone));
   }
 
+  /**
+ *
+ */
   #[DataProvider('invalidPhoneProvider')]
   public function testValidatePhoneRejectsInvalid(string $phone): void {
     $this->assertFalse($this->validator->validatePhone($phone));
   }
 
+  /**
+   *
+   */
   public static function validPhoneProvider(): array {
     return [
       '7 digits bare' => ['1234567'],
@@ -166,6 +205,9 @@ class ApplicationValidatorTest extends TestCase {
     ];
   }
 
+  /**
+   *
+   */
   public static function invalidPhoneProvider(): array {
     return [
       'too few digits' => ['123456'],
@@ -178,25 +220,36 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // validateUuid()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testValidateUuidAcceptsValid(): void {
     $this->assertTrue(
       $this->validator->validateUuid('550e8400-e29b-41d4-a716-446655440000')
     );
   }
 
+  /**
+   *
+   */
   public function testValidateUuidAcceptsUppercase(): void {
     $this->assertTrue(
       $this->validator->validateUuid('550E8400-E29B-41D4-A716-446655440000')
     );
   }
 
+  /**
+ *
+ */
   #[DataProvider('invalidUuidProvider')]
   public function testValidateUuidRejectsInvalid(string $uuid): void {
     $this->assertFalse($this->validator->validateUuid($uuid));
   }
 
+  /**
+   *
+   */
   public static function invalidUuidProvider(): array {
     return [
       'too short' => ['550e8400-e29b-41d4-a716'],
@@ -209,14 +262,19 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // validateFile()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testValidateFileAcceptsPdf(): void {
     $result = $this->validator->validateFile('pdf', 'application/pdf', 1024);
     $this->assertTrue($result['valid']);
     $this->assertNull($result['error']);
   }
 
+  /**
+   *
+   */
   public function testValidateFileAcceptsDocx(): void {
     $result = $this->validator->validateFile(
       'docx',
@@ -226,11 +284,17 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertTrue($result['valid']);
   }
 
+  /**
+   *
+   */
   public function testValidateFileAcceptsDoc(): void {
     $result = $this->validator->validateFile('doc', 'application/msword', 1024);
     $this->assertTrue($result['valid']);
   }
 
+  /**
+   *
+   */
   public function testValidateFileRejectsOversized(): void {
     $result = $this->validator->validateFile(
       'pdf',
@@ -241,6 +305,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertStringContainsString('5MB', $result['error']);
   }
 
+  /**
+   *
+   */
   public function testValidateFileAcceptsExactMaxSize(): void {
     $result = $this->validator->validateFile(
       'pdf',
@@ -250,19 +317,28 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertTrue($result['valid']);
   }
 
+  /**
+   *
+   */
   public function testValidateFileRejectsForbiddenExtension(): void {
     $result = $this->validator->validateFile('exe', 'application/octet-stream', 1024);
     $this->assertFalse($result['valid']);
     $this->assertStringContainsString('PDF, DOC, and DOCX', $result['error']);
   }
 
+  /**
+   *
+   */
   public function testValidateFileRejectsMismatchedMime(): void {
-    // pdf extension but msword MIME.
+    // Pdf extension but msword MIME.
     $result = $this->validator->validateFile('pdf', 'application/msword', 1024);
     $this->assertFalse($result['valid']);
     $this->assertStringContainsString('Invalid file type', $result['error']);
   }
 
+  /**
+   *
+   */
   public function testValidateFileOctetStreamWithMagicBytes(): void {
     // Create a temp file with PDF magic bytes.
     $tmpFile = tempnam(sys_get_temp_dir(), 'test_pdf_');
@@ -282,6 +358,9 @@ class ApplicationValidatorTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testValidateFileOctetStreamWrongMagicBytes(): void {
     // Create a temp file with wrong magic bytes for PDF.
     $tmpFile = tempnam(sys_get_temp_dir(), 'test_bad_');
@@ -304,8 +383,10 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // verifyMagicBytes()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testVerifyMagicBytesPdf(): void {
     $tmpFile = tempnam(sys_get_temp_dir(), 'magic_');
     file_put_contents($tmpFile, '%PDF-1.7');
@@ -318,6 +399,9 @@ class ApplicationValidatorTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testVerifyMagicBytesDocx(): void {
     $tmpFile = tempnam(sys_get_temp_dir(), 'magic_');
     file_put_contents($tmpFile, "PK\x03\x04" . 'zip content');
@@ -330,6 +414,9 @@ class ApplicationValidatorTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testVerifyMagicBytesDoc(): void {
     $tmpFile = tempnam(sys_get_temp_dir(), 'magic_');
     file_put_contents($tmpFile, "\xD0\xCF\x11\xE0" . 'ole content');
@@ -342,6 +429,9 @@ class ApplicationValidatorTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testVerifyMagicBytesMismatch(): void {
     $tmpFile = tempnam(sys_get_temp_dir(), 'magic_');
     file_put_contents($tmpFile, 'JFIF not a PDF');
@@ -354,12 +444,18 @@ class ApplicationValidatorTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testVerifyMagicBytesNonexistentFile(): void {
     $this->assertFalse(
       $this->validator->verifyMagicBytes('pdf', '/nonexistent/file.pdf')
     );
   }
 
+  /**
+   *
+   */
   public function testVerifyMagicBytesEmptyFile(): void {
     $tmpFile = tempnam(sys_get_temp_dir(), 'magic_');
     file_put_contents($tmpFile, '');
@@ -372,6 +468,9 @@ class ApplicationValidatorTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testVerifyMagicBytesUnknownExtensionAllows(): void {
     $tmpFile = tempnam(sys_get_temp_dir(), 'magic_');
     file_put_contents($tmpFile, 'whatever');
@@ -387,8 +486,10 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // sanitizeInput()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testSanitizeInputStripsHtmlTags(): void {
     // strip_tags() removes tags but keeps inner text content.
     $this->assertSame(
@@ -397,6 +498,9 @@ class ApplicationValidatorTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public function testSanitizeInputStripsScriptTags(): void {
     // strip_tags() removes <script> tags; inner text is preserved by PHP.
     $result = $this->validator->sanitizeInput('<script>alert("xss")</script>Safe');
@@ -404,10 +508,16 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertStringContainsString('Safe', $result);
   }
 
+  /**
+   *
+   */
   public function testSanitizeInputTrimsWhitespace(): void {
     $this->assertSame('Hello', $this->validator->sanitizeInput('  Hello  '));
   }
 
+  /**
+   *
+   */
   public function testSanitizeInputHandlesArray(): void {
     $result = $this->validator->sanitizeInput([
       'name' => '  <b>Jane</b>  ',
@@ -418,6 +528,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertSame('jane@example.com', $result['email']);
   }
 
+  /**
+   *
+   */
   public function testSanitizeInputHandlesNestedArray(): void {
     $result = $this->validator->sanitizeInput([
       'level1' => [
@@ -428,28 +541,39 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertSame('safe', $result['level1']['level2']);
   }
 
+  /**
+   *
+   */
   public function testSanitizeInputHandlesNumeric(): void {
     $this->assertSame('42', $this->validator->sanitizeInput(42));
   }
 
+  /**
+   *
+   */
   public function testSanitizeInputHandlesNull(): void {
     $this->assertSame('', $this->validator->sanitizeInput(NULL));
   }
 
   // ---------------------------------------------------------------
   // generateSecureFilename()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testGenerateSecureFilenameFormat(): void {
     $filename = $this->validator->generateSecureFilename('My Resume (2024).pdf');
 
-    // Should match: sanitized_basename_timestamp_random.ext
+    // Should match: sanitized_basename_timestamp_random.ext.
     $this->assertMatchesRegularExpression(
       '/^My_Resume__2024__\d+_[a-f0-9]{8}\.pdf$/',
       $filename
     );
   }
 
+  /**
+   *
+   */
   public function testGenerateSecureFilenameStripsSpecialChars(): void {
     $filename = $this->validator->generateSecureFilename('file<script>.docx');
 
@@ -459,11 +583,17 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertStringEndsWith('.docx', $filename);
   }
 
+  /**
+   *
+   */
   public function testGenerateSecureFilenameLowercasesExtension(): void {
     $filename = $this->validator->generateSecureFilename('Resume.PDF');
     $this->assertStringEndsWith('.pdf', $filename);
   }
 
+  /**
+   *
+   */
   public function testGenerateSecureFilenameUniqueness(): void {
     $f1 = $this->validator->generateSecureFilename('resume.pdf');
     $f2 = $this->validator->generateSecureFilename('resume.pdf');
@@ -474,8 +604,10 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // formatPositionTitle()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testFormatPositionTitleKnownPositions(): void {
     $this->assertSame('Managing Attorney', $this->validator->formatPositionTitle('managing_attorney'));
     $this->assertSame('Staff Attorney', $this->validator->formatPositionTitle('staff_attorney'));
@@ -485,6 +617,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertSame('Community Outreach', $this->validator->formatPositionTitle('outreach'));
   }
 
+  /**
+   *
+   */
   public function testFormatPositionTitleUnknownPosition(): void {
     $this->assertSame(
       'Some New Role',
@@ -494,8 +629,10 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // formatYesNoOption()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testFormatYesNoOptionKnownValues(): void {
     $this->assertSame('Yes', $this->validator->formatYesNoOption('yes'));
     $this->assertSame('Yes', $this->validator->formatYesNoOption('YES'));
@@ -503,20 +640,28 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertSame('Licensed in Another State', $this->validator->formatYesNoOption('licensed_other_state'));
   }
 
+  /**
+   *
+   */
   public function testFormatYesNoOptionFallback(): void {
     $this->assertSame('Some custom value', $this->validator->formatYesNoOption('some_custom_value'));
   }
 
   // ---------------------------------------------------------------
   // hashIp()
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testHashIpReturns64CharHex(): void {
     $hash = $this->validator->hashIp('192.168.1.1', 'test-salt');
     $this->assertSame(64, strlen($hash));
     $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $hash);
   }
 
+  /**
+   *
+   */
   public function testHashIpDeterministic(): void {
     // Same inputs on same day should produce same hash.
     $hash1 = $this->validator->hashIp('10.0.0.1', 'salt123');
@@ -524,12 +669,18 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertSame($hash1, $hash2);
   }
 
+  /**
+   *
+   */
   public function testHashIpDifferentIpsDifferentHashes(): void {
     $hash1 = $this->validator->hashIp('10.0.0.1', 'salt');
     $hash2 = $this->validator->hashIp('10.0.0.2', 'salt');
     $this->assertNotEquals($hash1, $hash2);
   }
 
+  /**
+   *
+   */
   public function testHashIpDifferentSaltsDifferentHashes(): void {
     $hash1 = $this->validator->hashIp('10.0.0.1', 'salt-a');
     $hash2 = $this->validator->hashIp('10.0.0.1', 'salt-b');
@@ -538,8 +689,10 @@ class ApplicationValidatorTest extends TestCase {
 
   // ---------------------------------------------------------------
   // Constants sanity checks
-  // ---------------------------------------------------------------
 
+  /**
+   * ---------------------------------------------------------------
+   */
   public function testConstantsAreCorrect(): void {
     $this->assertSame(5242880, ApplicationValidator::MAX_FILE_SIZE);
     $this->assertSame(['pdf', 'doc', 'docx'], ApplicationValidator::ALLOWED_EXTENSIONS);
@@ -548,6 +701,9 @@ class ApplicationValidatorTest extends TestCase {
     $this->assertSame(15, ApplicationValidator::MAX_PHONE_DIGITS);
   }
 
+  /**
+   *
+   */
   public function testAllExtensionsHaveMimeTypes(): void {
     foreach (ApplicationValidator::ALLOWED_EXTENSIONS as $ext) {
       $this->assertArrayHasKey(
@@ -558,6 +714,9 @@ class ApplicationValidatorTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testAllExtensionsAllowOctetStream(): void {
     foreach (ApplicationValidator::ALLOWED_MIME_TYPES as $ext => $mimes) {
       $this->assertContains(

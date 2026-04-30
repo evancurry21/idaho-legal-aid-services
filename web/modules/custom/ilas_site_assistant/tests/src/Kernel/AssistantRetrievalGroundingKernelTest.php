@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Kernel;
 
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\Cache\MemoryBackend;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -442,7 +443,8 @@ final class AssistantRetrievalGroundingKernelTest extends KernelTestBase {
       'field_faq_items' => [[
         'target_id' => $faq_item->id(),
         'target_revision_id' => $faq_item->getRevisionId(),
-      ]],
+      ]
+],
     ]);
     $faq_section->save();
 
@@ -454,7 +456,8 @@ final class AssistantRetrievalGroundingKernelTest extends KernelTestBase {
       'field_faq_section' => [[
         'target_id' => $faq_section->id(),
         'target_revision_id' => $faq_section->getRevisionId(),
-      ]],
+      ]
+],
     ]);
     $node->save();
 
@@ -571,7 +574,8 @@ final class AssistantRetrievalGroundingKernelTest extends KernelTestBase {
       'description' => sprintf('%s office contact: %s. Phone: %s.', $source['title'], $contacts['address'], $contacts['phone']),
       'source' => 'office_resolver',
       'freshness' => ['status' => 'fresh'],
-    ]];
+    ]
+];
   }
 
   /**
@@ -893,7 +897,7 @@ final class AssistantQualityFaqIndexDouble extends FaqIndex {
    */
   public function __construct(
     EntityTypeManagerInterface $entity_type_manager,
-    \Drupal\Core\Cache\CacheBackendInterface $cache,
+    CacheBackendInterface $cache,
     ConfigFactoryInterface $config_factory,
     LanguageManagerInterface $language_manager,
     RetrievalConfigurationService $retrieval_configuration,
@@ -1114,6 +1118,9 @@ final class AssistantQualityFaqResultItem {
 
       public function __construct(private readonly Paragraph $paragraph) {}
 
+      /**
+       *
+       */
       public function getValue(): Paragraph {
         return $this->paragraph;
       }
@@ -1137,7 +1144,7 @@ final class AssistantQualityResourceFinderDouble extends ResourceFinder {
   public function __construct(
     EntityTypeManagerInterface $entity_type_manager,
     TopicResolver $topic_resolver,
-    \Drupal\Core\Cache\CacheBackendInterface $cache,
+    CacheBackendInterface $cache,
     LanguageManagerInterface $language_manager,
     ?RankingEnhancer $ranking_enhancer,
     ?ConfigFactoryInterface $config_factory,

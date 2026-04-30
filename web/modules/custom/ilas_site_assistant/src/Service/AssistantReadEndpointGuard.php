@@ -69,7 +69,7 @@ final class AssistantReadEndpointGuard {
    *     rate_limit_per_minute: int,
    *     rate_limit_per_hour: int
    *   }
-   * }
+   *   }
    *   Guard decision payload.
    */
   public function evaluate(Request $request, string $endpoint): array {

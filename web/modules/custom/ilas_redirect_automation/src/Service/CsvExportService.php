@@ -43,7 +43,7 @@ class CsvExportService {
    */
   public function __construct(
     FileSystemInterface $file_system,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
   ) {
     $this->fileSystem = $file_system;
     $this->logger = $logger_factory->get('ilas_redirect_automation');
@@ -62,7 +62,7 @@ class CsvExportService {
    */
   public function exportProposals(array $proposals, string $filepath): bool {
     try {
-      // Ensure directory exists
+      // Ensure directory exists.
       $directory = dirname($filepath);
       if (!is_dir($directory)) {
         $this->fileSystem->mkdir($directory, NULL, TRUE);
@@ -74,10 +74,10 @@ class CsvExportService {
         return FALSE;
       }
 
-      // Write header
+      // Write header.
       fputcsv($handle, self::CSV_COLUMNS);
 
-      // Write data
+      // Write data.
       foreach ($proposals as $proposal) {
         $row = [];
         foreach (self::CSV_COLUMNS as $column) {
@@ -124,29 +124,29 @@ class CsvExportService {
       return [];
     }
 
-    // Read header
+    // Read header.
     $header = fgetcsv($handle);
     if ($header === FALSE) {
       fclose($handle);
       return [];
     }
 
-    // Map header to column indices
+    // Map header to column indices.
     $columnMap = array_flip($header);
 
-    // Read data rows
+    // Read data rows.
     $lineNumber = 1;
     while (($row = fgetcsv($handle)) !== FALSE) {
       $lineNumber++;
 
-      // Map row to associative array
+      // Map row to associative array.
       $entry = [];
       foreach (self::CSV_COLUMNS as $column) {
         $index = $columnMap[$column] ?? NULL;
         $entry[$column] = ($index !== NULL && isset($row[$index])) ? $row[$index] : '';
       }
 
-      // Only include approved entries with destinations
+      // Only include approved entries with destinations.
       if ($entry['status'] === 'approved' && !empty($entry['proposed_destination'])) {
         $entry['line_number'] = $lineNumber;
         $entries[] = $entry;
@@ -191,7 +191,7 @@ class CsvExportService {
       return $result;
     }
 
-    // Check header
+    // Check header.
     $header = fgetcsv($handle);
     if ($header === FALSE) {
       $result['valid'] = FALSE;
@@ -200,7 +200,7 @@ class CsvExportService {
       return $result;
     }
 
-    // Verify required columns exist
+    // Verify required columns exist.
     $requiredColumns = ['old_path', 'proposed_destination', 'status'];
     $missingColumns = array_diff($requiredColumns, $header);
 
@@ -209,7 +209,7 @@ class CsvExportService {
       $result['errors'][] = 'Missing required columns: ' . implode(', ', $missingColumns);
     }
 
-    // Validate some data rows
+    // Validate some data rows.
     $lineNumber = 1;
     $rowCount = 0;
     $approvedCount = 0;
@@ -218,13 +218,13 @@ class CsvExportService {
       $lineNumber++;
       $rowCount++;
 
-      // Check row has correct number of columns
+      // Check row has correct number of columns.
       if (count($row) !== count($header)) {
         $result['errors'][] = sprintf('Line %d: Column count mismatch (expected %d, got %d)',
           $lineNumber, count($header), count($row));
       }
 
-      // Count approved entries
+      // Count approved entries.
       $statusIndex = array_search('status', $header);
       if ($statusIndex !== FALSE && isset($row[$statusIndex]) && $row[$statusIndex] === 'approved') {
         $approvedCount++;
@@ -233,7 +233,7 @@ class CsvExportService {
 
     fclose($handle);
 
-    // Add info
+    // Add info.
     $result['row_count'] = $rowCount;
     $result['approved_count'] = $approvedCount;
 

@@ -1,5 +1,12 @@
-(function ($, Drupal) {
+(function ($, Drupal, drupalSettings) {
   'use strict';
+
+  const DEBUG = !!(drupalSettings && drupalSettings.ilasDebug);
+  function debugLog() {
+    if (!DEBUG) return;
+    var args = ['[donation-inquiry]'].concat(Array.prototype.slice.call(arguments));
+    console.log.apply(console, args);
+  }
 
   Drupal.behaviors.donationInquiry = {
     attach: function (context, settings) {
@@ -14,8 +21,6 @@
       
       // Force proper initialization regardless of browser state
       function initializeForm() {
-        console.log('Initializing donation inquiry form');
-        
         // Ensure only step 1 is visible
         $form.find('.form-step').hide().removeClass('active');
         $form.find('[data-step="1"]').show().addClass('active');
@@ -168,16 +173,15 @@
       $form.find('input[name="interests[]"]').on('change', function() {
         const anyChecked = $form.find('input[name="interests[]"]:checked').length > 0;
         $form.find('[data-step="1"] .next-step').prop('disabled', !anyChecked);
-        console.log('Checkbox changed, any checked:', anyChecked);
+        debugLog('Checkbox changed, any checked:', anyChecked);
       });
-      
+
       // Handle next button
       $form.on('click', '.next-step', function(e) {
         e.preventDefault();
-        console.log('Next button clicked, current step:', currentStep);
-        
+        debugLog('Next button clicked, current step:', currentStep);
+
         if ($(this).prop('disabled')) {
-          console.log('Button is disabled, ignoring click');
           return;
         }
         
@@ -495,4 +499,4 @@
     }
   };
 
-})(jQuery, Drupal);
+})(jQuery, Drupal, drupalSettings);

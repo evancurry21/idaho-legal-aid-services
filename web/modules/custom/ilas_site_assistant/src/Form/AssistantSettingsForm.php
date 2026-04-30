@@ -690,6 +690,9 @@ class AssistantSettingsForm extends ConfigFormBase {
     'enable_resources',
   ];
 
+  /**
+   *
+   */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     // Snapshot security-sensitive values BEFORE save for audit diff.
     $config = $this->config('ilas_site_assistant.settings');

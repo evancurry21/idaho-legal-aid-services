@@ -16,40 +16,40 @@ function ilas_resources_post_update_optimize_topic_mapping(&$sandbox) {
     $sandbox['progress'] = 0;
     $sandbox['max'] = 0;
     $sandbox['messages'] = [];
-    
+
     // Define the complete mapping data.
     $sandbox['mapping'] = _ilas_resources_get_topic_service_mapping();
     $sandbox['topic_names'] = array_keys($sandbox['mapping']);
     $sandbox['max'] = count($sandbox['topic_names']);
-    
+
     // Pre-load service area lookup.
     $sandbox['service_lookup'] = _ilas_resources_load_service_area_lookup();
-    
+
     // Cache the entity type manager and storage.
     $sandbox['topic_storage'] = \Drupal::entityTypeManager()->getStorage('taxonomy_term');
   }
-  
+
   // Process topics in batches of 10.
   $batch_size = 10;
   $end = min($sandbox['progress'] + $batch_size, $sandbox['max']);
-  
+
   for ($i = $sandbox['progress']; $i < $end; $i++) {
     $topic_name = $sandbox['topic_names'][$i];
     $service_names = $sandbox['mapping'][$topic_name];
-    
+
     _ilas_resources_process_topic(
       $topic_name,
       $service_names,
       $sandbox['service_lookup'],
       $sandbox['topic_storage']
     );
-    
+
     $sandbox['progress']++;
   }
-  
+
   // Update batch status.
   $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
-  
+
   if ($sandbox['#finished'] >= 1) {
     return t('Optimized @count topic-service area mappings.', ['@count' => $sandbox['max']]);
   }
@@ -61,18 +61,18 @@ function ilas_resources_post_update_optimize_topic_mapping(&$sandbox) {
 function _ilas_resources_process_topic($topic_name, $service_names, $service_lookup, $topic_storage) {
   $vocab_id = 'topics';
   $field_name = 'field_service_areas';
-  
+
   // Load or create the Topic term.
   $topic_terms = $topic_storage->loadByProperties([
     'name' => $topic_name,
     'vid'  => $vocab_id,
   ]);
-  
+
   $topic = $topic_terms ? reset($topic_terms) : $topic_storage->create([
     'name' => $topic_name,
     'vid' => $vocab_id,
   ]);
-  
+
   // Build array of service term IDs.
   $service_tids = [];
   foreach ($service_names as $service_label) {
@@ -80,11 +80,11 @@ function _ilas_resources_process_topic($topic_name, $service_names, $service_loo
       $service_tids[] = ['target_id' => $service_lookup[$service_label]];
     }
   }
-  
+
   // Only save if there are changes.
   $current_tids = array_column($topic->get($field_name)->getValue(), 'target_id');
   $new_tids = array_column($service_tids, 'target_id');
-  
+
   if ($current_tids != $new_tids) {
     $topic->set($field_name, $service_tids);
     $topic->save();
@@ -99,11 +99,11 @@ function _ilas_resources_load_service_area_lookup() {
   $service_terms = \Drupal::entityTypeManager()
     ->getStorage('taxonomy_term')
     ->loadByProperties(['vid' => 'service_areas']);
-    
+
   foreach ($service_terms as $term) {
     $service_lookup[$term->getName()] = $term->id();
   }
-  
+
   return $service_lookup;
 }
 
@@ -112,7 +112,7 @@ function _ilas_resources_load_service_area_lookup() {
  */
 function _ilas_resources_get_topic_service_mapping() {
   return [
-    // Consumer Protection
+    // Consumer Protection.
     'Money, Debt, Bankruptcy' => ['Consumer Protection'],
     'Small Claims' => ['Consumer Protection'],
     'Debt Collection' => ['Consumer Protection'],
@@ -136,8 +136,8 @@ function _ilas_resources_get_topic_service_mapping() {
     'Debt Management' => ['Consumer Protection'],
     'Debt Counseling' => ['Consumer Protection'],
     'Exemptions' => ['Consumer Protection'],
-    
-    // Family Safety & Stability
+
+    // Family Safety & Stability.
     'Family Law' => ['Family Safety & Stability'],
     'Domestic Violence' => ['Family Safety & Stability'],
     'Sexual Violence' => ['Family Safety & Stability'],
@@ -163,8 +163,8 @@ function _ilas_resources_get_topic_service_mapping() {
     'Conservator' => ['Family Safety & Stability'],
     'Juveniles/Minors' => ['Family Safety & Stability'],
     'Expungement' => ['Family Safety & Stability'],
-    
-    // Individual Rights
+
+    // Individual Rights.
     'Employment' => ['Individual Rights'],
     'Unemployment' => ['Individual Rights'],
     'Workplace Safety' => ['Individual Rights'],
@@ -178,16 +178,16 @@ function _ilas_resources_get_topic_service_mapping() {
     'Veterans' => ['Individual Rights'],
     'Military' => ['Individual Rights'],
     'Indian Law' => ['Individual Rights'],
-    
-    // Health & Essential Benefits
+
+    // Health & Essential Benefits.
     'Health Benefits' => ['Health & Essential Benefits'],
     'Medical Benefits' => ['Health & Essential Benefits'],
     'SNAP' => ['Health & Essential Benefits'],
     'TANF' => ['Health & Essential Benefits'],
     'Medicare' => ['Health & Essential Benefits'],
     'Medicaid' => ['Health & Essential Benefits'],
-    
-    // Safe & Stable Housing
+
+    // Safe & Stable Housing.
     'Housing' => ['Safe & Stable Housing'],
     'Evictions' => ['Safe & Stable Housing'],
     'Lockouts' => ['Safe & Stable Housing'],
@@ -206,8 +206,8 @@ function _ilas_resources_get_topic_service_mapping() {
     'Home Equity Conversion' => ['Safe & Stable Housing'],
     'Reverse Mortgage' => ['Safe & Stable Housing'],
     'Foreclosure' => ['Safe & Stable Housing'],
-    
-    // Advocacy for Older Adults
+
+    // Advocacy for Older Adults.
     'Senior Citizens' => ['Advocacy for Older Adults'],
     'Adult Conservatorship' => ['Advocacy for Older Adults'],
     'Adult Guardianship' => ['Advocacy for Older Adults'],

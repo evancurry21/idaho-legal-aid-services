@@ -19,36 +19,13 @@
  */
 #}
 
-{# ========== LearningResource Schema ========== #}
-{% set current_page_url = url('<current>')|render|trim %}
+{# LearningResource JSON-LD is owned by ilas_seo's GraphBuilder service
+   (web/modules/custom/ilas_seo/src/StructuredData/GraphBuilder.php) and
+   emitted from ilas_seo_page_attachments(). The previous inline block here
+   used |e('html_attr') to escape values inside a JSON document, which
+   produced HTML-entity-encoded values (&quot;/&amp;) that broke JSON-LD
+   validity for any title or description containing quotes or ampersands. #}
 {% set clean_title = label|render|striptags|trim %}
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "LearningResource",
-  "@id": "{{ current_page_url }}#learning-resource",
-  "name": "{{ clean_title|e('html_attr') }}",
-  "description": "{{ content.field_adept_short_desc|render|striptags|trim|slice(0, 200)|e('html_attr') }}",
-  "provider": {
-    "@type": "Organization",
-    "@id": "https://idaholegalaid.org/#organization",
-    "name": "Idaho Legal Aid Services"
-  },
-  "creator": {
-    "@type": "Organization",
-    "name": "UC Davis MIND Institute"
-  },
-  "educationalLevel": "Professional Development",
-  "learningResourceType": "Interactive Module",
-  "inLanguage": "en",
-  "isPartOf": {
-    "@type": "Course",
-    "name": "ADEPT Module {{ ilas_adept.module_id }}"
-  }{% if ilas_adept.est_time %},
-  "timeRequired": "PT{{ ilas_adept.est_time }}M"{% endif %},
-  "url": "{{ current_page_url }}"
-}
-</script>
 
 <article{{ attributes.addClass('adept-lesson', 'adept-lesson--module-' ~ ilas_adept.module_id, 'adept-lesson--mode-' ~ ilas_adept.mode) }}
   data-adept-lesson-page

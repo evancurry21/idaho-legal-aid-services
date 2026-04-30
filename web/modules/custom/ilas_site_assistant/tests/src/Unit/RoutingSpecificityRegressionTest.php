@@ -19,7 +19,7 @@ use Drupal\ilas_site_assistant\Service\Disambiguator;
  * - Office detail request regex widening
  * - Resolver + detail-request gate relaxation
  * - Vague query disambiguation entries
- * - Topic lead pattern improvements
+ * - Topic lead pattern improvements.
  */
 #[Group('ilas_site_assistant')]
 class RoutingSpecificityRegressionTest extends TestCase {

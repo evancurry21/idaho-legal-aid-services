@@ -15,7 +15,7 @@ use GuzzleHttp\Cookie\CookieJarInterface;
  * - Route-level permission gating
  * - JSON content-type enforcement
  * - Input validation (bad body, too-large payload, invalid JSON)
- * - Proper HTTP status codes and response headers
+ * - Proper HTTP status codes and response headers.
  *
  * @group ilas_site_assistant
  */

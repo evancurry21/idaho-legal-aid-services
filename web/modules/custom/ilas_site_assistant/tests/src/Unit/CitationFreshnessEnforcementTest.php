@@ -158,7 +158,7 @@ final class CitationFreshnessEnforcementTest extends TestCase {
     $grounded = $grounder->groundResponse($response, $results);
 
     $this->assertSame('partial_non_fresh', $grounded['_freshness_enforcement']);
-    // non_fresh_ratio = 2/3 ≈ 0.667, cap = max(0.5, 1.0 - 0.333) = 0.667
+    // non_fresh_ratio = 2/3 ≈ 0.667, cap = max(0.5, 1.0 - 0.333) = 0.667.
     $expected_cap = max(0.5, 1.0 - ((2 / 3) * 0.5));
     $this->assertEqualsWithDelta($expected_cap, $grounded['_freshness_confidence_cap'], 0.001);
     $this->assertSame(1, $grounded['freshness_profile']['fresh']);
@@ -260,7 +260,7 @@ final class CitationFreshnessEnforcementTest extends TestCase {
   // -------------------------------------------------------------------
 
   /**
-   * freshness_profile is a user-facing field, not prefixed with underscore.
+   * Freshness_profile is a user-facing field, not prefixed with underscore.
    */
   public function testFreshnessProfileIsUserFacing(): void {
     $grounder = $this->buildGrounder();

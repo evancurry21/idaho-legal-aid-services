@@ -263,4 +263,5 @@ class LangfuseTraceLookupServiceTest extends TestCase {
     $this->expectExceptionMessage('Langfuse trace list fallback failed: timeout');
     $service->lookupTrace('trace-004', 1, 0);
   }
+
 }

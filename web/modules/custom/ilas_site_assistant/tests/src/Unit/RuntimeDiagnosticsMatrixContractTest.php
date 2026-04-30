@@ -22,11 +22,17 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testDiagnosticsExposeCohereFactsAndHideRetiredGoogleFacts(): void {
     $snapshotBuilder = $this->createStub(RuntimeTruthSnapshotBuilder::class);
     $snapshotBuilder->method('buildSnapshot')->willReturn($this->buildSnapshot(FALSE, TRUE));
@@ -49,6 +55,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     $this->assertArrayNotHasKey('vertex_service_account', $diagnostics['credential_inventory'] ?? []);
   }
 
+  /**
+   *
+   */
   public function testDiagnosticsReflectVoyageReadyWhileLiveVectorRemainsDisabled(): void {
     $snapshotBuilder = $this->createStub(RuntimeTruthSnapshotBuilder::class);
     $snapshotBuilder->method('buildSnapshot')->willReturn($this->buildSnapshot(TRUE, FALSE));
@@ -141,6 +150,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     ];
   }
 
+  /**
+   *
+   */
   private function buildRetrievalConfiguration(): RetrievalConfigurationService {
     new Settings([
       'ilas_site_assistant_legalserver_online_application_url' => 'https://example.com/intake?pid=60&h=test',
@@ -194,9 +206,14 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
       });
 
     $server = new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
     };
     $servers = [
       'database' => $server,
@@ -223,6 +240,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     return new RetrievalConfigurationService($configFactory, $entityTypeManager);
   }
 
+  /**
+   *
+   */
   private function buildIndex(string $serverId): IndexInterface {
     $index = $this->createMock(IndexInterface::class);
     $index->method('status')->willReturn(TRUE);

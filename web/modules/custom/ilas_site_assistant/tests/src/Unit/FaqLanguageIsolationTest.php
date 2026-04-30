@@ -25,9 +25,14 @@ final class FaqLanguageIsolationTest extends TestCase {
 
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
+
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
+
     });
 
     \Drupal::setContainer($container);
@@ -230,41 +235,70 @@ final class LanguageIsolationFaqIndex extends FaqIndex {
       default => new LanguageIsolationSearchIndex([]),
     };
     $this->languageManager = new class {
+
+      /**
+       *
+       */
       public function getCurrentLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
 
+      /**
+       *
+       */
       public function getDefaultLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
 
+      /**
+       *
+       */
       public function getLanguages(): array {
         return [
-          'en' => new class {},
-          'es' => new class {},
-          'sw' => new class {},
-          'nl' => new class {},
+          'en' => new class() {},
+          'es' => new class() {},
+          'sw' => new class() {},
+          'nl' => new class() {},
         ];
       }
+
     };
     $this->entityTypeManager = new class($paragraph_items) {
+
       public function __construct(private array $paragraphItems) {}
 
+      /**
+       *
+       */
       public function getStorage(string $entity_type_id): object {
         return new class($entity_type_id, $this->paragraphItems) {
+
           public function __construct(
             private string $entityTypeId,
             private array $paragraphItems,
           ) {}
 
+          /**
+           *
+           */
           public function load(int|string $id): ?object {
             if ($this->entityTypeId !== 'paragraph') {
               return NULL;
@@ -276,8 +310,10 @@ final class LanguageIsolationFaqIndex extends FaqIndex {
 
             return new LanguageIsolationParagraph($this->paragraphItems[(int) $id]);
           }
+
         };
       }
+
     };
   }
 
@@ -349,10 +385,16 @@ final class LanguageIsolationSearchIndex {
    */
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function status(): bool {
     return TRUE;
   }
 
+  /**
+   *
+   */
   public function query(): LanguageIsolationSearchQuery {
     return new LanguageIsolationSearchQuery($this->items);
   }
@@ -364,27 +406,47 @@ final class LanguageIsolationSearchIndex {
  */
 final class LanguageIsolationFailingSearchIndex {
 
+  /**
+   *
+   */
   public function status(): bool {
     return TRUE;
   }
 
+  /**
+   *
+   */
   public function query(): object {
     return new class {
+
+      /**
+       *
+       */
       public function keys(string $query): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function range(int $start, int $length): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function addCondition(string $field, string|int $value): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function execute(): object {
         throw new \RuntimeException('Simulated Search API lexical query failure');
       }
+
     };
   }
 
@@ -403,20 +465,32 @@ final class LanguageIsolationSearchQuery {
    */
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function keys(string $query): self {
     return $this;
   }
 
+  /**
+   *
+   */
   public function range(int $start, int $length): self {
     $this->start = $start;
     $this->length = $length;
     return $this;
   }
 
+  /**
+   *
+   */
   public function addCondition(string $field, string|int $value): self {
     return $this;
   }
 
+  /**
+   *
+   */
   public function execute(): LanguageIsolationSearchResultSet {
     return new LanguageIsolationSearchResultSet(
       array_slice($this->items, $this->start, $this->length),
@@ -435,6 +509,9 @@ final class LanguageIsolationSearchResultSet {
    */
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function getResultItems(): array {
     return array_map(
       static fn(array $payload): LanguageIsolationSearchResultItem => new LanguageIsolationSearchResultItem($payload),

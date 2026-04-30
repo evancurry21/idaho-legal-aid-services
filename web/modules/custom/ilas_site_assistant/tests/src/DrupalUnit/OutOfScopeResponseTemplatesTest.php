@@ -16,8 +16,7 @@ use PHPUnit\Framework\Attributes\Group;
  * - Return type 'escalation' (not 'out_of_scope')
  * - Include appropriate limitation language
  * - Do not hard-route to /services as primary action
- * - Include external referrals where appropriate
- *
+ * - Include external referrals where appropriate.
  */
 #[CoversClass(OutOfScopeResponseTemplates::class)]
 #[Group('ilas_site_assistant')]

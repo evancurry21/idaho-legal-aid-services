@@ -1,0 +1,22 @@
+// _employment-shared.scss
+//
+// SHARED-ONLY. Styles that BOTH the employment listing and the wizard
+// depend on, OR cross-component @extend usages whose source-of-truth
+// lives outside the employment partials.
+//
+// Do not add styles here unless they are genuinely shared between
+// `_employment-listing.scss` and `_employment-wizard.scss`. New
+// employment styles default to one of those two files.
+//
+// Imported BEFORE `_employment-listing.scss` and `_employment-wizard.scss`
+// in `style.scss`.
+
+// The FAQ-section-title field on the `node--employment` (listing) node
+// reuses the canonical `.accordion-section-title` look (defined in
+// `_accordion.scss` under `.accordion-section`). The @extend lived in
+// the wizard partial historically, which made the cross-component
+// dependency invisible. Surface it here so it isn't lost in either
+// the wizard or the listing file.
+.node--employment .field--name-field-faq-section-title {
+  @extend .accordion-section-title;
+}

@@ -102,7 +102,7 @@ class TurnClassifier {
    * 1. RESET — explicit topic-shift signal (reuses HistoryIntentResolver)
    * 2. INVENTORY — catalog/browse request pattern match
    * 3. FOLLOW_UP — anaphoric reference or short message with recent history
-   * 4. NEW — default
+   * 4. NEW — default.
    *
    * @param string $message
    *   The current user message.

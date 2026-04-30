@@ -63,7 +63,7 @@ class RedirectAnalyzerService {
     LoggerChannelFactoryInterface $logger_factory,
     PathMatcherService $path_matcher,
     FileMatcherService $file_matcher,
-    ConfigFactoryInterface $config_factory
+    ConfigFactoryInterface $config_factory,
   ) {
     $this->database = $database;
     $this->entityTypeManager = $entity_type_manager;
@@ -91,7 +91,7 @@ class RedirectAnalyzerService {
    *   - category: Filter by category (node, topic, file, taxonomy)
    *   - min_confidence: Minimum confidence threshold
    *   - min_hits: Minimum hit count
-   *   - limit: Maximum entries to process
+   *   - limit: Maximum entries to process.
    *
    * @return array
    *   Array of proposals with keys: old_path, hit_count, proposed_destination,
@@ -100,7 +100,7 @@ class RedirectAnalyzerService {
   public function analyze(array $options = []): array {
     $config = $this->getConfig();
 
-    // Set defaults
+    // Set defaults.
     $options += [
       'category' => NULL,
       'min_confidence' => $config->get('confidence_thresholds.low') ?? 50,
@@ -108,7 +108,7 @@ class RedirectAnalyzerService {
       'limit' => 0,
     ];
 
-    // Get 404 data
+    // Get 404 data.
     $entries = $this->get404Data($options);
 
     $proposals = [];
@@ -116,23 +116,23 @@ class RedirectAnalyzerService {
     $fileDirectories = $config->get('file_directories') ?? [];
 
     foreach ($entries as $entry) {
-      // Check if path should be ignored
+      // Check if path should be ignored.
       if ($this->shouldIgnore($entry->path, $ignorePatterns)) {
         continue;
       }
 
-      // Categorize the path
+      // Categorize the path.
       $category = $this->categorize($entry->path);
 
-      // Filter by category if specified
+      // Filter by category if specified.
       if ($options['category'] && $category !== $options['category']) {
         continue;
       }
 
-      // Try to match based on category
+      // Try to match based on category.
       $match = $this->matchPath($entry->path, $category, $fileDirectories);
 
-      // Build proposal
+      // Build proposal.
       $proposal = [
         'old_path' => $entry->path,
         'hit_count' => (int) $entry->count,
@@ -144,7 +144,7 @@ class RedirectAnalyzerService {
         'notes' => $match['notes'] ?? 'No match found',
       ];
 
-      // Skip if below confidence threshold
+      // Skip if below confidence threshold.
       if ($proposal['confidence'] < $options['min_confidence'] && $proposal['confidence'] > 0) {
         $proposal['status'] = 'low_confidence';
       }
@@ -155,7 +155,7 @@ class RedirectAnalyzerService {
       $proposals[] = $proposal;
     }
 
-    // Sort by hit count descending
+    // Sort by hit count descending.
     usort($proposals, function ($a, $b) {
       return $b['hit_count'] <=> $a['hit_count'];
     });
@@ -199,7 +199,7 @@ class RedirectAnalyzerService {
     $config = $this->getConfig();
     $ignorePatterns = $config->get('ignore_patterns') ?? [];
 
-    // Total counts
+    // Total counts.
     $totalQuery = $this->database->select('redirect_404', 'r')
       ->fields('r');
 
@@ -211,7 +211,7 @@ class RedirectAnalyzerService {
 
     $unresolved = $total - $resolved;
 
-    // Category breakdown
+    // Category breakdown.
     $categories = [
       'node' => 0,
       'topics' => 0,
@@ -274,7 +274,7 @@ class RedirectAnalyzerService {
     foreach ($patterns as $pattern) {
       $pattern = strtolower($pattern);
 
-      // Simple pattern matching
+      // Simple pattern matching.
       if (str_contains($path, $pattern)) {
         return TRUE;
       }

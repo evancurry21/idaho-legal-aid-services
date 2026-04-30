@@ -10,7 +10,7 @@
  */
 function ilas_resources_views_data() {
   $data = [];
-  
+
   $data['node']['strict_topic_service_area'] = [
     'title' => t('Topic to Service Area Mapping'),
     'filter' => [
@@ -19,7 +19,7 @@ function ilas_resources_views_data() {
       'help' => t('Filter content based on topic to service area mapping.'),
     ],
   ];
-  
+
   return $data;
 }
 

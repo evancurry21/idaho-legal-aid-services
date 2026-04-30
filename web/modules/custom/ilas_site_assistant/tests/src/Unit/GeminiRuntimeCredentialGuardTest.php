@@ -14,10 +14,16 @@ use Symfony\Component\Yaml\Yaml;
 #[Group('ilas_site_assistant')]
 final class GeminiRuntimeCredentialGuardTest extends TestCase {
 
+  /**
+   *
+   */
   private static function repoRoot(): string {
     return dirname(__DIR__, 7);
   }
 
+  /**
+   *
+   */
   private static function readFile(string $relativePath): string {
     $path = self::repoRoot() . '/' . ltrim($relativePath, '/');
     self::assertFileExists($path);
@@ -26,6 +32,9 @@ final class GeminiRuntimeCredentialGuardTest extends TestCase {
     return $contents;
   }
 
+  /**
+   *
+   */
   public function testAssistantSettingsFormStaysSecretlessAndCohereFirst(): void {
     $form = self::readFile('web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php');
 
@@ -35,6 +44,9 @@ final class GeminiRuntimeCredentialGuardTest extends TestCase {
     $this->assertStringNotContainsString('llm_api_key', $form);
   }
 
+  /**
+   *
+   */
   public function testSettingsPhpSeparatesCohereAssistantSecretFromResidualGeminiKey(): void {
     $settings = self::readFile('web/sites/default/settings.php');
 
@@ -47,6 +59,9 @@ final class GeminiRuntimeCredentialGuardTest extends TestCase {
     $this->assertStringNotContainsString("\$config['ilas_site_assistant.settings']['llm.api_key']", $settings);
   }
 
+  /**
+   *
+   */
   public function testAssistantRuntimePathNoLongerContainsGoogleTransportCalls(): void {
     $enhancer = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php');
     $controller = self::readFile('web/modules/custom/ilas_site_assistant/src/Controller/AssistantApiController.php');
@@ -59,6 +74,9 @@ final class GeminiRuntimeCredentialGuardTest extends TestCase {
     $this->assertStringContainsString('classifyIntent(', $controller);
   }
 
+  /**
+   *
+   */
   public function testGeminiKeyEntityRemainsRuntimeOnlyForResidualVectorFootprint(): void {
     $config = Yaml::parseFile(self::repoRoot() . '/config/key.key.gemini_api_key.yml');
 
@@ -67,6 +85,9 @@ final class GeminiRuntimeCredentialGuardTest extends TestCase {
     $this->assertStringContainsString('runtime-only', (string) ($config['description'] ?? ''));
   }
 
+  /**
+   *
+   */
   public function testRuntimeTruthContractReportsCohereProvider(): void {
     $builder = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/RuntimeTruthSnapshotBuilder.php');
     $diagnostics = self::readFile('web/modules/custom/ilas_site_assistant/src/Service/RuntimeDiagnosticsMatrixBuilder.php');

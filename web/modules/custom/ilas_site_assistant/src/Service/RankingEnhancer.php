@@ -12,7 +12,7 @@ use Drupal\Core\Cache\CacheBackendInterface;
  * - Canonical page boosting (apply, hotline, offices)
  * - Query expansion via synonyms
  * - De-duplication and canonicalization
- * - Retrieval diagnostics
+ * - Retrieval diagnostics.
  */
 class RankingEnhancer {
 

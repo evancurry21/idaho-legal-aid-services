@@ -14,7 +14,7 @@ use Symfony\Component\Yaml\Yaml;
  * 3. Detect and replace multi-word phrases with underscore-joined tokens
  * 4. Apply synonym mapping to normalize variations (including Spanish, typos)
  * 5. Extract keywords from normalized text
- * 6. Check negative keywords to prevent misroutes
+ * 6. Check negative keywords to prevent misroutes.
  */
 class KeywordExtractor {
 
@@ -77,7 +77,7 @@ class KeywordExtractor {
    * @param \Drupal\ilas_site_assistant\Service\TypoCorrector|null $typo_corrector
    *   Optional typo corrector service.
    */
-  public function __construct(CacheBackendInterface $cache, AcronymExpander $acronym_expander = NULL, TypoCorrector $typo_corrector = NULL) {
+  public function __construct(CacheBackendInterface $cache, ?AcronymExpander $acronym_expander = NULL, ?TypoCorrector $typo_corrector = NULL) {
     $this->cache = $cache;
     $this->acronymExpander = $acronym_expander;
     $this->typoCorrector = $typo_corrector;
@@ -287,7 +287,7 @@ class KeywordExtractor {
       'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those',
       'am', 'about', 'any', 'both', 'down', 'up', 'out', 'off', 'over',
       'u', 'r', 'ur', 'im', 'ive', 'dont', 'cant', 'wont', 'didnt',
-      // Spanish stop words
+      // Spanish stop words.
       'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del',
       'en', 'con', 'para', 'por', 'que', 'es', 'son', 'como', 'yo', 'mi',
       'tu', 'su', 'nos', 'se', 'le', 'les', 'al', 'lo', 'mas', 'pero',

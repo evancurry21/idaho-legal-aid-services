@@ -63,15 +63,25 @@ class CurrentServiceTid extends ArgumentPluginBase {
     return NULL;
   }
 
+  /**
+   *
+   */
   public function summaryName($data) {
     return $this->t('Current service TID');
   }
 
+  /**
+   *
+   */
   public function buildOptionsForm(&$form, FormStateInterface $form_state) {
     parent::buildOptionsForm($form, $form_state);
   }
-  
+
+  /**
+   *
+   */
   public function validateOptionsForm(&$form, FormStateInterface $form_state) {
     parent::validateOptionsForm($form, $form_state);
   }
+
 }

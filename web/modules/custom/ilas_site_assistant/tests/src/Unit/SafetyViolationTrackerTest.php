@@ -47,10 +47,14 @@ class SafetyViolationTrackerTest extends TestCase {
     [$tracker] = $this->createTracker();
 
     $now = time();
-    $tracker->record($now - 3600); // 1 hour ago.
-    $tracker->record($now - 1800); // 30 minutes ago.
-    $tracker->record($now - 300);  // 5 minutes ago.
-    $tracker->record($now);        // Now.
+    // 1 hour ago.
+    $tracker->record($now - 3600);
+    // 30 minutes ago.
+    $tracker->record($now - 1800);
+    // 5 minutes ago.
+    $tracker->record($now - 300);
+    // Now.
+    $tracker->record($now);
 
     // Count all since 2 hours ago.
     $this->assertEquals(4, $tracker->countSince($now - 7200));
@@ -83,10 +87,14 @@ class SafetyViolationTrackerTest extends TestCase {
     [$tracker] = $this->createTracker();
 
     $now = time();
-    $tracker->record($now - 7200); // 2 hours ago (should be pruned).
-    $tracker->record($now - 5400); // 1.5 hours ago (should be pruned).
-    $tracker->record($now - 1800); // 30 minutes ago (kept).
-    $tracker->record($now);        // Now (kept).
+    // 2 hours ago (should be pruned).
+    $tracker->record($now - 7200);
+    // 1.5 hours ago (should be pruned).
+    $tracker->record($now - 5400);
+    // 30 minutes ago (kept).
+    $tracker->record($now - 1800);
+    // Now (kept).
+    $tracker->record($now);
 
     // Prune entries older than 1 hour.
     $tracker->prune($now - 3600);

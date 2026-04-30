@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
-use Drupal;
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -30,11 +32,17 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 #[Group('ilas_site_assistant')]
 final class AssistantApiControllerCostControlMetricsTest extends TestCase {
 
+  /**
+   *
+   */
   protected function setUp(): void {
     parent::setUp();
-    Drupal::setContainer(new ContainerBuilder());
+    \Drupal::setContainer(new ContainerBuilder());
   }
 
+  /**
+   *
+   */
   public function testMetricsExposeAggregateCostControlSnapshotAndThresholds(): void {
     $performanceMonitor = $this->createStub(PerformanceMonitor::class);
     $performanceMonitor->method('getSummary')->willReturn([
@@ -109,6 +117,9 @@ final class AssistantApiControllerCostControlMetricsTest extends TestCase {
     $this->assertSame(2, $body['metrics']['by_outcome']['message.invalid_request']['sample_size']);
   }
 
+  /**
+   *
+   */
   private function buildController(
     LlmEnhancer $llmEnhancer,
     PerformanceMonitor $performanceMonitor,
@@ -133,8 +144,8 @@ final class AssistantApiControllerCostControlMetricsTest extends TestCase {
       $cache,
       $this->createStub(LoggerInterface::class),
       assistant_flow_runner: $this->createStub(AssistantFlowRunner::class),
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      selection_registry: new SelectionRegistry(new TopIntentsPack()),
+      selection_state_store: new SelectionStateStore($cache),
       performance_monitor: $performanceMonitor,
     );
   }

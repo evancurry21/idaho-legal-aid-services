@@ -24,7 +24,13 @@
   'impact-card--' ~ color
 ] %}
 
-<div{{ attributes.addClass(classes) }} role="button" tabindex="0">
+{# Plain-text accessible name — rendered field markup may include CKEditor wrappers. #}
+{% set card_title = content.field_topic_title|render|striptags|trim %}
+{% set card_aria_label = card_title
+  ? '@title: show details'|t({'@title': card_title})
+  : 'Show details'|t %}
+
+<div{{ attributes.addClass(classes) }} role="button" tabindex="0" aria-expanded="false" aria-label="{{ card_aria_label }}">
   <div class="card-inner">
     {# Front of card #}
     <div class="card-front">
@@ -39,15 +45,17 @@
         </div>
       </div>
     </div>
-    
-    {# Back of card #}
-    <div class="card-back">
+
+    {# Back of card — `inert` until JS flips the card, so the close button is
+       not focusable and axe `nested-interactive` does not fire on the outer
+       role="button" wrapper. flipCard() in scripts.js toggles inert. #}
+    <div class="card-back" inert>
       <button class="impact-card__back-close" aria-label="Close details and return to front" type="button">
         <span>Back</span>
       </button>
       <h4 class="impact-card__back-heading">
         {# Special handling for Community Outreach - shorten to just Outreach #}
-        {% set back_title = content.field_topic_title|render|striptags|trim %}
+        {% set back_title = card_title %}
         {% if back_title|lower == 'community outreach' %}
           Outreach
         {% else %}

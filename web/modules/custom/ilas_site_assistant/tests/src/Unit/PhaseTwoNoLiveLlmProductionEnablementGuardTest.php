@@ -13,10 +13,16 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class PhaseTwoNoLiveLlmProductionEnablementGuardTest extends TestCase {
 
+  /**
+   *
+   */
   private static function repoRoot(): string {
     return dirname(__DIR__, 7);
   }
 
+  /**
+   *
+   */
   private static function readFile(string $relativePath): string {
     $path = self::repoRoot() . '/' . ltrim($relativePath, '/');
     self::assertFileExists($path);
@@ -25,6 +31,9 @@ final class PhaseTwoNoLiveLlmProductionEnablementGuardTest extends TestCase {
     return $contents;
   }
 
+  /**
+   *
+   */
   public function testRoadmapAndRunbookStateLiveEnablementIsRuntimeOnly(): void {
     $roadmap = self::readFile('docs/aila/roadmap.md');
     $runbook = self::readFile('docs/aila/runbook.md');
@@ -35,6 +44,9 @@ final class PhaseTwoNoLiveLlmProductionEnablementGuardTest extends TestCase {
     $this->assertStringContainsString('ILAS_VECTOR_SEARCH_ENABLED=1', $runbook);
   }
 
+  /**
+   *
+   */
   public function testRuntimeGuardAnchorsRemainPresent(): void {
     $settings = self::readFile('web/sites/default/settings.php');
     $form = self::readFile('web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php');

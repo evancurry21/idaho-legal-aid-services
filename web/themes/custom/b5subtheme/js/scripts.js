@@ -291,9 +291,15 @@
        * Flip a card to the specified state
        */
       function flipCard(card, shouldFlip) {
+        var front = card.querySelector('.card-front');
+        var back = card.querySelector('.card-back');
         if (shouldFlip) {
           card.classList.add('is-flipped');
           card.setAttribute('aria-expanded', 'true');
+          // Inactive face must be inert so descendants are not focusable and
+          // axe nested-interactive does not flag the role="button" wrapper.
+          if (front) front.setAttribute('inert', '');
+          if (back) back.removeAttribute('inert');
 
           // Focus management for accessibility
           setTimeout(function () {
@@ -305,6 +311,8 @@
         } else {
           card.classList.remove('is-flipped');
           card.setAttribute('aria-expanded', 'false');
+          if (back) back.setAttribute('inert', '');
+          if (front) front.removeAttribute('inert');
 
           // Return focus to the card itself
           setTimeout(function () {

@@ -448,6 +448,52 @@ function summarizeResults(results, siteBaseUrl, limit = 10) {
     .filter((result) => result && Object.keys(result).length > 0);
 }
 
+// Vocabulary of topic slugs we recognize. These mirror the assistant's
+// canonical taxonomy and map URL slugs / source_class fragments back to the
+// topic an assertion will look for.
+const TOPIC_HINTS = [
+  'eviction',
+  'tenant',
+  'housing',
+  'foreclosure',
+  'deposit',
+  'custody',
+  'guardianship',
+  'divorce',
+  'family',
+  'protection',
+  'domestic-violence',
+  'dv',
+  'benefits',
+  'ssi',
+  'ssa',
+  'medicaid',
+  'snap',
+  'unemployment',
+  'debt',
+  'consumer',
+  'wage',
+  'employment',
+  'immigration',
+  'criminal',
+];
+
+function deriveTopicHint({ sourceClass, url, title }) {
+  const probe = `${sourceClass || ''} ${url || ''} ${title || ''}`.toLowerCase();
+  for (const hint of TOPIC_HINTS) {
+    // Match either a raw word or a slugified word inside source_class/url.
+    const pattern = new RegExp(`(^|[^a-z])${hint.replace('-', '[-_]?')}([^a-z]|$)`, 'i');
+    if (pattern.test(probe)) {
+      // Normalize hyphenated DV → protection.
+      if (hint === 'dv' || hint === 'domestic-violence') {
+        return 'protection';
+      }
+      return hint;
+    }
+  }
+  return null;
+}
+
 function normalizeCitationItem(citation, siteBaseUrl, sourceKind, supported = false) {
   if (!citation || typeof citation !== 'object') {
     return null;
@@ -457,13 +503,27 @@ function normalizeCitationItem(citation, siteBaseUrl, sourceKind, supported = fa
     ? toAbsoluteUrl(citation.url || citation.source_url, siteBaseUrl)
     : null;
 
+  const explicitTopic = compactString(
+    citation.topic || citation.topic_name || citation.category,
+    120
+  );
+  // Defense-in-depth: when the API doesn't yet emit `topic`, derive a hint
+  // from source_class / url / title. Assertion library matches the topic by
+  // substring, so a slug like "eviction" inside the URL is sufficient.
+  const topic = explicitTopic ||
+    deriveTopicHint({
+      sourceClass: citation.source_class,
+      url,
+      title: citation.title || citation.label || citation.name,
+    });
+
   return compactObject({
     id: compactString(citation.id || citation.paragraph_id || citation.uuid, 120),
     title: compactString(citation.title || citation.label || citation.name),
     url,
     source: compactString(citation.source, 80),
     source_class: compactString(citation.source_class, 80),
-    topic: compactString(citation.topic || citation.topic_name || citation.category, 120),
+    topic,
     topic_id: compactString(citation.topic_id || citation.term_id || citation.category_id, 120),
     supported: Boolean(supported && url && isAllowedIlasUrl(url, siteBaseUrl)),
     source_kind: sourceKind,
@@ -709,6 +769,24 @@ function collectUnsupportedClaimFlags(data, grounded) {
 }
 
 function inferRetrievalAttempted(payload, debug = {}, provenance = {}) {
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  if (typeof publicDiagnostics.retrieval?.attempted === 'boolean') {
+    return publicDiagnostics.retrieval.attempted;
+  }
+  if (typeof publicDiagnostics.retrieval?.used === 'boolean' && publicDiagnostics.retrieval.used) {
+    return true;
+  }
+  if (typeof payload.retrieval?.vector_attempted === 'boolean' && payload.retrieval.vector_attempted) {
+    return true;
+  }
+  if (
+    typeof payload.retrieval?.lexical_result_count === 'number' &&
+    payload.retrieval.lexical_result_count > 0
+  ) {
+    return true;
+  }
   const trace = debug.retrieval_trace && typeof debug.retrieval_trace === 'object'
     ? debug.retrieval_trace
     : {};
@@ -754,6 +832,14 @@ function inferSafetyBlocked(payload, safetyClassification) {
   if (typeof safetyClassification?.blocked === 'boolean') {
     return safetyClassification.blocked;
   }
+  // Public diagnostics envelope: an authoritative safety.blocked flag set by
+  // the assistant trumps text/type heuristics.
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  if (typeof publicDiagnostics.safety?.blocked === 'boolean') {
+    return publicDiagnostics.safety.blocked;
+  }
 
   const responseType = String(payload.type || '').toLowerCase();
   const responseMode = String(payload.response_mode || '').toLowerCase();
@@ -773,6 +859,13 @@ function inferSafetyBlocked(payload, safetyClassification) {
 }
 
 function inferSafetyStage(payload, safetyBlocked, llmUsed) {
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  const explicitStage = publicDiagnostics.safety?.stage;
+  if (typeof explicitStage === 'string' && explicitStage !== '') {
+    return explicitStage;
+  }
   if (!safetyBlocked) {
     return llmUsed === true ? 'generation_allowed' : 'not_blocked';
   }
@@ -780,12 +873,42 @@ function inferSafetyStage(payload, safetyBlocked, llmUsed) {
 }
 
 function inferGenerationProvider(payload, debug = {}) {
+  // Prefer explicit public diagnostics, then legacy debug, then top-level
+  // shorthand fields. Order matters: a deployed assistant may emit the
+  // structured diagnostics object publicly and skip the legacy fields.
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
   return (
+    publicDiagnostics.generation?.provider ||
+    payload.generation?.provider ||
     debug.llm_provider ||
+    debug.generation?.provider ||
     payload.llm_provider ||
     payload.provider ||
     null
   );
+}
+
+function inferGenerationUsed(payload, debug = {}) {
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  // Source-of-truth list, in priority order. The first source that returns a
+  // boolean wins; null/undefined means "no opinion, keep looking".
+  const candidates = [
+    publicDiagnostics.generation?.used,
+    payload.generation?.used,
+    payload.llm_used,
+    debug.llm_used,
+    debug.generation?.used,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'boolean') {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 function buildIlasProviderMeta(data, siteBaseUrl = DEFAULT_SITE_BASE_URL, options = {}) {
@@ -810,15 +933,25 @@ function buildIlasProviderMeta(data, siteBaseUrl = DEFAULT_SITE_BASE_URL, option
     ? debug.rerank_meta
     : null;
   const requestId = payload.request_id || options.requestId || options.correlationId || null;
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
   const safetyClassification = summarizeClassification(
-    payload.safety_classification || debug.safety_classification || null
+    payload.safety_classification ||
+    publicDiagnostics.safety ||
+    debug.safety_classification ||
+    null
   );
   const outOfScopeClassification = summarizeClassification(
-    payload.out_of_scope_classification || payload.oos_classification || debug.oos_classification || null
+    payload.out_of_scope_classification ||
+    payload.oos_classification ||
+    publicDiagnostics.out_of_scope ||
+    debug.oos_classification ||
+    null
   );
   const retrievalAttempted = inferRetrievalAttempted(payload, debug, provenance);
   const generationProvider = inferGenerationProvider(payload, debug);
-  const llmUsed = Object.prototype.hasOwnProperty.call(debug, 'llm_used') ? Boolean(debug.llm_used) : null;
+  const llmUsed = inferGenerationUsed(payload, debug);
   const genericFallback = inferGenericFallback(payload, debug);
   const safetyBlocked = inferSafetyBlocked(payload, safetyClassification);
   const safetyStage = inferSafetyStage(payload, safetyBlocked, llmUsed);

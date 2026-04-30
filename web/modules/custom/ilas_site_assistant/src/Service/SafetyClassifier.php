@@ -89,7 +89,7 @@ class SafetyClassifier {
    */
   protected function initializeRules(): void {
     $this->rules = [
-      // Priority 1: Crisis/Suicide - CRITICAL
+      // Priority 1: Crisis/Suicide - CRITICAL.
       'crisis' => [
         'class' => self::CLASS_CRISIS,
         'escalation' => self::ESCALATION_CRITICAL,
@@ -104,7 +104,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 2: Immediate Danger - CRITICAL
+      // Priority 2: Immediate Danger - CRITICAL.
       'immediate_danger' => [
         'class' => self::CLASS_IMMEDIATE_DANGER,
         'escalation' => self::ESCALATION_CRITICAL,
@@ -118,7 +118,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 3: DV Emergency - IMMEDIATE
+      // Priority 3: DV Emergency - IMMEDIATE.
       'dv_emergency' => [
         'class' => self::CLASS_DV_EMERGENCY,
         'escalation' => self::ESCALATION_IMMEDIATE,
@@ -140,7 +140,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 4: Eviction Emergency - IMMEDIATE
+      // Priority 4: Eviction Emergency - IMMEDIATE.
       'eviction_emergency' => [
         'class' => self::CLASS_EVICTION_EMERGENCY,
         'escalation' => self::ESCALATION_IMMEDIATE,
@@ -161,7 +161,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 5: Child Safety - IMMEDIATE
+      // Priority 5: Child Safety - IMMEDIATE.
       'child_safety' => [
         'class' => self::CLASS_CHILD_SAFETY,
         'escalation' => self::ESCALATION_IMMEDIATE,
@@ -189,7 +189,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 6: Scam/Fraud Active - IMMEDIATE
+      // Priority 6: Scam/Fraud Active - IMMEDIATE.
       'scam_active' => [
         'class' => self::CLASS_SCAM_ACTIVE,
         'escalation' => self::ESCALATION_IMMEDIATE,
@@ -226,7 +226,7 @@ class SafetyClassifier {
         'escalation' => self::ESCALATION_URGENT,
         'patterns' => [
           // Instruction override patterns.
-          // Handles: "ignore previous instructions", "forget your previous instructions", "disregard the above rules"
+          // Handles: "ignore previous instructions", "forget your previous instructions", "disregard the above rules".
           '/\b(ignore|disregard|forget)[\s,\/]+(all[\s,\/]+)?(the[\s,\/]+)?(your[\s,\/]+)?(previous|prior|above)?[\s,\/]*(instructions?|rules?|guidelines?|programming|prompt|constraints?)\b/i' => 'injection_ignore_instructions',
           '/\b(ignore|disregard|forget)\s+(all\s+)?(the\s+)?(your\s+)?(previous|prior|above)?\s*(instructions?|rules?|guidelines?|programming|prompt|constraints?)\b/i' => 'injection_ignore_instructions',
           '/\b(ignore|disregard|forget)\s+(all\s+)?your\s+(previous\s+)?(instructions?|rules?|guidelines?|programming|constraints?)\b/i' => 'injection_ignore_your_instructions',
@@ -290,7 +290,11 @@ class SafetyClassifier {
           '/\b(intimidat(e|ing)\s*(my|the)?\s*(neighbor|landlord|tenant|employer)\s*(to|into)\s*(mov(e|ing)|leav(e|ing)|quitting))\b/i' => 'wrongdoing_intimidation',
           '/\b(write\s*(something\s*to\s*)?(scare|threaten|intimidate))\b/i' => 'wrongdoing_threat_letter',
           '/\b(hide\s*(my\s*)?(assets?|money|property)\s*(from|so|in))\b/i' => 'wrongdoing_asset_hiding',
-          '/\b(hide\s*(my\s*)?(assets?|money|property)\s*before\s*(court|hearing|trial))\b/i' => 'wrongdoing_asset_hiding',
+          '/\b(hide\s*(my\s*)?(assets?|money|property)\s*before\s*(court|hearing|trial|divorce|filing|the\s*divorce))\b/i' => 'wrongdoing_asset_hiding',
+          // Looser variant: "How do I hide money before divorce?" / "hide
+          // money before splitting up". The earlier patterns required a
+          // following "from|so|in" which misses bare temporal phrasings.
+          '/\b(hide|conceal|stash|stash\s*away)\s*(my\s*)?(money|cash|assets?|property|income)\s*(before|prior\s*to|ahead\s*of)\s*(divorce|filing|the\s*divorce|the\s*court|the\s*split|separation|child\s*support|support\s*case)\b/i' => 'wrongdoing_asset_hiding_pre_divorce',
           '/\b(hide\s*assets?\s*from\s*(my\s*)?(spouse|ex|wife|husband|partner))\b/i' => 'wrongdoing_asset_hiding_divorce',
           '/\b(move|transfer|stash|park)\s*(my\s*)?(assets?|money)\s*(so|to)\s*(they|the\s*court|my\s*spouse|my\s*ex)\s*(can\'?t|cannot|wont)\s*(find|see)\b/i' => 'wrongdoing_asset_hiding_variant',
           '/\b(put|hide)\s*(money|assets?)\s*(in|under)\s*(my\s*)?(mom|dad|friend|relative|family)\b/i' => 'wrongdoing_asset_hiding_variant',
@@ -381,7 +385,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 10: PII Disclosure - STANDARD
+      // Priority 10: PII Disclosure - STANDARD.
       'pii' => [
         'class' => self::CLASS_PII,
         'escalation' => self::ESCALATION_STANDARD,
@@ -397,7 +401,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 11: Legal Advice Request - STANDARD
+      // Priority 11: Legal Advice Request - STANDARD.
       'legal_advice' => [
         'class' => self::CLASS_LEGAL_ADVICE,
         'escalation' => self::ESCALATION_STANDARD,
@@ -422,6 +426,13 @@ class SafetyClassifier {
           '/\b(how\s+do\s+i\s+fight)\b/i' => 'legal_advice_fight',
           '/\b(exactly\s+what\s+should\s+i\s+say\s+to\s+(the\s+)?judge)\b/i' => 'legal_advice_strategy',
           '/\b(write\s+exactly\s+what\s+i\s+should\s+tell\s+(the\s+)?judge)\b/i' => 'legal_advice_strategy',
+          // Generic court-script requests: "tell me exactly what to say in
+          // court", "what should I say in court", "give me a court script",
+          // "what are the exact words to use".
+          '/\b(tell\s+me\s+(exactly\s+)?what\s+to\s+say\s+(in|at|during|to)\s+(court|the\s+hearing|the\s+judge|my\s+hearing))\b/i' => 'legal_advice_court_script',
+          '/\b((write|give)\s+me\s+(a\s+)?(court\s+)?(script|speech|statement)\s+(for|to\s+(read|use)\s+in)\s+(the\s+|my\s+)?(court|hearing|judge))\b/i' => 'legal_advice_court_script',
+          '/\b(exact\s+words\s+(to\s+(use|say)|i\s+should\s+(use|say))\s+(in|at|to)\s+(court|the\s+judge))\b/i' => 'legal_advice_court_script',
+          '/\b(what\s+should\s+i\s+(literally\s+)?say\s+in\s+(court|the\s+hearing))\b/i' => 'legal_advice_court_script',
           '/\b(what\s+should\s+i\s+tell\s+(the\s+)?judge\s+to\s+win)\b/i' => 'legal_advice_strategy',
           '/\b(should\s+i\s+appeal|appeal\s+(this|the|my))\b/i' => 'legal_advice_appeal',
           '/\b(stop\s+paying\s+rent|withhold\s+rent|break\s+(the|my)\s+lease)\b/i' => 'legal_advice_action',
@@ -440,7 +451,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 12: Document Drafting - STANDARD
+      // Priority 12: Document Drafting - STANDARD.
       'document_drafting' => [
         'class' => self::CLASS_DOCUMENT_DRAFTING,
         'escalation' => self::ESCALATION_STANDARD,
@@ -454,7 +465,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 13: External Request - STANDARD
+      // Priority 13: External Request - STANDARD.
       'external' => [
         'class' => self::CLASS_EXTERNAL,
         'escalation' => self::ESCALATION_STANDARD,
@@ -466,7 +477,7 @@ class SafetyClassifier {
         ],
       ],
 
-      // Priority 14: Frustration - STANDARD
+      // Priority 14: Frustration - STANDARD.
       'frustration' => [
         'class' => self::CLASS_FRUSTRATION,
         'escalation' => self::ESCALATION_STANDARD,
