@@ -108,3 +108,115 @@ test.describe('impact-card a11y', () => {
     }
   });
 });
+
+/**
+ * Homepage-rendered guards.
+ *
+ * The scoped tests above run against ROUTES.impactCards and only inspect the
+ * first card. These tests pin the contract on every .impact-card actually
+ * rendered into the home page so a regression where the card root becomes
+ * interactive (or a focusable descendant slips into the trigger button) is
+ * caught at the integration level, not just inside the isolated fixture.
+ */
+test.describe('impact-card a11y — rendered home page', () => {
+  test.beforeEach(async ({ page }) => {
+    test.skip(!ROUTES.home, 'A11Y_ROUTE_HOME not configured.');
+    const ok = await gotoIfPresent(page, ROUTES.home);
+    test.skip(!ok, `Route ${ROUTES.home} unavailable.`);
+    const present = await page.locator(CARD).count();
+    test.skip(present === 0, 'No .impact-card on the home page.');
+  });
+
+  test('every card root on the home page is a non-interactive container', async ({ page }) => {
+    const cards = page.locator(CARD);
+    const count = await cards.count();
+    expect(count, 'home page must render impact cards').toBeGreaterThan(0);
+
+    for (let i = 0; i < count; i += 1) {
+      const card = cards.nth(i);
+      const snapshot = await card.evaluate((el) => ({
+        tagName: el.tagName,
+        role: el.getAttribute('role'),
+        tabindex: el.getAttribute('tabindex'),
+        ariaExpanded: el.getAttribute('aria-expanded'),
+        onclick: el.getAttribute('onclick'),
+        contentEditable: el.getAttribute('contenteditable'),
+        cursor: window.getComputedStyle(el).cursor,
+        matchesInteractive: el.matches(
+          'button, a, summary, details, [role="button"], [role="link"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex]'
+        ),
+      }));
+
+      expect(snapshot.tagName, `card #${i} tag`).toBe('DIV');
+      expect(snapshot.role, `card #${i} role`).toBeNull();
+      expect(snapshot.tabindex, `card #${i} tabindex`).toBeNull();
+      expect(snapshot.ariaExpanded, `card #${i} aria-expanded`).toBeNull();
+      expect(snapshot.onclick, `card #${i} onclick`).toBeNull();
+      expect(snapshot.contentEditable, `card #${i} contenteditable`).toBeNull();
+      expect(snapshot.matchesInteractive, `card #${i} must not match an interactive selector`).toBe(false);
+      expect(snapshot.cursor, `card #${i} cursor must not be 'pointer' on the root`).not.toBe('pointer');
+    }
+  });
+
+  test('the trigger button is the only focusable widget inside each closed card', async ({ page }) => {
+    const cards = page.locator(CARD);
+    const count = await cards.count();
+
+    for (let i = 0; i < count; i += 1) {
+      // Walk the live DOM (excluding any subtree that is inert or aria-hidden,
+      // since axe's nested-interactive honors both) and collect every element
+      // that would be tab-focusable. The only one we expect is the trigger.
+      const focusable = await cards.nth(i).evaluate((card) => {
+        const FOCUSABLE_SELECTOR = [
+          'a[href]',
+          'button:not([disabled])',
+          'input:not([disabled]):not([type="hidden"])',
+          'select:not([disabled])',
+          'textarea:not([disabled])',
+          'summary',
+          'details',
+          '[tabindex]:not([tabindex="-1"])',
+          '[contenteditable=""]',
+          '[contenteditable="true"]',
+        ].join(',');
+
+        function isHiddenForA11y(el) {
+          for (let cur = el; cur; cur = cur.parentElement) {
+            if (cur.hasAttribute('inert')) return true;
+            if (cur.getAttribute('aria-hidden') === 'true') return true;
+          }
+          return false;
+        }
+
+        return Array.from(card.querySelectorAll(FOCUSABLE_SELECTOR))
+          .filter((el) => !isHiddenForA11y(el))
+          .map((el) => ({
+            tag: el.tagName,
+            cls: el.className,
+            id: el.id || null,
+          }));
+      });
+
+      expect(focusable, `card #${i} focusable widgets`).toHaveLength(1);
+      expect(focusable[0].cls, `card #${i} sole focusable widget must be the trigger`).toContain(
+        'impact-card__trigger',
+      );
+    }
+  });
+
+  test('axe nested-interactive does not fire anywhere on the home page', async ({ page }, testInfo) => {
+    await page.locator(CARD).first().scrollIntoViewIfNeeded();
+    const { results } = await runAxe(page);
+    await testInfo.attach('axe-home-nested-interactive.json', {
+      body: JSON.stringify(results.violations, null, 2),
+      contentType: 'application/json',
+    });
+
+    const nested = results.violations.filter((v) => v.id === 'nested-interactive');
+    if (nested.length > 0) {
+      throw new Error(
+        `axe reported nested-interactive on home page:\n${formatViolations(nested)}`,
+      );
+    }
+  });
+});

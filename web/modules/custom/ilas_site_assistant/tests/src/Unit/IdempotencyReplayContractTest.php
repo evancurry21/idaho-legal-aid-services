@@ -492,13 +492,22 @@ class IdempotencyReplayContractTest extends TestCase {
 
   /**
    * Data provider for error response types that must have consistent IDs.
+   *
+   * Tuple: [scenario_label, expected_http_status]. The 4xx rows are real
+   * HTTP error responses. The `internal_error_fallback` row exercises the
+   * controller's graceful-degradation catch-all, which now returns HTTP
+   * 200 with a degraded escalation envelope (see
+   * IntegrationFailureContractTest::testCatchAllReturnsDegradedEscalationFallback).
+   * The cross-cutting invariant under test here is: regardless of which
+   * error path the response takes, body.request_id must be present and
+   * must match the X-Correlation-ID header.
    */
   public static function errorResponseProvider(): array {
     return [
-      '429_rate_limit' => [429],
-      '400_content_type' => [400],
-      '413_too_large' => [413],
-      '500_catch_all' => [500],
+      '429_rate_limit' => ['429_rate_limit', 429],
+      '400_content_type' => ['400_content_type', 400],
+      '413_too_large' => ['413_too_large', 413],
+      'internal_error_fallback' => ['internal_error_fallback', 200],
     ];
   }
 
@@ -506,16 +515,18 @@ class IdempotencyReplayContractTest extends TestCase {
    * Error responses have body request_id matching X-Correlation-ID header.
    */
   #[DataProvider('errorResponseProvider')]
-  public function testErrorResponseRequestIdConsistency(int $expectedStatus): void {
-    switch ($expectedStatus) {
-      case 429:
+  public function testErrorResponseRequestIdConsistency(string $scenario, int $expectedStatus): void {
+    $isDegradedFallback = ($scenario === 'internal_error_fallback');
+
+    switch ($scenario) {
+      case '429_rate_limit':
         $flood = $this->createStub(FloodInterface::class);
         $flood->method('isAllowed')->willReturn(FALSE);
         $controller = $this->buildController(flood: $flood);
         $request = $this->buildJsonRequest();
         break;
 
-      case 400:
+      case '400_content_type':
         $controller = $this->buildController();
         $request = Request::create(
           '/assistant/api/message',
@@ -528,7 +539,7 @@ class IdempotencyReplayContractTest extends TestCase {
         );
         break;
 
-      case 413:
+      case '413_too_large':
         $controller = $this->buildController();
         $request = Request::create(
           '/assistant/api/message',
@@ -541,28 +552,102 @@ class IdempotencyReplayContractTest extends TestCase {
         );
         break;
 
-      case 500:
+      case 'internal_error_fallback':
         $controller = $this->buildController(
           processIntentException: new \RuntimeException('Simulated failure'),
         );
         $request = $this->buildJsonRequest();
         break;
+
+      default:
+        $this->fail("Unknown error scenario: {$scenario}");
     }
 
     $response = $controller->message($request);
-    $this->assertEquals($expectedStatus, $response->getStatusCode());
+    $this->assertEquals(
+      $expectedStatus,
+      $response->getStatusCode(),
+      "Scenario {$scenario} must return HTTP {$expectedStatus}.",
+    );
 
     $body = json_decode($response->getContent(), TRUE);
-    $this->assertArrayHasKey('request_id', $body, "request_id must be in body for HTTP {$expectedStatus}");
+    $this->assertArrayHasKey('request_id', $body, "request_id must be in body for {$scenario}");
     $this->assertTrue(
       $response->headers->has('X-Correlation-ID'),
-      "X-Correlation-ID header must be present for HTTP {$expectedStatus}"
+      "X-Correlation-ID header must be present for {$scenario}"
     );
     $this->assertEquals(
       $body['request_id'],
       $response->headers->get('X-Correlation-ID'),
-      "Body request_id must match X-Correlation-ID header for HTTP {$expectedStatus}"
+      "Body request_id must match X-Correlation-ID header for {$scenario}"
     );
+
+    // For the catch-all path, additionally pin the degraded escalation
+    // identity. Replayed/degraded error responses must keep consistent
+    // request IDs AND consistent response identity expectations.
+    if ($isDegradedFallback) {
+      $this->assertSame('escalation', $body['type'] ?? NULL);
+      $this->assertSame('internal_error_fallback', $body['escalation_type'] ?? NULL);
+      $this->assertTrue($body['degraded'] ?? FALSE, 'Top-level degraded marker must be TRUE.');
+      $this->assertSame('internal_error', $body['error_code'] ?? NULL);
+      $this->assertNotEmpty($body['actions'] ?? [], 'Escalation actions must be present.');
+      $this->assertSame('internal_error', $body['meta']['reason_code'] ?? NULL);
+      $this->assertSame('pipeline_exception_safe_fallback', $body['meta']['decision_reason'] ?? NULL);
+      $this->assertTrue($body['meta']['degraded'] ?? FALSE, 'meta.degraded must be TRUE.');
+    }
+  }
+
+  /**
+   * Two catch-all replays with the same X-Correlation-ID return identical
+   * degraded-escalation identity AND share the same request_id. This is
+   * the "replayed/degraded error response" property called out in the
+   * graceful-degradation contract change — error replay must not drift
+   * across responses for the same correlation.
+   */
+  public function testInternalErrorFallbackReplayIsIdempotent(): void {
+    $correlationId = '550e8400-e29b-41d4-a716-446655440000';
+    $controller = $this->buildController(
+      processIntentException: new \RuntimeException('Simulated failure'),
+    );
+
+    $request1 = $this->buildJsonRequest('replay test', ['X-Correlation-ID' => $correlationId]);
+    $request2 = $this->buildJsonRequest('replay test', ['X-Correlation-ID' => $correlationId]);
+
+    $response1 = $controller->message($request1);
+    $response2 = $controller->message($request2);
+
+    $this->assertEquals(200, $response1->getStatusCode());
+    $this->assertEquals(200, $response2->getStatusCode());
+
+    $body1 = json_decode($response1->getContent(), TRUE);
+    $body2 = json_decode($response2->getContent(), TRUE);
+
+    // request_id stability across replay.
+    $this->assertSame($correlationId, $body1['request_id']);
+    $this->assertSame($correlationId, $body2['request_id']);
+    $this->assertSame($body1['request_id'], $body2['request_id']);
+
+    // Degraded escalation identity stability across replay.
+    $identityKeys = ['type', 'escalation_type', 'degraded', 'error_code'];
+    foreach ($identityKeys as $key) {
+      $this->assertSame(
+        $body1[$key] ?? NULL,
+        $body2[$key] ?? NULL,
+        "Replayed degraded response must keep consistent {$key}."
+      );
+    }
+    $metaIdentityKeys = ['reason_code', 'decision_reason', 'degraded', 'response_type', 'response_mode'];
+    foreach ($metaIdentityKeys as $key) {
+      $this->assertSame(
+        $body1['meta'][$key] ?? NULL,
+        $body2['meta'][$key] ?? NULL,
+        "Replayed degraded response must keep consistent meta.{$key}."
+      );
+    }
+
+    // Sanity: the shape itself is the degraded one.
+    $this->assertSame('internal_error_fallback', $body1['escalation_type']);
+    $this->assertTrue($body1['degraded']);
   }
 
   // ─── Test 14: Replay determinism ─────────────────────────────────────

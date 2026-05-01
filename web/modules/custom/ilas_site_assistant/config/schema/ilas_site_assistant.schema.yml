@@ -14,6 +14,9 @@ ilas_site_assistant.settings:
     enable_faq:
       type: boolean
       label: 'Enable FAQ answers'
+    enable_faq_resource_fallthrough:
+      type: boolean
+      label: 'When FAQ has no match, fall through to grounded resource retrieval'
     enable_resources:
       type: boolean
       label: 'Enable resource/form/guide search'

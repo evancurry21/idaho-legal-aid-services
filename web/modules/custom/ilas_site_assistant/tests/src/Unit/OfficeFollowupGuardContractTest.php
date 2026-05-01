@@ -21,6 +21,7 @@ use Drupal\ilas_site_assistant\Service\FallbackGate;
 use Drupal\ilas_site_assistant\Service\FaqIndex;
 use Drupal\ilas_site_assistant\Service\IntentRouter;
 use Drupal\ilas_site_assistant\Service\LlmEnhancer;
+use Drupal\ilas_site_assistant\Service\OfficeDirectory;
 use Drupal\ilas_site_assistant\Service\OfficeLocationResolver;
 use Drupal\ilas_site_assistant\Service\OutOfScopeClassifier;
 use Drupal\ilas_site_assistant\Service\PolicyFilter;
@@ -103,7 +104,7 @@ final class OfficeFollowupGuardContractTest extends TestCase {
     }
 
     $configFactory = $this->buildFlowConfigFactory($flowConfig);
-    $assistantFlowRunner = new AssistantFlowRunner($configFactory, new OfficeLocationResolver(), $conversationStateStore);
+    $assistantFlowRunner = new AssistantFlowRunner($configFactory, new OfficeLocationResolver(self::makeFakeOfficeDirectory()), $conversationStateStore);
 
     return new OfficeFollowupTestableController(
       $configFactory,
@@ -121,6 +122,80 @@ final class OfficeFollowupGuardContractTest extends TestCase {
       selection_registry: new SelectionRegistry(new TopIntentsPack()),
       selection_state_store: new SelectionStateStore($cache),
     );
+  }
+
+  /**
+   * Builds a fake OfficeDirectory matching the canonical 7 public offices.
+   */
+  private static function makeFakeOfficeDirectory(): OfficeDirectory {
+    return new class extends OfficeDirectory {
+
+      public function __construct() {}
+
+      /**
+       *
+       */
+      public function all(): array {
+        $r = static fn (string $slug, string $name): array => [
+          'slug' => $slug,
+          'name' => $name,
+          'street' => '',
+          'city' => $name,
+          'postal_code' => '',
+          'address' => '',
+          'phone' => '',
+          'phone_secondary' => '',
+          'hours' => 'Monday through Friday, 8:30 a.m. to 4:30 p.m. (call to confirm current office hours).',
+          'url' => '/contact/offices/' . str_replace('_', '-', $slug) . '-office',
+          'counties' => '',
+          'source_nid' => 0,
+          'poisoned' => FALSE,
+        ];
+        return [
+          'boise' => $r('boise', 'Boise'),
+          'coeur_dalene' => $r('coeur_dalene', "Coeur d'Alene"),
+          'idaho_falls' => $r('idaho_falls', 'Idaho Falls'),
+          'lewiston' => $r('lewiston', 'Lewiston'),
+          'nampa' => $r('nampa', 'Nampa'),
+          'pocatello' => $r('pocatello', 'Pocatello'),
+          'twin_falls' => $r('twin_falls', 'Twin Falls'),
+        ];
+      }
+
+      /**
+       *
+       */
+      public function get(string $slug): ?array {
+        return $this->all()[$slug] ?? NULL;
+      }
+
+      /**
+       *
+       */
+      public function isAvailable(): bool {
+        return TRUE;
+      }
+
+      /**
+       *
+       */
+      public function detectStaleTokens(string $message): array {
+        return [];
+      }
+
+      /**
+       *
+       */
+      public function assertNoStaleTokens(string $message, string $context = 'response'): bool {
+        return TRUE;
+      }
+
+      /**
+       *
+       */
+      public function invalidate(): void {}
+
+    };
   }
 
   /**
@@ -234,7 +309,7 @@ final class OfficeFollowupGuardContractTest extends TestCase {
    */
   public function testOfficeDetailResolutionUsesRecentHistory(): void {
     $controller = $this->buildController();
-    $resolver = new OfficeLocationResolver();
+    $resolver = new OfficeLocationResolver(self::makeFakeOfficeDirectory());
     $history = [
       ['text' => 'whats the address for the boise office'],
     ];
@@ -267,7 +342,7 @@ final class OfficeFollowupGuardContractTest extends TestCase {
     $this->assertSame('Boise', $response['office']['name']);
     $this->assertArrayHasKey('hours', $response['office']);
     $this->assertStringContainsString('call', strtolower((string) $response['office']['hours']));
-    $this->assertSame('/contact/offices/boise', $response['primary_action']['url']);
+    $this->assertSame('/contact/offices/boise-office', $response['primary_action']['url']);
   }
 
   /**

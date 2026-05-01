@@ -1020,6 +1020,11 @@ function buildIlasProviderMeta(data, siteBaseUrl = DEFAULT_SITE_BASE_URL, option
     },
     fallback_used: inferFallbackUsed(payload),
     generic_fallback: genericFallback,
+    // Catch-all degraded markers — populated only by the controller's
+    // graceful-degradation path. See AssistantApiController::message()
+    // catch block. Smoke gates fail when these appear in normal output.
+    escalation_type: payload.escalation_type || null,
+    degraded: payload.degraded === true || publicDiagnostics?.degraded === true,
     llm_fallback: {
       used: llmUsed,
       provider: generationProvider,
@@ -1120,6 +1125,13 @@ function buildContractMeta(data, siteBaseUrl, options = {}) {
     citation_urls: providerMeta.citation_urls || [],
     fallback_used: providerMeta.fallback_used || false,
     generic_fallback: providerMeta.generic_fallback || false,
+    // Catch-all degraded markers. The controller's graceful-degradation
+    // path returns HTTP 200 with type=escalation,
+    // escalation_type=internal_error_fallback, degraded=true. These two
+    // fields are surfaced into contract_meta so smoke/quality eval gates
+    // can hard-fail when degraded responses leak into normal output.
+    escalation_type: providerMeta.escalation_type || null,
+    degraded: providerMeta.degraded === true,
     llm_used: providerMeta.llm_used ?? null,
     generation: providerMeta.generation || null,
     vector_used: providerMeta.vector_used || false,

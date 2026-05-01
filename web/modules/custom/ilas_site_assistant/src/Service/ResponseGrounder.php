@@ -20,35 +20,18 @@ class ResponseGrounder {
   protected ?SourceGovernanceService $sourceGovernance;
 
   /**
-   * Known official contact information (safe to include).
+   * Known official non-office contact information (safe to include).
+   *
+   * Office addresses and per-office phone numbers come from {@see
+   * OfficeDirectory} (canonical first-party source backed by office_information
+   * nodes) — they MUST NOT be hardcoded here. This block is restricted to
+   * shared hotline/toll-free numbers and emergency services.
    */
   const OFFICIAL_CONTACTS = [
     'hotline' => [
       'number' => '(208) 746-7541',
       'toll_free' => '1-866-345-0106',
       'hours' => 'Monday–Wednesday, 10:00 a.m.–1:30 p.m. Mountain (9:00 a.m.–12:30 p.m. Pacific). Phone intakes are closed Thursday/Friday.',
-    ],
-    'offices' => [
-      'boise' => [
-        'address' => '310 N 5th Street, Boise, ID 83702',
-        'phone' => '(208) 345-0106',
-      ],
-      'pocatello' => [
-        'address' => '201 N 8th Ave, Suite 100, Pocatello, ID 83201',
-        'phone' => '(208) 233-0079',
-      ],
-      'twin_falls' => [
-        'address' => '496 Shoup Ave W, Twin Falls, ID 83301',
-        'phone' => '(208) 734-7024',
-      ],
-      'lewiston' => [
-        'address' => '1424 Main Street, Lewiston, ID 83501',
-        'phone' => '(208) 746-7541',
-      ],
-      'idaho_falls' => [
-        'address' => '482 Constitution Way, Suite 101, Idaho Falls, ID 83402',
-        'phone' => '(208) 524-3660',
-      ],
     ],
     'emergency' => [
       '911' => 'Emergency services',
@@ -104,10 +87,18 @@ class ResponseGrounder {
   ];
 
   /**
+   * Canonical office directory (entity-backed).
+   *
+   * @var \Drupal\ilas_site_assistant\Service\OfficeDirectory|null
+   */
+  protected ?OfficeDirectory $officeDirectory;
+
+  /**
    * Constructs a response grounder.
    */
-  public function __construct(?SourceGovernanceService $source_governance = NULL) {
+  public function __construct(?SourceGovernanceService $source_governance = NULL, ?OfficeDirectory $office_directory = NULL) {
     $this->sourceGovernance = $source_governance;
+    $this->officeDirectory = $office_directory;
   }
 
   /**
@@ -597,11 +588,18 @@ class ResponseGrounder {
       return TRUE;
     }
 
-    // Check office numbers.
-    foreach (self::OFFICIAL_CONTACTS['offices'] as $office) {
-      $office_normalized = preg_replace('/[^\d]/', '', $office['phone']);
-      if ($phone === $office_normalized) {
-        return TRUE;
+    // Check office numbers via the canonical OfficeDirectory.
+    if ($this->officeDirectory !== NULL) {
+      foreach ($this->officeDirectory->all() as $office) {
+        foreach (['phone', 'phone_secondary'] as $key) {
+          if (empty($office[$key])) {
+            continue;
+          }
+          $office_normalized = preg_replace('/[^\d]/', '', (string) $office[$key]) ?? '';
+          if ($office_normalized !== '' && $phone === $office_normalized) {
+            return TRUE;
+          }
+        }
       }
     }
 
@@ -626,13 +624,24 @@ class ResponseGrounder {
    *   TRUE if likely official.
    */
   protected function isOfficialAddress(string $address): bool {
+    if ($this->officeDirectory === NULL) {
+      return FALSE;
+    }
     $address_lower = strtolower($address);
 
-    foreach (self::OFFICIAL_CONTACTS['offices'] as $office) {
-      $official_lower = strtolower($office['address']);
-      // Check for significant overlap.
-      if (strpos($official_lower, substr($address_lower, 0, 20)) !== FALSE) {
-        return TRUE;
+    foreach ($this->officeDirectory->all() as $office) {
+      $candidates = array_filter([
+        $office['address'] ?? '',
+        $office['street'] ?? '',
+      ]);
+      foreach ($candidates as $candidate) {
+        $official_lower = strtolower((string) $candidate);
+        if ($official_lower === '') {
+          continue;
+        }
+        if (str_contains($official_lower, substr($address_lower, 0, 20))) {
+          return TRUE;
+        }
       }
     }
 
@@ -661,16 +670,45 @@ class ResponseGrounder {
    * Gets official contact information.
    *
    * @param string $type
-   *   Contact type (hotline, offices, emergency).
+   *   Contact type (hotline, offices, emergency, all).
    *
    * @return array
-   *   Official contact information.
+   *   Official contact information. Office records come from the canonical
+   *   OfficeDirectory service when available; the hotline and emergency blocks
+   *   are returned from the static OFFICIAL_CONTACTS list.
    */
   public function getOfficialContacts(string $type = 'all'): array {
+    $offices = $this->officeDirectory !== NULL
+      ? $this->buildOfficeContactsBlock()
+      : [];
+
     if ($type === 'all') {
-      return self::OFFICIAL_CONTACTS;
+      $merged = self::OFFICIAL_CONTACTS;
+      if ($offices !== []) {
+        $merged['offices'] = $offices;
+      }
+      return $merged;
+    }
+    if ($type === 'offices') {
+      return $offices;
     }
     return self::OFFICIAL_CONTACTS[$type] ?? [];
+  }
+
+  /**
+   * Builds the legacy 'offices' contact block from the OfficeDirectory.
+   *
+   * @return array<string, array{address: string, phone: string}>
+   */
+  private function buildOfficeContactsBlock(): array {
+    $offices = [];
+    foreach ($this->officeDirectory->all() as $slug => $office) {
+      $offices[$slug] = [
+        'address' => (string) ($office['address'] ?? ''),
+        'phone' => (string) ($office['phone'] ?? ''),
+      ];
+    }
+    return $offices;
   }
 
   /**

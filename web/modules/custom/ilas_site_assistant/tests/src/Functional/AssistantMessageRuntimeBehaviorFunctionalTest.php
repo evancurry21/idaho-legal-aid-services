@@ -312,9 +312,13 @@ class AssistantMessageRuntimeBehaviorFunctionalTest extends BrowserTestBase {
     $this->assertSame('FOLLOW_UP', $officeFollowup['turn_type'] ?? '', 'Office-hours follow-up must load conversation history.');
     $this->assertContainsAnySafeSignal($officeFollowup, [
       'boise',
-      '310 n 5th street',
+      '1447 s tyrell lane',
+      '83706',
+      '208-746-7541',
+      '746-7541',
       '8:30',
       '4:30',
+      'monday',
       'hours',
       'call to confirm',
     ], 'Office-hours follow-up must preserve Boise office context or plainly give hours/contact detail.');

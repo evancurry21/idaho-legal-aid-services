@@ -32,15 +32,14 @@ final class CitationContractTest extends TestCase {
   protected function setUp(): void {
     parent::setUp();
 
-    $config = $this->createStub(ImmutableConfig::class);
+    $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturn(NULL);
-    $configFactory = $this->createStub(ConfigFactoryInterface::class);
+    $configFactory = $this->createMock(ConfigFactoryInterface::class);
     $configFactory->method('get')
-      ->willReturnMap([
-        ['ilas_site_assistant.settings', $config],
-      ]);
-    $state = $this->createStub(StateInterface::class);
-    $logger = $this->createStub(LoggerInterface::class);
+      ->with('ilas_site_assistant.settings')
+      ->willReturn($config);
+    $state = $this->createMock(StateInterface::class);
+    $logger = $this->createMock(LoggerInterface::class);
 
     $governance = new SourceGovernanceService($configFactory, $state, $logger);
     $this->grounder = new ResponseGrounder($governance);

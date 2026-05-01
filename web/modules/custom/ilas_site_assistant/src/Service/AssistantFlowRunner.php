@@ -31,6 +31,7 @@ class AssistantFlowRunner {
     private readonly ConfigFactoryInterface $configFactory,
     private readonly OfficeLocationResolver $officeLocationResolver,
     private readonly ConversationStateStore $conversationStateStore,
+    private readonly ?HousingEvictionContinuityDecider $housingEvictionContinuityDecider = NULL,
   ) {}
 
   /**
@@ -49,10 +50,59 @@ class AssistantFlowRunner {
     }
 
     $user_message = (string) ($context['user_message'] ?? '');
-    $office = $this->officeLocationResolver->resolve($user_message);
     $is_location_like = !empty($context['is_location_like']);
     $is_explicit_office_followup = !empty($context['is_explicit_office_followup']);
 
+    // Housing-eviction continuity guard: if the active conversation is in an
+    // eviction thread and the user did NOT explicitly ask for office/contact
+    // information, do not treat a bare-city follow-up as an office search.
+    // Bail to normal routing so the housing/eviction continuation can render.
+    $conversation_context_summary = is_array($context['conversation_context_summary'] ?? NULL)
+      ? $context['conversation_context_summary']
+      : [];
+    $server_history = is_array($context['server_history'] ?? NULL)
+      ? $context['server_history']
+      : [];
+    if (
+      $this->housingEvictionContinuityDecider !== NULL
+      && !$is_explicit_office_followup
+      && $this->housingEvictionContinuityDecider->isHousingEvictionFollowup(
+        $conversation_context_summary,
+        $server_history,
+        $user_message
+      )
+    ) {
+      // Stay armed: do not clear state, do not resolve, do not clarify.
+      // Decrement remaining_turns the same way the no-match branch does.
+      $followup_state['remaining_turns'] = max(0, ((int) ($followup_state['remaining_turns'] ?? 1)) - 1);
+      if ((int) $followup_state['remaining_turns'] > 0) {
+        return $this->buildDecision(
+          status: 'continue',
+          state_operation: 'save',
+          state_payload: $followup_state,
+        );
+      }
+      return $this->buildDecision(
+        status: 'continue',
+        state_operation: 'clear',
+      );
+    }
+
+    $office = $this->officeLocationResolver->resolve($user_message);
+
+    if ($office !== NULL && $is_explicit_office_followup) {
+      return $this->buildDecision(
+        status: 'handled',
+        action: 'resolve',
+        state_operation: 'clear',
+        extras: ['office' => $office],
+      );
+    }
+
+    // If a city resolves but the user did not explicitly ask for office info
+    // AND they are mid-follow-up (state armed via prior `apply` prompt), keep
+    // the previous office-resolve behavior. This preserves the legitimate
+    // "where is your nearest office?" -> "Boise" handoff after an apply turn.
     if ($office !== NULL) {
       return $this->buildDecision(
         status: 'handled',
@@ -62,7 +112,16 @@ class AssistantFlowRunner {
       );
     }
 
-    if ($is_location_like || $is_explicit_office_followup) {
+    if ($is_explicit_office_followup) {
+      return $this->buildDecision(
+        status: 'handled',
+        action: 'clarify',
+        state_operation: 'clear',
+        extras: ['offices' => $this->officeLocationResolver->getAllOffices()],
+      );
+    }
+
+    if ($is_location_like) {
       return $this->buildDecision(
         status: 'handled',
         action: 'clarify',

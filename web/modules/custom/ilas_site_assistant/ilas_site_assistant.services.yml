@@ -149,7 +149,7 @@ services:
 
   ilas_site_assistant.response_grounder:
     class: Drupal\ilas_site_assistant\Service\ResponseGrounder
-    arguments: ['@ilas_site_assistant.source_governance']
+    arguments: ['@ilas_site_assistant.source_governance', '@ilas_site_assistant.office_directory']
 
   ilas_site_assistant.safety_classifier:
     class: Drupal\ilas_site_assistant\Service\SafetyClassifier
@@ -181,12 +181,20 @@ services:
     class: Drupal\ilas_site_assistant\Service\DisambiguationPack
     arguments: ['@cache.default']
 
+  ilas_site_assistant.office_directory:
+    class: Drupal\ilas_site_assistant\Service\OfficeDirectory
+    arguments: ['@entity_type.manager', '@cache.default', '@logger.channel.ilas_site_assistant', '@ilas_site_assistant.environment_detector']
+
   ilas_site_assistant.office_location_resolver:
     class: Drupal\ilas_site_assistant\Service\OfficeLocationResolver
+    arguments: ['@ilas_site_assistant.office_directory']
+
+  ilas_site_assistant.housing_eviction_continuity_decider:
+    class: Drupal\ilas_site_assistant\Service\HousingEvictionContinuityDecider
 
   ilas_site_assistant.assistant_flow_runner:
     class: Drupal\ilas_site_assistant\Service\AssistantFlowRunner
-    arguments: ['@config.factory', '@ilas_site_assistant.office_location_resolver', '@ilas_site_assistant.conversation_state_store']
+    arguments: ['@config.factory', '@ilas_site_assistant.office_location_resolver', '@ilas_site_assistant.conversation_state_store', '@ilas_site_assistant.housing_eviction_continuity_decider']
 
   ilas_site_assistant.turn_classifier:
     class: Drupal\ilas_site_assistant\Service\TurnClassifier

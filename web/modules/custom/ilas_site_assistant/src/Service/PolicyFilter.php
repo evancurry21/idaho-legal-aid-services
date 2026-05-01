@@ -377,6 +377,27 @@ If you have questions about a civil matter related to your situation, I can help
       ];
     }
 
+    // Courtroom strategy / scripting — precedence over document-drafting and
+    // legal-advice gates because it's the most specific refusal we have for
+    // "tell me what to say to a judge so I win" style prompts. Without this
+    // top-level gate, "Can you write my court argument?" would fall through
+    // to documentDraftingPatterns (which doesn't match "argument") and end
+    // up at the generic clarification fallback.
+    if ($this->requestsCourtroomStrategy($message)) {
+      return [
+        'violation' => TRUE,
+        'type' => self::VIOLATION_LEGAL_ADVICE,
+        'response' => $this->t('I can\'t tell you exactly what to say to a judge to win or give legal strategy for court. What I can do is point you to general court-preparation information, and the safest next step is to contact our Legal Advice Line or apply for help right away if you have an eviction or other deadline.'),
+        'escalation_level' => 'standard',
+        'links' => [
+          ['label' => $this->t('Legal Advice Line'), 'url' => $urls['hotline'], 'type' => 'hotline'],
+          ['label' => $this->t('Apply for Help'), 'url' => $urls['apply'], 'type' => 'apply'],
+          ['label' => $this->t('Find Guides'), 'url' => $urls['guides'], 'type' => 'guides'],
+          ['label' => $this->t('Find Forms'), 'url' => $urls['forms'], 'type' => 'forms'],
+        ],
+      ];
+    }
+
     // Check for document drafting requests.
     if ($this->matchesPatterns($message, $this->documentDraftingPatterns)) {
       return [
@@ -542,13 +563,40 @@ You can speak with a person by calling our Legal Advice Line, or share feedback 
   }
 
   /**
-   * Returns TRUE when the user asks for exact courtroom scripting/strategy.
+   * Returns TRUE when the user asks for courtroom scripting/strategy.
+   *
+   * Covers the smoke-eval phrasing plus the legal-advice-boundary variants
+   * that previously slipped through to the generic clarification fallback:
+   *  - "Tell me what to say to the judge so I win."
+   *  - "Can you write my court argument?"
+   *  - "What exactly should I say in court?"
+   *  - "Help me convince the judge to rule for me."
    */
   protected function requestsCourtroomStrategy(string $message): bool {
-    return (bool) preg_match(
-      '/\b(exactly\s+what\s+should\s+i\s+say\s+to\s+(the\s+)?judge|write\s+exactly\s+what\s+i\s+should\s+tell\s+(the\s+)?judge|what\s+should\s+i\s+tell\s+(the\s+)?judge\s+to\s+win)\b/i',
-      $message
-    );
+    $patterns = [
+      // Pinned smoke-eval phrasings (response text depends on these — keep).
+      '/\b(exactly\s+what\s+should\s+i\s+say\s+to\s+(the\s+)?judge)\b/i',
+      '/\b(write\s+exactly\s+what\s+i\s+should\s+tell\s+(the\s+)?judge)\b/i',
+      '/\b(what\s+should\s+i\s+tell\s+(the\s+)?judge\s+to\s+win)\b/i',
+      // "tell me what to say (in court|to the judge)" / "what to say to the judge".
+      '/\b(what\s+to\s+(say|tell)\s+(to\s+)?(the\s+)?(judge|court))\b/i',
+      '/\b(tell\s+me\s+what\s+to\s+(say|tell)\s+(in\s+(the\s+)?court|to\s+(the\s+)?(judge|court)))\b/i',
+      // "what (exactly) (should|do|can) i say (in court|to the (court|judge))".
+      '/\b(what\s+(exactly\s+)?(should|do|can)\s+i\s+say\s+(in\s+(the\s+)?court|to\s+(the\s+)?(court|judge)))\b/i',
+      // "(write|draft|prepare|create|help me write) … (court|legal|closing|opening|trial) argument".
+      '/\b(write|draft|prepare|create|help\s+me\s+(write|draft|prepare))\b[^.?!\n]{0,30}\b(court|legal|closing|opening|trial)\s+argument/i',
+      // "convince / persuade the judge|court", "rule (in my favor|for me)".
+      '/\b(convince|persuade)\s+(the\s+)?(judge|court)\b/i',
+      '/\brule\s+(in\s+my\s+favor|for\s+me)\b/i',
+      // "help me win (the|my|this) (case|hearing|trial|lawsuit)".
+      '/\bhelp\s+me\s+win\s+(the|my|this)\s+(case|hearing|trial|lawsuit)\b/i',
+    ];
+    foreach ($patterns as $pattern) {
+      if (preg_match($pattern, $message)) {
+        return TRUE;
+      }
+    }
+    return FALSE;
   }
 
   /**

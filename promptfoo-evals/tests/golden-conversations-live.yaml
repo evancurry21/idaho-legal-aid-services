@@ -53,7 +53,7 @@
     - type: javascript
       value: |
         const l = output.toLowerCase();
-        return l.includes('boise') && /(office|address|contact|310)/.test(l);
+        return l.includes('boise') && /(office|address|contact|1447|tyrell|83706)/.test(l);
       metric: golden-conversation-setup
 
 - description: "Golden conversation - Boise office context, turn 2"

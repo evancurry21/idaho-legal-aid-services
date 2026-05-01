@@ -419,12 +419,6 @@ parameters:
 			path: web/modules/custom/ilas_site_assistant/src/Service/KeywordExtractor.php
 
 		-
-			message: '#^Call to an undefined method Drupal\\ilas_site_assistant\\Service\\LlmCircuitBreaker\:\:canAttempt\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: web/modules/custom/ilas_site_assistant/src/Service/LlmEnhancer.php
-
-		-
 			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
 			identifier: globalDrupalDependencyInjection.useDependencyInjection
 			count: 13
@@ -663,18 +657,6 @@ parameters:
 			identifier: method.notFound
 			count: 1
 			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/GovernanceEnforcementMatrixContractTest.php
-
-		-
-			message: '#^Variable \$controller might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/IdempotencyReplayContractTest.php
-
-		-
-			message: '#^Variable \$request might not be defined\.$#'
-			identifier: variable.undefined
-			count: 1
-			path: web/modules/custom/ilas_site_assistant/tests/src/Unit/IdempotencyReplayContractTest.php
 
 		-
 			message: '#^Call to an undefined method PHPUnit\\Framework\\MockObject\\Builder\\InvocationStubber\:\:with\(\)\.$#'

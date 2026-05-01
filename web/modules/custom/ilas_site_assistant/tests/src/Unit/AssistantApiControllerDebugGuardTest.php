@@ -48,6 +48,17 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     parent::setUp();
     require_once __DIR__ . '/controller_test_bootstrap.php';
 
+    // Establish a known-clean baseline before every test, regardless of how
+    // PHPUnit selected this test (full class, --filter Llm, single method)
+    // and regardless of ambient env (e.g., DDEV's docker-compose injects
+    // ILAS_CHATBOT_DEBUG=1 into the web container). Without this, tests that
+    // do not explicitly set ILAS_CHATBOT_DEBUG would inherit it from the
+    // parent process and `isDebugMode()` would return TRUE — causing
+    // _debug to leak into responses and breaking assertArrayNotHasKey
+    // checks. The test was previously relying on a peer test's tearDown()
+    // to clear state, which is fragile under partial test selection.
+    $this->resetGlobalDebugState();
+
     $configStub = $this->createStub(ImmutableConfig::class);
     $configStub->method('get')->willReturnCallback(function (string $key) {
       $values = [
@@ -94,12 +105,22 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
    * {@inheritdoc}
    */
   protected function tearDown(): void {
+    $this->resetGlobalDebugState();
+    \Drupal::unsetContainer();
+    parent::tearDown();
+  }
+
+  /**
+   * Resets ambient env vars and Drupal Settings used by the debug-mode gate.
+   *
+   * Called from setUp() and tearDown() so each test starts and ends from
+   * a known-clean baseline regardless of run order or ambient env.
+   */
+  private function resetGlobalDebugState(): void {
     putenv('ILAS_CHATBOT_DEBUG');
     putenv('PANTHEON_ENVIRONMENT');
     unset($_ENV['ILAS_CHATBOT_DEBUG'], $_ENV['PANTHEON_ENVIRONMENT']);
     new Settings([]);
-    \Drupal::unsetContainer();
-    parent::tearDown();
   }
 
   /**
@@ -180,6 +201,15 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     ]);
     $request->headers->set('X-ILAS-Observability-Key', 'diagnostics-token');
 
+    // Pin the baseline: this test asserts _debug is absent, which only holds
+    // when isDebugMode() starts FALSE. If a future regression re-introduces
+    // ambient ILAS_CHATBOT_DEBUG leakage, fail here with a clear message
+    // rather than as a confusing _debug array-key mismatch later.
+    $this->assertFalse(
+      $controller->exposedIsDebugMode($request),
+      'baseline: debug mode must start disabled for this test',
+    );
+
     $response = $controller->message($request);
     $body = json_decode($response->getContent(), TRUE);
 
@@ -214,10 +244,16 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
       ],
     ]);
 
+    $this->assertFalse(
+      $controller->exposedIsDebugMode($request),
+      'baseline: debug mode must start disabled for this test',
+    );
+
     $response = $controller->message($request);
     $body = json_decode($response->getContent(), TRUE);
 
     $this->assertSame(200, $response->getStatusCode());
+    $this->assertArrayNotHasKey('_debug', $body, 'unauthorized requests must not receive _debug');
     $this->assertArrayNotHasKey('diagnostics', $body);
     // The privileged `diagnostics` envelope stays gated (asserted above), but
     // every response now carries a public-safe `meta` envelope so external
@@ -245,10 +281,16 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
       'message' => 'Tell me how to do something risky offsite.',
     ]);
 
+    $this->assertFalse(
+      $controller->exposedIsDebugMode($request),
+      'baseline: debug mode must start disabled for this test',
+    );
+
     $response = $controller->message($request);
     $body = json_decode($response->getContent(), TRUE);
 
     $this->assertSame(200, $response->getStatusCode());
+    $this->assertArrayNotHasKey('_debug', $body, 'public probe responses must not receive _debug');
     $this->assertArrayNotHasKey('diagnostics', $body, 'unauthorized callers do not receive privileged diagnostics');
     $this->assertIsArray($body['meta'] ?? NULL);
     $this->assertSame(TRUE, $body['meta']['safety']['blocked'] ?? NULL);
@@ -284,13 +326,95 @@ final class AssistantApiControllerDebugGuardTest extends TestCase {
     $request->headers->set('X-ILAS-Observability-Key', 'diagnostics-token');
     $request->headers->set('X-ILAS-Diagnostics', '1');
 
+    $this->assertFalse(
+      $controller->exposedIsDebugMode($request),
+      'baseline: debug mode must start disabled for this test',
+    );
+
     $response = $controller->message($request);
     $body = json_decode($response->getContent(), TRUE);
 
     $this->assertSame(200, $response->getStatusCode());
+    $this->assertArrayNotHasKey('_debug', $body, 'authorized diagnostics on a policy block must not auto-enable _debug');
     $this->assertFalse($body['diagnostics']['generation']['used'] ?? TRUE);
     $this->assertSame('policy_blocked', $body['diagnostics']['generation']['reason'] ?? NULL);
     $this->assertFalse($body['diagnostics']['retrieval']['used'] ?? TRUE);
+  }
+
+  /**
+   * Authorized diagnostics must remain `_debug`-clean when ambient env leaks in.
+   *
+   * Regression for the order-dependent failure where running this class with
+   * `--filter Llm` selected only the diagnostics-positive tests and skipped
+   * the cleanup peers (#1–#3). Without an explicit reset in setUp(), the
+   * DDEV-injected ILAS_CHATBOT_DEBUG=1 (set in the docker-compose web service)
+   * leaked through and `isDebugMode()` returned TRUE, causing `_debug` to
+   * appear in the response body and breaking `assertArrayNotHasKey('_debug')`.
+   *
+   * This test simulates that ambient-env condition explicitly: we set
+   * ILAS_CHATBOT_DEBUG=1 *after* setUp() has run, then call the same reset
+   * helper that setUp() uses, and verify the next request does not produce
+   * `_debug`. Pin: a diagnostics-positive test must not depend on a peer
+   * test's tearDown() to be deterministic.
+   */
+  public function testAuthorizedDiagnosticsRemainsCleanWhenAmbientDebugEnvIsSet(): void {
+    // Simulate DDEV's docker-compose env injection landing in our process
+    // after setUp() already ran its reset.
+    putenv('ILAS_CHATBOT_DEBUG=1');
+    $_ENV['ILAS_CHATBOT_DEBUG'] = '1';
+
+    // Sanity: without the reset, isDebugMode() would return TRUE here.
+    $this->assertSame('1', getenv('ILAS_CHATBOT_DEBUG'));
+
+    // Apply the same baseline reset that setUp() uses. This is the contract:
+    // calling resetGlobalDebugState() on a hostile ambient env returns the
+    // process to a known-clean state.
+    $this->resetGlobalDebugState();
+    $this->assertFalse(
+      getenv('ILAS_CHATBOT_DEBUG'),
+      'reset helper must clear ambient ILAS_CHATBOT_DEBUG',
+    );
+    $this->assertArrayNotHasKey(
+      'ILAS_CHATBOT_DEBUG', $_ENV,
+      'reset helper must clear ambient $_ENV',
+    );
+
+    // Now run the same authorized-diagnostics flow as test #4 and assert the
+    // public-side contract holds: _debug absent, diagnostics envelope present.
+    new Settings([
+      'ilas_assistant_diagnostics_token' => 'diagnostics-token',
+      'hash_salt' => 'test-salt',
+    ]);
+
+    $controller = $this->buildController(
+      policyViolation: FALSE,
+      fallbackDecision: FallbackGate::DECISION_FALLBACK_LLM,
+      llmEnabled: TRUE,
+    );
+    $request = $this->buildJsonRequest([
+      'message' => 'Please classify this harmless diagnostic request.',
+      'context' => [
+        'diagnostics' => [
+          'include' => TRUE,
+          'force_llm_probe' => TRUE,
+        ],
+      ],
+    ]);
+    $request->headers->set('X-ILAS-Observability-Key', 'diagnostics-token');
+
+    $this->assertFalse(
+      $controller->exposedIsDebugMode($request),
+      'reset must leave isDebugMode() FALSE',
+    );
+
+    $response = $controller->message($request);
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertSame(200, $response->getStatusCode());
+    $this->assertArrayNotHasKey('_debug', $body, 'reset must prevent _debug leakage from ambient env');
+    $this->assertSame('cohere', $body['diagnostics']['generation']['provider'] ?? NULL);
+    $this->assertSame('command-a-03-2025', $body['diagnostics']['generation']['model'] ?? NULL);
+    $this->assertTrue($body['diagnostics']['generation']['used'] ?? FALSE);
   }
 
   /**

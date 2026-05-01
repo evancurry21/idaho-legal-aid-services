@@ -6,9 +6,11 @@ use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
+require_once __DIR__ . '/../../../src/Service/OfficeDirectory.php';
 require_once __DIR__ . '/../../../src/Service/OfficeLocationResolver.php';
 require_once __DIR__ . '/../../../src/Service/Disambiguator.php';
 
+use Drupal\ilas_site_assistant\Service\OfficeDirectory;
 use Drupal\ilas_site_assistant\Service\OfficeLocationResolver;
 use Drupal\ilas_site_assistant\Service\Disambiguator;
 
@@ -32,7 +34,7 @@ class RoutingSpecificityRegressionTest extends TestCase {
    */
   #[DataProvider('officeDetailRequestProvider')]
   public function testOfficeResolverFindsCity(string $message, string $expected_office): void {
-    $resolver = new OfficeLocationResolver();
+    $resolver = new OfficeLocationResolver(self::makeFakeDirectory());
     $result = $resolver->resolve($message);
 
     $this->assertNotNull($result, "Resolver should find an office in: '$message'");
@@ -50,7 +52,7 @@ class RoutingSpecificityRegressionTest extends TestCase {
     return [
       'where_is_boise' => ['where is the Boise office', 'Boise'],
       'what_office_twin_falls' => ['what office helps me in Twin Falls', 'Twin Falls'],
-      'closest_office_nampa' => ['closest office to Nampa', 'Boise'],
+      'closest_office_nampa' => ['closest office to Nampa', 'Nampa'],
       'directions_to_lewiston' => ['directions to the Lewiston office', 'Lewiston'],
       'visit_pocatello' => ['can I visit the Pocatello office', 'Pocatello'],
       'nearest_idaho_falls' => ['nearest office to Idaho Falls', 'Idaho Falls'],
@@ -108,9 +110,83 @@ class RoutingSpecificityRegressionTest extends TestCase {
    * intercept it as an office query (no city name present).
    */
   public function testEvictionNarrativeNotInterceptedByOfficeResolver(): void {
-    $resolver = new OfficeLocationResolver();
+    $resolver = new OfficeLocationResolver(self::makeFakeDirectory());
     $result = $resolver->resolve('i got kicked out');
     $this->assertNull($result, "'i got kicked out' should NOT resolve to an office");
+  }
+
+  /**
+   * Builds a fake OfficeDirectory matching the canonical 7 public offices.
+   */
+  private static function makeFakeDirectory(): OfficeDirectory {
+    return new class extends OfficeDirectory {
+
+      public function __construct() {}
+
+      /**
+       *
+       */
+      public function all(): array {
+        $r = static fn (string $slug, string $name): array => [
+          'slug' => $slug,
+          'name' => $name,
+          'street' => '',
+          'city' => $name,
+          'postal_code' => '',
+          'address' => '',
+          'phone' => '',
+          'phone_secondary' => '',
+          'hours' => '',
+          'url' => '/contact/offices/' . str_replace('_', '-', $slug) . '-office',
+          'counties' => '',
+          'source_nid' => 0,
+          'poisoned' => FALSE,
+        ];
+        return [
+          'boise' => $r('boise', 'Boise'),
+          'coeur_dalene' => $r('coeur_dalene', "Coeur d'Alene"),
+          'idaho_falls' => $r('idaho_falls', 'Idaho Falls'),
+          'lewiston' => $r('lewiston', 'Lewiston'),
+          'nampa' => $r('nampa', 'Nampa'),
+          'pocatello' => $r('pocatello', 'Pocatello'),
+          'twin_falls' => $r('twin_falls', 'Twin Falls'),
+        ];
+      }
+
+      /**
+       *
+       */
+      public function get(string $slug): ?array {
+        return $this->all()[$slug] ?? NULL;
+      }
+
+      /**
+       *
+       */
+      public function isAvailable(): bool {
+        return TRUE;
+      }
+
+      /**
+       *
+       */
+      public function detectStaleTokens(string $message): array {
+        return [];
+      }
+
+      /**
+       *
+       */
+      public function assertNoStaleTokens(string $message, string $context = 'response'): bool {
+        return TRUE;
+      }
+
+      /**
+       *
+       */
+      public function invalidate(): void {}
+
+    };
   }
 
   /**
@@ -178,9 +254,18 @@ class RoutingSpecificityRegressionTest extends TestCase {
    * Data provider for concrete services queries.
    */
   public static function concreteServicesQueryProvider(): array {
+    // Queries here MUST contain a qualifier that the services_overview vague
+    // family lists in negative_tokens (free / legal / civil) OR exceed
+    // max_token_count after stop-token filtering, so the family is blocked
+    // and IntentRouter pattern matching takes over. Queries like
+    // "what services are available" intentionally still trigger the family
+    // (the family answer is now itself a concrete services overview).
     return [
       ['what free legal services do you offer'],
       ['what civil legal services are available'],
+      ['what kinds of cases do you help with'],
+      ['what types of legal issues do you handle'],
+      ['what does idaho legal aid do'],
     ];
   }
 

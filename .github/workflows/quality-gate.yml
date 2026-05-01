@@ -321,6 +321,67 @@ jobs:
           path: output/playwright-a11y/**
           if-no-files-found: warn
 
+  a11y-local-gate:
+    # Commit-aware accessibility gate. Builds a Drupal site from the checked-out
+    # commit inside DDEV and runs the a11y suite against it. Required on PR.
+    # The deployed-target a11y-gate above remains a post-deploy smoke against
+    # whatever Pantheon dev is currently serving.
+    name: Accessibility Gate (local DDEV)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install host npm dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Set up DDEV
+        uses: ddev/github-action-setup-ddev@fdf2f5c97943bae638f31df6df86f1defa6210c0 # v1.12.1
+        with:
+          autostart: 'false'
+
+      - name: Build Drupal site from this commit
+        run: bash scripts/ci/setup-a11y-local.sh
+
+      - name: Run accessibility tests against local DDEV
+        env:
+          PLAYWRIGHT_BASE_URL: ''
+          A11Y_ROUTE_HOME: '/'
+          A11Y_ROUTE_IMPACT_CARDS: '/'
+          A11Y_ROUTE_RESOURCES: ''
+          A11Y_ROUTE_ASSISTANT: ''
+          A11Y_ROUTE_STANDARD: ''
+        run: npm run test:a11y -- tests/a11y/axe.spec.js tests/a11y/impact-card.spec.js
+
+      - name: Upload local a11y gate artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11y-local-gate-artifacts
+          path: output/playwright-a11y/**
+          if-no-files-found: warn
+
+      - name: Capture DDEV diagnostics on failure
+        if: ${{ failure() }}
+        run: |
+          ddev describe || true
+          ddev logs --tail 200 || true
+          ddev drush watchdog:show --count=50 --severity=Error --extended || true
+
   assistant-pr-gate:
     name: Assistant PR Quality Gate
     runs-on: ubuntu-latest

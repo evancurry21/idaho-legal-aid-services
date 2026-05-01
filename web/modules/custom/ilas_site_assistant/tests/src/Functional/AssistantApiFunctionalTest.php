@@ -211,6 +211,92 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
+   * The four production reproducers from eval-FrE-2026-04-30T20:56:49 must
+   * not return HTTP 500 to the user. Before the fix, every input that fell
+   * into the LLM fallback path crashed in LlmEnhancer because of a
+   * canAttempt()/isAvailable() method-name desync against LlmCircuitBreaker.
+   * This test locks the contract at the HTTP boundary: no user phrasing
+   * may produce a 5xx response from the message pipeline.
+   *
+   * @dataProvider reproducerMessages
+   */
+  public function testMessageEndpointDoesNotReturn500ForReproducerPhrasings(string $message): void {
+    $this->drupalLogin($this->regularUser);
+
+    $response = $this->postJson('/assistant/api/message', [
+      'message' => $message,
+    ], TRUE);
+
+    $status = $response->getStatusCode();
+    $this->assertLessThan(
+      500,
+      $status,
+      sprintf('Reproducer phrasing %s must not return 5xx. Got %d.', json_encode($message), $status)
+    );
+    $this->assertNotEquals(500, $status);
+
+    $data = json_decode((string) $response->getBody(), TRUE);
+    $this->assertIsArray($data);
+    // Either we got a normal pipeline response (has type+message) or the
+    // hardened catch-block fallback (still 200 with type=escalation).
+    $this->assertArrayHasKey('type', $data);
+    $this->assertArrayHasKey('message', $data);
+    $this->assertNotEmpty($data['message']);
+
+    // The catch-block fallback marks itself with internal_error_fallback.
+    // If we hit it, the response must still carry actionable contact paths.
+    if (($data['escalation_type'] ?? NULL) === 'internal_error_fallback') {
+      $this->assertArrayHasKey('actions', $data);
+      $this->assertNotEmpty($data['actions'], 'Fallback escalation must include contact actions.');
+    }
+  }
+
+  /**
+   * Reproducer phrasings drawn from eval-FrE-2026-04-30T20:56:49 errors #7-#10.
+   */
+  public static function reproducerMessages(): array {
+    return [
+      'r07_car_back' => ['is there any way to get my car back'],
+      'r08_bank_account_fraud' => ['i also gave them my bank account number and theyve already taken $500'],
+      'r09_evidence_substance' => ['what evidence do i need to prove hes using'],
+      'r10_es09_kids_tonight' => ['I am being denied access to my kids tonight'],
+    ];
+  }
+
+  /**
+   * Spanish-shaped urgent phrasings must not return HTTP 500.
+   * Locks coverage for the language-aware fallback in the catch block.
+   *
+   * @dataProvider spanishReproducerMessages
+   */
+  public function testMessageEndpointDoesNotReturn500ForSpanishUrgentPhrasings(string $message): void {
+    $this->drupalLogin($this->regularUser);
+
+    $response = $this->postJson('/assistant/api/message', [
+      'message' => $message,
+    ], TRUE);
+
+    $status = $response->getStatusCode();
+    $this->assertLessThan(500, $status, sprintf('Spanish phrasing %s must not return 5xx.', json_encode($message)));
+
+    $data = json_decode((string) $response->getBody(), TRUE);
+    $this->assertIsArray($data);
+    $this->assertArrayHasKey('message', $data);
+    $this->assertNotEmpty($data['message']);
+  }
+
+  /**
+   * Spanish-shaped urgent phrasings.
+   */
+  public static function spanishReproducerMessages(): array {
+    return [
+      'es_kids_tonight' => ['Me están negando acceso a mis hijos esta noche'],
+      'es_eviction' => ['Necesito ayuda con un desalojo urgente'],
+      'es_fraud' => ['Les di el número de mi cuenta bancaria y ya tomaron $500'],
+    ];
+  }
+
+  /**
    * Tests that missing-browser-proof track requests are denied.
    */
   public function testTrackEndpointWithoutBrowserProofReturnsTrackProofMissing(): void {

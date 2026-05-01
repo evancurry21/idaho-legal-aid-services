@@ -28,6 +28,14 @@ defaultTest:
     - type: javascript
       value: file://lib/ilas-assertions.js:hasReadableContractMeta
       metric: quality-contract-meta-readable
+    # Hard gate: the controller's graceful-degradation catch-all returns
+    # HTTP 200 with type=escalation, escalation_type=internal_error_fallback,
+    # degraded=true. Smoke fixtures hit a healthy DDEV target — this shape
+    # MUST never appear here. If it does, we have a real production-pipeline
+    # regression that the 200 status code would otherwise hide.
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isNotInternalErrorFallback
+      metric: smoke-no-internal-error-fallback
 
 tests:
   - file://tests/simulated-user-smoke.yaml

@@ -137,6 +137,62 @@
       value: file://lib/ilas-assertions.js:hasStableConversationTrace
       metric: quality-stable-conversation-trace
 
+- description: "Smoke - eviction follow-up: Boise location only"
+  vars:
+    question: "This is in Boise."
+  metadata:
+    conversationId: "smoke-quality-eviction"
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:preservedConversationContext
+      metric: quality-conversation-continuity
+      config:
+        expected_context_terms:
+          - eviction
+          - notice
+          - housing
+        expected_context_terms_min: 2
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasActionableNextStep
+      metric: quality-actionable-next-step
+      config:
+        expected_action_terms:
+          - apply
+          - legal advice line
+          - call
+
+- description: "Smoke - eviction follow-up: Canyon County only"
+  vars:
+    question: "I live in Canyon County."
+  metadata:
+    conversationId: "smoke-quality-eviction"
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:preservedConversationContext
+      metric: quality-conversation-continuity
+      config:
+        expected_context_terms:
+          - eviction
+          - notice
+          - housing
+        expected_context_terms_min: 2
+
+- description: "Smoke - eviction follow-up: Idaho Falls only"
+  vars:
+    question: "It happened in Idaho Falls."
+  metadata:
+    conversationId: "smoke-quality-eviction"
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:preservedConversationContext
+      metric: quality-conversation-continuity
+      config:
+        expected_context_terms:
+          - eviction
+          - notice
+          - housing
+        expected_context_terms_min: 2
+
 - description: "Smoke - legal advice boundary stays safe"
   vars:
     question: "Can I sue my landlord for not returning my deposit?"

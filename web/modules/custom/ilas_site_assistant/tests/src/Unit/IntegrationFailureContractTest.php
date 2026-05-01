@@ -303,12 +303,34 @@ class IntegrationFailureContractTest extends TestCase {
     return $request;
   }
 
-  // ─── Test 1: Catch-all returns 500 with internal_error code ───────────
+  // ─── Test 1: Catch-all returns degraded escalation fallback ───────────
 
   /**
-   * Controller catch-all returns HTTP 500 with error.code = internal_error.
+   * Controller catch-all returns HTTP 200 graceful-degradation escalation.
+   *
+   * Contract change (intentional): the catch-all no longer returns HTTP 500
+   * with `error.code = internal_error`. Visitors with urgent legal needs
+   * still see actionable Legal Advice Line / Apply for Help paths even when
+   * the pipeline throws. The exception is still logged + Sentry-captured
+   * + Langfuse-traced, and the response carries durable degraded markers
+   * so monitoring dashboards and CI gates can detect the path.
+   *
+   * Pinned shape:
+   *  - HTTP 200
+   *  - type = "escalation"
+   *  - escalation_type = "internal_error_fallback"
+   *  - degraded = TRUE (top-level)
+   *  - error_code = "internal_error" (top-level back-compat)
+   *  - meta.reason_code = "internal_error"
+   *  - meta.decision_reason = "pipeline_exception_safe_fallback"
+   *  - meta.degraded = TRUE
+   *  - meta.fallback_used = TRUE
+   *  - actions[] is a non-empty list of escalation links
+   *  - request_id is present
+   *  - Langfuse trace metadata still records fallback_path=error and
+   *    response_type=internal_error so dashboards keep pre-existing alerts.
    */
-  public function testCatchAllReturns500WithInternalErrorCode(): void {
+  public function testCatchAllReturnsDegradedEscalationFallback(): void {
     $langfuseTracer = $this->buildActiveLangfuseTracer();
     $conversationId = '123e4567-e89b-42d3-a456-426614174122';
     $controller = $this->buildController(
@@ -318,17 +340,72 @@ class IntegrationFailureContractTest extends TestCase {
 
     $response = $controller->message($this->buildJsonRequest('test message', [], ['conversation_id' => $conversationId]));
 
-    $this->assertEquals(500, $response->getStatusCode());
+    $this->assertEquals(200, $response->getStatusCode(), 'Catch-all must return HTTP 200 (graceful degradation, not 500).');
     $body = json_decode($response->getContent(), TRUE);
-    $this->assertIsArray($body['error'] ?? NULL, 'Body must contain error object');
-    $this->assertEquals('internal_error', $body['error']['code']);
+    $this->assertIsArray($body, 'Body must decode to an array.');
+
+    // Top-level escalation shape.
+    $this->assertSame('escalation', $body['type'] ?? NULL);
+    $this->assertSame('internal_error_fallback', $body['escalation_type'] ?? NULL);
+    $this->assertTrue($body['degraded'] ?? FALSE, 'Top-level degraded marker must be TRUE.');
+    $this->assertSame('internal_error', $body['error_code'] ?? NULL, 'Back-compat error_code must remain.');
     $this->assertArrayHasKey('request_id', $body);
+    $this->assertNotEmpty($body['request_id'], 'request_id must be non-empty.');
+
+    // Non-empty actions list — visitors must always see escalation paths.
+    $this->assertIsArray($body['actions'] ?? NULL, 'actions must be an array.');
+    $this->assertNotEmpty($body['actions'], 'actions must include at least one escalation path.');
+
+    // Durable meta markers used by smoke gates and dashboards.
+    $meta = $body['meta'] ?? [];
+    $this->assertSame('internal_error', $meta['reason_code'] ?? NULL);
+    $this->assertSame('pipeline_exception_safe_fallback', $meta['decision_reason'] ?? NULL);
+    $this->assertTrue($meta['degraded'] ?? FALSE, 'meta.degraded must be TRUE.');
+    $this->assertTrue($meta['fallback_used'] ?? FALSE, 'meta.fallback_used must be TRUE.');
+    $this->assertSame('escalation', $meta['response_type'] ?? NULL);
+    $this->assertSame('escalation', $meta['response_mode'] ?? NULL);
+
+    // Server-side telemetry preserved: dashboards keyed on
+    // fallback_path=error and response_type=internal_error must still match.
     $payload = $langfuseTracer->getTracePayload();
-    $this->assertNotNull($payload);
+    $this->assertNotNull($payload, 'Langfuse trace payload must be emitted.');
     $traceBody = $payload['batch'][0]['body'];
     $this->assertSame(ObservabilityPayloadMinimizer::hashIdentifier($conversationId), $traceBody['sessionId']);
     $this->assertSame('error', $traceBody['metadata']['fallback_path']);
     $this->assertSame('internal_error', $traceBody['metadata']['response_type']);
+  }
+
+  /**
+   * Negative coverage: normal pipeline responses must NOT carry the
+   * catch-all degraded markers. The internal_error_fallback shape is the
+   * ONLY signal smoke gates and dashboards have for distinguishing a real
+   * exception from a normal LLM/clarification fallback. The two paths must
+   * stay disjoint.
+   */
+  public function testNormalRequestDoesNotProduceInternalErrorFallback(): void {
+    $controller = $this->buildController();
+    $response = $controller->message($this->buildJsonRequest());
+    $body = json_decode($response->getContent(), TRUE);
+
+    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertNotSame(
+      'internal_error_fallback',
+      $body['escalation_type'] ?? NULL,
+      'Normal pipeline must not surface internal_error_fallback.'
+    );
+    $this->assertFalse(
+      $body['degraded'] ?? FALSE,
+      'Normal pipeline must not set top-level degraded=TRUE.'
+    );
+    $this->assertFalse(
+      ($body['meta']['degraded'] ?? FALSE),
+      'Normal pipeline must not set meta.degraded=TRUE.'
+    );
+    $this->assertNotSame(
+      'pipeline_exception_safe_fallback',
+      $body['meta']['decision_reason'] ?? NULL,
+      'Normal pipeline must not carry the pipeline_exception_safe_fallback decision_reason.'
+    );
   }
 
   // ─── Test 2: Catch-all includes X-Correlation-ID header ───────────────
@@ -888,7 +965,10 @@ class IntegrationFailureContractTest extends TestCase {
       'llm_429_rate_limited' => ['llm', '429_rate_limited', 200, 'original_preserved'],
       'llm_503_unavailable' => ['llm', '503_unavailable', 200, 'original_preserved'],
       'llm_circuit_breaker_open' => ['llm', 'circuit_breaker_open', 200, 'original_preserved'],
-      'controller_uncaught_throwable' => ['controller', 'uncaught_throwable', 500, 'internal_error'],
+      // Row 10: controller catch-all. Contract changed from
+      // (500, internal_error) to (200, graceful_degradation) — see
+      // testCatchAllReturnsDegradedEscalationFallback for the pinned shape.
+      'controller_uncaught_throwable' => ['controller', 'uncaught_throwable', 200, 'graceful_degradation'],
     ];
   }
 
@@ -901,10 +981,12 @@ class IntegrationFailureContractTest extends TestCase {
     // The matrix documents all 10 failure → fallback mappings.
     // Rows 1-6 (retrieval) are exercised by DependencyFailureDegradeContractTest.
     // Rows 7-9 (LLM) are exercised by LlmEnhancerHardeningTest.
-    // Row 10 (controller) is exercised by testCatchAllReturns500 above.
+    // Row 10 (controller) is exercised by
+    // testCatchAllReturnsDegradedEscalationFallback above.
     //
     // This test validates the matrix is internally consistent and that the
-    // cross-cutting request_id property holds for the controller-level case.
+    // cross-cutting request_id + degraded-shape properties hold for the
+    // controller-level case.
 
     if ($dependency === 'controller') {
       $controller = $this->buildController(
@@ -912,10 +994,24 @@ class IntegrationFailureContractTest extends TestCase {
       );
       $response = $controller->message($this->buildJsonRequest());
 
-      $this->assertEquals($expectedStatus, $response->getStatusCode());
+      $this->assertEquals($expectedStatus, $response->getStatusCode(), "Controller catch-all must return HTTP {$expectedStatus}.");
       $body = json_decode($response->getContent(), TRUE);
+
+      // request_id is the cross-cutting invariant for every fallback row.
       $this->assertArrayHasKey('request_id', $body, "request_id must be present for {$dependency}/{$failureType}");
-      $this->assertEquals('internal_error', $body['error']['code'] ?? NULL);
+      $this->assertNotEmpty($body['request_id']);
+
+      // Pin the exact graceful-degradation shape, not just status < 500.
+      $this->assertSame('escalation', $body['type'] ?? NULL);
+      $this->assertSame('internal_error_fallback', $body['escalation_type'] ?? NULL);
+      $this->assertTrue($body['degraded'] ?? FALSE, 'Top-level degraded marker must be TRUE.');
+      $this->assertSame('internal_error', $body['error_code'] ?? NULL);
+      $this->assertNotEmpty($body['actions'] ?? [], 'Escalation actions must be present.');
+
+      $meta = $body['meta'] ?? [];
+      $this->assertSame('internal_error', $meta['reason_code'] ?? NULL);
+      $this->assertSame('pipeline_exception_safe_fallback', $meta['decision_reason'] ?? NULL);
+      $this->assertTrue($meta['degraded'] ?? FALSE, 'meta.degraded must be TRUE.');
     }
     else {
       // Retrieval/LLM failure classes are documented and verified
@@ -925,6 +1021,7 @@ class IntegrationFailureContractTest extends TestCase {
         'legacy_fallback',
         'lexical_preserved',
         'original_preserved',
+        'graceful_degradation',
       ], "Expected class {$expectedClass} must be a known fallback class for {$dependency}/{$failureType}");
       $this->assertEquals(200, $expectedStatus, "Non-controller failures should degrade gracefully to 200");
     }

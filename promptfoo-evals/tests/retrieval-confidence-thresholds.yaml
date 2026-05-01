@@ -68,9 +68,48 @@
 
 - vars:
     question: "i just got served with papers and i have to respond by friday"
+  # Hits the high_risk safety gate. Note: high_risk is NOT in $skip_retrieval_intents,
+  # so early FAQ retrieval still runs to feed gate scoring — retrieval_attempted may
+  # be true. The response is built from the deterministic high_risk_deadline template
+  # in ResponseBuilder, which never references retrieved sources, so citations.supported
+  # is empty by construction. Assert the escalation contract (intent + reason + CTA URL)
+  # rather than a citation. Real-retrieval coverage for served-papers flows lives in
+  # the topic tests.
   assert:
     - *rag_contract
-    - *rag_supported_citation
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const type = String(meta.response_type || '').toLowerCase();
+          const reason = String(meta.reason_code || '').toLowerCase();
+          const intent = String(meta.intent_selected || '').toLowerCase();
+          return type.includes('escal') &&
+            (reason.includes('high_risk') || reason.includes('safety_urgent')) &&
+            intent === 'high_risk' &&
+            meta.generic_fallback === false;
+        } catch (e) {
+          return false;
+        }
+      metric: rag-deterministic-escalation-routing
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const lower = String(meta.message_text || output).toLowerCase();
+          const hasUrgentCta = lower.includes('legal advice line') ||
+            lower.includes('hotline') ||
+            lower.includes('call ');
+          const hasActionUrl = Boolean(meta.primary_action && meta.primary_action.url);
+          return hasUrgentCta && hasActionUrl;
+        } catch (e) {
+          return false;
+        }
+      metric: rag-deterministic-escalation-actionability
     - *rag_no_unsupported_claim
 
 - vars:
@@ -82,9 +121,44 @@
 
 - vars:
     question: "i need help understanding idaho legal aid services for housing"
+  # Phrasing "i need help [...] services" pattern-matches the apply_for_help CTA
+  # router (response_type=apply_cta, reason_code=direct_navigation_apply).
+  # apply_for_help IS in $skip_retrieval_intents, so retrieval is genuinely
+  # skipped (retrieval_attempted=false) and a citation cannot exist. Assert the
+  # apply-CTA contract. A separate test phrased as a topical housing question
+  # (e.g. "what housing legal help can I get") covers the retrieval path.
   assert:
     - *rag_contract
-    - *rag_supported_citation
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const type = String(meta.response_type || '').toLowerCase();
+          const reason = String(meta.reason_code || '').toLowerCase();
+          const intent = String(meta.intent_selected || '').toLowerCase();
+          return type === 'apply_cta' &&
+            reason === 'direct_navigation_apply' &&
+            intent === 'apply_for_help' &&
+            meta.retrieval_attempted === false &&
+            meta.generic_fallback === false;
+        } catch (e) {
+          return false;
+        }
+      metric: rag-deterministic-apply-cta-routing
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const url = (meta.primary_action && meta.primary_action.url) || '';
+          return /apply/i.test(url);
+        } catch (e) {
+          return false;
+        }
+      metric: rag-deterministic-apply-cta-actionability
     - *rag_no_unsupported_claim
 
 - vars:

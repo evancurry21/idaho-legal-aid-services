@@ -162,8 +162,10 @@ class IntentRouter {
           // Gap 2: free lawyer / pro bono patterns (also matches normalized free_lawyer token).
           // The "free_legal" branch excludes "free legal services" / "free legal service"
           // — that is a services-overview question, not an apply intent.
-          '/\bfree[_\s]lawyer\b|\bfree[_\s]legal\b(?![_\s]services?\b)|\bfree[_\s]attorney\b/i',
-          '/\b(free|pro\s*bono)\s+(lawyer|attorney|legal\s+(?:aid|help))\b/i',
+          '/\bfree[_\s]lawyers?\b|\bfree[_\s]legal\b(?![_\s]services?\b)|\bfree[_\s]attorneys?\b/i',
+          '/\b(free|pro\s*bono)\s+(lawyers?|attorneys?|legal\s+(?:aid|help))\b/i',
+          // "Do you provide / offer / have free lawyers / attorneys" → apply CTA.
+          '/\b(do\s*you|does\s*(ilas|idaho\s*legal\s*aid))\s*(provide|offer|have)\s*(any\s*)?(free|pro\s*bono)\s*(lawyers?|attorneys?|legal\s*(help|aid|assistance))\b/i',
           // Gap 4: veterans seeking legal help.
           '/\bveteran[_\s]legal[_\s]help\b/i',
           '/\blegal\s+(help|aid|services?|assistance)\s+(for\s+)?(veterans?|military|vets?)\b/i',
@@ -215,24 +217,49 @@ class IntentRouter {
       ],
 
       // Offices contact intent.
+      //
+      // City-name patterns must require an EXPLICIT office anchor
+      // (office|address|phone|hours|contact|location). A bare-city statement
+      // ("This is in Boise.", "I'm in Ada County.", "It happened in Idaho
+      // Falls.") MUST NOT score offices_contact — those are location
+      // refinements on whatever legal topic is active and are handled by
+      // history/topic resolvers, not by office routing.
       'offices_contact' => [
         'patterns' => [
           '/\b(office|offic|location|locaton|address|adress|where\s*(are\s*you|is))/i',
-          '/\b(near\s*me|closest|nearby|nearest)/i',
+          '/\b(near\s*me|closest|nearby|nearest)\s+(office|location|branch)\b/i',
           '/\bvisit\s*(in\s*person|your\s*office)/i',
           '/\b(office\s*hours?|hours?\s*(for|of)\s*(the\s*)?office)\b/i',
-          '/\b(what\s*(are|r)\s*(your|the)\s*hours)\b/i',
-          '/\b(what\s*time|when)\s*(do\s*you|are\s*you)\s*open/i',
+          '/\b(what\s*(are|r)\s*(your|the)\s*(office\s*)?hours)\b/i',
+          '/\b(what\s*time|when)\s*(do\s*you|are\s*you|is\s*the\s*office)\s*open/i',
           '/\b(open\s*on|closed\s*on)\s*(saturday|sunday|weekend)/i',
           '/\b(walk\s*in|appointment|appointments?)\b/i',
           '/\bemail\s*address/i',
           '/\bcontact\s*(info|information)/i',
-          '/\b(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\s*(office|location)?/i',
-          '/\b(donde\s*(esta|queda)|oficina|ubicacion|direccion)/i',
+          // City + explicit office anchor (no bare-city match).
+          '/\b(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\s+(office|address|phone|hours|contact|location|branch)\b/i',
+          '/\b(office|address|phone|hours|contact|location|branch)\s+(in|at|for)\s+(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\b/i',
+          // Direct office questions for known cities (e.g., "Where is your Boise office?").
+          '/\bwhere\s+is\s+(your\s+|the\s+)?(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\s+office\b/i',
+          '/\bdo\s+you\s+have\s+an?\s+office\s+(in|near|at)\s+(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\b/i',
+          '/\b(donde\s*(esta|queda))\s+(la\s+)?(oficina|ubicacion|direccion)/i',
+          '/\boficina\s+(de|en)\s+(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\b/i',
           '/\bhorario\s*de\s*oficina/i',
         ],
-        'keywords' => ['office', 'offices', 'location', 'address', 'near_me', 'visit', 'office_hours', 'oficina', 'donde', 'horario'],
+        'keywords' => ['office', 'offices', 'location', 'address', 'visit', 'office_hours', 'oficina', 'horario'],
         'weight' => 0.85,
+        // Negative anchors: bare-city or anaphoric location statements
+        // ("This is in Boise.", "I'm in Ada County.", "It happened in Idaho
+        // Falls.", "from Boise") MUST NOT score offices_contact. Those are
+        // location refinements; the housing/eviction continuity decider and
+        // history resolvers handle them in the active legal-topic context.
+        // The negative-pattern engine zeroes confidence when any of these
+        // match (see calculateIntentConfidence loop).
+        'negative_patterns' => [
+          '/^\s*(this\s+is|it\'?s|i\s*\'?m|i\s+am|i\s+live|i\s+stay|located|got|its\s+(in|at)|it\s+happened|it\s+occurred|this\s+occurred|this\s+happened|from)\s+(in\s+|at\s+|near\s+)?(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene|meridian|caldwell|moscow|sandpoint|post\s*falls)\b\s*\.?\s*$/i',
+          '/^\s*(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene|meridian|caldwell|moscow|sandpoint|post\s*falls)\s*\.?\s*$/i',
+          '/^\s*[a-z]+\s+county\s*\.?\s*$/i',
+        ],
       ],
 
       // Legacy alias for 'offices'.
@@ -243,17 +270,17 @@ class IntentRouter {
       // Services overview intent.
       'services_overview' => [
         'patterns' => [
-          '/\b(what\s*(do\s*you|does\s*ilas)\s*do|what\s*services)/i',
-          '/\b(types?\s*of\s*(help|services|cases)|areas?\s*of\s*(law|practice))/i',
-          '/\b(what\s*(kind|type)\s*of\s*(help|cases)|practice\s*areas?)/i',
+          '/\b(what\s*(do\s*you|does\s*(ilas|idaho\s*legal\s*aid))\s*do|what\s*services)/i',
+          '/\b((kinds?|types?)\s*of\s*(help|services|cases|legal\s*(issues?|matters?))|areas?\s*of\s*(law|practice))/i',
+          '/\b(what\s*(kinds?|types?)\s*of\s*(help|cases|legal\s*(issues?|matters?))|practice\s*areas?)/i',
           '/\bservices\s*(overview|offered|available)/i',
           '/\btell\s*me\s*about\s*(idaho\s*legal\s*aid|ilas)/i',
           '/\b(que\s*servicios|servicios\s*que\s*ofrecen)/i',
           // Concrete phrasings with intervening qualifiers (free / legal /
           // civil) that the disambiguator no longer intercepts.
-          '/\bwhat\s+(?:[a-z]+\s+){0,3}services\s+(?:do|does|are|can|will|would)\s+(?:you|ilas)\b/i',
+          '/\bwhat\s+(?:[a-z]+\s+){0,3}services\s+(?:do|does|are|can|will|would)\s+(?:you|ilas|idaho\s*legal\s*aid)\b/i',
           '/\b(free|civil)\s+legal\s+services\b/i',
-          '/\bwhat\s+(?:do|does)\s+(?:you|ilas)\s+(?:provide|offer|cover|help\s+with)\b/i',
+          '/\bwhat\s+(?:do|does)\s+(?:you|ilas|idaho\s*legal\s*aid)\s+(?:provide|offer|cover|help\s+with)\b/i',
         ],
         'keywords' => ['services', 'what_do_you_do', 'types_of_help', 'practice_areas', 'servicios'],
         'weight' => 0.85,

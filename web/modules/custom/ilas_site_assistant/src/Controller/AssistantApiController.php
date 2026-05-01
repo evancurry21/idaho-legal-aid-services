@@ -56,6 +56,8 @@ use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
+use Drupal\ilas_site_assistant\Service\HousingEvictionContinuityDecider;
+use Drupal\ilas_site_assistant\Service\OfficeDirectory;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -396,6 +398,16 @@ class AssistantApiController extends ControllerBase {
   protected ?ConversationContextSummary $conversationContextSummary = NULL;
 
   /**
+   * Canonical housing-eviction continuity predicate (shared with flow runner).
+   */
+  protected ?HousingEvictionContinuityDecider $housingEvictionContinuityDecider = NULL;
+
+  /**
+   * Canonical office directory (entity-backed).
+   */
+  protected ?OfficeDirectory $officeDirectory = NULL;
+
+  /**
    * Constructs an AssistantApiController object.
    */
   public function __construct(
@@ -435,6 +447,8 @@ class AssistantApiController extends ControllerBase {
     ?AssistantReadEndpointGuard $read_endpoint_guard = NULL,
     ?VoyageReranker $voyage_reranker = NULL,
     ?ConversationContextSummary $conversation_context_summary = NULL,
+    ?HousingEvictionContinuityDecider $housing_eviction_continuity_decider = NULL,
+    ?OfficeDirectory $office_directory = NULL,
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -472,6 +486,8 @@ class AssistantApiController extends ControllerBase {
     $this->selectionRegistry = $selection_registry;
     $this->selectionStateStore = $selection_state_store;
     $this->conversationContextSummary = $conversation_context_summary;
+    $this->housingEvictionContinuityDecider = $housing_eviction_continuity_decider;
+    $this->officeDirectory = $office_directory;
   }
 
   /**
@@ -530,6 +546,8 @@ class AssistantApiController extends ControllerBase {
       $container->get('ilas_site_assistant.read_endpoint_guard'),
       $container->has('ilas_site_assistant.voyage_reranker') ? $container->get('ilas_site_assistant.voyage_reranker') : NULL,
       $container->has('ilas_site_assistant.conversation_context_summary') ? $container->get('ilas_site_assistant.conversation_context_summary') : NULL,
+      $container->has('ilas_site_assistant.housing_eviction_continuity_decider') ? $container->get('ilas_site_assistant.housing_eviction_continuity_decider') : NULL,
+      $container->has('ilas_site_assistant.office_directory') ? $container->get('ilas_site_assistant.office_directory') : NULL,
     );
   }
 
@@ -2577,6 +2595,11 @@ class AssistantApiController extends ControllerBase {
 
       // Pending follow-up slot-fill: the runner owns state and flow-policy
       // decisions while the controller still owns response construction.
+      // The runner now also consults the housing-eviction continuity decider
+      // so a bare-city follow-up ("This is in Boise.") inside an active
+      // eviction thread is treated as a location refinement rather than an
+      // office search. We pass the active conversation context summary and
+      // server history so the runner can make that decision.
       if ($conversation_id) {
         $this->langfuseTracer?->startSpan('flow.pending.evaluate', [
           'history_length' => count($server_history),
@@ -2587,6 +2610,8 @@ class AssistantApiController extends ControllerBase {
           'is_location_like' => $this->isLocationLikeOfficeReply($user_message),
           'is_explicit_office_followup' => $this->isExplicitOfficeFollowupTurn($user_message),
           'session_fingerprint' => $session_fingerprint,
+          'conversation_context_summary' => $conversation_context_summary,
+          'server_history' => $server_history,
         ]);
         $pending_action = (string) ($pending_flow_decision['action'] ?? 'none');
         $pending_status = (string) ($pending_flow_decision['status'] ?? 'continue');
@@ -2805,7 +2830,7 @@ class AssistantApiController extends ControllerBase {
       // Office continuity guard: if a follow-up asks for office details and
       // office context can be resolved from recent history, force office intent.
       if (!empty($server_history) && $this->isOfficeDetailRequest($user_message)) {
-        $office_resolver = new OfficeLocationResolver();
+        $office_resolver = $this->assistantFlowRunner->getOfficeLocationResolver();
         $office_from_context = $this->resolveOfficeFromMessageOrHistory($user_message, $server_history, $office_resolver);
         if ($office_from_context) {
           $intent = [
@@ -2815,6 +2840,41 @@ class AssistantApiController extends ControllerBase {
             'extraction' => $intent['extraction'] ?? [],
           ];
         }
+      }
+
+      // Housing-eviction continuity guard: a generic location reply
+      // ("I'm in Ada County") or "what are my next steps" inside an active
+      // eviction conversation must stay in housing context so the
+      // service_area branch can render the eviction-specific message
+      // instead of falling into a low-confidence grounding refusal.
+      //
+      // Only fires when the current intent is one of the generic / ambiguous
+      // follow-up intents already enumerated above. A clear new topic (e.g.
+      // topic_family for "custody", topic_consumer for "debt collection",
+      // service_area area=family) must never be overridden, even if the
+      // message also carries a county or "next steps" phrase.
+      $is_next_step_followup = (bool) preg_match(
+        '/\b(next\s*step|what\s*do\s*i\s*do|what\s*should\s*i\s*do|how\s*do\s*i\s+(?:start|proceed))\b/iu',
+        mb_strtolower($user_message)
+      );
+      if (self::shouldApplyHousingEvictionContinuityGuard(
+        $intent,
+        $generic_followup_intents,
+        $server_history,
+        $conversation_context_summary,
+        $user_message,
+        $this->isLocationLikeOfficeReply($user_message),
+        $is_next_step_followup
+      )) {
+        $intent = [
+          'type' => 'service_area',
+          'area' => 'housing',
+          'topic_id' => $followup_topic_context['topic_id'] ?? NULL,
+          'topic' => $followup_topic_context['topic'] ?? 'eviction',
+          'confidence' => max(0.78, (float) ($intent['confidence'] ?? 0.0)),
+          'source' => 'followup_eviction_continuity',
+          'extraction' => $intent['extraction'] ?? [],
+        ];
       }
 
       $intent_type = (string) ($intent['type'] ?? 'unknown');
@@ -3778,13 +3838,73 @@ class AssistantApiController extends ControllerBase {
         )
       );
 
-      return $this->monitoredJsonResponse($request, PerformanceMonitor::ENDPOINT_MESSAGE, [
-        'error' => [
-          'code' => 'internal_error',
-          'message' => 'Something went wrong. Please try again or contact us directly.',
-        ],
+      // Graceful degradation: never return HTTP 500 to the user. Surface a
+      // safe, actionable escalation response so visitors with urgent legal
+      // needs (deadlines, custody, eviction, fraud, abuse) still see the
+      // Legal Advice Line and Apply for Help paths even if the pipeline
+      // throws. The exception is already logged and Sentry-captured above,
+      // so this is graceful degradation, not suppression.
+      $language_hint = ObservabilityPayloadMinimizer::detectLanguageHint(
+        isset($user_message) && is_string($user_message) ? $user_message : ''
+      );
+      $is_spanish = ($language_hint === 'es');
+      $fallback_message = $is_spanish
+        ? (string) $this->t('Tuvimos un problema procesando tu pregunta. Si tu situación es urgente, llama a nuestra Línea de Asesoría Legal o solicita ayuda en el sitio.')
+        : (string) $this->t('We had trouble processing that question. If your situation is urgent, please call our Legal Advice Line or apply for help.');
+      try {
+        $escalation_actions = $this->getEscalationActions();
+      }
+      catch (\Throwable $action_error) {
+        // Never let action-list construction itself break the fallback.
+        $this->logger->warning(
+          '[@request_id] Escalation action construction failed during error fallback: @class',
+          ['@request_id' => $request_id, '@class' => get_class($action_error)]
+        );
+        $escalation_actions = [];
+      }
+      // Durable machine-readable markers. These are the contract that
+      // promptfoo evals, CI assertions, and monitoring dashboards use to
+      // distinguish a normal fallback (type=fallback / type=escalation
+      // through the regular pipeline) from this exception-fallback path.
+      // Eval assertions MUST be able to hard-fail when degraded=TRUE
+      // appears above some baseline rate. Removing or renaming any of
+      // these keys is a breaking change and requires updating eval
+      // contracts and dashboards in lockstep.
+      $fallback_payload = [
+        'type' => 'escalation',
+        'escalation_type' => 'internal_error_fallback',
+        'message' => $fallback_message,
+        'actions' => $escalation_actions,
         'request_id' => $request_id,
-      ], 500, [], $request_id, FALSE, 'message.internal_error', FALSE, FALSE, 'error');
+        // Top-level degraded marker — easiest assertion target for evals.
+        'degraded' => TRUE,
+        // Top-level error_code preserved for back-compat with any monitor
+        // that previously read `error.code` from the old 500 payload.
+        'error_code' => 'internal_error',
+        'meta' => [
+          'schema_version' => 'ilas_message_meta/v1',
+          'response_type' => 'escalation',
+          'response_mode' => 'escalation',
+          'reason_code' => 'internal_error',
+          'decision_reason' => 'pipeline_exception_safe_fallback',
+          'fallback_used' => TRUE,
+          'degraded' => TRUE,
+          'language_hint' => $language_hint,
+        ],
+      ];
+      return $this->monitoredJsonResponse(
+        $request,
+        PerformanceMonitor::ENDPOINT_MESSAGE,
+        $fallback_payload,
+        200,
+        [],
+        $request_id,
+        FALSE,
+        'message.internal_error_fallback',
+        FALSE,
+        TRUE,
+        'error'
+      );
     }
     finally {
       // Restore original time limit so subsequent Drupal processing is
@@ -5082,7 +5202,7 @@ class AssistantApiController extends ControllerBase {
           }
 
           // Office detail requests should return office-specific data.
-          $resolver = new OfficeLocationResolver();
+          $resolver = $this->assistantFlowRunner->getOfficeLocationResolver();
           $office = $this->resolveOfficeFromMessageOrHistory($message, $server_history, $resolver);
           $office_in_message = $resolver->resolve($message) !== NULL;
           if ($office && ($office_in_message || $this->isOfficeDetailRequest($message))) {
@@ -5137,8 +5257,64 @@ class AssistantApiController extends ControllerBase {
           break;
         }
         $results = $this->faqIndex->search($message, 3);
-        $response['results'] = $results;
         $response['fallback_url'] = $canonical_urls['faq'];
+
+        // FAQ-miss → grounded retrieval fallthrough.
+        // When the curated FAQ index has no match, attempt the resource index
+        // so high-confidence informational queries are answered with citations
+        // rather than an immediate refusal. We promote to type=resources ONLY
+        // if at least one result is groundable: it must carry a non-empty URL
+        // AND a source_class that the retrieval contract has approved
+        // (resource_lexical / resource_vector). Otherwise the original empty
+        // FAQ shape is preserved and the post-pipeline grounding-refusal gate
+        // flips the response to clarify_no_grounding.
+        $fallthrough_enabled = $config->get('enable_faq_resource_fallthrough');
+        $fallthrough_enabled = $fallthrough_enabled === NULL ? TRUE : (bool) $fallthrough_enabled;
+        if (count($results) === 0 && $fallthrough_enabled && $config->get('enable_resources')) {
+          $fallthrough_results = $this->resourceFinder->findResources($message, 3);
+          $approved_source_classes = (array) ($config->get('retrieval_contract.approved_source_classes')
+            ?? ['faq_lexical', 'faq_vector', 'resource_lexical', 'resource_vector']);
+          $has_groundable_result = FALSE;
+          foreach ($fallthrough_results as $result) {
+            if (!is_array($result)) {
+              continue;
+            }
+            $url = $result['url'] ?? $result['source_url'] ?? NULL;
+            $source_class = $result['source_class'] ?? NULL;
+            if (
+              is_string($url) && trim($url) !== ''
+              && is_string($source_class)
+              && in_array($source_class, $approved_source_classes, TRUE)
+            ) {
+              $has_groundable_result = TRUE;
+              break;
+            }
+          }
+          if ($has_groundable_result) {
+            $response['type'] = 'resources';
+            $response['results'] = $fallthrough_results;
+            $response['message'] = $this->t('Here is general information that may help. This is not legal advice.');
+            $response['caveat'] = $this->t('Information is general, not legal advice.');
+            $response['decision_reason'] = 'faq_miss_resource_fallthrough';
+            $response['reason_code'] = 'faq_miss_resource_fallthrough';
+            $apply_url = $canonical_urls['apply'] ?? '/apply-for-help';
+            $secondary = $response['secondary_actions'] ?? [];
+            $secondary[] = [
+              'label' => $this->t('Apply for help'),
+              'url' => $apply_url,
+              'type' => 'apply',
+            ];
+            $response['secondary_actions'] = $secondary;
+            $this->analyticsLogger->log('faq_fallthrough', $request_id ?: '');
+            $this->logger->info('[@request_id] FAQ miss → resource fallthrough served (@count results)', [
+              '@request_id' => $request_id,
+              '@count' => count($fallthrough_results),
+            ]);
+            break;
+          }
+        }
+
+        $response['results'] = $results;
         $response['message'] = count($results) > 0
           ? $this->t('I found some FAQs that might help:')
           : $this->t('I couldn\'t find a matching FAQ. Try our FAQ page or contact us for help.');
@@ -5452,7 +5628,7 @@ class AssistantApiController extends ControllerBase {
           break;
         }
 
-        $resolver = new OfficeLocationResolver();
+        $resolver = $this->assistantFlowRunner->getOfficeLocationResolver();
         $office = $this->resolveOfficeFromMessageOrHistory($message, $server_history, $resolver);
         $office_in_message = $resolver->resolve($message) !== NULL;
         if ($office && ($office_in_message || $this->isOfficeDetailRequest($message))) {
@@ -6151,7 +6327,7 @@ class AssistantApiController extends ControllerBase {
 
     $county = (string) ($summary['county'] ?? '');
     if ($county !== '') {
-      $office = (new OfficeLocationResolver())->resolve($county . ' county');
+      $office = $this->assistantFlowRunner->getOfficeLocationResolver()->resolve($county . ' county');
       if (is_array($office)) {
         $followup_parts[] = (string) $this->t('If you need local help in @county County, the @office office serves that area.', [
           '@county' => ucfirst($county),
@@ -6561,40 +6737,65 @@ class AssistantApiController extends ControllerBase {
   }
 
   /**
+   * Returns TRUE when the housing-eviction continuity guard should fire.
+   *
+   * Encapsulates every precondition the inline guard checks so the predicate
+   * can be regression-tested in isolation. Only fires when:
+   *  - server_history is non-empty,
+   *  - the current intent is OVERRIDE-ELIGIBLE: either a generic/ambiguous
+   *    follow-up (`unknown`, `faq`, `services_overview`, etc.), an
+   *    `intent_pack_meta_*` meta-intent, or `offices_contact`. The last is
+   *    included because IntentRouter classifies bare-city replies like
+   *    "This is in Boise" / "It happened in Idaho Falls" as `offices_contact`
+   *    via its city-name pattern, but in an active eviction conversation
+   *    those messages are location refinements, not new office searches.
+   *    A clear NEW TOPIC like `topic_family` (custody/divorce),
+   *    `topic_consumer` (debt), `topic_benefits` (SSI), `topic_civil_rights`
+   *    (protection orders), or `service_area` with non-housing area is NEVER
+   *    overridden, even if the message also carries a county or "next steps"
+   *    phrase. Custody messages such as "What should I do about custody,
+   *    I'm in Ada County?" route to topic_family / service_area=family in
+   *    IntentRouter step 6/9, so they are excluded here by intent type
+   *    rather than by message-content scanning.
+   *  - the message looks like a county/city/zip reply OR a "next steps"
+   *    phrase,
+   *  - the message does NOT carry a topic-shift reset signal
+   *    (HistoryIntentResolver::RESET_SIGNALS),
+   *  - and isHousingEvictionFollowup() agrees there is an active eviction
+   *    thread to continue.
+   */
+  public static function shouldApplyHousingEvictionContinuityGuard(
+    array $intent,
+    array $generic_followup_intents,
+    array $server_history,
+    array $conversation_context_summary,
+    string $current_message,
+    bool $is_location_like_reply,
+    bool $is_next_step_followup,
+  ): bool {
+    return (new HousingEvictionContinuityDecider())->shouldOverrideOfficesContact(
+      $intent,
+      $generic_followup_intents,
+      $server_history,
+      $conversation_context_summary,
+      $current_message,
+      $is_location_like_reply,
+      $is_next_step_followup,
+    );
+  }
+
+  /**
    * Returns TRUE when the current housing turn follows an eviction conversation.
    *
    * Checks the conversation context summary first (cheap & deterministic), then
    * falls back to scanning recent history texts for eviction keywords.
    */
   public static function isHousingEvictionFollowup(array $conversation_context_summary, array $server_history, string $current_message): bool {
-    $current_topic = (string) ($conversation_context_summary['current_topic'] ?? '');
-    if ($current_topic === 'housing_eviction') {
-      return TRUE;
-    }
-    $deadline = (string) ($conversation_context_summary['deadline_or_notice'] ?? '');
-    if (in_array($deadline, ['3_day_notice', 'lockout', 'eviction_notice'], TRUE)) {
-      return TRUE;
-    }
-    $eviction_re = '/\b(eviction|evict(?:ed|ing)?|notice\s+to\s+(?:vacate|quit)|lockout|unlawful\s+detainer|3[\s-]?day\s+notice)\b/i';
-    if (preg_match($eviction_re, $current_message)) {
-      return TRUE;
-    }
-    $recent = array_slice($server_history, -6);
-    foreach ($recent as $entry) {
-      $text = (string) ($entry['text'] ?? '');
-      if ($text !== '' && preg_match($eviction_re, $text)) {
-        return TRUE;
-      }
-      $entry_topic = (string) ($entry['topic'] ?? '');
-      if ($entry_topic === 'eviction') {
-        return TRUE;
-      }
-      $entry_intent = (string) ($entry['intent'] ?? '');
-      if (str_starts_with($entry_intent, 'topic_housing_eviction')) {
-        return TRUE;
-      }
-    }
-    return FALSE;
+    return (new HousingEvictionContinuityDecider())->isHousingEvictionFollowup(
+      $conversation_context_summary,
+      $server_history,
+      $current_message
+    );
   }
 
   /**
@@ -6618,12 +6819,76 @@ class AssistantApiController extends ControllerBase {
    */
   protected function buildOfficeDetailMessage(array $office): string {
     $hours = (string) ($office['hours'] ?? $this->t('Hours may vary. Please call to confirm current office hours.'));
-    return (string) $this->t("Here are the details for the @office office:\n\nAddress: @address\nPhone: @phone\nHours: @hours", [
+    $message = (string) $this->t("Here are the details for the @office office:\n\nAddress: @address\nPhone: @phone\nHours: @hours", [
       '@office' => $office['name'] ?? $this->t('local'),
       '@address' => $office['address'] ?? $this->t('Address unavailable'),
       '@phone' => $office['phone'] ?? $this->t('Call for contact details'),
       '@hours' => $hours,
     ]);
+    // Final scrubbing seam: ensure no deny-list token leaked into the
+    // rendered message. assertNoStaleTokens() throws in dev/test and logs +
+    // returns FALSE in prod; on prod failure we substitute a safe link.
+    if ($this->officeDirectory !== NULL && !$this->officeDirectory->assertNoStaleTokens($message, 'office_detail_message')) {
+      return (string) $this->t('For current office locations and contact information, please visit /contact/offices.');
+    }
+    return $message;
+  }
+
+  /**
+   * Strips poisoned office records and validates against the deny-list.
+   *
+   * Returns NULL when the record is unsalvageable (e.g., the canonical
+   * directory marked it poisoned and address/phone fields were cleared).
+   * In dev/test, the OfficeDirectory throws on poisoned records before this
+   * point.
+   */
+  protected function scrubOfficeRecord(array $office): ?array {
+    if ($this->officeDirectory === NULL) {
+      return $office;
+    }
+    if (!empty($office['poisoned'])) {
+      $this->logger->error('Refusing to render poisoned office record (slug=@slug, nid=@nid).', [
+        '@slug' => (string) ($office['slug'] ?? ''),
+        '@nid' => (int) ($office['source_nid'] ?? 0),
+      ]);
+      return NULL;
+    }
+    $serialized = trim(implode(' | ', [
+      (string) ($office['name'] ?? ''),
+      (string) ($office['address'] ?? ''),
+      (string) ($office['street'] ?? ''),
+      (string) ($office['phone'] ?? ''),
+      (string) ($office['phone_secondary'] ?? ''),
+    ]));
+    if ($serialized !== '' && !$this->officeDirectory->assertNoStaleTokens($serialized, 'office_record')) {
+      return NULL;
+    }
+    return $office;
+  }
+
+  /**
+   * Builds a safe fallback response when an office record is unrenderable.
+   */
+  protected function buildOfficeFallbackResponse(string $request_id, bool $debug_mode, ?array $debug_meta): JsonResponse {
+    $response = [
+      'type' => 'navigate',
+      'response_mode' => 'navigate',
+      'message' => (string) $this->t('For current office locations and contact information, please visit /contact/offices.'),
+      'primary_action' => [
+        'label' => $this->t('All Offices'),
+        'url' => '/contact/offices',
+      ],
+      'reason_code' => 'office_followup_safe_fallback',
+      'request_id' => $request_id,
+    ];
+    if ($debug_mode) {
+      $debug_meta['intent_selected'] = 'office_location_safe_fallback';
+      $debug_meta['intent_source'] = 'deny_list_scrubber';
+      $debug_meta['final_action'] = 'navigate';
+      $debug_meta['reason_code'] = 'office_followup_safe_fallback';
+      $response['_debug'] = $debug_meta;
+    }
+    return $this->jsonResponse($response, 200, [], $request_id);
   }
 
   /**
@@ -7050,10 +7315,19 @@ class AssistantApiController extends ControllerBase {
    *   JSON response with office details.
    */
   protected function handleOfficeFollowUp(Request $request, array $office, string $user_message, string $conversation_id, array $server_history, string $request_id, bool $debug_mode, ?array $debug_meta, float $start_time, array $langfuse_base_metadata = []): JsonResponse {
+    // Defense-in-depth: scrub the office record before rendering. If a
+    // poisoned record slipped past the entity layer, fail loud in dev/test
+    // and degrade to a safe /contact/offices clarification in production.
+    $office = $this->scrubOfficeRecord($office);
+    if ($office === NULL) {
+      return $this->buildOfficeFallbackResponse($request_id, $debug_mode, $debug_meta);
+    }
+
+    $message_text = $this->buildOfficeDetailMessage($office);
     $response = [
       'type' => 'office_location',
       'response_mode' => 'navigate',
-      'message' => $this->buildOfficeDetailMessage($office),
+      'message' => $message_text,
       'office' => [
         'name' => $office['name'],
         'address' => $office['address'],

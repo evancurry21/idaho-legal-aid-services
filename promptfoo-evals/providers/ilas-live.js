@@ -19,6 +19,9 @@ const {
 } = require('../lib/ilas-live-shared');
 const crypto = require('node:crypto');
 
+const UUID_V4_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+const isUuidV4 = (value) => typeof value === 'string' && UUID_V4_RE.test(value);
+
 class IlasLiveProvider {
   constructor(options = {}) {
     this.providerId = options.id || 'ilas-live';
@@ -55,24 +58,31 @@ class IlasLiveProvider {
     // for the whole multi-turn conversation.
     const traceConversationId = explicitConversationId || null;
 
-    if (!this.evalRunId) {
-      const apiConversationId = explicitConversationId || crypto.randomUUID();
-      return { apiConversationId, traceConversationId: traceConversationId || apiConversationId };
-    }
-
-    // When an evalRunId is set, derive a deterministic UUID for the API so the
-    // server-side cache key is stable across re-runs. The trace identity above
-    // remains the user-visible conversationId used by assertions.
-    //
-    // IMPORTANT: when a fixture has an explicit conversationId, the API UUID is
-    // a pure function of (evalRunId, explicitConversationId). It must NOT mix
-    // in `metadata.turn`, otherwise each turn would get a fresh API
-    // conversation_id and the server would lose its multi-turn history.
+    // When a fixture provides an explicit conversation id, it must reach the
+    // backend as a valid UUID v4 — the AssistantApiController rejects anything
+    // else and treats the request as a brand-new conversation, breaking
+    // multi-turn continuity. Convert deterministically so the same scenario
+    // label always maps to the same UUID within (and, when ILAS_EVAL_RUN_ID is
+    // set, across) runs.
     if (explicitConversationId) {
+      if (isUuidV4(explicitConversationId)) {
+        return {
+          apiConversationId: explicitConversationId,
+          traceConversationId,
+        };
+      }
+      const seed = this.evalRunId
+        ? `${this.evalRunId}:${explicitConversationId}`
+        : `scenario:${explicitConversationId}`;
       return {
-        apiConversationId: deterministicUuidV4(`${this.evalRunId}:${explicitConversationId}`),
+        apiConversationId: deterministicUuidV4(seed),
         traceConversationId,
       };
+    }
+
+    if (!this.evalRunId) {
+      const apiConversationId = crypto.randomUUID();
+      return { apiConversationId, traceConversationId: apiConversationId };
     }
 
     const stableFallbackKey = [

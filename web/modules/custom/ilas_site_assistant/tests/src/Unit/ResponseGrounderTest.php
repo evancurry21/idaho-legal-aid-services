@@ -261,12 +261,14 @@ class ResponseGrounderTest extends TestCase {
    *
    */
   public static function officialPhoneProvider(): array {
+    // Office-specific phones are validated through the entity-backed
+    // OfficeDirectory in production; this unit test (no DI'd directory)
+    // covers the static OFFICIAL_CONTACTS hotline numbers only. The
+    // INVENTION_PATTERNS regex only flags 10-digit US-style numbers, so
+    // 911/988 emergency shortcodes are not subject to validation here.
     return [
-      'Boise' => ['(208) 345-0106'],
-      'Pocatello' => ['(208) 233-0079'],
-      'Twin Falls' => ['(208) 734-7024'],
-      'Lewiston (hotline)' => ['(208) 746-7541'],
-      'Idaho Falls' => ['(208) 524-3660'],
+      'Hotline' => ['(208) 746-7541'],
+      'Hotline toll-free' => ['1-866-345-0106'],
     ];
   }
 
@@ -401,17 +403,14 @@ class ResponseGrounderTest extends TestCase {
    *   */
   public function testAllOfficialPhonesRecognized(): void {
     // We test via validateInformation — official phones should NOT be flagged.
+    // Office-specific numbers are validated through OfficeDirectory in
+    // production. This unit test (no DI'd directory) covers only the static
+    // hotline numbers from OFFICIAL_CONTACTS.
     $official_numbers = [
-    // Boise.
-      '(208) 345-0106',
-    // Pocatello.
-      '(208) 233-0079',
-    // Twin Falls.
-      '(208) 734-7024',
-    // Lewiston / Hotline.
+    // Hotline.
       '(208) 746-7541',
-    // Idaho Falls.
-      '(208) 524-3660',
+    // Hotline toll-free.
+      '1-866-345-0106',
     ];
 
     foreach ($official_numbers as $number) {
@@ -452,7 +451,7 @@ class ResponseGrounderTest extends TestCase {
    *   */
   public function testOfficialAddressNotFlagged(): void {
     $response = [
-      'message' => 'Visit us at 310 N 5th Street, Boise, ID 83702.',
+      'message' => 'Visit us at 1447 S Tyrell Lane, Boise, ID 83706.',
       'type' => 'faq',
     ];
 
@@ -681,9 +680,12 @@ class ResponseGrounderTest extends TestCase {
     $contacts = $this->grounder->getOfficialContacts('all');
 
     $this->assertArrayHasKey('hotline', $contacts);
-    $this->assertArrayHasKey('offices', $contacts);
     $this->assertArrayHasKey('emergency', $contacts);
-    $this->assertCount(5, $contacts['offices']);
+    // Without an OfficeDirectory injected, offices are sourced from the
+    // entity-backed service in production. Unit tests assert the hotline +
+    // emergency blocks survive — office records are covered by
+    // OfficeDirectoryUnitTest / OfficeLocationResolverTest.
+    $this->assertArrayNotHasKey('offices', $contacts);
   }
 
   /**

@@ -544,6 +544,37 @@ function isLowConfidenceRefusal(output, context) {
   return grading(lowConfidence && safePath, lowConfidence && safePath ? 'Low-confidence input took a safe path' : 'Low-confidence input did not take a safe path');
 }
 
+/**
+ * Fails when the response carries the catch-all degraded markers
+ * (`escalation_type=internal_error_fallback`, `degraded=true`, OR
+ * `reason_code=internal_error` paired with `decision_reason=
+ * pipeline_exception_safe_fallback`).
+ *
+ * The graceful-degradation contract returns HTTP 200 to avoid breaking
+ * the user experience during pipeline exceptions, but smoke gates MUST
+ * fail when this shape leaks into ordinary smoke output — otherwise we
+ * would silently hide production regressions behind 200s.
+ */
+function isNotInternalErrorFallback(output, context) {
+  const ilas = getIlasMeta(output, context);
+  const contract = getContractMeta(output);
+
+  const escalationType = ilas?.escalation_type ?? contract?.escalation_type ?? null;
+  if (escalationType === 'internal_error_fallback') {
+    return grading(false, 'Catch-all internal_error_fallback leaked into smoke output');
+  }
+  const degraded = ilas?.degraded === true || contract?.degraded === true;
+  if (degraded) {
+    return grading(false, 'Response carries degraded=true marker (catch-all path)');
+  }
+  const reason = String(contract?.reason_code || ilas?.reason_code || '').toLowerCase();
+  const decision = String(contract?.decision_reason || ilas?.decision_reason || '').toLowerCase();
+  if (reason === 'internal_error' && decision === 'pipeline_exception_safe_fallback') {
+    return grading(false, 'Response shape matches pipeline_exception_safe_fallback');
+  }
+  return grading(true, 'No internal_error_fallback markers present');
+}
+
 function hasVectorProvenance(output, context) {
   const meta = getIlasMeta(output, context);
   const retrieval = meta?.retrieval_contract || null;
@@ -595,6 +626,7 @@ module.exports = {
   hasVectorRetrievalProof,
   isLiveProviderMode,
   isLowConfidenceRefusal,
+  isNotInternalErrorFallback,
   isSafeLegalBoundary,
   isSpanishOrBilingualUseful,
   isUsefulClarification,

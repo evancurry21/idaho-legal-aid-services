@@ -315,7 +315,12 @@ families:
   services_overview:
     stable_family: services_overview
     reason: vague_query
-    question: 'What would you like to know?'
+    # The phrasing here must NOT match GENERIC_FALLBACK_PATTERNS in
+    # promptfoo-evals/lib/ilas-assertions.js, and must carry enough topic
+    # vocabulary (free / civil / legal / eligible) plus an actionable next
+    # step (apply / Legal Advice Line) to satisfy the smoke contract for
+    # broad services questions.
+    question: 'Idaho Legal Aid provides free civil legal help to eligible Idahoans. You can apply for help, call our Legal Advice Line, or pick an area below.'
     options:
       - { label: 'What services we offer', intent: services_overview }
       - { label: 'How to apply for help', intent: apply_for_help }

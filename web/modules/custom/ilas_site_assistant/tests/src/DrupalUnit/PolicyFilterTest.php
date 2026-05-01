@@ -195,6 +195,50 @@ class PolicyFilterTest extends UnitTestCase {
   }
 
   /**
+   * Pins the legal-advice-boundary refusal for variants that previously
+   * slipped through to the generic clarification fallback.
+   */
+  #[DataProvider('courtroomStrategyVariantsProvider')]
+  public function testCourtroomStrategyVariantsAreRefused(string $message): void {
+    $result = $this->policyFilter->check($message);
+
+    $this->assertTrue(
+      $result['violation'] ?? FALSE,
+      sprintf('Expected policy violation for variant: %s', $message)
+    );
+    $this->assertSame('legal_advice', $result['type'] ?? NULL);
+
+    $response = (string) ($result['response'] ?? '');
+    $this->assertMatchesRegularExpression(
+      "/(can't|cannot)/i",
+      $response,
+      'Refusal must explicitly decline.'
+    );
+    $this->assertMatchesRegularExpression(
+      '/(judge|court|legal\s+strategy)/i',
+      $response,
+      'Refusal must name the courtroom/legal-strategy boundary.'
+    );
+    $this->assertMatchesRegularExpression(
+      '/legal advice line|apply|guide|form/i',
+      $response,
+      'Refusal must point to an ILAS help path.'
+    );
+  }
+
+  /**
+   * Data provider for legal-advice-boundary variants.
+   */
+  public static function courtroomStrategyVariantsProvider(): array {
+    return [
+      'tell me what to say to the judge' => ['Tell me what to say to the judge so I win.'],
+      'write my court argument' => ['Can you write my court argument?'],
+      'what should I say in court' => ['What exactly should I say in court?'],
+      'convince the judge to rule for me' => ['Help me convince the judge to rule for me.'],
+    ];
+  }
+
+  /**
    * Tests code-owned fallback legal-advice keywords removed from config export.
    */
   #[DataProvider('codeOwnedLegalAdviceKeywordProvider')]

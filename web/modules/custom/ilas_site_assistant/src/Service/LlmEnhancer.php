@@ -171,7 +171,7 @@ PROMPT;
       return $currentIntent;
     }
 
-    if ($this->circuitBreaker && !$this->circuitBreaker->canAttempt()) {
+    if ($this->circuitBreaker && !$this->circuitBreaker->isAvailable()) {
       $this->logger->warning('Skipping request-time LLM classification because the circuit breaker is open.');
       $this->lastRequestMeta['fallback_reason'] = 'circuit_open';
       return $currentIntent;

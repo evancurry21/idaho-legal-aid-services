@@ -18,7 +18,18 @@ export PROMPTFOO_SELF_HOSTED=1
 export PROMPTFOO_DISABLE_ADAPTIVE_SCHEDULER="${PROMPTFOO_DISABLE_ADAPTIVE_SCHEDULER:-1}"
 # Scope named multi-turn conversations to this eval run. The provider turns
 # scenario IDs into valid UUIDv4 values when ILAS_EVAL_RUN_ID is present.
-export ILAS_EVAL_RUN_ID="${ILAS_EVAL_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
+# Prefer GitHub Actions identifiers in CI so the same value is reused across
+# all eval invocations within a single workflow attempt — that keeps
+# multi-turn smoke fixtures (e.g. eviction → "I'm in Ada County") on the
+# same server-side conversation cache key. Fall back to a date+pid value
+# locally.
+if [ -z "${ILAS_EVAL_RUN_ID:-}" ]; then
+  if [ -n "${GITHUB_RUN_ID:-}" ]; then
+    export ILAS_EVAL_RUN_ID="gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT:-1}"
+  else
+    export ILAS_EVAL_RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  fi
+fi
 
 # ── Resolve paths ────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

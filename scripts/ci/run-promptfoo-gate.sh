@@ -46,6 +46,12 @@ REMOTE_429_BASE_WAIT_MS="${ILAS_REMOTE_429_BASE_WAIT_MS:-65000}"
 REMOTE_429_MAX_WAIT_MS="${ILAS_REMOTE_429_MAX_WAIT_MS:-180000}"
 ILAS_GATE_MODE=1
 
+# Bind a stable conversation seed for the entire gate run. The provider also
+# converts non-UUID conversationIds deterministically, so this is belt-and-
+# suspenders, but it keeps the API conversation_id values aligned with whatever
+# the gate wrapper might already log.
+export ILAS_EVAL_RUN_ID="${ILAS_EVAL_RUN_ID:-gate-${GITHUB_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$$}}"
+
 TARGET_KIND="unknown"
 TARGET_SOURCE="unknown"
 TARGET_HOST=""

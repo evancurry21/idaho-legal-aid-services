@@ -4,6 +4,7 @@ disclaimer_text: 'I can help you find information on the Idaho Legal Aid Service
 enable_global_widget: true
 enable_assistant_page: true
 enable_faq: true
+enable_faq_resource_fallthrough: true
 enable_resources: true
 enable_logging: true
 log_retention_days: 730
