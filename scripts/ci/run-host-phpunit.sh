@@ -91,4 +91,9 @@ else
   echo "Host-safe PHPUnit: honoring caller-provided SIMPLETEST_BASE_URL=${SIMPLETEST_BASE_URL}" >&2
 fi
 
-"$PHPUNIT_BIN" --configuration "$REPO_ROOT/phpunit.xml" "$@"
+phpunit_args=(--configuration "$REPO_ROOT/phpunit.xml")
+if [[ -n "${ILAS_HOST_PHPUNIT_JUNIT:-}" ]]; then
+  mkdir -p "$(dirname "$ILAS_HOST_PHPUNIT_JUNIT")"
+  phpunit_args+=(--log-junit "$ILAS_HOST_PHPUNIT_JUNIT")
+fi
+"$PHPUNIT_BIN" "${phpunit_args[@]}" "$@"

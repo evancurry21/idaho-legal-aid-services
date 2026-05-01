@@ -4,6 +4,10 @@ namespace Drupal\Tests\ilas_site_assistant\Functional;
 
 use Drupal\Core\Site\Settings;
 use Drupal\Tests\BrowserTestBase;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\node\Entity\Node;
+use Drupal\node\Entity\NodeType;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Cookie\CookieJarInterface;
 
@@ -33,7 +37,9 @@ class AssistantMessageRuntimeBehaviorFunctionalTest extends BrowserTestBase {
   protected static $modules = [
     'ilas_site_assistant_action_compat',
     'eca',
+    'field',
     'node',
+    'text',
     'taxonomy',
     'user',
     'views',
@@ -305,6 +311,10 @@ class AssistantMessageRuntimeBehaviorFunctionalTest extends BrowserTestBase {
    * Office-hours follow-ups preserve the requested office context.
    */
   public function testMultiTurnBoiseOfficeHoursThroughApi(): void {
+    // Fixture: this test asserts on canonical Boise office facts, so it must
+    // seed the office_information node itself — BrowserTestBase does not
+    // import the site config export.
+    $this->seedBoiseOfficeNode();
     $officeConversation = \Drupal::service('uuid')->generate();
     $this->sendAnonymousMessage('Where is your Boise office?', $officeConversation);
     $officeFollowup = $this->sendAnonymousMessage('What about hours?', $officeConversation);
@@ -661,6 +671,46 @@ class AssistantMessageRuntimeBehaviorFunctionalTest extends BrowserTestBase {
     $this->assertNotSame('', trim($data['decision_reason']));
 
     $this->assertArrayNotHasKey('_debug', $data, 'Debug metadata must not leak into normal responses.');
+
+    $this->assertNoMetadataInUserVisibleText($data, 'User-visible response text must not contain provider/index/debug metadata.');
+  }
+
+  /**
+   * Asserts user-visible response fields contain no provider/index/debug tokens.
+   *
+   * Runs against the allow-listed user-visible text only — `meta`, `diagnostics`,
+   * `retrieval`, and `governance` blocks legitimately carry provider/index
+   * identities and are excluded from this check.
+   */
+  protected function assertNoMetadataInUserVisibleText(array $data, string $message): void {
+    $haystack = $this->userVisibleResponseText($data);
+    if ($haystack === '') {
+      return;
+    }
+    $patterns = [
+      'provider_pinecone' => '/\bpinecone\b/i',
+      'provider_voyage' => '/\bvoyage(?:-law-2)?\b/i',
+      'provider_cohere' => '/\bcohere\b/i',
+      'model_command_a' => '/\bcommand-a-03-2025\b/i',
+      'model_rerank_2' => '/\brerank-2\b/i',
+      'index_faq_accordion' => '/\bfaq_accordion_vector\b/i',
+      'index_assistant_resources' => '/\bassistant_resources_vector\b/i',
+      'intent_pack_meta_prefix' => '/\bintent_pack_meta_[a-z0-9_]+/i',
+      'top_intents_pack' => '/\b(?:explicit_)?top_intents_pack\b/i',
+      'envelope_debug' => '/(?<![a-z0-9])_debug(?![a-z0-9])/i',
+      'envelope_vector_provider' => '/\bvector_provider\b/i',
+      'envelope_embedding_model' => '/\bembedding_model\b/i',
+    ];
+    foreach ($patterns as $label => $pattern) {
+      if (preg_match($pattern, $haystack, $matches)) {
+        $this->fail(
+          $message
+          . "\nLeaked token: {$matches[0]} (rule: {$label})"
+          . "\nUser-visible text: {$haystack}"
+        );
+      }
+    }
+    $this->addToAssertionCount(1);
   }
 
   /**
@@ -725,14 +775,110 @@ class AssistantMessageRuntimeBehaviorFunctionalTest extends BrowserTestBase {
   }
 
   /**
-   * Flattens a nested response into searchable public text.
+   * Returns concatenated user-visible response text for assertion haystacks.
+   *
+   * Used by every assertContainsAnySafeSignal / forbidden-pattern / Spanish /
+   * dead-end check in this class. Walks ONLY the fields a real visitor would
+   * see in the assistant UI — `message`, surfaced caveats, action button
+   * labels, citation titles, and result snippets. Excludes structured
+   * metadata blocks (`meta`, `diagnostics`, `retrieval`, `governance`,
+   * `_debug`) which legitimately carry provider/index identities for smoke
+   * tests and monitoring.
    */
   protected function responseText(array $data): string {
-    return $this->flattenResponseText($data);
+    return $this->userVisibleResponseText($data);
   }
 
   /**
-   * Flattens a nested response into searchable public text.
+   * Allow-listed walker over user-visible response fields.
+   *
+   * @see self::responseText()
+   */
+  protected function userVisibleResponseText(array $data): string {
+    $paths = [
+      // Primary answer body and surfaced caveats.
+      ['message'],
+      ['answer_text'],
+      ['freshness_caveat'],
+      ['disclaimer'],
+      ['caveat'],
+      ['degraded_notice'],
+      // Primary CTA button.
+      ['primary_action', 'label'],
+      ['primary_action', 'text'],
+      // Secondary CTA buttons.
+      ['secondary_actions', '*', 'label'],
+      ['secondary_actions', '*', 'text'],
+      // Escalation actions (Call Hotline / Apply for Help / Give Feedback).
+      ['actions', '*', 'label'],
+      ['actions', '*', 'text'],
+      ['actions', '*', 'title'],
+      // Inline link cards.
+      ['links', '*', 'label'],
+      ['links', '*', 'text'],
+      ['links', '*', 'title'],
+      // Suggestion / chip buttons.
+      ['suggestions', '*', 'label'],
+      ['suggestions', '*', 'text'],
+      ['topic_suggestions', '*', 'label'],
+      ['topic_suggestions', '*', 'text'],
+      ['quick_replies', '*', 'label'],
+      ['quick_replies', '*', 'text'],
+      // Clarify-loop UI.
+      ['clarifier', 'question'],
+      ['clarifier', 'options', '*', 'label'],
+      ['clarifier', 'options', '*', 'text'],
+      // Citation and result cards rendered to the visitor.
+      ['citations', '*', 'title'],
+      ['citations', '*', 'topic'],
+      ['results', '*', 'title'],
+      ['results', '*', 'question'],
+      ['results', '*', 'snippet'],
+      ['results', '*', 'description'],
+    ];
+    $parts = [];
+    foreach ($paths as $path) {
+      $this->collectStringsAtPath($data, $path, $parts);
+    }
+    return implode(' ', $parts);
+  }
+
+  /**
+   * Recursively pulls string leaves at a key path; '*' means every list element.
+   */
+  private function collectStringsAtPath(mixed $node, array $path, array &$parts): void {
+    if ($path === []) {
+      if (is_string($node)) {
+        $trimmed = trim($node);
+        if ($trimmed !== '') {
+          $parts[] = $trimmed;
+        }
+      }
+      return;
+    }
+    if (!is_array($node)) {
+      return;
+    }
+    [$head, $rest] = [$path[0], array_slice($path, 1)];
+    if ($head === '*') {
+      foreach ($node as $child) {
+        $this->collectStringsAtPath($child, $rest, $parts);
+      }
+      return;
+    }
+    if (array_key_exists($head, $node)) {
+      $this->collectStringsAtPath($node[$head], $rest, $parts);
+    }
+  }
+
+  /**
+   * Deep-walks an entire response into a single string for diagnostics dumps.
+   *
+   * For diagnostics inspection only — DO NOT use in user-visible-text
+   * assertions. Will pull provider IDs, index names, intent enums, and
+   * booleans/zeroes out of `meta`/`diagnostics`/`retrieval`, which produces
+   * false matches against signal lists. Use `userVisibleResponseText()` for
+   * any assertion that checks what the visitor would actually read.
    */
   protected function flattenResponseText(mixed $value): string {
     if (is_array($value)) {
@@ -772,6 +918,72 @@ class AssistantMessageRuntimeBehaviorFunctionalTest extends BrowserTestBase {
         'ilas_assistant_hr',
       ], 'IN')
       ->execute();
+  }
+
+  /**
+   * Seeds a Boise office_information node so OfficeDirectory can resolve it.
+   *
+   * BrowserTestBase installs a fresh Drupal with only the modules listed in
+   * $modules; the office_information bundle and its fields live in the
+   * site-level config export, which is not imported here. Without a seeded
+   * node, OfficeDirectory::load() returns [] and the offices_contact intent
+   * collapses to a generic "Find an office" navigation message that lacks
+   * the Boise-specific signals this test asserts on.
+   *
+   * Mirrors the canonical Boise fixture used by
+   * OfficeLocationResolverTest::makeFakeDirectory() so the unit and functional
+   * test paths agree on the same source of truth for office facts.
+   */
+  protected function seedBoiseOfficeNode(): void {
+    if (!NodeType::load('office_information')) {
+      NodeType::create([
+        'type' => 'office_information',
+        'name' => 'Office Information',
+      ])->save();
+    }
+
+    $string_fields = [
+      'field_street_address',
+      'field_address_city',
+      'field_postal_code',
+      'field_office_hours',
+      'field_county',
+      'field_phone_number',
+    ];
+
+    foreach ($string_fields as $field_name) {
+      if (!FieldStorageConfig::loadByName('node', $field_name)) {
+        FieldStorageConfig::create([
+          'field_name' => $field_name,
+          'entity_type' => 'node',
+          'type' => 'string',
+          'cardinality' => 1,
+          'settings' => ['max_length' => 255],
+        ])->save();
+      }
+      if (!FieldConfig::loadByName('node', 'office_information', $field_name)) {
+        FieldConfig::create([
+          'field_name' => $field_name,
+          'entity_type' => 'node',
+          'bundle' => 'office_information',
+          'label' => $field_name,
+        ])->save();
+      }
+    }
+
+    Node::create([
+      'type' => 'office_information',
+      'title' => 'Boise Office',
+      'status' => 1,
+      'field_street_address' => '1447 S Tyrell Lane',
+      'field_address_city' => 'Boise',
+      'field_postal_code' => '83706',
+      'field_office_hours' => 'Monday through Friday, 8:30 a.m. to 4:30 p.m. (call to confirm current office hours).',
+      'field_county' => 'Ada',
+      'field_phone_number' => '208-746-7541',
+    ])->save();
+
+    \Drupal::service('ilas_site_assistant.office_directory')->invalidate();
   }
 
   /**

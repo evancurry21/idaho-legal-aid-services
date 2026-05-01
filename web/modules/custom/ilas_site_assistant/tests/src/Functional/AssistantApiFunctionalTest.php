@@ -75,6 +75,20 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     parent::setUp();
     \Drupal::service('router.builder')->rebuild();
 
+    // Pin all paid providers off — these tests must never reach
+    // Pinecone/Voyage/Cohere even by accident if shipped-config defaults flip.
+    // Disable retrieval and conversation logging so endpoint tests run
+    // deterministically against a fresh BrowserTestBase DB with no content.
+    \Drupal::configFactory()->getEditable('ilas_site_assistant.settings')
+      ->set('llm.enabled', FALSE)
+      ->set('vector_search.enabled', FALSE)
+      ->set('voyage.enabled', FALSE)
+      ->set('enable_faq', FALSE)
+      ->set('enable_resources', FALSE)
+      ->set('enable_logging', FALSE)
+      ->set('conversation_logging.enabled', FALSE)
+      ->save();
+
     // Create users with different permission levels.
     $this->adminUser = $this->drupalCreateUser([
       'access content',
@@ -505,9 +519,15 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
-   * Tests that the suggest endpoint is accessible to anonymous users.
+   * Suggest endpoint returns the public JSON contract shape.
+   *
+   * Contract-only: this test verifies the endpoint is anonymously accessible
+   * and emits the documented JSON shape with public-only fields. Empty
+   * suggestions are expected on a fresh BrowserTestBase DB (no seeded
+   * suggestion content). Retrieval correctness lives in Kernel tests against
+   * the suggestion service, not here.
    */
-  public function testSuggestEndpointAccessible(): void {
+  public function testSuggestEndpointReturnsContractShapeWithoutContent(): void {
     $response = $this->getJson('/assistant/api/suggest?q=housing&type=all');
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -515,15 +535,20 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertSame(['suggestions'], array_keys($data));
+    $this->assertIsArray($data['suggestions']);
     foreach ($data['suggestions'] as $suggestion) {
       $this->assertSuggestionPublicFields($suggestion);
     }
   }
 
   /**
-   * Tests that the FAQ endpoint is accessible.
+   * FAQ search endpoint returns the public JSON contract shape.
+   *
+   * Contract-only: same caveat as the suggest contract test — empty results
+   * are expected on a fresh DB. FAQ retrieval correctness lives in Kernel
+   * tests against `FaqIndex`, not here.
    */
-  public function testFaqEndpointAccessible(): void {
+  public function testFaqEndpointReturnsContractShapeWithoutContent(): void {
     $response = $this->getJson('/assistant/api/faq?q=eviction');
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -531,15 +556,19 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertSame(['results', 'count'], array_keys($data));
+    $this->assertIsArray($data['results']);
     foreach ($data['results'] as $result) {
       $this->assertFaqResultPublicFields($result);
     }
   }
 
   /**
-   * Tests that FAQ category browse remains anonymously accessible.
+   * FAQ category browse endpoint returns the public JSON contract shape.
+   *
+   * Contract-only: empty categories are expected on a fresh DB; category
+   * population lives in Kernel tests, not here.
    */
-  public function testFaqCategoriesEndpointAccessible(): void {
+  public function testFaqCategoriesEndpointReturnsContractShapeWithoutContent(): void {
     $response = $this->getJson('/assistant/api/faq');
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -547,6 +576,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertSame(['categories'], array_keys($data));
+    $this->assertIsArray($data['categories']);
     foreach ($data['categories'] as $category) {
       $this->assertFaqCategoryPublicFields($category);
     }

@@ -3,6 +3,10 @@
 namespace Drupal\Tests\ilas_site_assistant\Functional;
 
 use Drupal\Tests\BrowserTestBase;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\node\Entity\Node;
+use Drupal\node\Entity\NodeType;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Cookie\CookieJarInterface;
 
@@ -33,7 +37,9 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
   protected static $modules = [
     'ilas_site_assistant_action_compat',
     'eca',
+    'field',
     'node',
+    'text',
     'taxonomy',
     'user',
     'views',
@@ -56,8 +62,12 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
     // in BrowserTestBase (no content nodes, missing paragraph field
     // definitions). Disable analytics logging to avoid DB writes to the
     // stats table for cleaner test isolation.
+    // Pin all paid providers off — these tests must never reach
+    // Pinecone/Voyage/Cohere even by accident if shipped-config defaults flip.
     \Drupal::configFactory()->getEditable('ilas_site_assistant.settings')
       ->set('llm.enabled', FALSE)
+      ->set('vector_search.enabled', FALSE)
+      ->set('voyage.enabled', FALSE)
       ->set('enable_faq', FALSE)
       ->set('enable_resources', FALSE)
       ->set('enable_logging', FALSE)
@@ -209,6 +219,10 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
    * Eviction follow-ups keep prior notice context when new facts are added.
    */
   public function testEvictionContextSummaryCarriesFactOnlyFollowups(): void {
+    // Fixture: this test asserts on Ada County / Boise office facts when the
+    // user mentions "Ada County", so it must seed the office_information node
+    // itself — BrowserTestBase does not import the site config export.
+    $this->seedBoiseOfficeNode();
     $this->clearMessageFloodEvents();
     [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
     $convId = \Drupal::service('uuid')->generate();
@@ -419,6 +433,73 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
   protected function clearConversationContextCache(string $conversationId): void {
     \Drupal::service('cache.ilas_site_assistant')->delete('ilas_conv:' . $conversationId);
     \Drupal::service('cache.ilas_site_assistant')->delete('ilas_conv_meta:' . $conversationId);
+  }
+
+  /**
+   * Seeds a Boise / Ada County office_information node for office-aware tests.
+   *
+   * BrowserTestBase installs a fresh Drupal with only the modules listed in
+   * $modules; the office_information bundle and its fields live in the
+   * site-level config export, which is not imported here. Without a seeded
+   * node, OfficeDirectory::load() returns [] and any test asserting on Ada
+   * County / Boise office facts fails because the assistant has no office
+   * data to surface.
+   *
+   * Mirrors the canonical Boise fixture used by
+   * AssistantMessageRuntimeBehaviorFunctionalTest::seedBoiseOfficeNode() and
+   * OfficeLocationResolverTest::makeFakeDirectory() so all three test paths
+   * agree on the same source of truth for office facts.
+   */
+  protected function seedBoiseOfficeNode(): void {
+    if (!NodeType::load('office_information')) {
+      NodeType::create([
+        'type' => 'office_information',
+        'name' => 'Office Information',
+      ])->save();
+    }
+
+    $string_fields = [
+      'field_street_address',
+      'field_address_city',
+      'field_postal_code',
+      'field_office_hours',
+      'field_county',
+      'field_phone_number',
+    ];
+
+    foreach ($string_fields as $field_name) {
+      if (!FieldStorageConfig::loadByName('node', $field_name)) {
+        FieldStorageConfig::create([
+          'field_name' => $field_name,
+          'entity_type' => 'node',
+          'type' => 'string',
+          'cardinality' => 1,
+          'settings' => ['max_length' => 255],
+        ])->save();
+      }
+      if (!FieldConfig::loadByName('node', 'office_information', $field_name)) {
+        FieldConfig::create([
+          'field_name' => $field_name,
+          'entity_type' => 'node',
+          'bundle' => 'office_information',
+          'label' => $field_name,
+        ])->save();
+      }
+    }
+
+    Node::create([
+      'type' => 'office_information',
+      'title' => 'Boise Office',
+      'status' => 1,
+      'field_street_address' => '1447 S Tyrell Lane',
+      'field_address_city' => 'Boise',
+      'field_postal_code' => '83706',
+      'field_office_hours' => 'Monday through Friday, 8:30 a.m. to 4:30 p.m. (call to confirm current office hours).',
+      'field_county' => 'Ada',
+      'field_phone_number' => '208-746-7541',
+    ])->save();
+
+    \Drupal::service('ilas_site_assistant.office_directory')->invalidate();
   }
 
 }

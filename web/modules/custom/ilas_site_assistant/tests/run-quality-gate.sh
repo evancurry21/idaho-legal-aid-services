@@ -86,11 +86,27 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MODULE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$MODULE_DIR/../../../.." && pwd)"
 EVALS_OUTPUT_DIR="$REPO_ROOT/promptfoo-evals/output"
+JUNIT_DIR="$EVALS_OUTPUT_DIR/junit"
 SUMMARY_FILE="$EVALS_OUTPUT_DIR/phpunit-summary.txt"
 RUN_TIMESTAMP_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-mkdir -p "$EVALS_OUTPUT_DIR"
+mkdir -p "$EVALS_OUTPUT_DIR" "$JUNIT_DIR"
+# Stale JUnit XML from a previous run would mislead the publish-failure
+# summarizer. Only clean when invoked standalone — the upstream gate
+# (publish-gate-local.sh / pre-push-strict.sh) already cleared the dir before
+# writing earlier phases' XMLs (e.g. vc_pure.xml), so blindly deleting here
+# would erase those.
+if ! grep -q '^entrypoint=' "$SUMMARY_FILE" 2>/dev/null; then
+  rm -f "$JUNIT_DIR"/*.xml 2>/dev/null || true
+fi
 
+# When invoked from publish-gate-local.sh / pre-push-strict.sh, the upstream
+# caller has already initialized this file via publish_gates_init_run(). In
+# that case append metadata so the early-phase entries (composer_dry_run,
+# vc_pure) survive. When invoked standalone, seed the file from scratch.
+if ! grep -q '^entrypoint=' "$SUMMARY_FILE" 2>/dev/null; then
+  : > "$SUMMARY_FILE"
+fi
 {
   echo "timestamp_utc=${RUN_TIMESTAMP_UTC}"
   echo "repo_root=${REPO_ROOT}"
@@ -103,12 +119,20 @@ mkdir -p "$EVALS_OUTPUT_DIR"
   echo "assistant_functional_filter=${ASSISTANT_FUNCTIONAL_FILTER}"
   echo "conversation_intent_fixture_command=vendor/bin/phpunit --no-configuration --bootstrap ${REPO_ROOT}/vendor/autoload.php --group ilas_site_assistant --filter ConversationIntentFixtureUnitTest ${MODULE_DIR}/tests/src/Unit/ConversationIntentFixtureUnitTest.php"
   echo "promptfoo_runtime_command=npm run test:promptfoo:runtime"
-} > "$SUMMARY_FILE"
+} >> "$SUMMARY_FILE"
 
 append_phase_result() {
   local phase="$1"
   local exit_code="$2"
   echo "phase=${phase} exit_code=${exit_code} timestamp_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$SUMMARY_FILE"
+}
+
+# Record per-phase JUnit XML path so scripts/ci/publish-failure-summary.sh can
+# locate the structured failure record after the gate exits.
+record_junit_path() {
+  local phase="$1"
+  local path="$2"
+  echo "junit_${phase}=${path}" >> "$SUMMARY_FILE"
 }
 
 echo "=== ILAS Site Assistant — Quality Gate ==="
@@ -130,10 +154,13 @@ if [[ "$SKIP_PHPUNIT" != "true" ]]; then
   echo "--- Phase 1: PHPUnit unit suite ---"
 
   UNIT_EXIT=0
+  VC_UNIT_JUNIT="$JUNIT_DIR/vc_unit.xml"
+  record_junit_path "vc_unit" "$VC_UNIT_JUNIT"
   "$PHPUNIT_BIN" \
     --configuration "$REPO_ROOT/phpunit.xml" \
     --group ilas_site_assistant \
     --colors=always \
+    --log-junit "$VC_UNIT_JUNIT" \
     "$MODULE_DIR/tests/src/Unit" \
     || UNIT_EXIT=$?
 
@@ -142,6 +169,8 @@ if [[ "$SKIP_PHPUNIT" != "true" ]]; then
   if [ "$UNIT_EXIT" -ne 0 ]; then
     echo ""
     echo "FAIL: PHPUnit unit tests failed (exit code $UNIT_EXIT)"
+    echo "Failed suite: $MODULE_DIR/tests/src/Unit"
+    echo "Reproduce:    vendor/bin/phpunit --configuration $REPO_ROOT/phpunit.xml --group ilas_site_assistant $MODULE_DIR/tests/src/Unit"
     echo "Summary file: $SUMMARY_FILE"
     exit 1
   fi
@@ -154,10 +183,13 @@ if [[ "$SKIP_PHPUNIT" != "true" ]]; then
   echo "--- Phase 1b: PHPUnit drupal-unit suite ---"
 
   DRUPAL_UNIT_EXIT=0
+  VC_DRUPAL_UNIT_JUNIT="$JUNIT_DIR/vc_drupal_unit.xml"
+  record_junit_path "vc_drupal_unit" "$VC_DRUPAL_UNIT_JUNIT"
   "$PHPUNIT_BIN" \
     --configuration "$REPO_ROOT/phpunit.xml" \
     --testsuite drupal-unit \
     --colors=always \
+    --log-junit "$VC_DRUPAL_UNIT_JUNIT" \
     || DRUPAL_UNIT_EXIT=$?
 
   append_phase_result "vc_drupal_unit" "$DRUPAL_UNIT_EXIT"
@@ -165,6 +197,8 @@ if [[ "$SKIP_PHPUNIT" != "true" ]]; then
   if [ "$DRUPAL_UNIT_EXIT" -ne 0 ]; then
     echo ""
     echo "FAIL: Drupal-unit suite gate failed (exit code $DRUPAL_UNIT_EXIT)"
+    echo "Failed suite: drupal-unit testsuite (phpunit.xml)"
+    echo "Reproduce:    vendor/bin/phpunit --configuration $REPO_ROOT/phpunit.xml --testsuite drupal-unit"
     echo "Summary file: $SUMMARY_FILE"
     exit 1
   fi
@@ -195,7 +229,10 @@ else
   )
 
   KERNEL_EXIT=0
-  bash "$REPO_ROOT/scripts/ci/run-host-phpunit.sh" "${KERNEL_TESTS[@]}" || KERNEL_EXIT=$?
+  VC_KERNEL_JUNIT="$JUNIT_DIR/vc_kernel.xml"
+  record_junit_path "vc_kernel" "$VC_KERNEL_JUNIT"
+  ILAS_HOST_PHPUNIT_JUNIT="$VC_KERNEL_JUNIT" \
+    bash "$REPO_ROOT/scripts/ci/run-host-phpunit.sh" "${KERNEL_TESTS[@]}" || KERNEL_EXIT=$?
 
   append_phase_result "vc_kernel" "$KERNEL_EXIT"
 
@@ -203,6 +240,8 @@ else
     echo ""
     echo "FAIL: Kernel runtime regression suite failed (exit code $KERNEL_EXIT)"
     echo "Failed suite includes: tests/src/Kernel/AssistantRetrievalGroundingKernelTest.php"
+    echo "Reproduce:    bash $REPO_ROOT/scripts/ci/run-host-phpunit.sh ${KERNEL_TESTS[*]}"
+    echo "Narrow:       bash $REPO_ROOT/scripts/ci/run-host-phpunit.sh <one-kernel-test-path> --filter <TestName>"
     echo "Summary file: $SUMMARY_FILE"
     exit 1
   fi
@@ -222,28 +261,34 @@ if [[ "$PROFILE" == "assistant-pr" || "$PROFILE" == "full" ]]; then
     FUNCTIONAL_FILTER_ARGS=(--filter "$ASSISTANT_FUNCTIONAL_FILTER")
   fi
 
+  ASSISTANT_FUNCTIONAL_JUNIT="$JUNIT_DIR/assistant_functional.xml"
+  record_junit_path "assistant_functional" "$ASSISTANT_FUNCTIONAL_JUNIT"
+
   if [[ "$ASSISTANT_FUNCTIONAL_MODE" == "ddev" ]]; then
     if ! command -v ddev >/dev/null 2>&1; then
       echo "FAIL: ASSISTANT_FUNCTIONAL_MODE=ddev requires ddev on PATH" >&2
       append_phase_result "assistant_functional" "2"
       exit 2
     fi
+    DDEV_FUNCTIONAL_JUNIT="/var/www/html/promptfoo-evals/output/junit/assistant_functional.xml"
     if [[ -n "$ASSISTANT_FUNCTIONAL_FILTER" ]]; then
       FUNCTIONAL_FILTER_ESCAPED="$(printf '%q' "$ASSISTANT_FUNCTIONAL_FILTER")"
       ddev exec bash -lc \
-        "vendor/bin/phpunit --configuration /var/www/html/phpunit.xml /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php --filter ${FUNCTIONAL_FILTER_ESCAPED}" \
+        "vendor/bin/phpunit --configuration /var/www/html/phpunit.xml --log-junit ${DDEV_FUNCTIONAL_JUNIT} /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php --filter ${FUNCTIONAL_FILTER_ESCAPED}" \
         || FUNCTIONAL_EXIT=$?
     else
       ddev exec vendor/bin/phpunit \
         --configuration /var/www/html/phpunit.xml \
+        --log-junit "$DDEV_FUNCTIONAL_JUNIT" \
         /var/www/html/web/modules/custom/ilas_site_assistant/tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php \
         || FUNCTIONAL_EXIT=$?
     fi
   else
-    bash "$REPO_ROOT/scripts/ci/run-host-phpunit.sh" \
-      "$MODULE_DIR/tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php" \
-      "${FUNCTIONAL_FILTER_ARGS[@]}" \
-      || FUNCTIONAL_EXIT=$?
+    ILAS_HOST_PHPUNIT_JUNIT="$ASSISTANT_FUNCTIONAL_JUNIT" \
+      bash "$REPO_ROOT/scripts/ci/run-host-phpunit.sh" \
+        "$MODULE_DIR/tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php" \
+        "${FUNCTIONAL_FILTER_ARGS[@]}" \
+        || FUNCTIONAL_EXIT=$?
   fi
 
   append_phase_result "assistant_functional" "$FUNCTIONAL_EXIT"
@@ -252,6 +297,8 @@ if [[ "$PROFILE" == "assistant-pr" || "$PROFILE" == "full" ]]; then
     echo ""
     echo "FAIL: Functional assistant API behavior suite failed (exit code $FUNCTIONAL_EXIT)"
     echo "Failed suite: tests/src/Functional/AssistantMessageRuntimeBehaviorFunctionalTest.php"
+    echo "Reproduce:    npm run gate:assistant-functional"
+    echo "Narrow:       npm run gate:assistant-functional:filter -- <TestNameRegex>"
     echo "Summary file: $SUMMARY_FILE"
     exit 1
   fi
@@ -267,12 +314,15 @@ fi
 echo "--- Phase 1e: Conversation intent fixture tests ---"
 
 INTENT_FIXTURE_EXIT=0
+INTENT_FIXTURE_JUNIT="$JUNIT_DIR/conversation_intent_fixture.xml"
+record_junit_path "conversation_intent_fixture" "$INTENT_FIXTURE_JUNIT"
 "$PHPUNIT_BIN" \
   --no-configuration \
   --bootstrap "$REPO_ROOT/vendor/autoload.php" \
   --group ilas_site_assistant \
   --filter ConversationIntentFixtureUnitTest \
   --colors=always \
+  --log-junit "$INTENT_FIXTURE_JUNIT" \
   "$MODULE_DIR/tests/src/Unit/ConversationIntentFixtureUnitTest.php" \
   || INTENT_FIXTURE_EXIT=$?
 
@@ -281,6 +331,8 @@ append_phase_result "conversation_intent_fixture" "$INTENT_FIXTURE_EXIT"
 if [ "$INTENT_FIXTURE_EXIT" -ne 0 ]; then
   echo ""
   echo "FAIL: Conversation intent fixture tests failed (exit code $INTENT_FIXTURE_EXIT)"
+  echo "Failed suite: tests/src/Unit/ConversationIntentFixtureUnitTest.php"
+  echo "Reproduce:    vendor/bin/phpunit --no-configuration --bootstrap $REPO_ROOT/vendor/autoload.php --group ilas_site_assistant --filter ConversationIntentFixtureUnitTest $MODULE_DIR/tests/src/Unit/ConversationIntentFixtureUnitTest.php"
   echo "Summary file: $SUMMARY_FILE"
   exit 1
 fi
@@ -312,7 +364,8 @@ append_phase_result "promptfoo_runtime" "$PROMPTFOO_RUNTIME_EXIT"
 if [ "$PROMPTFOO_RUNTIME_EXIT" -ne 0 ]; then
   echo ""
   echo "FAIL: Promptfoo runtime tests failed (exit code $PROMPTFOO_RUNTIME_EXIT)"
-  echo "Run \`npm run test:promptfoo:runtime\` from $REPO_ROOT for details."
+  echo "Failed suite: promptfoo-evals/tests/node/*.test.js"
+  echo "Reproduce:    npm run test:promptfoo:runtime"
   echo "Summary file: $SUMMARY_FILE"
   exit 2
 fi

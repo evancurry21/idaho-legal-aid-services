@@ -1,4 +1,20 @@
 #!/usr/bin/env bash
+# Strict pre-push gate. Versioned source for .git/hooks/pre-push.
+# After editing this file, reinstall the hook with:
+#   bash scripts/ci/install-pre-push-strict-hook.sh
+#
+# The four blocking test gates (composer dry-run, VC-PURE, module quality,
+# promptfoo) are defined in scripts/ci/publish-gates.lib.sh and shared with
+# scripts/ci/publish-gate-local.sh — keep gate command edits in the library
+# so the local preflight cannot drift from this hook.
+#
+# The promptfoo gate (branch-aware and deploy-bound) is a LIVE provider call
+# and is SKIPPED by default to keep PR/publish correctness gates deterministic
+# (no random failures from slow/rate-limited/unavailable Cohere). Opt in with
+#   ILAS_LIVE_PROVIDER_GATE=1 git push ...
+# or, more typically, prove live infra explicitly before pushing with
+#   npm run assistant:providers:health
+#   npm run assistant:providers:health:strict   # also runs deploy-bound promptfoo
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -7,6 +23,11 @@ if ! REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
 fi
 # shellcheck source=../git/common.sh
 source "$REPO_ROOT/scripts/git/common.sh"
+# shellcheck source=./publish-gates.lib.sh
+source "$REPO_ROOT/scripts/ci/publish-gates.lib.sh"
+
+publish_gates_init_run "pre-push-strict"
+publish_gates_install_summary_trap
 
 REMOTE_NAME="${1:-unknown-remote}"
 REMOTE_URL="${2:-unknown-url}"
@@ -158,6 +179,7 @@ if [[ "$REMOTE_NAME" == "origin" || "$REMOTE_NAME" == "github" ]]; then
     if [[ "$OTHER_REMOTE_ONLY" == "0" && "$OTHER_LOCAL_ONLY" != "0" ]]; then
       echo "WARN: $OTHER_REMOTE/$CURRENT_BRANCH is behind local by $OTHER_LOCAL_ONLY commit(s)." >&2
       echo "After this $REMOTE_NAME push, also run: git push $OTHER_REMOTE $CURRENT_BRANCH" >&2
+      publish_gates_record_drift "$OTHER_REMOTE/$CURRENT_BRANCH behind local by $OTHER_LOCAL_ONLY commit(s); follow up with: git push $OTHER_REMOTE $CURRENT_BRANCH"
     fi
   fi
 fi
@@ -172,41 +194,16 @@ fi
 
 cd "$REPO_ROOT"
 
-if ! command -v composer >/dev/null 2>&1; then
-  echo "ERROR: Composer is required for strict pre-push dependency parity checks." >&2
-  echo "Install Composer locally before publishing, or bypass intentionally with git push --no-verify." >&2
-  exit 1
-fi
-
-echo "Running Composer installability parity check..."
-if ! composer install --no-interaction --no-progress --prefer-dist --dry-run; then
-  echo "ERROR: Composer install dry-run failed." >&2
-  echo "This mirrors the GitHub 'Install Composer dependencies' step and usually means composer.json/composer.lock drift." >&2
-  exit 1
-fi
-
-echo "Running PHPUnit pure-unit parity gate (VC-PURE)..."
-if ! vendor/bin/phpunit -c phpunit.pure.xml --colors=always; then
-  echo "ERROR: VC-PURE failed." >&2
-  echo "This mirrors the GitHub 'Run PHPUnit pure-unit tests (VC-PURE)' step." >&2
-  exit 1
-fi
-
-echo "Running module quality gate..."
-bash web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh
+# Test gates — delegated to the shared library (see scripts/ci/publish-gates.lib.sh).
+# Local parity entry point: npm run gate:publish-local.
+gate_composer_dryrun
+gate_vc_pure
+gate_module_quality
 
 if [[ "$DEPLOY_BOUND_PROMPTFOO" == "true" ]]; then
-  echo "Running deploy-bound promptfoo gate for origin/master against local DDEV exact code..."
-  CI_BRANCH="$PROMPTFOO_BRANCH" \
-    ILAS_ASSISTANT_URL="$DDEV_ASSISTANT_URL" \
-    bash scripts/ci/run-promptfoo-gate.sh \
-      --env dev \
-      --mode auto \
-      --config promptfooconfig.deploy.yaml \
-      --no-deep-eval
+  gate_promptfoo_deploy_bound "$PROMPTFOO_BRANCH" "$DDEV_ASSISTANT_URL"
 else
-  echo "Running branch-aware promptfoo gate for target branch ${PROMPTFOO_BRANCH}..."
-  CI_BRANCH="$PROMPTFOO_BRANCH" bash scripts/ci/run-promptfoo-gate.sh --env dev --mode auto
+  gate_promptfoo_branch_aware "$PROMPTFOO_BRANCH"
 fi
 
 echo "Strict pre-push gate PASSED."
