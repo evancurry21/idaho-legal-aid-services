@@ -109,26 +109,45 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('Direct pushes to protected github/master are not supported', $strictHook);
     $this->assertStringContainsString('Refusing to push origin/master before github/master matches local master', $strictHook);
     $this->assertStringContainsString('Use: npm run git:publish', $strictHook);
-    $this->assertStringContainsString('Running Composer installability parity check...', $strictHook);
-    $this->assertStringContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $strictHook);
-    $this->assertStringContainsString("mirrors the GitHub 'Install Composer dependencies' step", $strictHook);
-    $this->assertStringContainsString('Running PHPUnit pure-unit parity gate (VC-PURE)...', $strictHook);
-    $this->assertStringContainsString('vendor/bin/phpunit -c phpunit.pure.xml --colors=always', $strictHook);
-    $this->assertStringContainsString("mirrors the GitHub 'Run PHPUnit pure-unit tests (VC-PURE)' step", $strictHook);
-    $this->assertStringContainsString('run-quality-gate.sh', $strictHook);
+    // The four blocking test gates are delegated to the shared library
+    // scripts/ci/publish-gates.lib.sh — keep this assertion locked so the
+    // strict hook cannot drift away from the shared lib without test failure.
+    $this->assertStringContainsString('source "$REPO_ROOT/scripts/ci/publish-gates.lib.sh"', $strictHook);
+    $this->assertStringContainsString('publish_gates_init_run', $strictHook);
+    $this->assertStringContainsString('publish_gates_install_summary_trap', $strictHook);
+    $this->assertStringContainsString('gate_composer_dryrun', $strictHook);
+    $this->assertStringContainsString('gate_vc_pure', $strictHook);
+    $this->assertStringContainsString('gate_module_quality', $strictHook);
+    $this->assertStringContainsString('gate_promptfoo_branch_aware', $strictHook);
+    $this->assertStringContainsString('gate_promptfoo_deploy_bound', $strictHook);
     $this->assertStringContainsString('resolve_promptfoo_branch', $strictHook);
     $this->assertStringContainsString('is_effective_target_branch', $strictHook);
     $this->assertStringContainsString('Promptfoo policy target branch', $strictHook);
-    $this->assertStringContainsString('CI_BRANCH="$PROMPTFOO_BRANCH" bash scripts/ci/run-promptfoo-gate.sh --env dev --mode auto', $strictHook);
-    $this->assertStringContainsString('promptfooconfig.deploy.yaml', $strictHook);
-    $this->assertStringContainsString('--no-deep-eval', $strictHook);
-    $this->assertStringContainsString(
-      'Running deploy-bound promptfoo gate for origin/master against local DDEV exact code...',
-      $strictHook
-    );
-    $this->assertStringNotContainsString('CI_BRANCH="$CURRENT_BRANCH" bash scripts/ci/run-promptfoo-gate.sh --env dev --mode auto', $strictHook);
     $this->assertStringContainsString('REMOTE_NAME', $strictHook);
     $this->assertStringContainsString('REMOTE_URL', $strictHook);
+    // The hook must not re-inline gate command literals — they live in the
+    // shared library so the local preflight cannot drift from this hook.
+    $this->assertStringNotContainsString('vendor/bin/phpunit -c phpunit.pure.xml --colors=always', $strictHook);
+    $this->assertStringNotContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $strictHook);
+    $this->assertStringNotContainsString('CI_BRANCH="$CURRENT_BRANCH" bash scripts/ci/run-promptfoo-gate.sh --env dev --mode auto', $strictHook);
+
+    // Shared publish-gate library — the single source of truth for gate
+    // commands. Verifying the real commands live here prevents drift even
+    // when the strict hook only references the function names.
+    $publishGatesLib = self::readFile('scripts/ci/publish-gates.lib.sh');
+    $this->assertStringContainsString('gate_composer_dryrun()', $publishGatesLib);
+    $this->assertStringContainsString('gate_vc_pure()', $publishGatesLib);
+    $this->assertStringContainsString('gate_module_quality()', $publishGatesLib);
+    $this->assertStringContainsString('gate_promptfoo_branch_aware()', $publishGatesLib);
+    $this->assertStringContainsString('gate_promptfoo_deploy_bound()', $publishGatesLib);
+    $this->assertStringContainsString('publish_gates_install_summary_trap()', $publishGatesLib);
+    $this->assertStringContainsString('composer install --no-interaction --no-progress --prefer-dist --dry-run', $publishGatesLib);
+    $this->assertStringContainsString('vendor/bin/phpunit -c phpunit.pure.xml --colors=always --log-junit', $publishGatesLib);
+    $this->assertStringContainsString('bash web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh', $publishGatesLib);
+    $this->assertStringContainsString('promptfooconfig.deploy.yaml', $publishGatesLib);
+    $this->assertStringContainsString('--no-deep-eval', $publishGatesLib);
+    // Trap must preserve the failing exit code — never reset to 0.
+    $this->assertStringContainsString('exit "$gate_exit"', $publishGatesLib);
 
     $this->assertStringContainsString('git rev-parse --path-format=absolute --git-path hooks', $installer);
     $this->assertStringContainsString('pre-commit-master-sync.sh', $installer);

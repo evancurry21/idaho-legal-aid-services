@@ -65,6 +65,14 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['REQUEST_URI'])) {
  */
 $settings['container_yamls'][] = __DIR__ . '/services.yml';
 
+// Canary guard. settings.php is loaded once per normal request, but
+// `drush site:install` re-includes it after the installer kernel rebuilds.
+// Without this guard the helper functions below redeclare and PHP fatals.
+// function_exists() on the first helper short-circuits cleanly on a re-include
+// (all helpers are declared together inside this block, so one canary covers
+// the lot). Closes after _ilas_observability_settings().
+if (!function_exists('_ilas_is_valid_proxy_address')) {
+
 /**
  * Helper: validates a proxy IP or CIDR entry.
  *
@@ -343,6 +351,9 @@ function _ilas_observability_settings(): array {
   ];
 }
 
+}
+// End canary guard for _ilas_* helper bundle.
+
 /**
  * Include the Pantheon-specific settings file.
  *
@@ -427,6 +438,7 @@ if (isset($_ENV['PANTHEON_ENVIRONMENT']) && $_ENV['PANTHEON_ENVIRONMENT'] === 'l
  * @return string|false
  *   The secret value, or FALSE if not set.
  */
+if (!function_exists('_ilas_get_secret')) {
 function _ilas_get_secret(string $name) {
   // Pantheon runtime secrets (type: runtime, scope: web).
   if (function_exists('pantheon_get_secret')) {
@@ -437,6 +449,7 @@ function _ilas_get_secret(string $name) {
   }
   // Local / DDEV fallback: read from environment variable.
   return getenv($name);
+}
 }
 
 /**

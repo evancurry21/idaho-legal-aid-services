@@ -212,6 +212,22 @@ class HistoryIntentResolver {
       return NULL;
     }
 
+    // Office context: triggered by intent=office_location, the literal
+    // office_location token, or a known Idaho Legal Aid office city. The
+    // bare word "office" alone is not enough — that would over-match phrases
+    // like "post office" or "office hours" without a city signal.
+    $office_cities = '(?:boise|coeur\s*d[\' ]?\s*alene|idaho\s+falls|lewiston|pocatello|twin\s+falls|caldwell)';
+    if ($intent === 'office_location'
+      || str_contains($haystack, 'office_location')
+      || preg_match('/\b' . $office_cities . '\b/u', $haystack)
+    ) {
+      return [
+        'area' => 'office_location',
+        'topic_id' => $entry['topic_id'] ?? NULL,
+        'topic' => $entry['topic'] ?? NULL,
+      ];
+    }
+
     if (preg_match('/\b(topic_housing|housing|eviction|evicted|landlord|tenant|rent|lease|notice|desalojo)\b/u', $haystack)) {
       return [
         'area' => 'housing',

@@ -168,6 +168,11 @@ final class ProviderHealthCheck {
     return $result;
   }
 
+  /**
+   * Returns TRUE when the API-key value is non-empty (string or boolean cast).
+   *
+   * @return bool
+   */
   private function keyPresent(mixed $key): bool {
     if (is_string($key)) {
       return trim($key) !== '';
@@ -186,6 +191,12 @@ final class ProviderHealthCheck {
     return substr(hash('sha256', $key), 0, 8);
   }
 
+  /**
+   * Redacts bearer tokens and 32+ char opaque strings out of provider error
+   * messages before logging or returning them to the operator dashboard.
+   *
+   * @return mixed
+   */
   private function sanitizeError(mixed $error): mixed {
     if (!is_string($error) || $error === '') {
       return $error;
