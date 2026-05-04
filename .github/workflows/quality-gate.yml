@@ -311,7 +311,13 @@ jobs:
 
       - name: Run accessibility tests
         if: ${{ steps.resolve_a11y_base_url.outputs.available == 'true' }}
-        run: npm run test:a11y
+        # Hosted gate covers post-deploy, deploy-state checks (axe color
+        # contrast, landmarks, headings, etc.) on whatever the deployed
+        # environment currently serves. Commit-aware structural specs
+        # (impact-card.spec.js) are owned by a11y-local-gate below, which
+        # builds Drupal from this PR's commit; running them here would
+        # spuriously fail when the deployed env hasn't received the PR yet.
+        run: npm run test:a11y -- tests/a11y/axe.spec.js
 
       - name: Upload a11y gate artifacts
         if: ${{ always() && steps.resolve_a11y_base_url.outputs.available == 'true' }}
