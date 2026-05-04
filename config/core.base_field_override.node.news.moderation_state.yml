@@ -4,6 +4,7 @@ status: true
 dependencies:
   config:
     - node.type.news
+    - workflows.workflow.basic_editorial
   module:
     - content_moderation
 id: node.news.moderation_state
