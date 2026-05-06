@@ -38,11 +38,10 @@
     {% for section in menu_middle %}
       {{ section }}
     {% endfor %}
-  </nav>
 
-  {# @todo - This sticky menu should exist under the <nav> landmark element above. #}
-  <div class="admin-toolbar__sticky-section">
-    {{ menu_bottom }}
-  </div>
+    <div class="admin-toolbar__sticky-section">
+      {{ menu_bottom }}
+    </div>
+  </nav>
 </aside>
 {# Admin toolbar expanded-state restore is handled by b5subtheme/admin-toolbar-state library. #}
