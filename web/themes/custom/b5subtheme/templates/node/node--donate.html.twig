@@ -110,7 +110,7 @@
         <input type="hidden" name="recaptcha_token" value="">
         <input type="hidden" name="source_url" value="{{ url('<current>') }}">
         <div style="position: absolute; left: -5000px;" aria-hidden="true">
-          <input type="text" name="website_url" tabindex="-1" autocomplete="off" />
+          <input type="text" name="website_url" tabindex="-1" autocomplete="off" aria-hidden="true" />
         </div>
         {# Step 1: Initial Question #}
         <div class="form-step active" data-step="1">
