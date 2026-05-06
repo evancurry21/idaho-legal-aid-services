@@ -124,7 +124,8 @@
                 "web-root": "web/"
             },
             "file-mapping": {
-                "[web-root]/robots.txt": false
+                "[web-root]/robots.txt": false,
+                "[web-root]/.htaccess": false
             }
         },
         "installer-paths": {
