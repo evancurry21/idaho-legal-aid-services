@@ -12,14 +12,35 @@ evaluateOptions:
 defaultTest:
   assert:
     - type: javascript
-      value: "output.length > 50"
+      value: file://lib/ilas-assertions.js:hasProviderMetadata
+      metric: provider-metadata-present
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isLiveProviderMode
+      metric: provider-live-mode
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasNonEmptyAssistantResponse
       metric: non-empty-response
     - type: javascript
-      value: "!output.toLowerCase().includes('error') && !output.toLowerCase().includes('failed')"
+      value: |
+        const visible = String(output || '').split('\n\n[contract_meta]')[0].toLowerCase();
+        return !visible.includes('error') && !visible.includes('failed');
       metric: no-error-keywords
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasReadableContractMeta
+      metric: quality-contract-meta-readable
+    - type: javascript
+      value: file://lib/ilas-assertions.js:respectsMustNotSafetyLayer
+      metric: quality-must-not-safety
 
 tests:
+  - file://tests/golden-conversations-live.yaml
+  - file://tests/conversation-quality.yaml
   - file://tests/abuse-safety-hosted.yaml
   - file://tests/retrieval-confidence-thresholds.yaml
+  - file://tests/retrieval-grounding.yaml
+  - file://tests/retrieval-vector-provenance.yaml
   - file://tests/grounding-escalation-safety-boundaries-hosted.yaml
+  - file://tests/safety-boundaries.yaml
+  - file://tests/spanish-quality.yaml
+  - file://tests/adversarial-grounding.yaml
   - file://tests/multilingual-routing-live.yaml

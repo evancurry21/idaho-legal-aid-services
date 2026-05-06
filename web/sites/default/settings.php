@@ -65,6 +65,14 @@ if (PHP_SAPI !== 'cli' && isset($_SERVER['REQUEST_URI'])) {
  */
 $settings['container_yamls'][] = __DIR__ . '/services.yml';
 
+// Canary guard. settings.php is loaded once per normal request, but
+// `drush site:install` re-includes it after the installer kernel rebuilds.
+// Without this guard the helper functions below redeclare and PHP fatals.
+// function_exists() on the first helper short-circuits cleanly on a re-include
+// (all helpers are declared together inside this block, so one canary covers
+// the lot). Closes after _ilas_observability_settings().
+if (!function_exists('_ilas_is_valid_proxy_address')) {
+
 /**
  * Helper: validates a proxy IP or CIDR entry.
  *
@@ -343,6 +351,9 @@ function _ilas_observability_settings(): array {
   ];
 }
 
+}
+// End canary guard for _ilas_* helper bundle.
+
 /**
  * Include the Pantheon-specific settings file.
  *
@@ -427,6 +438,7 @@ if (isset($_ENV['PANTHEON_ENVIRONMENT']) && $_ENV['PANTHEON_ENVIRONMENT'] === 'l
  * @return string|false
  *   The secret value, or FALSE if not set.
  */
+if (!function_exists('_ilas_get_secret')) {
 function _ilas_get_secret(string $name) {
   // Pantheon runtime secrets (type: runtime, scope: web).
   if (function_exists('pantheon_get_secret')) {
@@ -437,6 +449,7 @@ function _ilas_get_secret(string $name) {
   }
   // Local / DDEV fallback: read from environment variable.
   return getenv($name);
+}
 }
 
 /**
@@ -521,14 +534,32 @@ if ($ilas_legalserver_online_application_url) {
 }
 
 /**
- * Langfuse observability API keys.
+ * Langfuse observability API keys and rollout toggle.
  *
- * On Pantheon: type "runtime", scope "web", keys "LANGFUSE_PUBLIC_KEY" and "LANGFUSE_SECRET_KEY".
+ * On Pantheon: type "runtime", scope "web":
+ *   LANGFUSE_PUBLIC_KEY
+ *   LANGFUSE_SECRET_KEY
+ *   ILAS_LANGFUSE_ENABLED (optional override)
+ *
+ * Langfuse exports are live-only by default when credentials are present.
+ * ILAS_LANGFUSE_ENABLED=1 explicitly enables non-live diagnostic exports;
+ * ILAS_LANGFUSE_ENABLED=0 disables exports everywhere as a kill switch.
+ *
  * Locally (DDEV): add to .ddev/.env, then ddev restart.
  */
 $langfuse_pk = _ilas_get_secret('LANGFUSE_PUBLIC_KEY');
 $langfuse_sk = _ilas_get_secret('LANGFUSE_SECRET_KEY');
-if ($langfuse_pk && $langfuse_sk) {
+$langfuse_environment = _ilas_raw_pantheon_environment();
+$langfuse_environment = $langfuse_environment !== FALSE
+  ? mb_strtolower(trim($langfuse_environment))
+  : 'local';
+$langfuse_enabled_raw = _ilas_get_secret('ILAS_LANGFUSE_ENABLED');
+$langfuse_enabled = _ilas_read_boolean($langfuse_enabled_raw, $langfuse_environment === 'live');
+$langfuse_toggle_set = is_string($langfuse_enabled_raw) && trim($langfuse_enabled_raw) !== '';
+$settings['ilas_langfuse_override_channel'] = $langfuse_toggle_set
+  ? 'settings.php runtime toggle ILAS_LANGFUSE_ENABLED -> getenv/pantheon_get_secret'
+  : 'settings.php live-only default + runtime secrets';
+if ($langfuse_enabled && $langfuse_pk && $langfuse_sk) {
   $config['ilas_site_assistant.settings']['langfuse']['enabled'] = TRUE;
   $config['ilas_site_assistant.settings']['langfuse']['public_key'] = $langfuse_pk;
   $config['ilas_site_assistant.settings']['langfuse']['secret_key'] = $langfuse_sk;

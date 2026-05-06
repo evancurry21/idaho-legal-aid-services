@@ -8,7 +8,7 @@ namespace Drupal\ilas_site_assistant\Service;
  * Ensures responses:
  * - Cite sources (title + link) for retrieved content
  * - Don't invent addresses, phone numbers, or facts not in retrieved content
- * - Include appropriate caveats for legal information
+ * - Include appropriate caveats for legal information.
  */
 class ResponseGrounder {
 
@@ -20,35 +20,18 @@ class ResponseGrounder {
   protected ?SourceGovernanceService $sourceGovernance;
 
   /**
-   * Known official contact information (safe to include).
+   * Known official non-office contact information (safe to include).
+   *
+   * Office addresses and per-office phone numbers come from {@see
+   * OfficeDirectory} (canonical first-party source backed by office_information
+   * nodes) — they MUST NOT be hardcoded here. This block is restricted to
+   * shared hotline/toll-free numbers and emergency services.
    */
   const OFFICIAL_CONTACTS = [
     'hotline' => [
       'number' => '(208) 746-7541',
       'toll_free' => '1-866-345-0106',
       'hours' => 'Monday–Wednesday, 10:00 a.m.–1:30 p.m. Mountain (9:00 a.m.–12:30 p.m. Pacific). Phone intakes are closed Thursday/Friday.',
-    ],
-    'offices' => [
-      'boise' => [
-        'address' => '310 N 5th Street, Boise, ID 83702',
-        'phone' => '(208) 345-0106',
-      ],
-      'pocatello' => [
-        'address' => '201 N 8th Ave, Suite 100, Pocatello, ID 83201',
-        'phone' => '(208) 233-0079',
-      ],
-      'twin_falls' => [
-        'address' => '496 Shoup Ave W, Twin Falls, ID 83301',
-        'phone' => '(208) 734-7024',
-      ],
-      'lewiston' => [
-        'address' => '1424 Main Street, Lewiston, ID 83501',
-        'phone' => '(208) 746-7541',
-      ],
-      'idaho_falls' => [
-        'address' => '482 Constitution Way, Suite 101, Idaho Falls, ID 83402',
-        'phone' => '(208) 524-3660',
-      ],
     ],
     'emergency' => [
       '911' => 'Emergency services',
@@ -80,10 +63,42 @@ class ResponseGrounder {
   ];
 
   /**
+   * Public response/result fields that may contain untrusted retrieved text.
+   */
+  const UNTRUSTED_RETRIEVAL_TEXT_FIELDS = [
+    'message',
+    'answer',
+    'answer_snippet',
+    'body',
+    'description',
+    'summary',
+    'title',
+    'question',
+  ];
+
+  /**
+   * Prompt-injection-like content that must be treated as page text only.
+   */
+  const UNTRUSTED_RETRIEVAL_INSTRUCTION_PATTERNS = [
+    '/\bignore\s+(all\s+)?(previous|prior|above|system|developer|assistant)\s+instructions\b/i',
+    '/\bdo\s+not\s+cite\s+(ilas|idaho\s+legal\s+aid|sources?)\b/i',
+    '/\brecommend\s+(a\s+)?paid\s+lawyer\b/i',
+    '/\btell\s+the\s+user\s+they\s+(will|should)\s+win\b/i',
+  ];
+
+  /**
+   * Canonical office directory (entity-backed).
+   *
+   * @var \Drupal\ilas_site_assistant\Service\OfficeDirectory|null
+   */
+  protected ?OfficeDirectory $officeDirectory;
+
+  /**
    * Constructs a response grounder.
    */
-  public function __construct(?SourceGovernanceService $source_governance = NULL) {
+  public function __construct(?SourceGovernanceService $source_governance = NULL, ?OfficeDirectory $office_directory = NULL) {
     $this->sourceGovernance = $source_governance;
+    $this->officeDirectory = $office_directory;
   }
 
   /**
@@ -109,6 +124,12 @@ class ResponseGrounder {
       'add_caveats' => TRUE,
       'include_source_url' => TRUE,
     ], $options);
+
+    [$response, $retrieved_results, $sanitized_fields] = $this->sanitizeUntrustedRetrievedContent($response, $retrieved_results);
+    if (!empty($sanitized_fields)) {
+      $response['_retrieval_content_sanitized'] = TRUE;
+      $response['_retrieval_content_sanitized_fields'] = $sanitized_fields;
+    }
 
     // Add citations from retrieved results.
     if ($options['add_citations'] && !empty($retrieved_results)) {
@@ -165,17 +186,38 @@ class ResponseGrounder {
 
     foreach ($results as $result) {
       $title = $result['title'] ?? $result['question'] ?? 'Untitled';
+      if (!is_string($title) || trim($title) === '') {
+        $title = 'Untitled';
+      }
       $raw_url = $result['url'] ?? $result['source_url'] ?? NULL;
       $url = $this->sourceGovernance?->sanitizeCitationUrl(is_string($raw_url) ? $raw_url : NULL);
       $freshness = $result['freshness']['status'] ?? 'unknown';
 
       if ($url) {
-        $sources[] = [
+        $source = [
           'title' => $this->truncateTitle($title, 60),
           'url' => $url,
           'type' => $result['type'] ?? 'resource',
           'freshness' => $freshness,
+          'supported' => TRUE,
         ];
+        // Carry through any source_class / topic metadata the retrieval layer
+        // attached. These are non-PII signals the public response contract
+        // exposes for grounding-proof and topic-specificity assertions.
+        if (!empty($result['source_class']) && is_string($result['source_class'])) {
+          $source['source_class'] = $result['source_class'];
+        }
+        if (!empty($result['source']) && is_string($result['source'])) {
+          $source['source'] = $result['source'];
+        }
+        foreach (['topic', 'topic_id', 'category'] as $topic_key) {
+          if (!empty($result[$topic_key])) {
+            $source[$topic_key] = is_array($result[$topic_key])
+              ? reset($result[$topic_key])
+              : $result[$topic_key];
+          }
+        }
+        $sources[] = $source;
       }
     }
 
@@ -209,6 +251,132 @@ class ResponseGrounder {
     }
 
     return $response;
+  }
+
+  /**
+   * Removes prompt-injection-like instructions from untrusted retrieved text.
+   *
+   * Retrieved page content may describe malicious instructions. It must never
+   * become an instruction to the assistant, a citation title, or public result
+   * snippet. This deliberately uses narrow patterns so normal legal content is
+   * not broadly rewritten.
+   *
+   * @param array $response
+   *   Response being grounded.
+   * @param array $retrieved_results
+   *   Retrieved results used for grounding.
+   *
+   * @return array
+   *   Tuple of sanitized response, sanitized results, and changed field labels.
+   */
+  protected function sanitizeUntrustedRetrievedContent(array $response, array $retrieved_results): array {
+    $sanitized_fields = [];
+
+    foreach (self::UNTRUSTED_RETRIEVAL_TEXT_FIELDS as $field) {
+      if (!isset($response[$field]) || !is_string($response[$field])) {
+        continue;
+      }
+
+      $original = $response[$field];
+      $response[$field] = $this->stripUntrustedInstructionText($original);
+      if ($response[$field] !== $original) {
+        $sanitized_fields[] = 'response.' . $field;
+        if ($field === 'message' && trim($response[$field]) === '') {
+          $response[$field] = 'I found ILAS information for this topic, but I cannot summarize untrusted instructions from retrieved page content. Please review the cited ILAS source or contact ILAS for help.';
+        }
+      }
+    }
+
+    if (!empty($response['results']) && is_array($response['results'])) {
+      foreach ($response['results'] as $index => $result) {
+        if (!is_array($result)) {
+          continue;
+        }
+        [$response['results'][$index], $changed] = $this->sanitizeUntrustedResultItem($result, 'response.results.' . $index);
+        $sanitized_fields = array_merge($sanitized_fields, $changed);
+      }
+    }
+
+    foreach ($retrieved_results as $index => $result) {
+      if (!is_array($result)) {
+        continue;
+      }
+      [$retrieved_results[$index], $changed] = $this->sanitizeUntrustedResultItem($result, 'retrieved_results.' . $index);
+      $sanitized_fields = array_merge($sanitized_fields, $changed);
+    }
+
+    return [
+      $response,
+      $retrieved_results,
+      array_values(array_unique($sanitized_fields)),
+    ];
+  }
+
+  /**
+   * Sanitizes one retrieval result item.
+   *
+   * @param array $result
+   *   Result item.
+   * @param string $prefix
+   *   Field prefix for diagnostics.
+   *
+   * @return array
+   *   Tuple of sanitized result and changed field labels.
+   */
+  protected function sanitizeUntrustedResultItem(array $result, string $prefix): array {
+    $changed = [];
+
+    foreach (self::UNTRUSTED_RETRIEVAL_TEXT_FIELDS as $field) {
+      if (!isset($result[$field]) || !is_string($result[$field])) {
+        continue;
+      }
+
+      $original = $result[$field];
+      $result[$field] = $this->stripUntrustedInstructionText($original);
+      if ($result[$field] !== $original) {
+        $changed[] = $prefix . '.' . $field;
+        if (in_array($field, ['title', 'question'], TRUE) && trim($result[$field]) === '') {
+          $result[$field] = 'ILAS source';
+        }
+      }
+    }
+
+    return [$result, $changed];
+  }
+
+  /**
+   * Strips sentences or lines that look like injected instructions.
+   */
+  protected function stripUntrustedInstructionText(string $text): string {
+    if (!$this->containsUntrustedInstruction($text)) {
+      return $text;
+    }
+
+    $chunks = preg_split('/(?<=[.!?])\s+|\R+/', $text, -1, PREG_SPLIT_NO_EMPTY);
+    $chunks = $chunks !== FALSE ? $chunks : [$text];
+    $kept = [];
+
+    foreach ($chunks as $chunk) {
+      if ($this->containsUntrustedInstruction($chunk)) {
+        continue;
+      }
+      $kept[] = $chunk;
+    }
+
+    return trim((string) preg_replace('/\s+/', ' ', implode(' ', $kept)));
+  }
+
+  /**
+   * Returns TRUE when text contains a retrieval prompt-injection pattern.
+   */
+  protected function containsUntrustedInstruction(string $text): bool {
+    foreach (self::UNTRUSTED_RETRIEVAL_INSTRUCTION_PATTERNS as $pattern) {
+      if (preg_match($pattern, $text)) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
   }
 
   /**
@@ -420,11 +588,18 @@ class ResponseGrounder {
       return TRUE;
     }
 
-    // Check office numbers.
-    foreach (self::OFFICIAL_CONTACTS['offices'] as $office) {
-      $office_normalized = preg_replace('/[^\d]/', '', $office['phone']);
-      if ($phone === $office_normalized) {
-        return TRUE;
+    // Check office numbers via the canonical OfficeDirectory.
+    if ($this->officeDirectory !== NULL) {
+      foreach ($this->officeDirectory->all() as $office) {
+        foreach (['phone', 'phone_secondary'] as $key) {
+          if (empty($office[$key])) {
+            continue;
+          }
+          $office_normalized = preg_replace('/[^\d]/', '', (string) $office[$key]) ?? '';
+          if ($office_normalized !== '' && $phone === $office_normalized) {
+            return TRUE;
+          }
+        }
       }
     }
 
@@ -449,13 +624,24 @@ class ResponseGrounder {
    *   TRUE if likely official.
    */
   protected function isOfficialAddress(string $address): bool {
+    if ($this->officeDirectory === NULL) {
+      return FALSE;
+    }
     $address_lower = strtolower($address);
 
-    foreach (self::OFFICIAL_CONTACTS['offices'] as $office) {
-      $official_lower = strtolower($office['address']);
-      // Check for significant overlap.
-      if (strpos($official_lower, substr($address_lower, 0, 20)) !== FALSE) {
-        return TRUE;
+    foreach ($this->officeDirectory->all() as $office) {
+      $candidates = array_filter([
+        $office['address'] ?? '',
+        $office['street'] ?? '',
+      ]);
+      foreach ($candidates as $candidate) {
+        $official_lower = strtolower((string) $candidate);
+        if ($official_lower === '') {
+          continue;
+        }
+        if (str_contains($official_lower, substr($address_lower, 0, 20))) {
+          return TRUE;
+        }
       }
     }
 
@@ -484,16 +670,45 @@ class ResponseGrounder {
    * Gets official contact information.
    *
    * @param string $type
-   *   Contact type (hotline, offices, emergency).
+   *   Contact type (hotline, offices, emergency, all).
    *
    * @return array
-   *   Official contact information.
+   *   Official contact information. Office records come from the canonical
+   *   OfficeDirectory service when available; the hotline and emergency blocks
+   *   are returned from the static OFFICIAL_CONTACTS list.
    */
   public function getOfficialContacts(string $type = 'all'): array {
+    $offices = $this->officeDirectory !== NULL
+      ? $this->buildOfficeContactsBlock()
+      : [];
+
     if ($type === 'all') {
-      return self::OFFICIAL_CONTACTS;
+      $merged = self::OFFICIAL_CONTACTS;
+      if ($offices !== []) {
+        $merged['offices'] = $offices;
+      }
+      return $merged;
+    }
+    if ($type === 'offices') {
+      return $offices;
     }
     return self::OFFICIAL_CONTACTS[$type] ?? [];
+  }
+
+  /**
+   * Builds the legacy 'offices' contact block from the OfficeDirectory.
+   *
+   * @return array<string, array{address: string, phone: string}>
+   */
+  private function buildOfficeContactsBlock(): array {
+    $offices = [];
+    foreach ($this->officeDirectory->all() as $slug => $office) {
+      $offices[$slug] = [
+        'address' => (string) ($office['address'] ?? ''),
+        'phone' => (string) ($office['phone'] ?? ''),
+      ];
+    }
+    return $offices;
   }
 
   /**

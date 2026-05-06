@@ -82,7 +82,7 @@ class SafetyAlertService {
     StateInterface $state,
     TimeInterface $time,
     LoggerInterface $logger,
-    SafetyViolationTracker $violation_tracker = NULL
+    ?SafetyViolationTracker $violation_tracker = NULL,
   ) {
     $this->configFactory = $config_factory;
     $this->database = $database;

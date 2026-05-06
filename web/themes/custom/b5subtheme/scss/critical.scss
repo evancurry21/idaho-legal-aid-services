@@ -1,0 +1,100 @@
+// =============================================================================
+// CRITICAL CSS — above-the-fold styles, compiled to css/critical.css
+//
+// GENERATED-INPUT. Edit this file, not css/critical.css.
+// Regenerate with: npm run prod  (or npm run build)
+//
+// Loaded via the b5subtheme/critical-styles library (b5subtheme.libraries.yml),
+// declared globally with header: true in b5subtheme.info.yml so it ships in
+// <head> before css/style.css. Linked stylesheet — does NOT use inline <style>,
+// so this artifact does not require CSP `style-src 'unsafe-inline'`.
+//
+// Tokens are imported from _variables_theme.scss so primary colour, font
+// stack, and body text colour stay in sync with the rest of the theme; do
+// not hard-code values here.
+// =============================================================================
+
+@import 'variables_theme';
+
+// Font-display: swap fallback — system font shows until Nunito Sans loads.
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: normal;
+  font-weight: $font-weight-regular;
+  font-display: swap;
+  src: local('Nunito Sans'), local('NunitoSans-Regular');
+}
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: normal;
+  font-weight: $font-weight-semibold;
+  font-display: swap;
+  src: local('Nunito Sans SemiBold'), local('NunitoSans-SemiBold');
+}
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: normal;
+  font-weight: $font-weight-bold;
+  font-display: swap;
+  src: local('Nunito Sans Bold'), local('NunitoSans-Bold');
+}
+
+// Bootstrap custom-property primer for the early paint window. Real
+// :root values are emitted by Bootstrap's _root in style.css; we only
+// need the handful that above-the-fold rules below dereference.
+:root {
+  --bs-primary: #{$color-primary};
+  --bs-primary-dark: #{$color-primary-dark};
+  --bs-font-sans-serif: #{inspect($font-family-sans-serif)};
+}
+
+// Body reset — prevents layout shift before style.css arrives.
+body {
+  margin: 0;
+  font-family: var(--bs-font-sans-serif);
+  font-size: 1rem;
+  font-weight: $font-weight-regular;
+  line-height: 1.5;
+  color: $color-body;
+  background-color: $color-white;
+}
+
+.container {
+  width: 100%;
+  padding-right: 15px;
+  padding-left: 15px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+// Header — keep in sync with _header.scss .site-header (sticky, z-index: 100).
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+}
+
+// Utility bar — token-driven background, matches _header.scss .utility-bar.
+.utility-bar {
+  background-color: $color-primary;
+  color: $color-white;
+}
+
+// Centered logo navbar — matches _header.scss .centered-logo-navbar.
+.centered-logo-navbar {
+  background-color: $color-white;
+  padding: 1rem 0;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+// Pre-hydration: hide overlays so they don't flash before JS attaches.
+.search-overlay,
+.help-overlay,
+.mobile-menu {
+  display: none;
+}

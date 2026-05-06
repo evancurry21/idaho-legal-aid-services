@@ -16,7 +16,7 @@ use Drupal\ilas_site_assistant\Service\TopicRouter;
  * - "representaion" -> "representation"
  * - "adress" -> "address"
  * - "where r u located" -> "where are you located"
- * - "child custody forms" NOT detected as greeting
+ * - "child custody forms" NOT detected as greeting.
  */
 #[Group('ilas_site_assistant')]
 class NormalizationRegressionTest extends TestCase {
@@ -58,6 +58,9 @@ class NormalizationRegressionTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function textSpeakProvider(): array {
     return [
       // Core text speak abbreviations.
@@ -110,6 +113,9 @@ class NormalizationRegressionTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function typoCorrectionProvider(): array {
     return [
       // Specific failing cases from eval.
@@ -158,6 +164,9 @@ class NormalizationRegressionTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function noFalseCorrectionProvider(): array {
     return [
       ['hi there', 'greeting should not be corrected'],
@@ -185,6 +194,9 @@ class NormalizationRegressionTest extends TestCase {
     $this->assertNotEmpty($result['text'], "Text should not be empty for: $input");
   }
 
+  /**
+   *
+   */
   public static function spanishDiacriticsProvider(): array {
     return [
       ['Dónde está la oficina', 'accented donde'],
@@ -207,6 +219,9 @@ class NormalizationRegressionTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function punctuationProvider(): array {
     return [
       ['where r u?', 'where are you', 'question mark'],
@@ -229,6 +244,9 @@ class NormalizationRegressionTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function mixedCaseProvider(): array {
     return [
       ['CHILD CUSTODY FORMS', 'child custody forms', 'all caps'],

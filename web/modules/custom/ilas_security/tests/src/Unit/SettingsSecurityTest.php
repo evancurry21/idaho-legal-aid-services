@@ -110,6 +110,11 @@ class SettingsSecurityTest extends TestCase {
       $this->settingsContents,
       'Permissions-Policy must restrict geolocation API'
     );
+    $this->assertStringContainsString(
+      'payment=()',
+      $this->settingsContents,
+      'Permissions-Policy must restrict payment API'
+    );
   }
 
 }

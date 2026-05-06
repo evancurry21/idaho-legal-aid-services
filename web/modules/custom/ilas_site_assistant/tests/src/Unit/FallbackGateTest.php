@@ -379,10 +379,14 @@ class FallbackGateTest extends TestCase {
     $metrics = FallbackGate::calculateGateMetrics($decisions);
 
     $this->assertEquals(5, $metrics['total']);
-    $this->assertEquals(0.40, $metrics['answer_rate']); // 2/5
-    $this->assertEquals(0.20, $metrics['clarify_rate']); // 1/5
-    $this->assertEquals(0.20, $metrics['fallback_rate']); // 1/5
-    $this->assertEquals(0.20, $metrics['hard_route_rate']); // 1/5
+    // 2/5
+    $this->assertEquals(0.40, $metrics['answer_rate']);
+    // 1/5
+    $this->assertEquals(0.20, $metrics['clarify_rate']);
+    // 1/5
+    $this->assertEquals(0.20, $metrics['fallback_rate']);
+    // 1/5
+    $this->assertEquals(0.20, $metrics['hard_route_rate']);
     $this->assertEqualsWithDelta(0.65, $metrics['avg_confidence'], 0.01);
     $this->assertArrayHasKey(FallbackGate::REASON_HIGH_CONF_INTENT, $metrics['by_reason_code']);
     $this->assertEquals(1, $metrics['by_reason_code'][FallbackGate::REASON_HIGH_CONF_INTENT]);

@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# ILAS Chatbot Pre-Push Hook
-# Runs validation checks before pushing to remote.
+# ILAS Chatbot Pre-Push Hook (deprecated legacy local tooling)
+# Preserved for historical local setups only. This hook is not the current Site
+# Assistant quality gate and should not be installed for new coverage.
 #
 # Install with:
 #   cp scripts/chatbot-eval/hooks/pre-push .git/hooks/pre-push
@@ -45,14 +46,15 @@ done
 
 # If no config files changed, allow push without checks.
 if [ "$CONFIG_CHANGED" = false ]; then
-  echo "No chatbot config changes detected, skipping CI check."
+  echo "No legacy chatbot config changes detected, skipping deprecated CI check."
   exit 0
 fi
 
 echo ""
 echo "=========================================="
-echo "Chatbot config changes detected!"
-echo "Running pre-push validation..."
+echo "Legacy chatbot config changes detected!"
+echo "Running deprecated local pre-push validation..."
+echo "Use Promptfoo, assistant-smoke, PHPUnit/functional tests, and Playwright for current coverage."
 echo "=========================================="
 echo ""
 
@@ -70,7 +72,7 @@ else
   echo "Your changes may have introduced a regression."
   echo "Please fix the issues before pushing."
   echo ""
-  echo "To bypass this check (not recommended):"
+  echo "To bypass this legacy check:"
   echo "  git push --no-verify"
   echo ""
   exit 1

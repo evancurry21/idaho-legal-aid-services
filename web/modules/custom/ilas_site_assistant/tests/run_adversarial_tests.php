@@ -18,13 +18,23 @@ use Drupal\ilas_site_assistant\Service\SafetyClassifier;
 
 // Simple mock config factory for standalone testing.
 $mockConfig = new class {
+
+  /**
+   *
+   */
   public function get($name) {
     return new class {
+
+      /**
+       *
+       */
       public function get($key) {
         return [];
       }
+
     };
   }
+
 };
 
 $classifier = new SafetyClassifier($mockConfig);

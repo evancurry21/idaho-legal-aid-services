@@ -5,6 +5,8 @@
  * Primary module hooks for ILAS Site Assistant module.
  */
 
+use Drupal\node\NodeInterface;
+use Drupal\Core\Site\Settings;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
 
@@ -97,7 +99,7 @@ function ilas_site_assistant_page_attachments(array &$attachments) {
  *   The page attachments array.
  */
 function ilas_site_assistant_attach_observability(array &$attachments): void {
-  $runtime = \Drupal\Core\Site\Settings::get('ilas_observability', []);
+  $runtime = Settings::get('ilas_observability', []);
   $ravenConfig = \Drupal::config('raven.settings');
   $sentryEnabled = (bool) $ravenConfig->get('client_key');
   $sentryBrowserDsn = (string) ($ravenConfig->get('public_dsn') ?: '');
@@ -154,7 +156,7 @@ if (!function_exists('ilas_site_assistant_get_canonical_urls')) {
     $urls = $config->get('canonical_urls');
     $urls = is_array($urls) ? $urls : [];
 
-    $online_application = \Drupal\Core\Site\Settings::get('ilas_site_assistant_legalserver_online_application_url', '');
+    $online_application = Settings::get('ilas_site_assistant_legalserver_online_application_url', '');
     if (is_string($online_application) && trim($online_application) !== '') {
       $urls['online_application'] = trim($online_application);
     }
@@ -260,5 +262,43 @@ function ilas_site_assistant_mail($key, &$message, $params) {
       $message['subject'] = $params['subject'];
       $message['body'][] = $params['body'];
       break;
+  }
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function ilas_site_assistant_node_insert(NodeInterface $node) {
+  _ilas_site_assistant_invalidate_office_directory_for_node($node);
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function ilas_site_assistant_node_update(NodeInterface $node) {
+  _ilas_site_assistant_invalidate_office_directory_for_node($node);
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function ilas_site_assistant_node_delete(NodeInterface $node) {
+  _ilas_site_assistant_invalidate_office_directory_for_node($node);
+}
+
+/**
+ * Invalidates the OfficeDirectory cache when an office_information node changes.
+ */
+function _ilas_site_assistant_invalidate_office_directory_for_node(NodeInterface $node) {
+  if ($node->bundle() !== 'office_information') {
+    return;
+  }
+  if (\Drupal::hasService('ilas_site_assistant.office_directory')) {
+    try {
+      \Drupal::service('ilas_site_assistant.office_directory')->invalidate();
+    }
+    catch (\Throwable $e) {
+      \Drupal::logger('ilas_site_assistant')->warning('OfficeDirectory cache invalidation failed: @msg', ['@msg' => $e->getMessage()]);
+    }
   }
 }

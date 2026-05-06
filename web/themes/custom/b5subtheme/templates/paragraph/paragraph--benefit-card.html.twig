@@ -15,6 +15,9 @@
  */
 #}
 
+{# field_benefit_color is a list_string with allowed_values "gray"/"blue";
+   consumed in a class string where `content.field_*` would inject a wrapper div.
+   Enum constraint plus Twig attribute autoescape keep this safe. #}
 {% set color_class = paragraph.field_benefit_color.value|default('gray') %}
 
 {% set classes = [
@@ -24,9 +27,20 @@
 
 <div{{ attributes.addClass(classes) }}>
   <div class="benefit-card__content">
+    {#
+      field_benefit_icon stores a Font Awesome class token (e.g. "fas fa-heart-pulse").
+      It is intentionally output as `.value` inside a class="" attribute so the render
+      pipeline does not wrap it in a field-template div. Twig autoescape applies in
+      HTML-attribute context, so any unexpected character is escaped, not interpreted
+      as markup. Field type is `string`, so there is no text format to bypass.
+    #}
     {% if paragraph.field_benefit_icon.value %}
       <i class="{{ paragraph.field_benefit_icon.value }} benefit-card__icon" aria-hidden="true"></i>
     {% endif %}
+    {# field_benefit_title is a plain `string` field (no text format); using
+       `.value` keeps the h3 free of Drupal's field-wrapper markup and avoids
+       the double-encoding that `|render|striptags|trim` would introduce.
+       Twig autoescape encodes any HTML metacharacters once on output. #}
     <h3 class="benefit-card__title">{{ paragraph.field_benefit_title.value }}</h3>
     <div class="benefit-card__summary">
       {{ content.field_benefit_summary }}

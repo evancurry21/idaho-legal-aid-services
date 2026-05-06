@@ -1,0 +1,37 @@
+description: "FAQ fallthrough smoke - 4 cases"
+prompts:
+  - file://prompts/ilas-thread.yaml
+providers:
+  - file://providers/ilas-live.js
+evaluateOptions:
+  maxConcurrency: 1
+defaultTest:
+  assert:
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasReadableContractMeta
+      metric: rag-contract-meta-present
+tests:
+  - vars:
+      question: "im raising my granddaughter because my daughter is on drugs... what are my legal options"
+    assert:
+      - type: javascript
+        value: file://lib/ilas-assertions.js:hasSupportedCitation
+        metric: rag-citation-coverage
+  - vars:
+      question: "whats the difference between guardianship and adoption"
+    assert:
+      - type: javascript
+        value: file://lib/ilas-assertions.js:hasSupportedCitation
+        metric: rag-citation-coverage
+  - vars:
+      question: "whats the difference between ssi and ssdi... im confused"
+    assert:
+      - type: javascript
+        value: file://lib/ilas-assertions.js:hasSupportedCitation
+        metric: rag-citation-coverage
+  - vars:
+      question: "what are idaho tenant rights for eviction notices"
+    assert:
+      - type: javascript
+        value: file://lib/ilas-assertions.js:hasSupportedCitation
+        metric: rag-citation-coverage

@@ -22,11 +22,17 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testDiagnosticsExposeCohereFactsAndHideRetiredGoogleFacts(): void {
     $snapshotBuilder = $this->createStub(RuntimeTruthSnapshotBuilder::class);
     $snapshotBuilder->method('buildSnapshot')->willReturn($this->buildSnapshot(FALSE, TRUE));
@@ -38,6 +44,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     $this->assertContains('llm.provider', $factKeys);
     $this->assertContains('llm.model', $factKeys);
     $this->assertContains('llm.request_time_generation_reachable', $factKeys);
+    $this->assertContains('llm.generation_probe_passed', $factKeys);
+    $this->assertContains('llm.generation_attempted', $factKeys);
+    $this->assertContains('llm.last_error', $factKeys);
     $this->assertContains('llm.cohere_api_key_present', $factKeys);
     $this->assertNotContains('llm.request_time_retired', $factKeys);
     $this->assertNotContains('llm.google_generation_reachable', $factKeys);
@@ -46,6 +55,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     $this->assertArrayNotHasKey('vertex_service_account', $diagnostics['credential_inventory'] ?? []);
   }
 
+  /**
+   *
+   */
   public function testDiagnosticsReflectVoyageReadyWhileLiveVectorRemainsDisabled(): void {
     $snapshotBuilder = $this->createStub(RuntimeTruthSnapshotBuilder::class);
     $snapshotBuilder->method('buildSnapshot')->willReturn($this->buildSnapshot(TRUE, FALSE));
@@ -77,6 +89,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
           'model' => 'command-a-03-2025',
           'runtime_ready' => $requestTimeReachable,
           'request_time_generation_reachable' => $requestTimeReachable,
+          'generation_probe_passed' => $requestTimeReachable,
+          'generation_attempted' => $requestTimeReachable,
+          'last_error' => NULL,
         ],
         'vector_search' => [
           'enabled' => FALSE,
@@ -113,6 +128,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
         'llm.provider' => 'Cohere-first request-time transport contract',
         'llm.model' => 'Cohere-first request-time transport contract',
         'llm.request_time_generation_reachable' => 'LlmEnhancer::isEnabled()',
+        'llm.generation_probe_passed' => 'CohereGenerationProbe exact-output proof',
+        'llm.generation_attempted' => 'CohereGenerationProbe last explicit probe state',
+        'llm.last_error' => 'CohereGenerationProbe sanitized last error',
         'vector_search.enabled' => 'config export',
       ],
       'divergences' => [],
@@ -132,6 +150,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     ];
   }
 
+  /**
+   *
+   */
   private function buildRetrievalConfiguration(): RetrievalConfigurationService {
     new Settings([
       'ilas_site_assistant_legalserver_online_application_url' => 'https://example.com/intake?pid=60&h=test',
@@ -185,9 +206,14 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
       });
 
     $server = new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
     };
     $servers = [
       'database' => $server,
@@ -214,6 +240,9 @@ final class RuntimeDiagnosticsMatrixContractTest extends TestCase {
     return new RetrievalConfigurationService($configFactory, $entityTypeManager);
   }
 
+  /**
+   *
+   */
   private function buildIndex(string $serverId): IndexInterface {
     $index = $this->createMock(IndexInterface::class);
     $index->method('status')->willReturn(TRUE);

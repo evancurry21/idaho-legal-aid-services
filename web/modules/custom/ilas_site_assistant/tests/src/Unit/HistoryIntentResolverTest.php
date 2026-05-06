@@ -86,14 +86,25 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
+   * Short correction words suppress sticky history fallback.
+   */
+  public function testCorrectionResetSignals(): void {
+    $this->assertTrue(HistoryIntentResolver::detectResetSignal('Actually divorce.'));
+    $this->assertTrue(HistoryIntentResolver::detectResetSignal('Instead custody.'));
+  }
+
+  /**
    * History entries older than the time window are ignored.
    */
   public function testStaleHistoryIgnored(): void {
     $now = 1000000;
     $history = [
-      $this->entry('topic_housing', $now - 700),  // >600s ago
-      $this->entry('topic_housing', $now - 650),  // >600s ago
-      $this->entry('topic_housing', $now - 620),  // >600s ago
+    // >600s ago
+      $this->entry('topic_housing', $now - 700),
+    // >600s ago
+      $this->entry('topic_housing', $now - 650),
+    // >600s ago
+      $this->entry('topic_housing', $now - 620),
     ];
 
     $result = HistoryIntentResolver::resolveFromHistory(
@@ -182,6 +193,18 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
+   * Older history without area metadata still exposes topic context.
+   */
+  public function testExtractTopicContextInfersFromHistoryText(): void {
+    $context = HistoryIntentResolver::extractTopicContext([
+      $this->entry('unknown', 1000000, 'I got an eviction notice.'),
+    ]);
+
+    $this->assertSame('housing', $context['area'] ?? NULL);
+    $this->assertSame('eviction', $context['topic'] ?? NULL);
+  }
+
+  /**
    * Dominance threshold enforced: 2/4 = 50% meets threshold for family.
    */
   public function testDominanceThresholdEnforced(): void {
@@ -247,7 +270,7 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * extractTopicContext returns area from enriched history entry.
+   * ExtractTopicContext returns area from enriched history entry.
    */
   public function testExtractTopicContextReturnsArea(): void {
     $history = [
@@ -274,7 +297,7 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * extractTopicContext returns NULL when no area in history.
+   * ExtractTopicContext returns NULL when no area in history.
    */
   public function testExtractTopicContextReturnsNullWithoutArea(): void {
     $history = [
@@ -291,7 +314,7 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * resolveFromHistory includes topic_context in return.
+   * ResolveFromHistory includes topic_context in return.
    */
   public function testResolveFromHistoryIncludesTopicContext(): void {
     $now = 1000000;
@@ -317,9 +340,9 @@ class HistoryIntentResolverTest extends TestCase {
   }
 
   /**
-   * resolveFromHistory topic_context is NULL when history has no area fields.
+   * ResolveFromHistory infers topic_context for old entries without area.
    */
-  public function testResolveFromHistoryTopicContextNullWithoutArea(): void {
+  public function testResolveFromHistoryTopicContextInferredWithoutArea(): void {
     $now = 1000000;
     $history = [
       $this->entry('topic_housing', $now - 60),
@@ -331,8 +354,7 @@ class HistoryIntentResolverTest extends TestCase {
 
     $this->assertNotNull($result);
     $this->assertArrayHasKey('topic_context', $result);
-    // Old-format entries without 'area' field → NULL topic_context.
-    $this->assertNull($result['topic_context']);
+    $this->assertSame('housing', $result['topic_context']['area'] ?? NULL);
   }
 
   /**

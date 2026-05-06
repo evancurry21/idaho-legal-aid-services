@@ -1,0 +1,146 @@
+          <fieldset class="wizard-step" data-step="2" role="group" aria-labelledby="step2-heading" hidden>
+            <div class="step-header">
+              <h2 id="step2-heading">Select the position you're applying for</h2>
+            </div>
+
+            <div class="step-content">
+              {# Job Locked Confirmation Card - shown when arriving via deep link #}
+              <div id="job-locked-confirmation"
+                   class="job-confirmation-card"
+                   role="region"
+                   aria-labelledby="job-confirmation-heading"
+                   tabindex="-1"
+                   style="display: none;">
+
+                {# Header with checkmark #}
+                <div class="job-confirmation-card__header">
+                  <div class="job-confirmation-card__check" aria-hidden="true">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div class="job-confirmation-card__intro">
+                    <span class="job-confirmation-card__label" id="job-confirmation-heading">You're applying for:</span>
+                    <h3 class="job-confirmation-card__title" id="job-locked-title"></h3>
+                  </div>
+                </div>
+
+                {# Job Details Grid #}
+                <div class="job-confirmation-card__details" role="list" aria-label="Position details">
+                  <div class="job-detail-item" role="listitem" id="job-detail-location" style="display: none;">
+                    <span class="job-detail-item__icon" aria-hidden="true">
+                      <i class="fas fa-map-marker-alt"></i>
+                    </span>
+                    <span class="job-detail-item__label visually-hidden">Location:</span>
+                    <span class="job-detail-item__value" data-field="location"></span>
+                  </div>
+
+                  <div class="job-detail-item" role="listitem" id="job-detail-type" style="display: none;">
+                    <span class="job-detail-item__icon" aria-hidden="true">
+                      <i class="fas fa-clock"></i>
+                    </span>
+                    <span class="job-detail-item__label visually-hidden">Employment Type:</span>
+                    <span class="job-detail-item__value" data-field="type"></span>
+                  </div>
+
+                  <div class="job-detail-item" role="listitem" id="job-detail-salary" style="display: none;">
+                    <span class="job-detail-item__icon" aria-hidden="true">
+                      <i class="fas fa-dollar-sign"></i>
+                    </span>
+                    <span class="job-detail-item__label visually-hidden">Salary Range:</span>
+                    <span class="job-detail-item__value" data-field="salary"></span>
+                  </div>
+
+                  <div class="job-detail-item" role="listitem" id="job-detail-arrangement" style="display: none;">
+                    <span class="job-detail-item__icon" aria-hidden="true">
+                      <i class="fas fa-building"></i>
+                    </span>
+                    <span class="job-detail-item__label visually-hidden">Work Arrangement:</span>
+                    <span class="job-detail-item__value" data-field="arrangement"></span>
+                  </div>
+
+                  <div class="job-detail-item" role="listitem" id="job-detail-deadline" style="display: none;">
+                    <span class="job-detail-item__icon" aria-hidden="true">
+                      <i class="fas fa-calendar-alt"></i>
+                    </span>
+                    <span class="job-detail-item__label visually-hidden">Application Deadline:</span>
+                    <span class="job-detail-item__value" data-field="deadline"></span>
+                  </div>
+
+                  <div class="job-detail-item job-detail-item--open" role="listitem" id="job-detail-open-until-filled" style="display: none;">
+                    <span class="job-detail-item__icon" aria-hidden="true">
+                      <i class="fas fa-infinity"></i>
+                    </span>
+                    <span class="job-detail-item__value">Open until filled</span>
+                  </div>
+                </div>
+
+                {# Actions #}
+                <div class="job-confirmation-card__actions">
+                  <a href="/employment" class="btn btn-nav">
+                    <i class="fas fa-arrow-left me-2" aria-hidden="true"></i>
+                    Back to Careers
+                  </a>
+                  <button type="button" id="unlock-job-btn" class="btn btn-primary">
+                    <i class="fas fa-exchange-alt me-2" aria-hidden="true"></i>
+                    Choose a Different Position
+                  </button>
+                </div>
+
+                {# Screen reader announcement #}
+                <div class="visually-hidden" aria-live="polite" id="job-locked-announcement"></div>
+              </div>
+
+              {# Job Selection - shown when not locked #}
+              <div id="job-selection-panel" class="form-grid">
+                <div class="form-group full-width">
+                  <label for="job_selected" class="form-label required">
+                    Position Applying For
+                    <span class="visually-hidden">(required)</span>
+                  </label>
+                  <select id="job_selected"
+                          class="form-control"
+                          required
+                          aria-required="true"
+                          aria-describedby="job_selected_error job_selected_help">
+                    <option value="">Loading positions...</option>
+                  </select>
+                  <div class="form-feedback" id="job_selected_error" role="alert" aria-live="polite"></div>
+                  <small id="job_selected_help" class="form-help">Select from currently posted positions</small>
+                </div>
+
+                {# No positions available message #}
+                <div id="no-positions-message" class="alert alert-info full-width" style="display: none;">
+                  <i class="fas fa-info-circle" aria-hidden="true"></i>
+                  <span>No positions are currently available. Please check back later or <a href="/employment">view our careers page</a>.</span>
+                </div>
+              </div>
+
+              {# Start date and salary - always visible regardless of job lock state #}
+              <div class="form-grid" id="step2-additional-fields">
+                <div class="form-group">
+                  <label for="available_start_date" class="form-label required">
+                    Earliest Available Start Date
+                    <span class="visually-hidden">(required)</span>
+                  </label>
+                  <input type="date"
+                         id="available_start_date"
+                         name="available_start_date"
+                         class="form-control"
+                         required
+                         aria-required="true"
+                         aria-describedby="available_start_date_error"
+                         min="{{ 'now'|date('Y-m-d') }}">
+                  <div class="form-feedback" id="available_start_date_error" role="alert" aria-live="polite"></div>
+                </div>
+
+                <div class="form-group">
+                  <label for="salary_requirements" class="form-label">Salary Requirements</label>
+                  <input type="text"
+                         id="salary_requirements"
+                         name="salary_requirements"
+                         class="form-control"
+                         placeholder="e.g., $50,000 - $60,000 annually">
+                  <small class="form-help">Optional</small>
+                </div>
+              </div>
+            </div>
+          </fieldset>

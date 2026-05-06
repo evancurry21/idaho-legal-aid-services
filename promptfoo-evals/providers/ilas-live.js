@@ -2,7 +2,8 @@
  * ILAS Live Assistant — Promptfoo custom provider
  *
  * Shared transport/runtime lives in `promptfoo-evals/lib/ilas-live-shared.js`.
- * That module retains the assistant session bootstrap fallback chain:
+ * That module uses the current assistant session bootstrap endpoint and keeps a
+ * legacy fallback only for older environments:
  *   - /assistant/api/session/bootstrap
  *   - /session/token
  * and appends `[contract_meta]` to rendered provider output.
@@ -11,11 +12,15 @@
 const {
   DEFAULT_EXPECTED_REQUEST_TOTAL,
   IlasLiveTransport,
+  buildIlasProviderMeta,
   deterministicUuidV4,
   formatStructuredError,
   renderAssistantOutput,
 } = require('../lib/ilas-live-shared');
 const crypto = require('node:crypto');
+
+const UUID_V4_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+const isUuidV4 = (value) => typeof value === 'string' && UUID_V4_RE.test(value);
 
 class IlasLiveProvider {
   constructor(options = {}) {
@@ -32,7 +37,7 @@ class IlasLiveProvider {
     return this.providerId;
   }
 
-  getConversationId(prompt, context) {
+  getConversationIds(prompt, context) {
     const vars = context?.vars || {};
     const metadata =
       context?.metadata ||
@@ -47,8 +52,37 @@ class IlasLiveProvider {
       vars.conversationId ||
       null;
 
+    // The trace identity is the value the assertion library hashes via
+    // `computeExpectedConversationHash(context)` — it reads from the same
+    // metadata fields. When a fixture provides one, it is the stable identity
+    // for the whole multi-turn conversation.
+    const traceConversationId = explicitConversationId || null;
+
+    // When a fixture provides an explicit conversation id, it must reach the
+    // backend as a valid UUID v4 — the AssistantApiController rejects anything
+    // else and treats the request as a brand-new conversation, breaking
+    // multi-turn continuity. Convert deterministically so the same scenario
+    // label always maps to the same UUID within (and, when ILAS_EVAL_RUN_ID is
+    // set, across) runs.
+    if (explicitConversationId) {
+      if (isUuidV4(explicitConversationId)) {
+        return {
+          apiConversationId: explicitConversationId,
+          traceConversationId,
+        };
+      }
+      const seed = this.evalRunId
+        ? `${this.evalRunId}:${explicitConversationId}`
+        : `scenario:${explicitConversationId}`;
+      return {
+        apiConversationId: deterministicUuidV4(seed),
+        traceConversationId,
+      };
+    }
+
     if (!this.evalRunId) {
-      return explicitConversationId || crypto.randomUUID();
+      const apiConversationId = crypto.randomUUID();
+      return { apiConversationId, traceConversationId: apiConversationId };
     }
 
     const stableFallbackKey = [
@@ -62,8 +96,15 @@ class IlasLiveProvider {
       .filter((value) => value !== null && value !== undefined && value !== '')
       .join('|');
 
-    const baseKey = explicitConversationId || stableFallbackKey || crypto.randomUUID();
-    return deterministicUuidV4(`${this.evalRunId}:${baseKey}`);
+    const baseKey = stableFallbackKey || crypto.randomUUID();
+    const apiConversationId = deterministicUuidV4(`${this.evalRunId}:${baseKey}`);
+    return { apiConversationId, traceConversationId: apiConversationId };
+  }
+
+  // Back-compat shim: older callers may still invoke getConversationId(); keep
+  // it returning the API conversation id.
+  getConversationId(prompt, context) {
+    return this.getConversationIds(prompt, context).apiConversationId;
   }
 
   logProgress(question, context) {
@@ -80,7 +121,7 @@ class IlasLiveProvider {
     this.transport.resolveUrls();
 
     const question = context?.vars?.question || prompt;
-    const conversationId = this.getConversationId(prompt, context);
+    const { apiConversationId, traceConversationId } = this.getConversationIds(prompt, context);
     const priorHistory = Array.isArray(context?.vars?.history) ? context.vars.history : [];
     const requestContext =
       context?.vars?.request_context && typeof context.vars.request_context === 'object'
@@ -92,17 +133,42 @@ class IlasLiveProvider {
 
     const result = await this.transport.callMessageApi({
       question,
-      conversationId,
+      conversationId: apiConversationId,
       history,
       requestContext,
     });
 
     if (!result.ok) {
-      return { error: formatStructuredError(result.error) };
+      const providerMeta = buildIlasProviderMeta(
+        {},
+        this.transport.options.siteBaseUrl,
+        {
+          providerMode: 'live_api',
+          conversationId: traceConversationId,
+          transportMeta: result.transport || null,
+          errors: [result.error],
+        }
+      );
+      return {
+        error: formatStructuredError(result.error),
+        metadata: { ilas: providerMeta },
+      };
     }
 
+    const providerMeta = buildIlasProviderMeta(
+      result.data,
+      this.transport.options.siteBaseUrl,
+      {
+        providerMode: 'live_api',
+        conversationId: traceConversationId,
+        transportMeta: result.transport || null,
+        requestId: result.data?.request_id || null,
+      }
+    );
+
     return {
-      output: renderAssistantOutput(result.data, this.transport.options.siteBaseUrl),
+      output: renderAssistantOutput(result.data, this.transport.options.siteBaseUrl, { providerMeta }),
+      metadata: { ilas: providerMeta },
       tokenUsage: {},
     };
   }

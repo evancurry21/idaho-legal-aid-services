@@ -6,6 +6,13 @@
 (function ($, Drupal, drupalSettings, once) {
   'use strict';
 
+  const DEBUG = !!(drupalSettings && drupalSettings.ilasDebug);
+  function debugLog() {
+    if (!DEBUG) return;
+    var args = ['[employment-app]'].concat(Array.prototype.slice.call(arguments));
+    console.log.apply(console, args);
+  }
+
   // Configuration
   const CONFIG = {
     STORAGE_KEY: 'employment_application_draft',
@@ -86,7 +93,6 @@
       this.setupJobSelection();
       this.setupSaveResume();
       this.loadDraftFromToken() || this.loadDraft();
-      console.log('Employment Application Wizard initialized');
     },
 
     // Check if we just submitted and show success message
@@ -156,7 +162,7 @@
               $('#form-nonce').val(response.nonce);
               $(CONFIG.SELECTORS.FORM_BUILD_ID).val(response.build_id || '');
               self.clearTokenError();
-              console.log('Security tokens obtained (attempt ' + attempt + ')');
+              debugLog('Security tokens obtained (attempt ' + attempt + ')');
             } else {
               handleFailure(attempt, 'Incomplete token response');
             }
@@ -427,7 +433,7 @@
         // Valid active job - select and lock it
         this.setSelectedJob(jobUuid);
         this.lockJobSelection();
-        console.log('Deep linked to job:', job.label);
+        debugLog('Deep linked to job:', job.label);
 
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -479,7 +485,7 @@
       // Trigger the attorney questions logic based on position_family
       this.updateAttorneyQuestionsVisibility(job.position_family);
 
-      console.log('Selected job:', job.label, 'Position family:', job.position_family);
+      debugLog('Selected job:', job.label, 'Position family:', job.position_family);
     },
 
     clearSelectedJob: function() {
@@ -558,7 +564,7 @@
         '. You can change your selection using the button below.';
       $card.find('#job-locked-announcement').text(announcement);
 
-      console.log('Job selection locked:', job.label);
+      debugLog('Job selection locked:', job.label);
     },
 
     unlockJobSelection: function() {
@@ -578,7 +584,7 @@
       // Focus the dropdown for keyboard navigation
       this.$form.find('#job_selected').focus();
 
-      console.log('Job selection unlocked');
+      debugLog('Job selection unlocked');
     },
 
     // Helper to populate a job detail field
@@ -915,20 +921,45 @@
       // Create container for multiple files
       const $multiplePreview = $('<div class="multiple-files-preview"></div>');
       
+      const previewContainer = $multiplePreview[0];
       files.forEach((file, index) => {
-        const $filePreview = $(`
-          <div class="file-preview-item" data-file-index="${index}">
-            <div class="file-info">
-              <i class="fas fa-file-alt" aria-hidden="true"></i>
-              <span class="file-name">${file.name}</span>
-              <span class="file-size">${this.formatFileSize(file.size)}</span>
-            </div>
-            <button type="button" class="remove-file" aria-label="Remove ${file.name}" data-file-index="${index}">
-              <i class="fas fa-times" aria-hidden="true"></i>
-            </button>
-          </div>
-        `);
-        $multiplePreview.append($filePreview);
+        const item = document.createElement('div');
+        item.className = 'file-preview-item';
+        item.dataset.fileIndex = String(index);
+
+        const info = document.createElement('div');
+        info.className = 'file-info';
+
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-file-alt';
+        icon.setAttribute('aria-hidden', 'true');
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'file-name';
+        nameEl.appendChild(document.createTextNode(file.name));
+
+        const sizeEl = document.createElement('span');
+        sizeEl.className = 'file-size';
+        sizeEl.textContent = this.formatFileSize(file.size);
+
+        info.appendChild(icon);
+        info.appendChild(nameEl);
+        info.appendChild(sizeEl);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-file';
+        removeBtn.setAttribute('aria-label', 'Remove ' + file.name);
+        removeBtn.dataset.fileIndex = String(index);
+
+        const removeIcon = document.createElement('i');
+        removeIcon.className = 'fas fa-times';
+        removeIcon.setAttribute('aria-hidden', 'true');
+        removeBtn.appendChild(removeIcon);
+
+        item.appendChild(info);
+        item.appendChild(removeBtn);
+        previewContainer.appendChild(item);
       });
       
       $area.append($multiplePreview);
@@ -1207,7 +1238,7 @@
             this.goToStep(data.currentStep);
           }
         } catch (e) {
-          console.log('Could not load draft:', e);
+          debugLog('Could not load draft:', e);
         }
       }
     },
@@ -1417,8 +1448,6 @@
         return;
       }
 
-      console.log('Attempting form submission...');
-
       // === FAIL-CLOSED: require valid token + nonce before submitting ===
       if (!this.tokenReady || !this.formTokens.token || !this.formTokens.nonce) {
         if (this.tokenFetchFailed) {
@@ -1565,9 +1594,9 @@
       };
 
       ajaxConfig.complete = function(xhr, status) {
-        console.log('AJAX Complete - Status:', status, 'HTTP Status:', xhr.status);
+        debugLog('AJAX Complete - Status:', status, 'HTTP Status:', xhr.status);
       };
-      
+
       // Submit the form
       $.ajax(ajaxConfig);
     },

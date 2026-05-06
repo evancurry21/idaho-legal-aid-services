@@ -434,6 +434,24 @@ class FallbackGate {
         );
       }
 
+      // Medium intent confidence with no results: route to a topic-overview
+      // response rather than asking the user to clarify a question we already
+      // understood. The ResponseBuilder owns the deterministic topic copy +
+      // canonical link set.
+      if ($intent_conf >= $thresholds['intent_medium_conf']) {
+        $capped_confidence = min(0.45, $intent_conf * 0.6);
+        return $this->buildDecision(
+          self::DECISION_ANSWER,
+          self::REASON_NO_RESULTS,
+          $capped_confidence,
+          array_merge($details, [
+            'note' => 'No results, medium intent confidence — topic overview',
+            'no_results_confidence_capped' => TRUE,
+            'topic_overview_route' => TRUE,
+          ])
+        );
+      }
+
       // Low confidence with no results - clarify.
       return $this->buildDecision(
         self::DECISION_CLARIFY,
@@ -631,10 +649,12 @@ class FallbackGate {
     $result_count = count($results);
 
     if ($result_count >= 3) {
-      return 0.70; // Multiple results suggest good match.
+      // Multiple results suggest good match.
+      return 0.70;
     }
     elseif ($result_count >= 1) {
-      return 0.50; // At least one result.
+      // At least one result.
+      return 0.50;
     }
 
     return 0.0;

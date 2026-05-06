@@ -139,6 +139,15 @@ class ResponseBuilderTest extends TestCase {
     $secondary_urls = array_map(fn($a) => $a['url'], $response['secondary_actions']);
     $this->assertContains('/services', $secondary_urls,
       '/services must be in secondary_actions for services_overview');
+    // Legal Advice Line must be in secondary_actions so concrete services
+    // overview answers carry an "apply / call" action term that satisfies
+    // the smoke `hasActionableNextStep` assertion deterministically.
+    $this->assertContains('/Legal-Advice-Line', $secondary_urls,
+      '/Legal-Advice-Line must be in secondary_actions for services_overview');
+    // The user-facing answer must mention eligibility/free/civil/legal so
+    // smoke topic-term assertions match without depending on metadata.
+    $this->assertStringContainsStringIgnoringCase('eligible', $response['answer_text']);
+    $this->assertStringContainsStringIgnoringCase('free civil legal', $response['answer_text']);
   }
 
   /**

@@ -20,13 +20,13 @@ class InputNormalizer {
   /**
    * Applies the full normalization pipeline.
    *
- * Pipeline order:
- * 1. Unicode NFKC normalization
- * 2. Homoglyph substitution (Cyrillic/Greek confusables → Latin)
- * 3. Strip invisible formatting (zero-width / soft hyphen)
- * 4. Strip interstitial punctuation (l.e.g.a.l → legal)
- * 5. Collapse evasion spacing (l e g a l → legal)
- * 6. Normalize whitespace (collapse + trim)
+   * Pipeline order:
+   * 1. Unicode NFKC normalization
+   * 2. Homoglyph substitution (Cyrillic/Greek confusables → Latin)
+   * 3. Strip invisible formatting (zero-width / soft hyphen)
+   * 4. Strip interstitial punctuation (l.e.g.a.l → legal)
+   * 5. Collapse evasion spacing (l e g a l → legal)
+   * 6. Normalize whitespace (collapse + trim)
    *
    * @param string $input
    *   Raw user input (already HTML-sanitized).
@@ -88,36 +88,64 @@ class InputNormalizer {
     // Mapping: confusable → Latin equivalent.
     static $map = [
       // Cyrillic lowercase.
-      "\u{0430}" => 'a',  // а → a
-      "\u{0435}" => 'e',  // е → e
-      "\u{043E}" => 'o',  // о → o
-      "\u{0440}" => 'p',  // р → p
-      "\u{0441}" => 'c',  // с → c
-      "\u{0443}" => 'y',  // у → y
-      "\u{0445}" => 'x',  // х → x
-      "\u{0456}" => 'i',  // і → i (Ukrainian)
-      "\u{0458}" => 'j',  // ј → j (Serbian)
-      "\u{04BB}" => 'h',  // һ → h
+    // а → a.
+      "\u{0430}" => 'a',
+    // е → e.
+      "\u{0435}" => 'e',
+    // о → o.
+      "\u{043E}" => 'o',
+    // р → p.
+      "\u{0440}" => 'p',
+    // с → c.
+      "\u{0441}" => 'c',
+    // у → y.
+      "\u{0443}" => 'y',
+    // х → x.
+      "\u{0445}" => 'x',
+    // і → i (Ukrainian)
+      "\u{0456}" => 'i',
+    // ј → j (Serbian)
+      "\u{0458}" => 'j',
+    // һ → h.
+      "\u{04BB}" => 'h',
       // Cyrillic uppercase.
-      "\u{0410}" => 'A',  // А → A
-      "\u{0412}" => 'B',  // В → B
-      "\u{0415}" => 'E',  // Е → E
-      "\u{041A}" => 'K',  // К → K
-      "\u{041C}" => 'M',  // М → M
-      "\u{041D}" => 'H',  // Н → H
-      "\u{041E}" => 'O',  // О → O
-      "\u{0420}" => 'P',  // Р → P
-      "\u{0421}" => 'C',  // С → C
-      "\u{0422}" => 'T',  // Т → T
-      "\u{0425}" => 'X',  // Х → X
+    // А → A.
+      "\u{0410}" => 'A',
+    // В → B.
+      "\u{0412}" => 'B',
+    // Е → E.
+      "\u{0415}" => 'E',
+    // К → K.
+      "\u{041A}" => 'K',
+    // М → M.
+      "\u{041C}" => 'M',
+    // Н → H.
+      "\u{041D}" => 'H',
+    // О → O.
+      "\u{041E}" => 'O',
+    // Р → P.
+      "\u{0420}" => 'P',
+    // С → C.
+      "\u{0421}" => 'C',
+    // Т → T.
+      "\u{0422}" => 'T',
+    // Х → X.
+      "\u{0425}" => 'X',
       // Greek lowercase.
-      "\u{03B1}" => 'a',  // α → a
-      "\u{03B5}" => 'e',  // ε → e
-      "\u{03BF}" => 'o',  // ο → o
-      "\u{03C1}" => 'p',  // ρ → p
-      "\u{03BA}" => 'k',  // κ → k
-      "\u{03BD}" => 'v',  // ν → v
-      "\u{03C4}" => 't',  // τ → t (visual match in some fonts)
+    // α → a.
+      "\u{03B1}" => 'a',
+    // ε → e.
+      "\u{03B5}" => 'e',
+    // ο → o.
+      "\u{03BF}" => 'o',
+    // ρ → p.
+      "\u{03C1}" => 'p',
+    // κ → k.
+      "\u{03BA}" => 'k',
+    // ν → v.
+      "\u{03BD}" => 'v',
+    // τ → t (visual match in some fonts)
+      "\u{03C4}" => 't',
     ];
 
     return strtr($input, $map);

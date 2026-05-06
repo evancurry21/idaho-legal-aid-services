@@ -27,6 +27,19 @@
  */
 #}
 
+{#
+  Safety note: every `|raw` below outputs a variable assigned from
+  `fields.<name>.content|render|trim`. `fields.X.content` is the already-rendered
+  Views field — passed through Drupal's render pipeline and the field's Views
+  formatter — so it is safe HTML. We re-emit through `|raw` because Twig would
+  otherwise double-escape the formatter output.
+
+  Field formatters (see config/views.view.press_room_listing.yml display "default"):
+  - field_featured_image:        entity_reference_entity_view (view_mode: 3_2_small)
+  - field_body:                  text_trimmed (trim_length: 450) — text-format filters run upstream
+  - field_press_topic:           entity_reference_label (link: true)
+#}
+
 {# Extract the node URL from the title link #}
 {% set node_url = '' %}
 {% if fields.title.content %}

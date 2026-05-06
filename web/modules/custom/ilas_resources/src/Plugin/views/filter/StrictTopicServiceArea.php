@@ -72,12 +72,13 @@ class StrictTopicServiceArea extends FilterPluginBase {
     if (empty($this->view->args[0])) {
       return;
     }
-    $service_tid = $this->view->args[0]; // expects Service Area TID as first argument
+    // Expects Service Area TID as first argument.
+    $service_tid = $this->view->args[0];
 
-    // Get term storage
+    // Get term storage.
     $term_storage = $this->entityTypeManager->getStorage('taxonomy_term');
 
-    // Collect all unique topic TIDs to load them in bulk
+    // Collect all unique topic TIDs to load them in bulk.
     $all_topic_tids = [];
     foreach ($result as $row) {
       $node = $row->_entity ?? NULL;
@@ -88,10 +89,10 @@ class StrictTopicServiceArea extends FilterPluginBase {
     }
     $all_topic_tids = array_unique($all_topic_tids);
 
-    // Load all topics at once to avoid N+1 queries
+    // Load all topics at once to avoid N+1 queries.
     $topics = $term_storage->loadMultiple($all_topic_tids);
-    
-    // Build a map of topic TID to service area TIDs for quick lookup
+
+    // Build a map of topic TID to service area TIDs for quick lookup.
     $topic_service_map = [];
     foreach ($topics as $tid => $topic) {
       if ($topic->hasField('field_service_areas')) {
@@ -99,7 +100,7 @@ class StrictTopicServiceArea extends FilterPluginBase {
       }
     }
 
-    // Now filter the results using the pre-loaded data
+    // Now filter the results using the pre-loaded data.
     foreach ($result as $key => $row) {
       /** @var \Drupal\node\NodeInterface $node */
       $node = $row->_entity ?? NULL;
@@ -107,26 +108,36 @@ class StrictTopicServiceArea extends FilterPluginBase {
         unset($result[$key]);
         continue;
       }
-      
+
       $topic_tids = array_column($node->get('field_topics')->getValue(), 'target_id');
       $match = FALSE;
-      
+
       foreach ($topic_tids as $tid) {
         if (isset($topic_service_map[$tid]) && in_array($service_tid, $topic_service_map[$tid])) {
           $match = TRUE;
           break;
         }
       }
-      
+
       if (!$match) {
         unset($result[$key]);
       }
     }
-    
-    // Reindex the result array
+
+    // Reindex the result array.
     $result = array_values($result);
   }
 
-  public function buildExposeForm(&$form, FormStateInterface $form_state) { }
-  public function acceptExposedInput($input) { return TRUE; }
+  /**
+   *
+   */
+  public function buildExposeForm(&$form, FormStateInterface $form_state) {}
+
+  /**
+   *
+   */
+  public function acceptExposedInput($input) {
+    return TRUE;
+  }
+
 }

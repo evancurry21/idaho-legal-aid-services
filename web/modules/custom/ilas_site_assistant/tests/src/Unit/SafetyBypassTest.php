@@ -23,7 +23,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * - F-09: Hyphenated urgency miss ("3-day notice")
  * - F-10: Informational dampener too aggressive
  * - F-11: Spanish prompt injection
- * - F-07: Human:/Assistant: anchor fix
+ * - F-07: Human:/Assistant: anchor fix.
  */
 #[Group('ilas_site_assistant')]
 class SafetyBypassTest extends TestCase {

@@ -1,15 +1,24 @@
-/**
- * Premium Employment Application - Multi-Step Wizard
- * Comprehensive styling for accessible, responsive employment application
- */
+// _employment-wizard.scss
+// Owns: multi-step employment application wizard rendered by
+// `node--employment-application.html.twig` and driven by
+// `js/premium-application.js`.
+// Roots: `.application-wizard`, `.node--employment-application`.
+//
+// Do NOT rename JS-bound selectors here without updating
+// `js/premium-application.js` in the same patch. Affected selectors
+// include (non-exhaustive): `.application-wizard`, `.wizard-step`,
+// `.progress-bar-fill`, `.btn-prev`, `.btn-next`, `.btn-submit`,
+// `.file-upload-area`, `.file-input`, `.auto-save-status`,
+// `.application-success-modal`, `#form-token`, `#form-build-id`,
+// `#position_applied`, `#job_selected`, `#save-resume-email`.
+//
+// The cross-component `.node--employment .field--name-field-faq-section-title`
+// @extend that lived here historically now lives in
+// `_employment-shared.scss` so its dependency on `.accordion-section-title`
+// (defined in `_accordion.scss`) is visible to maintainers.
 
 // Application-specific variables
 $wizard-max-width: 900px;
-
-// Employment page field styling to match FAQ titles
-.node--employment .field--name-field-faq-section-title {
-  @extend .accordion-section-title;
-}
 $step-circle-size: 40px;
 $step-circle-size-mobile: 32px;
 $progress-height: 4px;

@@ -10,7 +10,7 @@ namespace Drupal\ilas_site_assistant\Service;
  * - The token is at least 4 characters long
  * - Levenshtein distance is within conservative thresholds
  * - There is a single unambiguous best match (no ties)
- * - The corrected term exists in the known vocabulary
+ * - The corrected term exists in the known vocabulary.
  *
  * This is intentionally conservative to avoid false corrections.
  */
@@ -74,7 +74,7 @@ class TypoCorrector {
    * @param \Drupal\ilas_site_assistant\Service\AcronymExpander|null $acronym_expander
    *   Optional acronym expander for vocabulary.
    */
-  public function __construct($cache = NULL, TopicRouter $topic_router = NULL, AcronymExpander $acronym_expander = NULL) {
+  public function __construct($cache = NULL, ?TopicRouter $topic_router = NULL, ?AcronymExpander $acronym_expander = NULL) {
     $this->cache = $cache;
     $this->topicRouter = $topic_router;
     $this->acronymExpander = $acronym_expander;

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Run k6 load test against ILAS Chatbot API
+# Run k6 load test against ILAS Site Assistant API
 #
 # Prerequisites:
 #   - k6 installed: https://k6.io/docs/getting-started/installation/
@@ -47,6 +47,9 @@ while [[ $# -gt 0 ]]; do
             echo "  --url URL     Override target URL (default: DDEV URL)"
             echo "  -h, --help    Show this help message"
             echo ""
+            echo "Environment:"
+            echo "  ALLOW_LIVE_LOAD=1  Permit an explicitly approved live/public load test"
+            echo ""
             echo "Prerequisites:"
             echo "  - k6 must be installed (brew install k6 or apt install k6)"
             echo "  - DDEV must be running (ddev start)"
@@ -74,7 +77,7 @@ fi
 mkdir -p "$REPORTS_DIR"
 
 echo "=========================================="
-echo "ILAS Chatbot API Load Test"
+echo "ILAS Site Assistant API Load Test"
 echo "=========================================="
 echo "Target URL: $BASE_URL"
 echo "Reports:    $REPORTS_DIR"
@@ -103,11 +106,14 @@ echo ""
 K6_CMD="k6 run"
 K6_CMD="$K6_CMD -e BASE_URL=$BASE_URL"
 
+if [[ -n "${ALLOW_LIVE_LOAD:-}" ]]; then
+    K6_CMD="$K6_CMD -e ALLOW_LIVE_LOAD=$ALLOW_LIVE_LOAD"
+fi
+
 if [ "$QUICK_MODE" = true ]; then
     echo "Running QUICK smoke test (1 VU, 10s)..."
     echo ""
-    # Override scenarios for quick test
-    K6_CMD="$K6_CMD --vus 1 --duration 10s --no-thresholds"
+    K6_CMD="$K6_CMD -e QUICK_MODE=1 --no-thresholds"
 else
     echo "Running FULL load test..."
     echo "  Stage 1: 1 VU for 30s"

@@ -231,16 +231,26 @@ fallback_gate:
 
 ## Testing
 
-Run the evaluation harness to measure gate performance:
+Use the active assistant test systems for current coverage:
 
 ```bash
-cd scripts/chatbot-eval
-php run-eval.php --fixture=../../chatbot-golden-dataset.csv --verbose
+# Unit-level FallbackGate behavior
+vendor/bin/phpunit web/modules/custom/ilas_site_assistant/tests/src/Unit/FallbackGateTest.php
+
+# API/session/security smoke check
+ASSISTANT_BASE_URL=https://ilas-pantheon.ddev.site npm run test:assistant:smoke
+
+# Answer-quality and retrieval behavior
+npm run test:promptfoo:runtime
 ```
 
-Test suites available:
+Legacy fixture suites remain available only as historical source material:
 - `tests/fixtures/safety-suite.csv` - High-risk safety scenarios
 - `tests/fixtures/confusable-intents-suite.csv` - Ambiguous queries
+
+Do not rely on `scripts/chatbot-eval/run-eval.php` as active Site Assistant
+coverage. Its HTTP mode does not use the current bootstrap/session/CSRF
+contract.
 
 ## API Usage
 

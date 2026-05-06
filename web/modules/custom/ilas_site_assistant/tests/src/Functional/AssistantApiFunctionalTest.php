@@ -15,7 +15,7 @@ use GuzzleHttp\Cookie\CookieJarInterface;
  * - Route-level permission gating
  * - JSON content-type enforcement
  * - Input validation (bad body, too-large payload, invalid JSON)
- * - Proper HTTP status codes and response headers
+ * - Proper HTTP status codes and response headers.
  *
  * @group ilas_site_assistant
  */
@@ -73,6 +73,21 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    \Drupal::service('router.builder')->rebuild();
+
+    // Pin all paid providers off — these tests must never reach
+    // Pinecone/Voyage/Cohere even by accident if shipped-config defaults flip.
+    // Disable retrieval and conversation logging so endpoint tests run
+    // deterministically against a fresh BrowserTestBase DB with no content.
+    \Drupal::configFactory()->getEditable('ilas_site_assistant.settings')
+      ->set('llm.enabled', FALSE)
+      ->set('vector_search.enabled', FALSE)
+      ->set('voyage.enabled', FALSE)
+      ->set('enable_faq', FALSE)
+      ->set('enable_resources', FALSE)
+      ->set('enable_logging', FALSE)
+      ->set('conversation_logging.enabled', FALSE)
+      ->save();
 
     // Create users with different permission levels.
     $this->adminUser = $this->drupalCreateUser([
@@ -207,6 +222,92 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     ], TRUE);
 
     $this->assertEquals(400, $response->getStatusCode());
+  }
+
+  /**
+   * The four production reproducers from eval-FrE-2026-04-30T20:56:49 must
+   * not return HTTP 500 to the user. Before the fix, every input that fell
+   * into the LLM fallback path crashed in LlmEnhancer because of a
+   * canAttempt()/isAvailable() method-name desync against LlmCircuitBreaker.
+   * This test locks the contract at the HTTP boundary: no user phrasing
+   * may produce a 5xx response from the message pipeline.
+   *
+   * @dataProvider reproducerMessages
+   */
+  public function testMessageEndpointDoesNotReturn500ForReproducerPhrasings(string $message): void {
+    $this->drupalLogin($this->regularUser);
+
+    $response = $this->postJson('/assistant/api/message', [
+      'message' => $message,
+    ], TRUE);
+
+    $status = $response->getStatusCode();
+    $this->assertLessThan(
+      500,
+      $status,
+      sprintf('Reproducer phrasing %s must not return 5xx. Got %d.', json_encode($message), $status)
+    );
+    $this->assertNotEquals(500, $status);
+
+    $data = json_decode((string) $response->getBody(), TRUE);
+    $this->assertIsArray($data);
+    // Either we got a normal pipeline response (has type+message) or the
+    // hardened catch-block fallback (still 200 with type=escalation).
+    $this->assertArrayHasKey('type', $data);
+    $this->assertArrayHasKey('message', $data);
+    $this->assertNotEmpty($data['message']);
+
+    // The catch-block fallback marks itself with internal_error_fallback.
+    // If we hit it, the response must still carry actionable contact paths.
+    if (($data['escalation_type'] ?? NULL) === 'internal_error_fallback') {
+      $this->assertArrayHasKey('actions', $data);
+      $this->assertNotEmpty($data['actions'], 'Fallback escalation must include contact actions.');
+    }
+  }
+
+  /**
+   * Reproducer phrasings drawn from eval-FrE-2026-04-30T20:56:49 errors #7-#10.
+   */
+  public static function reproducerMessages(): array {
+    return [
+      'r07_car_back' => ['is there any way to get my car back'],
+      'r08_bank_account_fraud' => ['i also gave them my bank account number and theyve already taken $500'],
+      'r09_evidence_substance' => ['what evidence do i need to prove hes using'],
+      'r10_es09_kids_tonight' => ['I am being denied access to my kids tonight'],
+    ];
+  }
+
+  /**
+   * Spanish-shaped urgent phrasings must not return HTTP 500.
+   * Locks coverage for the language-aware fallback in the catch block.
+   *
+   * @dataProvider spanishReproducerMessages
+   */
+  public function testMessageEndpointDoesNotReturn500ForSpanishUrgentPhrasings(string $message): void {
+    $this->drupalLogin($this->regularUser);
+
+    $response = $this->postJson('/assistant/api/message', [
+      'message' => $message,
+    ], TRUE);
+
+    $status = $response->getStatusCode();
+    $this->assertLessThan(500, $status, sprintf('Spanish phrasing %s must not return 5xx.', json_encode($message)));
+
+    $data = json_decode((string) $response->getBody(), TRUE);
+    $this->assertIsArray($data);
+    $this->assertArrayHasKey('message', $data);
+    $this->assertNotEmpty($data['message']);
+  }
+
+  /**
+   * Spanish-shaped urgent phrasings.
+   */
+  public static function spanishReproducerMessages(): array {
+    return [
+      'es_kids_tonight' => ['Me están negando acceso a mis hijos esta noche'],
+      'es_eviction' => ['Necesito ayuda con un desalojo urgente'],
+      'es_fraud' => ['Les di el número de mi cuenta bancaria y ya tomaron $500'],
+    ];
   }
 
   /**
@@ -370,7 +471,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
       'event_value' => '',
     ], $this->validTrackHeaders());
 
-    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals(200, $response->getStatusCode(), $this->formatBootstrapFailure($response));
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertTrue($data['ok']);
@@ -418,9 +519,15 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
   }
 
   /**
-   * Tests that the suggest endpoint is accessible to anonymous users.
+   * Suggest endpoint returns the public JSON contract shape.
+   *
+   * Contract-only: this test verifies the endpoint is anonymously accessible
+   * and emits the documented JSON shape with public-only fields. Empty
+   * suggestions are expected on a fresh BrowserTestBase DB (no seeded
+   * suggestion content). Retrieval correctness lives in Kernel tests against
+   * the suggestion service, not here.
    */
-  public function testSuggestEndpointAccessible(): void {
+  public function testSuggestEndpointReturnsContractShapeWithoutContent(): void {
     $response = $this->getJson('/assistant/api/suggest?q=housing&type=all');
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -428,15 +535,20 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertSame(['suggestions'], array_keys($data));
+    $this->assertIsArray($data['suggestions']);
     foreach ($data['suggestions'] as $suggestion) {
       $this->assertSuggestionPublicFields($suggestion);
     }
   }
 
   /**
-   * Tests that the FAQ endpoint is accessible.
+   * FAQ search endpoint returns the public JSON contract shape.
+   *
+   * Contract-only: same caveat as the suggest contract test — empty results
+   * are expected on a fresh DB. FAQ retrieval correctness lives in Kernel
+   * tests against `FaqIndex`, not here.
    */
-  public function testFaqEndpointAccessible(): void {
+  public function testFaqEndpointReturnsContractShapeWithoutContent(): void {
     $response = $this->getJson('/assistant/api/faq?q=eviction');
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -444,15 +556,19 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertSame(['results', 'count'], array_keys($data));
+    $this->assertIsArray($data['results']);
     foreach ($data['results'] as $result) {
       $this->assertFaqResultPublicFields($result);
     }
   }
 
   /**
-   * Tests that FAQ category browse remains anonymously accessible.
+   * FAQ category browse endpoint returns the public JSON contract shape.
+   *
+   * Contract-only: empty categories are expected on a fresh DB; category
+   * population lives in Kernel tests, not here.
    */
-  public function testFaqCategoriesEndpointAccessible(): void {
+  public function testFaqCategoriesEndpointReturnsContractShapeWithoutContent(): void {
     $response = $this->getJson('/assistant/api/faq');
 
     $this->assertEquals(200, $response->getStatusCode());
@@ -460,6 +576,7 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
 
     $data = json_decode($response->getBody(), TRUE);
     $this->assertSame(['categories'], array_keys($data));
+    $this->assertIsArray($data['categories']);
     foreach ($data['categories'] as $category) {
       $this->assertFaqCategoryPublicFields($category);
     }
@@ -1167,10 +1284,11 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * Assistant bootstrap endpoint returns token and sets anonymous session.
    */
   public function testAnonymousSessionBootstrapEndpointReturnsTokenAndSetsCookie(): void {
+    $this->assertBootstrapRouteInstalled();
     $cookies = new CookieJar();
     $response = $this->requestBootstrap($cookies);
 
-    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals(200, $response->getStatusCode(), $this->formatBootstrapFailure($response));
     $this->assertNotEmpty(trim((string) $response->getBody()), 'Bootstrap endpoint must return a CSRF token');
     $this->assertNotEmpty($cookies->toArray(), 'Bootstrap endpoint must issue a session cookie');
     $this->assertStringContainsString('text/plain', $response->getHeader('Content-Type')[0] ?? '');
@@ -1183,17 +1301,18 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
    * Assistant bootstrap reuses an established anonymous session without churn.
    */
   public function testAnonymousSessionBootstrapReuseDoesNotRotateCookie(): void {
+    $this->assertBootstrapRouteInstalled();
     $cookies = new CookieJar();
 
     $first = $this->requestBootstrap($cookies);
-    $this->assertEquals(200, $first->getStatusCode());
+    $this->assertEquals(200, $first->getStatusCode(), $this->formatBootstrapFailure($first));
     $this->assertNotEmpty($first->getHeader('Set-Cookie'), 'Initial bootstrap must mint a session cookie');
 
     $initial_cookie = $this->findDrupalSessionCookie($cookies);
     $this->assertNotNull($initial_cookie, 'Initial bootstrap must populate the cookie jar with a Drupal session cookie');
 
     $second = $this->requestBootstrap($cookies);
-    $this->assertEquals(200, $second->getStatusCode());
+    $this->assertEquals(200, $second->getStatusCode(), $this->formatBootstrapFailure($second));
     $this->assertSame([], $second->getHeader('Set-Cookie'), 'Bootstrap reuse must not rotate the anonymous session cookie');
 
     $reused_cookie = $this->findDrupalSessionCookie($cookies);
@@ -1365,6 +1484,27 @@ class AssistantApiFunctionalTest extends BrowserTestBase {
     }
 
     return $this->getHttpClient()->get($this->buildUrl('/assistant/api/session/bootstrap'), $options);
+  }
+
+  /**
+   * Asserts the bootstrap route is present in the functional test router.
+   */
+  protected function assertBootstrapRouteInstalled(): void {
+    $route = \Drupal::service('router.route_provider')->getRouteByName('ilas_site_assistant.api.session_bootstrap');
+    $this->assertSame('/assistant/api/session/bootstrap', $route->getPath());
+    $this->assertSame('\Drupal\ilas_site_assistant\Controller\AssistantSessionBootstrapController::bootstrap', $route->getDefault('_controller'));
+  }
+
+  /**
+   * Formats bootstrap failures with the HTTP body and selected headers.
+   */
+  protected function formatBootstrapFailure($response): string {
+    $headers = [];
+    foreach (['Content-Type', 'X-Drupal-Cache', 'X-Generator'] as $header) {
+      $headers[$header] = $response->getHeader($header);
+    }
+
+    return 'bootstrap body=' . trim((string) $response->getBody()) . ' headers=' . json_encode($headers);
   }
 
   /**

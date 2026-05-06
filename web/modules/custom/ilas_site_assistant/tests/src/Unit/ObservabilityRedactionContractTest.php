@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Sentry\ExceptionDataBag;
+use Sentry\Event;
 use Drupal\ilas_site_assistant\EventSubscriber\SentryOptionsSubscriber;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * Contract tests proving Sentry and Langfuse pipelines never emit raw PII.
  *
  * End-to-end validation that the before_send callback and PiiRedactor
  * cooperate to replace all 9 PII types with [REDACTED-*] tokens.
- *
  */
 #[Group('ilas_site_assistant')]
 class ObservabilityRedactionContractTest extends TestCase {
@@ -113,7 +113,7 @@ class ObservabilityRedactionContractTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage($this->multilingualContextualPiiString());
 
     $result = $callback($sentryEvent, NULL);
@@ -145,7 +145,7 @@ class ObservabilityRedactionContractTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setMessage($this->allPiiString());
 
     $result = $callback($sentryEvent, NULL);
@@ -164,9 +164,9 @@ class ObservabilityRedactionContractTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $exception = new \RuntimeException($this->allPiiString());
-    $exceptionBag = new \Sentry\ExceptionDataBag($exception);
+    $exceptionBag = new ExceptionDataBag($exception);
     $sentryEvent->setExceptions([$exceptionBag]);
 
     $result = $callback($sentryEvent, NULL);
@@ -188,7 +188,7 @@ class ObservabilityRedactionContractTest extends TestCase {
     $this->requireSentry();
 
     $callback = SentryOptionsSubscriber::beforeSendCallback();
-    $sentryEvent = \Sentry\Event::createEvent();
+    $sentryEvent = Event::createEvent();
     $sentryEvent->setExtra([
       'user_input' => $this->allPiiString(),
       'count' => 42,
@@ -208,7 +208,7 @@ class ObservabilityRedactionContractTest extends TestCase {
    * Tests that PiiRedactor covers all 9 TOKEN_* constants.
    */
   public function testPiiRedactorCoversAllNineTokenTypes(): void {
-    $ref = new ReflectionClass(PiiRedactor::class);
+    $ref = new \ReflectionClass(PiiRedactor::class);
     $tokenConstants = array_filter(
       $ref->getConstants(),
       fn(string $name) => str_starts_with($name, 'TOKEN_'),

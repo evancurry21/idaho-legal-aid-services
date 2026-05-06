@@ -46,7 +46,7 @@ final class LegalServerRuntimeUrlGuardTest extends TestCase {
   }
 
   /**
-   * settings.php must resolve the LegalServer URL into a site setting only.
+   * Settings.php must resolve the LegalServer URL into a site setting only.
    */
   public function testSettingsPhpStoresLegalServerUrlInSiteSettingsOnly(): void {
     $settings = self::readFile('web/sites/default/settings.php');

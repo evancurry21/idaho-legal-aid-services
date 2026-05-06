@@ -25,24 +25,39 @@ use Psr\Log\LoggerInterface;
 #[Group('ilas_site_assistant')]
 class LoggerInjectionContractTest extends TestCase {
 
+  /**
+   *
+   */
   public function testAnalyticsLoggerLogsStatsWriteFailuresThroughInjectedLogger(): void {
     $exception = new \Exception('DB connection lost');
     $merge = new class($exception) {
 
       public function __construct(private \Exception $exception) {}
 
+      /**
+       *
+       */
       public function keys(array $keys): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function fields(array $fields): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function expression(string $field, string $expression): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function execute(): int {
         throw $this->exception;
       }
@@ -74,24 +89,39 @@ class LoggerInjectionContractTest extends TestCase {
     $service->log('chat_open', '');
   }
 
+  /**
+   *
+   */
   public function testAnalyticsLoggerLogsNoAnswerFailuresThroughInjectedLogger(): void {
     $exception = new \Exception('No-answer write failed');
     $failedNoAnswerUpdate = new class($exception) {
 
       public function __construct(private \Exception $exception) {}
 
+      /**
+       *
+       */
       public function expression(string $field, string $expression): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function fields(array $fields): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function condition(string $field, mixed $value, ?string $operator = NULL): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function execute(): int {
         throw $this->exception;
       }
@@ -99,18 +129,30 @@ class LoggerInjectionContractTest extends TestCase {
     };
     $successfulStatsMerge = new class {
 
+      /**
+       *
+       */
       public function keys(array $keys): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function fields(array $fields): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function expression(string $field, string $expression): self {
         return $this;
       }
 
+      /**
+       *
+       */
       public function execute(): int {
         return 1;
       }
@@ -146,6 +188,9 @@ class LoggerInjectionContractTest extends TestCase {
     $service->logNoAnswer('eviction help near me');
   }
 
+  /**
+   *
+   */
   public function testAnalyticsLoggerLogsCleanupFailuresThroughInjectedLogger(): void {
     $exception = new \Exception('Cleanup read failed');
     $database = $this->createMock(Connection::class);
@@ -172,6 +217,9 @@ class LoggerInjectionContractTest extends TestCase {
     $service->cleanupOldData();
   }
 
+  /**
+   *
+   */
   public function testConversationLoggerLogsExchangeFailuresThroughInjectedLogger(): void {
     $exception = new \Exception('DB write failed');
     $schema = $this->createStub(Schema::class);
@@ -208,6 +256,9 @@ class LoggerInjectionContractTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public function testConversationLoggerLogsCleanupFailuresThroughInjectedLogger(): void {
     $exception = new \Exception('Cleanup query failed');
     $schema = $this->createStub(Schema::class);
@@ -241,6 +292,9 @@ class LoggerInjectionContractTest extends TestCase {
     $service->cleanup();
   }
 
+  /**
+   *
+   */
   public function testConversationLoggerResolvedConfigForcesPrivacyInvariants(): void {
     $database = $this->createStub(Connection::class);
     $logger = $this->createStub(LoggerInterface::class);

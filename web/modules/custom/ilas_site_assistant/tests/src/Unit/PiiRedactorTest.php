@@ -23,6 +23,9 @@ class PiiRedactorTest extends TestCase {
     $this->assertSame($expected, PiiRedactor::redact($input));
   }
 
+  /**
+   *
+   */
   public static function emailProvider(): array {
     return [
       'simple email' => [
@@ -115,6 +118,9 @@ class PiiRedactorTest extends TestCase {
     $this->assertStringContainsString(PiiRedactor::TOKEN_PHONE, $result);
   }
 
+  /**
+   *
+   */
   public static function phoneProvider(): array {
     return [
       'dashed' => ['Call 208-555-1234'],
@@ -177,6 +183,9 @@ class PiiRedactorTest extends TestCase {
     $this->assertStringContainsString(PiiRedactor::TOKEN_CASE, $result);
   }
 
+  /**
+   *
+   */
   public static function idahoCaseProvider(): array {
     return [
       'CV case' => ['My case is CV-23-12345'],
@@ -280,6 +289,9 @@ class PiiRedactorTest extends TestCase {
     $this->assertStringNotContainsString('AB123456C', $result);
   }
 
+  /**
+   *
+   */
   public static function idahoDriversLicenseProvider(): array {
     return [
       'idaho license is' => ['My Idaho license is AB123456C'],
@@ -305,6 +317,9 @@ class PiiRedactorTest extends TestCase {
     $this->assertStringNotContainsString(PiiRedactor::TOKEN_CASE, $result, "False positive: $description");
   }
 
+  /**
+   *
+   */
   public static function falsePositiveProvider(): array {
     return [
       'Idaho Code statute' => [
@@ -314,6 +329,14 @@ class PiiRedactorTest extends TestCase {
       'bare 9 digits without keyword' => [
         'The population is 123456789',
         'Bare 9 digits without SSN keyword should not match',
+      ],
+      'operational filename' => [
+        'Invalid filename.',
+        'Operational filename text should not be treated as a file number',
+      ],
+      'operational file system' => [
+        'The file system path is unavailable.',
+        'Operational file system text should not be treated as a file number',
       ],
       'tenant rights guide' => [
         'tenant rights guide',

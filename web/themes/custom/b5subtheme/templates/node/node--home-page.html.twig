@@ -52,11 +52,12 @@
               {{ content.field_hero_image }}
             {% endif %}
 
-            {# Embed JSON data for all hero images (for client-side rotation) #}
-            {% if hero_images_data is defined and hero_images_data|length > 1 %}
-              <script type="application/json" id="hero-rotator-data">
-                {{ hero_images_data|json_encode|raw }}
-              </script>
+            {# Embed JSON data for all hero images (for client-side rotation).
+               The script tag is built as a cache-aware render array in
+               _b5subtheme_preprocess_home_page_hero() so it carries the
+               node + media + file cache tags it depends on. #}
+            {% if hero_rotator_script %}
+              {{ hero_rotator_script }}
             {% endif %}
           </div>
         </div>

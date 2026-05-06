@@ -25,9 +25,14 @@ final class RetrievalColdStartGuardTest extends TestCase {
 
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
+
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
+
     });
 
     \Drupal::setContainer($container);
@@ -82,25 +87,51 @@ final class RetrievalColdStartGuardTest extends TestCase {
    */
   public function testResourceLegacyFallbackUsesBoundedCandidates(): void {
     $failing_index = new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
+      /**
+       *
+       */
       public function query(): object {
         return new class {
+
+          /**
+           *
+           */
           public function keys(string $query): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function addCondition(string $field, string|int $value): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function range(int $start, int $length): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function execute(): object {
             throw new \RuntimeException('Simulated Search API query failure');
           }
+
         };
       }
+
     };
 
     $finder = new ColdStartGuardResourceFinder(
@@ -161,25 +192,51 @@ final class RetrievalColdStartGuardTest extends TestCase {
    */
   public function testFaqLegacyFallbackUsesBoundedCandidates(): void {
     $failing_index = new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
+      /**
+       *
+       */
       public function query(): object {
         return new class {
+
+          /**
+           *
+           */
           public function keys(string $query): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function range(int $start, int $length): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function addCondition(string $field, string $value): self {
             return $this;
           }
+
+          /**
+           *
+           */
           public function execute(): object {
             throw new \RuntimeException('Simulated Search API query failure');
           }
+
         };
       }
+
     };
 
     $faq = new ColdStartGuardFaqIndex(
@@ -306,10 +363,16 @@ class ColdStartGuardResourceFinder extends ResourceFinder {
     private array $service_area_candidates = [],
   ) {
     $this->topicResolver = new class($resolved_topic) {
+
       public function __construct(private ?array $topic) {}
+
+      /**
+       *
+       */
       public function resolveFromText(string $query): ?array {
         return $this->topic;
       }
+
     };
   }
 
@@ -477,10 +540,16 @@ final class ColdStartSearchIndex {
    */
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function status(): bool {
     return TRUE;
   }
 
+  /**
+   *
+   */
   public function query(): ColdStartSearchQuery {
     return new ColdStartSearchQuery($this->items);
   }
@@ -502,20 +571,32 @@ final class ColdStartSearchQuery {
    */
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function keys(string $query): self {
     return $this;
   }
 
+  /**
+   *
+   */
   public function addCondition(string $field, string|int $value): self {
     return $this;
   }
 
+  /**
+   *
+   */
   public function range(int $start, int $length): self {
     $this->offset = $start;
     $this->length = $length;
     return $this;
   }
 
+  /**
+   *
+   */
   public function execute(): ColdStartSearchResultSet {
     $items = $this->length === NULL
       ? $this->items
@@ -536,6 +617,9 @@ final class ColdStartSearchResultSet {
    */
   public function __construct(private array $items) {}
 
+  /**
+   *
+   */
   public function getResultItems(): array {
     return $this->items;
   }
@@ -558,15 +642,27 @@ final class ColdStartSearchResultItem {
     private float $score,
   ) {}
 
+  /**
+   *
+   */
   public function getOriginalObject(): object {
     return new class($this->value) {
+
       public function __construct(private mixed $value) {}
+
+      /**
+       *
+       */
       public function getValue(): mixed {
         return $this->value;
       }
+
     };
   }
 
+  /**
+   *
+   */
   public function getScore(): float {
     return $this->score;
   }

@@ -10,7 +10,6 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests ilas_site_assistant update hooks with focused kernel coverage.
- *
  */
 #[Group('ilas_site_assistant')]
 final class RetrievalIndexUpdateHookKernelTest extends KernelTestBase {

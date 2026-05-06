@@ -4,7 +4,7 @@
   Impact card paragraph type fields:
   - field_impact_title
   - field_impact_number
-  - field_impact_text  
+  - field_impact_text
   - field_impact_color
   - field_impact_back_detail
 #}
@@ -24,30 +24,46 @@
   'impact-card--' ~ color
 ] %}
 
-<div{{ attributes.addClass(classes) }} role="button" tabindex="0">
+{# Plain-text accessible name — rendered field markup may include CKEditor wrappers. #}
+{% set card_title = content.field_topic_title|render|striptags|trim %}
+{% set card_aria_label = card_title
+  ? '@title: show details'|t({'@title': card_title})
+  : 'Show details'|t %}
+
+{# Stable id so the trigger's aria-controls points at the back face. #}
+{% set back_id = 'impact-card-back-' ~ paragraph.id() %}
+
+<div{{ attributes.addClass(classes) }}>
   <div class="card-inner">
-    {# Front of card #}
+    {# Front of card — the trigger button is the ONLY interactive element on this face. #}
     <div class="card-front">
-      <div class="impact-card__link">
-        <div class="impact-card__content">
-          <h3 class="impact-card__title">
+      <button type="button"
+              class="impact-card__trigger"
+              aria-expanded="false"
+              aria-controls="{{ back_id }}"
+              aria-label="{{ card_aria_label }}">
+        <span class="impact-card__content">
+          <span class="impact-card__title">
             {{ content.field_topic_title }}
-          </h3>
-          <div class="impact-card__description">
+          </span>
+          <span class="impact-card__description">
             {{ content.field_topic_description }}
-          </div>
-        </div>
-      </div>
+          </span>
+        </span>
+      </button>
     </div>
-    
-    {# Back of card #}
-    <div class="card-back">
+
+    {# Back of card — hidden from AT and axe while closed via aria-hidden + inert.
+       SCSS adds visibility:hidden (delayed) so axe color-contrast cannot scan
+       through the rotated/transparent face. flipCard() in scripts.js toggles
+       both attributes when flipping. #}
+    <div id="{{ back_id }}" class="card-back" aria-hidden="true" inert>
       <button class="impact-card__back-close" aria-label="Close details and return to front" type="button">
         <span>Back</span>
       </button>
       <h4 class="impact-card__back-heading">
         {# Special handling for Community Outreach - shorten to just Outreach #}
-        {% set back_title = content.field_topic_title|render|striptags|trim %}
+        {% set back_title = card_title %}
         {% if back_title|lower == 'community outreach' %}
           Outreach
         {% else %}

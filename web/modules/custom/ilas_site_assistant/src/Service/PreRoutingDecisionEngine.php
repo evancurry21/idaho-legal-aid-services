@@ -48,6 +48,7 @@ class PreRoutingDecisionEngine {
   private const DEADLINE_PATTERNS = [
     '/\b(deadline\s*(is\s*)?(today|tomorrow|friday|monday|this\s*week|tonight|next\s*monday)|due\s*(today|tomorrow|friday|monday|this\s*week|tonight))\b/i',
     '/\b(court\s*(date|hearing)\s*(is\s*)?(today|tomorrow|friday|monday|this\s*week|tonight))\b/i',
+    '/\b((eviction|housing)\s*)?hearing\s*(is\s*)?(today|tomorrow|friday|monday|this\s*week|tonight)\b/i',
     '/\b(must\s*respond|have\s*to\s*respond|need\s*to\s*respond|respond\s*by|respond\s*in\s*(24|48|72)\s*hours?|one\s*day\s*to\s*(answer|respond))\b/i',
     '/\b(file\s*by\s*(today|tomorrow|friday|monday)|have\s*to\s*file\s*by|need\s*to\s*file\s*by|paperwork\s*by\s*(today|tomorrow|friday|monday))\b/i',
     '/\b(served\s*(with\s*)?(papers|summons)|got\s*served|answer\s*(the\s*)?(lawsuit|complaint)|respond\s*to\s*(the\s*)?(lawsuit|summons|complaint))\b/i',

@@ -9,11 +9,11 @@
  * - Provides debug mode for troubleshooting
  */
 
-(function (Drupal) {
+(function (Drupal, drupalSettings) {
   'use strict';
 
-  // Debug mode - set to true to see console logs
-  const DEBUG_MODE = false;
+  // Debug mode - gated by drupalSettings.ilasDebug (set via $settings['ilas_debug']).
+  const DEBUG_MODE = !!(drupalSettings && drupalSettings.ilasDebug);
   
   function debugLog(message, data = null) {
     if (DEBUG_MODE) {
@@ -241,4 +241,4 @@
     debugLog('Debug functions available in window.ilasHotspotDebug');
   }
 
-})(Drupal);
+})(Drupal, drupalSettings);

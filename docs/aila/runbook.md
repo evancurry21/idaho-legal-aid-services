@@ -9,6 +9,71 @@ Related docs:
 - `docs/aila/artifacts/`
 - `docs/aila/runtime/`
 
+## Vector retrieval — live enablement (Pinecone + Voyage)
+
+Vector retrieval and Voyage rerank are *operationally proven*, not merely
+configured. The active config flips both master switches:
+
+```yaml
+# config/ilas_site_assistant.settings.yml
+vector_search:
+  enabled: true
+voyage:
+  enabled: true
+```
+
+Each request returns a public retrieval contract under `response.retrieval`
+that proves which provider/model/index were exercised:
+
+- `vector_provider: pinecone`
+- `embedding_provider: voyage`
+- `embedding_model: voyage-law-2`
+- `expected_dimensions: 1024`
+- `indexes_considered`, `indexes_queried`
+- `vector_top_scores` (raw cosine, sorted desc, top 5)
+- `lexical_result_count`, `vector_result_count`, `merged_result_count`,
+  `final_grounded_result_count`
+- `rerank.{used,attempted,provider,model,input_count,output_count,enabled,
+  fallback_reason,latency_ms}`
+
+Full operation telemetry remains under `_debug.retrieval_trace` (debug mode
+only) and continues to flow to Langfuse on every request.
+
+### Proof commands
+
+```bash
+# Per-index server health (no API keys exposed)
+drush ilas:vector-status faq_vector --probe-now
+drush ilas:vector-status resource_vector --probe-now
+
+# End-to-end provenance smoke (asserts; exits nonzero on failure)
+node scripts/ci/run-vector-provenance-smoke.js \
+  --assistant-url "$ILAS_ASSISTANT_URL" \
+  --site-base-url "$ILAS_SITE_BASE_URL" \
+  --require-rerank
+```
+
+### Failure → backoff invariants
+
+- Pinecone latency > `MAX_VECTOR_MS` (2000ms) → enter 120s vector backoff;
+  preserve lexical results.
+- Voyage rerank failures: `fallback_on_error: true` returns unreranked
+  items; the circuit breaker opens after 3 consecutive failures and
+  cools down for 300s. PHARD-06 enforcement_mode stays `advisory`.
+
+### Rolling back without a code change
+
+Set in active config to disable without redeploy (config sync only):
+
+```yaml
+vector_search: { enabled: false }   # disables Pinecone retrieval
+voyage:        { enabled: false }   # disables Voyage rerank only
+```
+
+The response contract still emits provider identity (so dashboards stay
+stable); `vector_status` flips to `disabled` and `rerank.used` stays
+`false`.
+
 ## 1) Safety rules (must follow)
 
 - Never print secrets/tokens/keys. Redact all sensitive values before saving artifacts.
@@ -401,6 +466,9 @@ must be explainable by runtime-only Cohere rollout inputs
   `llm.enabled` override path.
 - Confirm `fallback_llm` means bounded Cohere classification only and still
   returns control to deterministic intent processing.
+- Confirm explicit Cohere proof without exposing secrets:
+  `drush ilas:cohere-probe` or
+  `drush ilas:runtime-diagnostics --probe-llm`.
 - Confirm live vector search remains stored-`false` in Drupal config, admin-disabled on `live`, and runtime-enableable only through `ILAS_VECTOR_SEARCH_ENABLED` plus cache clear.
 
 ### IMP-SLO-01 SLO set + alert policy (availability/latency/errors/cron/queue)
@@ -411,7 +479,7 @@ Canonical SLO targets (from `ilas_site_assistant.settings.slo`):
 - Latency: `p95 <= 2000ms`, `p99 <= 5000ms`
 - Error rate: `error_rate_pct <= 5.0` (`error_budget_window_hours=168`)
 - Cron freshness: `cron_max_age_seconds=7200` (`cron_expected_cadence_seconds=3600`)
-- Queue health: `queue_max_depth=10000`, `queue_max_age_seconds=3600`
+- Queue health: `queue_max_depth=10000`, `queue_max_age_seconds=7200`
 
 Alert policy contract:
 
@@ -2054,15 +2122,43 @@ Expected verification result:
   may still exist while the Pinecone/Search API AI stack proves it is needed,
   but the custom assistant request-time path no longer uses Gemini or Vertex.
 - Read-only local checks after deploy/import:
-  - `ddev drush config:get ilas_site_assistant.settings llm --format=yaml`
+  - `ddev drush cr`
+  - `ddev drush cget ilas_site_assistant.settings llm --format=yaml`
+  - `ddev drush ilas:runtime-truth`
+  - `ddev drush ilas:runtime-diagnostics`
+  - `ddev drush ilas:runtime-diagnostics --probe-llm`
+  - `ddev drush ilas:cohere-probe`
   - Optional runtime-presence checks without printing secrets:
     `ddev drush php:eval "echo \Drupal\Core\Site\Settings::get('ilas_cohere_api_key') ? 'present' : 'missing';"`
     `ddev drush php:eval "echo \Drupal\Core\Site\Settings::get('ilas_voyage_api_key') ? 'present' : 'missing';"`
 - Read-only Pantheon checks after deployment:
-  - `terminus remote:drush idaho-legal-aid-services.dev -- config:get ilas_site_assistant.settings llm --format=yaml`
+  - `terminus remote:drush idaho-legal-aid-services.live -- cr`
+  - `terminus remote:drush idaho-legal-aid-services.live -- cget ilas_site_assistant.settings llm --format=yaml`
+  - `terminus remote:drush idaho-legal-aid-services.live -- ilas:runtime-truth`
+  - `terminus remote:drush idaho-legal-aid-services.live -- ilas:runtime-diagnostics --probe-llm`
+  - `terminus remote:drush idaho-legal-aid-services.live -- ilas:cohere-probe`
   - Optional runtime-presence checks without printing secrets:
-    `terminus remote:drush idaho-legal-aid-services.dev -- php:eval "echo \Drupal\Core\Site\Settings::get('ilas_cohere_api_key') ? 'present' : 'missing';"`
-    `terminus remote:drush idaho-legal-aid-services.dev -- php:eval "echo \Drupal\Core\Site\Settings::get('ilas_voyage_api_key') ? 'present' : 'missing';"`
+    `terminus remote:drush idaho-legal-aid-services.live -- php:eval "echo \Drupal\Core\Site\Settings::get('ilas_cohere_api_key') ? 'present' : 'missing';"`
+    `terminus remote:drush idaho-legal-aid-services.live -- php:eval "echo \Drupal\Core\Site\Settings::get('ilas_voyage_api_key') ? 'present' : 'missing';"`
+- Authorized assistant API proof after CSRF bootstrap can request
+  `context.diagnostics.force_llm_probe=true` with header
+  `X-ILAS-Observability-Key: $ILAS_ASSISTANT_DIAGNOSTICS_TOKEN`; the response
+  should include `diagnostics.generation.used=true`, provider `cohere`, and the
+  configured model.
+- Example live-safe API proof sequence:
+  - Bootstrap a session and capture the CSRF token from
+    `POST /assistant/api/session/bootstrap`.
+  - Send `POST /assistant/api/message` with headers:
+    `Content-Type: application/json`,
+    `X-CSRF-Token: <bootstrap token>`,
+    `X-ILAS-Observability-Key: ${ILAS_ASSISTANT_DIAGNOSTICS_TOKEN}`,
+    `X-ILAS-Diagnostics: 1`.
+  - Send body:
+    `{"message":"Please classify this harmless diagnostic request.","context":{"diagnostics":{"include":true,"force_llm_probe":true}}}`
+  - Expect:
+    `diagnostics.generation.provider="cohere"`,
+    `diagnostics.generation.model="command-a-03-2025"`,
+    `diagnostics.generation.used=true`.
 
 ### RAUD-05 LLM transport hardening verification
 
@@ -2175,8 +2271,8 @@ Expected verification result:
 
 - Baseline before the remediation:
   - Exported sync still reports `langfuse.enabled=false` in
-    `config/ilas_site_assistant.settings.yml`, while fresh local and Pantheon
-    baseline checks show effective runtime `langfuse.enabled=true`.
+    `config/ilas_site_assistant.settings.yml`; effective runtime now follows
+    live-only policy plus `ILAS_LANGFUSE_ENABLED`.
   - `config/raven.settings.yml` is absent from sync, and
     `config:get raven.settings` may return "does not exist" even when runtime
     `raven.settings.client_key` is present via `settings.php`.
@@ -2264,7 +2360,9 @@ done
   - `local`, `dev`, and `test` report stored `vector_search.enabled=false`
     while effective runtime is `true`
   - `local`, `dev`, `test`, and `live` report stored
-    `langfuse.enabled=false` while effective runtime is `true`
+    `langfuse.enabled=false`; effective runtime is `false` on non-live unless
+    `ILAS_LANGFUSE_ENABLED=1`, and `true` on live when credentials exist unless
+    `ILAS_LANGFUSE_ENABLED=0`
   - `live` reports stored `google_tag_id=false` while effective runtime is
     `true`
   - `diagnostics_token_present=false` in all sampled environments
@@ -2279,7 +2377,7 @@ done
 
 ### Langfuse runtime override pattern (reference)
 
-Langfuse enablement uses a **secret-gated runtime override** pattern that is
+Langfuse enablement uses a **live-only runtime override** pattern that is
 standard for Drupal on Pantheon but can mislead auditors who only inspect
 stored config files.
 
@@ -2288,13 +2386,16 @@ stored config files.
 1. Stored config (`config/ilas_site_assistant.settings.yml`) intentionally
    shows `langfuse.enabled: false` and empty credentials. This is by design —
    credentials must never appear in config exports.
-2. At bootstrap, `settings.php` (L471-484) checks for `LANGFUSE_PUBLIC_KEY`
-   and `LANGFUSE_SECRET_KEY` via `_ilas_get_secret()` (L380-390). If both are
-   present, it sets `langfuse.enabled = TRUE` and injects the credentials into
-   the active config via `$config` overrides.
-3. The `_ilas_get_secret()` helper tries `pantheon_get_secret()` first (Pantheon
+2. At bootstrap, `settings.php` checks for `LANGFUSE_PUBLIC_KEY` and
+   `LANGFUSE_SECRET_KEY` via `_ilas_get_secret()`. Secret presence alone does
+   not enable non-live export.
+3. By default, `settings.php` enables Langfuse only on `PANTHEON_ENVIRONMENT=live`
+   when both credentials are present. `ILAS_LANGFUSE_ENABLED=1` explicitly
+   enables local/dev/test diagnostics; `ILAS_LANGFUSE_ENABLED=0` disables export
+   everywhere as a kill switch.
+4. The `_ilas_get_secret()` helper tries `pantheon_get_secret()` first (Pantheon
    runtime secrets), then falls back to `getenv()` (DDEV `.env` or shell env).
-4. The `langfuse.environment` label is always overridden to `local` or
+5. The `langfuse.environment` label is always overridden to `local` or
    `pantheon-{env}` regardless of what stored config says.
 
 **Verification commands:**
@@ -2311,8 +2412,8 @@ ddev drush ilas:langfuse-status
 
 **Common audit pitfall:** Inspecting `config:get ilas_site_assistant.settings
 langfuse.enabled` returns the stored value (`false`), not the effective runtime
-value (`true`). Always use `ilas:runtime-truth` or `ilas:langfuse-status` for
-the authoritative state.
+policy. Always use `ilas:runtime-truth` or `ilas:langfuse-status` for the
+authoritative state.
 
 ### TOVR-09 Pinecone environment inventory verification
 
@@ -3352,8 +3453,8 @@ gh run view 23165713689 --json databaseId,displayTitle,conclusion,status,headBra
 - Baseline before the remediation:
   - Spanish and mixed-language routing proof was fragmented across isolated
     unit tests (`TopicRouterTest`, `TopIntentsPackTest`, `TurnClassifierTest`,
-    `GoldenTranscriptTest`) and prompt-language handling in `LlmEnhancer` was
-    still English-only.
+    `ConversationIntentFixtureUnitTest`) and prompt-language handling in
+    `LlmEnhancer` was still English-only.
   - There was no authoritative offline evaluator that ran multilingual routing
     cases through the real pure-PHP stack and produced a reusable report.
 - Required verification commands for the remediation report:
@@ -3647,7 +3748,7 @@ ILAS_ASSISTANT_URL="https://ilas-pantheon.ddev.site/assistant/api/message" \
 
 Expected quality gate result:
 - `tests/run-quality-gate.sh` blocks on `VC-UNIT` and full
-  `VC-DRUPAL-UNIT` suite regressions, plus golden transcript failures.
+  `VC-DRUPAL-UNIT` suite regressions, plus conversation intent fixture failures.
 - `scripts/ci/run-promptfoo-gate.sh` blocks threshold/eval failures on
   `master`/`main`/`release/*` and reports advisory-only failures on other branches.
 - Synced `origin/master` pushes are deploy-bound only when the exact code is
@@ -4800,7 +4901,7 @@ sed -E \
   ddev drush cset ilas_site_assistant.settings langfuse.max_queue_depth 0 -y
   ddev drush cset ilas_site_assistant.settings langfuse.max_queue_depth 10000 -y
   ddev drush cset ilas_site_assistant.settings langfuse.max_item_age_seconds 1 -y
-  ddev drush cset ilas_site_assistant.settings langfuse.max_item_age_seconds 3600 -y
+  ddev drush cset ilas_site_assistant.settings langfuse.max_item_age_seconds 7200 -y
   ```
 - Contract test execution:
   ```bash
@@ -4844,7 +4945,7 @@ sed -E \
   ddev drush php:eval '$q=\Drupal::queue("ilas_langfuse_export"); $q->createItem(["batch" => [["type" => "trace-create", "body" => ["id" => "afrp17-stale"]]], "metadata" => ["batch_size" => 1, "sdk_name" => "afrp17", "sdk_version" => "1.0.0"], "enqueued_at" => time() - 10]);'
   ddev drush queue:run ilas_langfuse_export --items-limit=1
   ddev drush php:eval '$m=\Drupal::service("ilas_site_assistant.queue_health_monitor"); echo json_encode($m->getExportOutcomeSummary(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;'
-  ddev drush cset ilas_site_assistant.settings langfuse.max_item_age_seconds 3600 -y
+  ddev drush cset ilas_site_assistant.settings langfuse.max_item_age_seconds 7200 -y
   ```
 - Expected AFRP-17 drill result:
   - `discard_stale` counter increments.
@@ -4919,6 +5020,12 @@ ddev drush ilas:runtime-diagnostics --section=retrieval
 
 # Degraded-mode state summary.
 ddev drush ilas:runtime-diagnostics --section=degraded
+
+# VC-COHERE-PROBE: active exact-output Cohere proof.
+ddev drush ilas:cohere-probe
+
+# Runtime diagnostics plus active LLM probe.
+ddev drush ilas:runtime-diagnostics --probe-llm
 ```
 
 Operational note: after editing `web/modules/custom/ilas_site_assistant/drush.services.yml`,
@@ -4941,7 +5048,9 @@ Updated tool ceiling table (extends AFRP-12):
 | Tool | Max proof | Purpose |
 |---|---|---|
 | `ilas:runtime-diagnostics` | L0:Unverified | Unified machine-checkable diagnostic (reads config + service state) |
+| `ilas:runtime-diagnostics --probe-llm` | L3:PayloadAcceptance | Unified diagnostics plus exact-output Cohere proof |
 | `ilas:runtime-truth` | L0:Unverified | Stored-vs-effective config snapshot |
+| `ilas:cohere-probe` | L3:PayloadAcceptance | Cohere exact-output generation proof |
 | `ilas:sentry-probe` | L1:Transport | Sentry connectivity |
 | `ilas:langfuse-probe --direct` | L3:PayloadAcceptance | Langfuse direct ingestion |
 | `ilas:langfuse-probe` (queued) | L2:QueueDrain | Langfuse queue drain |

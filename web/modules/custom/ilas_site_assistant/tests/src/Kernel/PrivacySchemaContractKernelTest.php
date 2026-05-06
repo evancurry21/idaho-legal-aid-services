@@ -13,7 +13,6 @@ use Psr\Log\LoggerInterface;
  *
  * Guards database column allowlists, retention cap enforcement, and
  * runtime privacy invariants with real database operations.
- *
  */
 #[CoversClass(ConversationLogger::class)]
 #[Group('ilas_site_assistant')]

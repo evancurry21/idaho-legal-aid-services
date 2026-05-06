@@ -53,7 +53,7 @@ class HomepageAnnouncementOverlayBlock extends BlockBase implements ContainerFac
     $plugin_id,
     $plugin_definition,
     EntityTypeManagerInterface $entity_type_manager,
-    PathMatcherInterface $path_matcher
+    PathMatcherInterface $path_matcher,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
     $this->entityTypeManager = $entity_type_manager;

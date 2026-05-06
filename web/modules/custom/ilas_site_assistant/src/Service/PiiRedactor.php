@@ -114,9 +114,13 @@ class PiiRedactor {
       $text
     );
 
-    // 10. Case/docket/file numbers (keyword-gated).
+    // 10. Case/docket/file numbers (keyword-gated). Require an explicit
+    // number marker or separator so operational words like "filename" and
+    // "file system" are not mistaken for case identifiers.
     $text = preg_replace(
-      '/\b(case|docket|file)\s*(number|no\.?|#)?\s*[:=]?\s*[\w\-]+/i',
+      '/\b(?:case|docket)\s+(?:number|no\.?|#)\s*[:=]?\s*[\w\-]+'
+      . '|\b(?:case|docket)\s*[:=]\s*[\w\-]+'
+      . '|\bfile\s+(?:number|no\.?|#)\s*[:=]?\s*[\w\-]+/i',
       self::TOKEN_CASE,
       $text
     );

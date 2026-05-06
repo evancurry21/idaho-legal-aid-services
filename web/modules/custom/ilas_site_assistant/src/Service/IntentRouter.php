@@ -89,7 +89,7 @@ class IntentRouter {
   /**
    * Constructs an IntentRouter object.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, TopicResolver $topic_resolver, KeywordExtractor $keyword_extractor, TopicRouter $topic_router = NULL, NavigationIntent $navigation_intent = NULL, Disambiguator $disambiguator = NULL, TopIntentsPack $top_intents_pack = NULL) {
+  public function __construct(ConfigFactoryInterface $config_factory, TopicResolver $topic_resolver, KeywordExtractor $keyword_extractor, ?TopicRouter $topic_router = NULL, ?NavigationIntent $navigation_intent = NULL, ?Disambiguator $disambiguator = NULL, ?TopIntentsPack $top_intents_pack = NULL) {
     $this->configFactory = $config_factory;
     $this->topicResolver = $topic_resolver;
     $this->keywordExtractor = $keyword_extractor;
@@ -160,8 +160,12 @@ class IntentRouter {
           '/\bayuda\s*(legal|con\s*mi\s*caso)/i',
           '/\babogado\s*gratis/i',
           // Gap 2: free lawyer / pro bono patterns (also matches normalized free_lawyer token).
-          '/\bfree[_\s]lawyer\b|\bfree[_\s]legal\b|\bfree[_\s]attorney\b/i',
-          '/\b(free|pro\s*bono)\s+(lawyer|attorney|legal\s+(?:aid|help))\b/i',
+          // The "free_legal" branch excludes "free legal services" / "free legal service"
+          // — that is a services-overview question, not an apply intent.
+          '/\bfree[_\s]lawyers?\b|\bfree[_\s]legal\b(?![_\s]services?\b)|\bfree[_\s]attorneys?\b/i',
+          '/\b(free|pro\s*bono)\s+(lawyers?|attorneys?|legal\s+(?:aid|help))\b/i',
+          // "Do you provide / offer / have free lawyers / attorneys" → apply CTA.
+          '/\b(do\s*you|does\s*(ilas|idaho\s*legal\s*aid))\s*(provide|offer|have)\s*(any\s*)?(free|pro\s*bono)\s*(lawyers?|attorneys?|legal\s*(help|aid|assistance))\b/i',
           // Gap 4: veterans seeking legal help.
           '/\bveteran[_\s]legal[_\s]help\b/i',
           '/\blegal\s+(help|aid|services?|assistance)\s+(for\s+)?(veterans?|military|vets?)\b/i',
@@ -213,24 +217,49 @@ class IntentRouter {
       ],
 
       // Offices contact intent.
+      //
+      // City-name patterns must require an EXPLICIT office anchor
+      // (office|address|phone|hours|contact|location). A bare-city statement
+      // ("This is in Boise.", "I'm in Ada County.", "It happened in Idaho
+      // Falls.") MUST NOT score offices_contact — those are location
+      // refinements on whatever legal topic is active and are handled by
+      // history/topic resolvers, not by office routing.
       'offices_contact' => [
         'patterns' => [
           '/\b(office|offic|location|locaton|address|adress|where\s*(are\s*you|is))/i',
-          '/\b(near\s*me|closest|nearby|nearest)/i',
+          '/\b(near\s*me|closest|nearby|nearest)\s+(office|location|branch)\b/i',
           '/\bvisit\s*(in\s*person|your\s*office)/i',
           '/\b(office\s*hours?|hours?\s*(for|of)\s*(the\s*)?office)\b/i',
-          '/\b(what\s*(are|r)\s*(your|the)\s*hours)\b/i',
-          '/\b(what\s*time|when)\s*(do\s*you|are\s*you)\s*open/i',
+          '/\b(what\s*(are|r)\s*(your|the)\s*(office\s*)?hours)\b/i',
+          '/\b(what\s*time|when)\s*(do\s*you|are\s*you|is\s*the\s*office)\s*open/i',
           '/\b(open\s*on|closed\s*on)\s*(saturday|sunday|weekend)/i',
           '/\b(walk\s*in|appointment|appointments?)\b/i',
           '/\bemail\s*address/i',
           '/\bcontact\s*(info|information)/i',
-          '/\b(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\s*(office|location)?/i',
-          '/\b(donde\s*(esta|queda)|oficina|ubicacion|direccion)/i',
+          // City + explicit office anchor (no bare-city match).
+          '/\b(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\s+(office|address|phone|hours|contact|location|branch)\b/i',
+          '/\b(office|address|phone|hours|contact|location|branch)\s+(in|at|for)\s+(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\b/i',
+          // Direct office questions for known cities (e.g., "Where is your Boise office?").
+          '/\bwhere\s+is\s+(your\s+|the\s+)?(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\s+office\b/i',
+          '/\bdo\s+you\s+have\s+an?\s+office\s+(in|near|at)\s+(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\b/i',
+          '/\b(donde\s*(esta|queda))\s+(la\s+)?(oficina|ubicacion|direccion)/i',
+          '/\boficina\s+(de|en)\s+(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene)\b/i',
           '/\bhorario\s*de\s*oficina/i',
         ],
-        'keywords' => ['office', 'offices', 'location', 'address', 'near_me', 'visit', 'office_hours', 'oficina', 'donde', 'horario'],
+        'keywords' => ['office', 'offices', 'location', 'address', 'visit', 'office_hours', 'oficina', 'horario'],
         'weight' => 0.85,
+        // Negative anchors: bare-city or anaphoric location statements
+        // ("This is in Boise.", "I'm in Ada County.", "It happened in Idaho
+        // Falls.", "from Boise") MUST NOT score offices_contact. Those are
+        // location refinements; the housing/eviction continuity decider and
+        // history resolvers handle them in the active legal-topic context.
+        // The negative-pattern engine zeroes confidence when any of these
+        // match (see calculateIntentConfidence loop).
+        'negative_patterns' => [
+          '/^\s*(this\s+is|it\'?s|i\s*\'?m|i\s+am|i\s+live|i\s+stay|located|got|its\s+(in|at)|it\s+happened|it\s+occurred|this\s+occurred|this\s+happened|from)\s+(in\s+|at\s+|near\s+)?(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene|meridian|caldwell|moscow|sandpoint|post\s*falls)\b\s*\.?\s*$/i',
+          '/^\s*(boise|pocatello|twin\s*falls|idaho\s*falls|lewiston|nampa|coeur\s*d\'?alene|meridian|caldwell|moscow|sandpoint|post\s*falls)\s*\.?\s*$/i',
+          '/^\s*[a-z]+\s+county\s*\.?\s*$/i',
+        ],
       ],
 
       // Legacy alias for 'offices'.
@@ -241,12 +270,17 @@ class IntentRouter {
       // Services overview intent.
       'services_overview' => [
         'patterns' => [
-          '/\b(what\s*(do\s*you|does\s*ilas)\s*do|what\s*services)/i',
-          '/\b(types?\s*of\s*(help|services|cases)|areas?\s*of\s*(law|practice))/i',
-          '/\b(what\s*(kind|type)\s*of\s*(help|cases)|practice\s*areas?)/i',
+          '/\b(what\s*(do\s*you|does\s*(ilas|idaho\s*legal\s*aid))\s*do|what\s*services)/i',
+          '/\b((kinds?|types?)\s*of\s*(help|services|cases|legal\s*(issues?|matters?))|areas?\s*of\s*(law|practice))/i',
+          '/\b(what\s*(kinds?|types?)\s*of\s*(help|cases|legal\s*(issues?|matters?))|practice\s*areas?)/i',
           '/\bservices\s*(overview|offered|available)/i',
           '/\btell\s*me\s*about\s*(idaho\s*legal\s*aid|ilas)/i',
           '/\b(que\s*servicios|servicios\s*que\s*ofrecen)/i',
+          // Concrete phrasings with intervening qualifiers (free / legal /
+          // civil) that the disambiguator no longer intercepts.
+          '/\bwhat\s+(?:[a-z]+\s+){0,3}services\s+(?:do|does|are|can|will|would)\s+(?:you|ilas|idaho\s*legal\s*aid)\b/i',
+          '/\b(free|civil)\s+legal\s+services\b/i',
+          '/\bwhat\s+(?:do|does)\s+(?:you|ilas|idaho\s*legal\s*aid)\s+(?:provide|offer|cover|help\s+with)\b/i',
         ],
         'keywords' => ['services', 'what_do_you_do', 'types_of_help', 'practice_areas', 'servicios'],
         'weight' => 0.85,
@@ -573,12 +607,12 @@ class IntentRouter {
           // Sued for debt (not escalation)
           '/\bsued\s*(for\s*)?(a\s*)?(debt|money|bill)/i',
           '/\b(got|received)\s*(court\s*papers?|summons)\s*(for\s*)?(debt|money)/i',
-          // Garnishment variants
+          // Garnishment variants.
           '/\b(wage|wages|salary|paycheck)\s*(is\s*)?(being\s*)?(garnish|garnished|garnishment)/i',
           '/\b(garnish|garnished|garnishment)\s*(my\s*)?(wage|wages|salary|paycheck)/i',
           '/\b(bank\s*account)\s*(frozen|levy|levied|seized)/i',
           '/\b(froze|freeze|frozen)\s*(my\s*)?(bank|account)/i',
-          // Repossession variants
+          // Repossession variants.
           '/\b(car|vehicle|auto)\s*(repossess|repossessed|repossession|repo)/i',
           '/\b(repossess|repossessed|repo)\s*(my\s*)?(car|vehicle|auto)/i',
           '/\b(my\s*)?(car|vehicle|auto)\s*(was|got|is\s*being)\s*(repossess|repossessed|repo)/i',
@@ -589,7 +623,7 @@ class IntentRouter {
           // Debt collector rights (consumer topic, not escalation)
           '/\b(rights|right)\s*(with|against|when)\s*(debt|bill)?\s*(collector|creditor)/i',
           '/\bwhat\s*(are)?\s*(my)?\s*rights\s*(with|when|if)\s*(debt|collector|creditor)/i',
-          // Spanish - debt collection
+          // Spanish - debt collection.
           '/\b(estafa|fraude|deuda|deudas|bancarrota)/i',
           '/\brobaron\s*mi\s*identidad/i',
           '/\bme\s*estafaron/i',
@@ -774,6 +808,12 @@ class IntentRouter {
       ];
     }
 
+    $explicit_top_intent = $this->matchExplicitTopIntent($message);
+    if ($explicit_top_intent) {
+      $explicit_top_intent['extraction'] = $extraction;
+      return $explicit_top_intent;
+    }
+
     // Step 5a: Check for vague/ambiguous queries that need clarification.
     // This runs BEFORE topic routing so single-word topic queries like
     // "divorce" or "forms" get a clarification prompt instead of being
@@ -814,10 +854,7 @@ class IntentRouter {
     // that should ask what action the user wants (forms, guides, apply).
     // Skip TopicRouter when message contains an explicit resource type word
     // (e.g. "custody forms") so intent patterns can match directly.
-    $has_resource_type_word = (bool) preg_match(
-      '/\b(forms?|paperwork|papers|documents?|guides?|handbook|manuals?|instructions?|faq|faqs)\b/i',
-      $message
-    );
+    $has_resource_type_word = $this->hasResourceTypeWord($message);
     if ($this->topicRouter && str_word_count($message) <= 4 && !$has_resource_type_word) {
       $topic_route = $this->topicRouter->route($message);
       if ($topic_route) {
@@ -940,6 +977,7 @@ class IntentRouter {
           'type' => $pack_match,
           'confidence' => 0.60,
           'source' => 'top_intents_pack',
+          'area' => $this->inferAreaFromIntentType($pack_match),
           'pack_entry' => $pack_entry,
           'extraction' => $extraction,
         ];
@@ -993,6 +1031,84 @@ class IntentRouter {
     unset($normalized['high_risk'], $normalized['out_of_scope']);
 
     return $normalized;
+  }
+
+  /**
+   * Matches explicit multi-word topic requests to a top-intent entry.
+   */
+  protected function matchExplicitTopIntent(string $message): ?array {
+    if (!$this->topIntentsPack || mb_strlen(trim($message)) < 4) {
+      return NULL;
+    }
+
+    if ($this->hasResourceTypeWord($message)) {
+      return NULL;
+    }
+
+    $normalized = mb_strtolower(trim($message));
+    $pack_match = $this->topIntentsPack->matchSynonyms($normalized);
+    if (!$pack_match || !str_starts_with($pack_match, 'topic_')) {
+      return NULL;
+    }
+
+    if (!$this->isExplicitTopIntentRequest($normalized)) {
+      return NULL;
+    }
+
+    return [
+      'type' => $pack_match,
+      'confidence' => 0.72,
+      'source' => 'explicit_top_intents_pack',
+      'area' => $this->inferAreaFromIntentType($pack_match),
+      'pack_entry' => $this->topIntentsPack->lookup($pack_match),
+    ];
+  }
+
+  /**
+   * Returns TRUE when a topic mention carries enough context to answer.
+   */
+  protected function isExplicitTopIntentRequest(string $normalized_message): bool {
+    if (HistoryIntentResolver::detectResetSignal($normalized_message)) {
+      return TRUE;
+    }
+
+    return (bool) preg_match('/\b(i\s+need|need|necesito|quiero|help|ayuda|with|about|con|sobre|para|actually|instead|en\s+realidad|mejor|got|have|received|tengo|recibi|recibí)\b/u', $normalized_message);
+  }
+
+  /**
+   * Detects resource-type words that should keep resource routing precedence.
+   */
+  protected function hasResourceTypeWord(string $message): bool {
+    return (bool) preg_match(
+      '/\b(forms?|paperwork|papers|documents?|guides?|handbook|manuals?|instructions?|faq|faqs)\b/i',
+      $message
+    );
+  }
+
+  /**
+   * Infers a broad service area from a topic intent key.
+   */
+  protected function inferAreaFromIntentType(string $intent_type): ?string {
+    if (str_starts_with($intent_type, 'topic_housing')) {
+      return 'housing';
+    }
+    if (str_starts_with($intent_type, 'topic_family')) {
+      return 'family';
+    }
+    if (str_starts_with($intent_type, 'topic_consumer')) {
+      return 'consumer';
+    }
+    if (str_starts_with($intent_type, 'topic_seniors')) {
+      return 'seniors';
+    }
+    if (str_starts_with($intent_type, 'topic_health') || str_starts_with($intent_type, 'topic_benefits')) {
+      return 'health';
+    }
+    if (str_starts_with($intent_type, 'topic_civil_rights') || str_starts_with($intent_type, 'topic_employment')) {
+      return 'civil_rights';
+    }
+
+    return NULL;
   }
 
   /**

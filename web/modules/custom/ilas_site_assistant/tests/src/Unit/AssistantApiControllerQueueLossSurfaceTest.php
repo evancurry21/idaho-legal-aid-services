@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
-use Drupal;
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -32,11 +34,17 @@ use Psr\Log\LoggerInterface;
 #[Group('ilas_site_assistant')]
 final class AssistantApiControllerQueueLossSurfaceTest extends TestCase {
 
+  /**
+   *
+   */
   protected function setUp(): void {
     parent::setUp();
-    Drupal::setContainer(new ContainerBuilder());
+    \Drupal::setContainer(new ContainerBuilder());
   }
 
+  /**
+   *
+   */
   public function testHealthAndMetricsExposeNestedQueueExportSummary(): void {
     $performanceMonitor = $this->createStub(PerformanceMonitor::class);
     $performanceMonitor->method('getSummary')->willReturn([
@@ -123,7 +131,7 @@ final class AssistantApiControllerQueueLossSurfaceTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('ilas_site_assistant.queue_health_monitor', $queueMonitor);
     $container->set('ilas_site_assistant.slo_definitions', $sloDefinitions);
-    Drupal::setContainer($container);
+    \Drupal::setContainer($container);
 
     $controller = $this->buildController($performanceMonitor);
 
@@ -139,6 +147,9 @@ final class AssistantApiControllerQueueLossSurfaceTest extends TestCase {
     $this->assertSame('healthy', $health['status']);
   }
 
+  /**
+   *
+   */
   private function buildController(PerformanceMonitor $performanceMonitor): AssistantApiController {
     $config = $this->createStub(ImmutableConfig::class);
     $config->method('get')->willReturn(NULL);
@@ -160,8 +171,8 @@ final class AssistantApiControllerQueueLossSurfaceTest extends TestCase {
       $cache,
       $this->createStub(LoggerInterface::class),
       assistant_flow_runner: $this->createStub(AssistantFlowRunner::class),
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      selection_registry: new SelectionRegistry(new TopIntentsPack()),
+      selection_state_store: new SelectionStateStore($cache),
       performance_monitor: $performanceMonitor,
     );
   }

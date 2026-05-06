@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
+use Drupal\ilas_site_assistant\Service\LlmRateLimiter;
+use Drupal\ilas_site_assistant\Service\LlmCircuitBreaker;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -27,11 +30,17 @@ use Psr\Log\LoggerInterface;
 #[Group('ilas_site_assistant')]
 final class LlmEnhancerHardeningTest extends TestCase {
 
+  /**
+   *
+   */
   protected function tearDown(): void {
     new Settings([]);
     parent::tearDown();
   }
 
+  /**
+   *
+   */
   public function testIsEnabledRequiresRuntimeToggleAndConfiguredTransport(): void {
     $disabled = $this->buildEnhancer(
       ['llm.enabled' => FALSE],
@@ -52,6 +61,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
     $this->assertTrue($enabled->isEnabled());
   }
 
+  /**
+   *
+   */
   public function testClassifyIntentReturnsCurrentIntentWhenDisabled(): void {
     $transport = new StaticRequestTimeTransport(FALSE, ['payload' => ['intent' => 'faq']]);
     $enhancer = $this->buildEnhancer(['llm.enabled' => TRUE], $transport);
@@ -60,6 +72,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
     $this->assertSame(0, $transport->calls);
   }
 
+  /**
+   *
+   */
   public function testClassifyIntentUsesStructuredTransportAndReturnsCanonicalIntent(): void {
     $transport = new StaticRequestTimeTransport(TRUE, ['payload' => ['intent' => 'faq']]);
     $enhancer = $this->buildEnhancer(['llm.enabled' => TRUE], $transport);
@@ -71,8 +86,49 @@ final class LlmEnhancerHardeningTest extends TestCase {
     $this->assertSame('cohere', $enhancer->getProviderId());
     $this->assertSame('command-a-03-2025', $enhancer->getModelId());
     $this->assertStringContainsString('Return exactly one canonical intent label', (string) ($transport->messages[0]['content'] ?? ''));
+    $this->assertTrue($enhancer->getLastRequestMeta()['success'] ?? FALSE);
+    $this->assertTrue($enhancer->getLastRequestMeta()['transport_attempted'] ?? FALSE);
   }
 
+  /**
+   *
+   */
+  public function testProbeConnectivityBypassesCacheAndReturnsSafeProof(): void {
+    $transport = new StaticRequestTimeTransport(TRUE, [
+      'payload' => ['intent' => 'offices'],
+      'usage' => ['input' => 7, 'output' => 1, 'total' => 8],
+    ]);
+    $enhancer = $this->buildEnhancer(['llm.enabled' => TRUE, 'llm.cache_ttl' => 3600], $transport);
+
+    $probe = $enhancer->probeConnectivity('unit-test');
+
+    $this->assertTrue($probe['success']);
+    $this->assertSame('cohere', $probe['provider']);
+    $this->assertSame('command-a-03-2025', $probe['model']);
+    $this->assertSame('offices', $probe['classification']);
+    $this->assertTrue($probe['transport_attempted']);
+    $this->assertFalse($probe['cache_hit']);
+    $this->assertSame(0, $transport->options['cache_ttl'] ?? NULL);
+    $this->assertArrayNotHasKey('api_key', $probe);
+  }
+
+  /**
+   *
+   */
+  public function testBlockOnlyHighDoesNotDisableCohereProviderSafety(): void {
+    $transport = new StaticRequestTimeTransport(TRUE, ['payload' => ['intent' => 'faq']]);
+    $enhancer = $this->buildEnhancer([
+      'llm.enabled' => TRUE,
+      'llm.safety_threshold' => 'BLOCK_ONLY_HIGH',
+    ], $transport);
+
+    $this->assertSame('faq', $enhancer->classifyIntent('Where are your tenant FAQs?'));
+    $this->assertSame('CONTEXTUAL', $transport->options['safety_mode'] ?? NULL);
+  }
+
+  /**
+   *
+   */
   public function testClassifyIntentRejectsNonCanonicalIntent(): void {
     $transport = new StaticRequestTimeTransport(TRUE, ['payload' => ['intent' => 'housing']]);
     $enhancer = $this->buildEnhancer(['llm.enabled' => TRUE], $transport);
@@ -80,6 +136,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
     $this->assertSame('unknown', $enhancer->classifyIntent('I need legal help with my apartment.'));
   }
 
+  /**
+   *
+   */
   public function testCacheMissStoresResultAndCacheHitSkipsTransport(): void {
     $store = [];
     $cache = $this->createMock(CacheBackendInterface::class);
@@ -118,6 +177,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
     $this->assertNotEmpty($store);
   }
 
+  /**
+   *
+   */
   public function testRetryableStatusRetriesWithinConfiguredBudget(): void {
     $enhancer = new SequencedRetryEnhancer(
       $this->buildConfigFactory([
@@ -146,6 +208,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
     $this->assertLessThanOrEqual(250, $enhancer->delays[0]);
   }
 
+  /**
+   *
+   */
   public function testNonRetryableStatusStopsImmediately(): void {
     $enhancer = new SequencedRetryEnhancer(
       $this->buildConfigFactory([
@@ -171,11 +236,17 @@ final class LlmEnhancerHardeningTest extends TestCase {
     $this->assertSame(1, $enhancer->dispatchCount);
   }
 
+  /**
+   *
+   */
   public function testGenerateGreetingRemainsRetired(): void {
     $enhancer = $this->buildEnhancer(['llm.enabled' => TRUE], new StaticRequestTimeTransport(TRUE, ['payload' => ['intent' => 'faq']]));
     $this->assertNull($enhancer->generateGreeting('hello'));
   }
 
+  /**
+   *
+   */
   private function buildEnhancer(
     array $overrides,
     RequestTimeLlmTransportInterface $transport,
@@ -198,6 +269,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   private function buildConfigFactory(array $overrides): ConfigFactoryInterface {
     $defaults = [
       'llm.enabled' => FALSE,
@@ -222,6 +296,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
     return $factory;
   }
 
+  /**
+   *
+   */
   private function buildLoggerFactory(): LoggerChannelFactoryInterface {
     $logger = $this->createStub(LoggerInterface::class);
     $factory = $this->createStub(LoggerChannelFactoryInterface::class);
@@ -229,6 +306,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
     return $factory;
   }
 
+  /**
+   *
+   */
   private function buildRequestException(int $statusCode): RequestException {
     return new RequestException(
       'transport failure',
@@ -239,6 +319,9 @@ final class LlmEnhancerHardeningTest extends TestCase {
 
 }
 
+/**
+ *
+ */
 final class StaticRequestTimeTransport implements RequestTimeLlmTransportInterface {
 
   public int $calls = 0;
@@ -249,6 +332,11 @@ final class StaticRequestTimeTransport implements RequestTimeLlmTransportInterfa
   public array $messages = [];
 
   /**
+   * @var array<string, mixed>
+   */
+  public array $options = [];
+
+  /**
    * @param array<string, mixed> $result
    *   Structured payload returned by the transport.
    */
@@ -257,26 +345,42 @@ final class StaticRequestTimeTransport implements RequestTimeLlmTransportInterfa
     private readonly array $result,
   ) {}
 
+  /**
+   *
+   */
   public function getProviderId(): string {
     return 'cohere';
   }
 
+  /**
+   *
+   */
   public function getModelId(): string {
     return 'command-a-03-2025';
   }
 
+  /**
+   *
+   */
   public function isConfigured(): bool {
     return $this->configured;
   }
 
+  /**
+   *
+   */
   public function completeStructuredJson(array $messages, array $schema, array $options = []): array {
     $this->calls++;
     $this->messages = $messages;
+    $this->options = $options;
     return $this->result;
   }
 
 }
 
+/**
+ *
+ */
 final class SequencedRetryEnhancer extends LlmEnhancer {
 
   /**
@@ -301,10 +405,10 @@ final class SequencedRetryEnhancer extends LlmEnhancer {
     LoggerChannelFactoryInterface $loggerFactory,
     ?PolicyFilter $policyFilter,
     ?CacheBackendInterface $cache,
-    ?\Drupal\ilas_site_assistant\Service\LlmCircuitBreaker $circuitBreaker,
-    ?\Drupal\ilas_site_assistant\Service\LlmRateLimiter $rateLimiter,
+    ?LlmCircuitBreaker $circuitBreaker,
+    ?LlmRateLimiter $rateLimiter,
     ?CostControlPolicy $costControlPolicy,
-    ?\Drupal\ilas_site_assistant\Service\EnvironmentDetector $environmentDetector,
+    ?EnvironmentDetector $environmentDetector,
     ?RequestTimeLlmTransportInterface $transport,
     array $sequence,
   ) {
@@ -323,6 +427,9 @@ final class SequencedRetryEnhancer extends LlmEnhancer {
     $this->sequence = $sequence;
   }
 
+  /**
+   *
+   */
   protected function dispatchStructuredJsonRequest(array $messages, array $schema, array $options = []): array {
     $this->dispatchCount++;
     $next = array_shift($this->sequence);
@@ -333,6 +440,9 @@ final class SequencedRetryEnhancer extends LlmEnhancer {
     return is_array($next) ? $next : ['payload' => ['intent' => 'unknown']];
   }
 
+  /**
+   *
+   */
   protected function sleepMilliseconds(int $delayMs): void {
     $this->delays[] = $delayMs;
   }

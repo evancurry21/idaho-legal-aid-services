@@ -14,7 +14,6 @@ use PHPUnit\Framework\Attributes\Group;
  * Contains 50+ test cases covering criminal defense, immigration,
  * non-Idaho jurisdiction, emergency services, and other out-of-scope
  * categories.
- *
  */
 #[CoversClass(OutOfScopeClassifier::class)]
 #[Group('ilas_site_assistant')]

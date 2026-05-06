@@ -34,7 +34,7 @@ class PhaseOneQualityGateContractTest extends TestCase {
   }
 
   /**
-   * current-state must formalize the objective as enforced quality gates.
+   * Current-state must formalize the objective as enforced quality gates.
    */
   public function testCurrentStateFormalizesQualityGateContract(): void {
     $currentState = self::readFile('docs/aila/current-state.md');
@@ -53,7 +53,7 @@ class PhaseOneQualityGateContractTest extends TestCase {
   }
 
   /**
-   * runbook section 4 must provide reproducible quality-gate commands.
+   * Runbook section 4 must provide reproducible quality-gate commands.
    */
   public function testRunbookContainsEnforcedQualityGateVerificationSteps(): void {
     $runbook = self::readFile('docs/aila/runbook.md');
@@ -124,7 +124,7 @@ class PhaseOneQualityGateContractTest extends TestCase {
     $this->assertStringContainsString('Kernel runtime regression suite (VC-KERNEL)', $qualityGate);
     $this->assertStringContainsString('FaqSearchRuntimeRegressionKernelTest.php', $qualityGate);
     $this->assertStringContainsString('run-host-phpunit.sh', $qualityGate);
-    $this->assertStringContainsString('GoldenTranscriptTest.php', $qualityGate);
+    $this->assertStringContainsString('ConversationIntentFixtureUnitTest.php', $qualityGate);
     $this->assertStringContainsString('phpunit-summary.txt', $qualityGate);
 
     $this->assertStringContainsString('tests/run-quality-gate.sh', $externalGate);

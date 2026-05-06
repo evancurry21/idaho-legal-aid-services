@@ -170,9 +170,14 @@ final class RetrievalConfigurationServiceTest extends TestCase {
    */
   private function healthyServers(): array {
     $enabled = new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return TRUE;
       }
+
     };
 
     return [
@@ -384,9 +389,14 @@ final class RetrievalConfigurationServiceTest extends TestCase {
 
     $servers = $this->healthyServers();
     $servers['database'] = new class {
+
+      /**
+       *
+       */
       public function status(): bool {
         return FALSE;
       }
+
     };
 
     $service = $this->buildService($this->healthyRetrieval(), $this->healthyCanonicalUrls(), $this->healthyIndexes(), $servers);
@@ -411,9 +421,14 @@ final class RetrievalConfigurationServiceTest extends TestCase {
       ->willReturnCallback(static function (string $id) {
         return in_array($id, ['database', 'pinecone_vector_faq', 'pinecone_vector_resources'], TRUE)
           ? new class {
+
+            /**
+             *
+             */
             public function status(): bool {
               return TRUE;
             }
+
           }
           : NULL;
       });

@@ -14,6 +14,8 @@
 
 namespace Drupal\Tests\ilas_site_assistant;
 
+use Drupal\ilas_site_assistant\Service\TopicRouter;
+
 /**
  * Intent mapping from test fixture labels to continue-path router types.
  */
@@ -146,15 +148,15 @@ function simulateRouter(string $message): array {
 
   // === STEP 2: AUTHORITATIVE DEADLINE OVERRIDE CHECK ===
   $deadline_triggers = [
-      'deadline tomorrow', 'deadline today', 'deadline is today', 'deadline is tomorrow',
-      'due tomorrow', 'due today', 'response due tomorrow', 'response due today',
-      'file by tomorrow', 'file today', 'must file by', 'have to file by tomorrow',
-      'respond by tomorrow', 'respond by today', 'respond by friday', 'respond by monday',
-      'court date tomorrow', 'court date today', 'court hearing tomorrow',
-      'have to respond today', 'must respond today', '24 hours', 'within 24 hours',
-      'fecha limite hoy', 'fecha limite manana', 'vence hoy', 'vence manana',
-      'tengo que responder hoy', 'corte manana', 'audiencia manana',
-      'fecha limite is manana', 'limite is manana',
+    'deadline tomorrow', 'deadline today', 'deadline is today', 'deadline is tomorrow',
+    'due tomorrow', 'due today', 'response due tomorrow', 'response due today',
+    'file by tomorrow', 'file today', 'must file by', 'have to file by tomorrow',
+    'respond by tomorrow', 'respond by today', 'respond by friday', 'respond by monday',
+    'court date tomorrow', 'court date today', 'court hearing tomorrow',
+    'have to respond today', 'must respond today', '24 hours', 'within 24 hours',
+    'fecha limite hoy', 'fecha limite manana', 'vence hoy', 'vence manana',
+    'tengo que responder hoy', 'corte manana', 'audiencia manana',
+    'fecha limite is manana', 'limite is manana',
   ];
 
   foreach ($deadline_triggers as $trigger) {
@@ -521,7 +523,7 @@ function simulateRouter(string $message): array {
     static $topicRouter = NULL;
     if ($topicRouter === NULL) {
       require_once __DIR__ . '/../src/Service/TopicRouter.php';
-      $topicRouter = new \Drupal\ilas_site_assistant\Service\TopicRouter(NULL);
+      $topicRouter = new TopicRouter(NULL);
     }
     $topic_result = $topicRouter->route($message);
     if ($topic_result) {
@@ -984,7 +986,9 @@ function formatReport(array $results): string {
     $output[] = "───────────────────────────────────────────────────────────────────────────";
     $count = 0;
     foreach ($results['failures'] as $failure) {
-      if ($count >= 15) break;
+      if ($count >= 15) {
+        break;
+      }
       $output[] = sprintf("  #%d [%s]: \"%s\"",
         $failure['id'], $failure['category'], substr($failure['utterance'], 0, 45));
       $output[] = sprintf("       Expected: %s → Got: %s",

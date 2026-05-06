@@ -38,7 +38,7 @@ class RedirectApplierService {
   public function __construct(
     EntityTypeManagerInterface $entity_type_manager,
     Connection $database,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
   ) {
     $this->entityTypeManager = $entity_type_manager;
     $this->database = $database;
@@ -73,7 +73,7 @@ class RedirectApplierService {
       $sourcePath = $entry['old_path'];
       $destination = $entry['proposed_destination'];
 
-      // Validate source path
+      // Validate source path.
       if (empty($sourcePath)) {
         $results['errors'][] = [
           'entry' => $entry,
@@ -82,7 +82,7 @@ class RedirectApplierService {
         continue;
       }
 
-      // Validate destination
+      // Validate destination.
       if (empty($destination)) {
         $results['errors'][] = [
           'entry' => $entry,
@@ -91,7 +91,7 @@ class RedirectApplierService {
         continue;
       }
 
-      // Check if redirect already exists
+      // Check if redirect already exists.
       if ($this->redirectExists($sourcePath)) {
         $results['skipped'][] = [
           'entry' => $entry,
@@ -117,7 +117,7 @@ class RedirectApplierService {
         continue;
       }
 
-      // Create the redirect
+      // Create the redirect.
       try {
         $redirect = $this->createRedirect($sourcePath, $destination, $statusCode);
 
@@ -127,7 +127,7 @@ class RedirectApplierService {
             'redirect_id' => $redirect->id(),
           ];
 
-          // Mark as resolved in redirect_404 table
+          // Mark as resolved in redirect_404 table.
           $this->markResolved($sourcePath);
         }
         else {
@@ -185,12 +185,12 @@ class RedirectApplierService {
    *   TRUE if destination exists.
    */
   public function validateDestination(string $destination): bool {
-    // Normalize path
+    // Normalize path.
     $path = '/' . ltrim($destination, '/');
 
-    // Check if it's an internal path
+    // Check if it's an internal path.
     if (str_starts_with($path, '/node/')) {
-      // Extract node ID
+      // Extract node ID.
       if (preg_match('#^/node/(\d+)#', $path, $matches)) {
         $nid = $matches[1];
         $node = $this->entityTypeManager->getStorage('node')->load($nid);
@@ -198,7 +198,7 @@ class RedirectApplierService {
       }
     }
 
-    // Check if it's a taxonomy term path
+    // Check if it's a taxonomy term path.
     if (str_starts_with($path, '/taxonomy/term/')) {
       if (preg_match('#^/taxonomy/term/(\d+)#', $path, $matches)) {
         $tid = $matches[1];
@@ -207,7 +207,7 @@ class RedirectApplierService {
       }
     }
 
-    // Check if it's an alias
+    // Check if it's an alias.
     $aliasPath = $this->database->select('path_alias', 'pa')
       ->fields('pa', ['path'])
       ->condition('alias', $path)
@@ -220,7 +220,7 @@ class RedirectApplierService {
       return TRUE;
     }
 
-    // Check if it's a file path
+    // Check if it's a file path.
     if (preg_match('#\.(pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|gif|svg)$#i', $path)) {
       $filePath = DRUPAL_ROOT . $path;
       return file_exists($filePath);
@@ -246,9 +246,9 @@ class RedirectApplierService {
     // Normalize source path (remove leading slash)
     $source = ltrim($sourcePath, '/');
 
-    // Determine destination format
+    // Determine destination format.
     if (str_starts_with($destination, '/node/')) {
-      // Internal node path
+      // Internal node path.
       if (preg_match('#^/node/(\d+)#', $destination, $matches)) {
         $destinationUri = 'entity:node/' . $matches[1];
       }
@@ -257,7 +257,7 @@ class RedirectApplierService {
       }
     }
     elseif (str_starts_with($destination, '/taxonomy/term/')) {
-      // Internal taxonomy path
+      // Internal taxonomy path.
       if (preg_match('#^/taxonomy/term/(\d+)#', $destination, $matches)) {
         $destinationUri = 'entity:taxonomy_term/' . $matches[1];
       }
@@ -266,7 +266,7 @@ class RedirectApplierService {
       }
     }
     else {
-      // Use internal path
+      // Use internal path.
       $destinationUri = 'internal:' . $destination;
     }
 

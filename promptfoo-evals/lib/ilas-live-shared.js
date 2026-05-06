@@ -2,8 +2,19 @@ const crypto = require('node:crypto');
 
 const DEFAULT_SITE_BASE_URL = 'https://idaholegalaid.org';
 const STRUCTURED_ERROR_PREFIX = '[ilas_error]';
+const CONTRACT_META_PREFIX = '[contract_meta]';
+const ILAS_PROVIDER_META_PREFIX = '[ilas_provider_meta]';
+const ILAS_PROVIDER_META_SCHEMA_VERSION = 'ilas_provider_meta/v1';
 const DEFAULT_EXPECTED_REQUEST_TOTAL = 292;
 const DEFAULT_REQUEST_TIMEOUT_MS = 45000;
+const CITATION_REQUIRED_RESPONSE_TYPES = new Set([
+  'eligibility',
+  'faq',
+  'resources',
+  'search_results',
+  'services_overview',
+  'topic',
+]);
 
 const pacers = new Map();
 let requestCount = 0;
@@ -278,6 +289,360 @@ function buildHumanReadableOutput(data, siteBaseUrl) {
   return parts;
 }
 
+function compactString(value, maxLength = 220) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const text = String(value).replace(/\s+/g, ' ').trim();
+  if (!text) {
+    return null;
+  }
+
+  return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 3))}...` : text;
+}
+
+function compactObject(value) {
+  const output = {};
+  Object.entries(value).forEach(([key, item]) => {
+    if (item === undefined || item === null || item === '') {
+      return;
+    }
+    if (Array.isArray(item) && item.length === 0) {
+      return;
+    }
+    output[key] = item;
+  });
+  return output;
+}
+
+function normalizeResponseText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function countRegexMatches(text, patterns = []) {
+  const haystack = String(text || '');
+  return patterns.reduce((count, pattern) => {
+    try {
+      return count + (new RegExp(pattern, 'i').test(haystack) ? 1 : 0);
+    } catch (_) {
+      return count;
+    }
+  }, 0);
+}
+
+function inferGenericFallback(payload, debug = {}) {
+  const text = normalizeResponseText(payload.message);
+  const hasRetrievalArtifacts = (
+    asArray(payload.results).length > 0 ||
+    asArray(payload.sources).length > 0 ||
+    asArray(payload.citations).length > 0 ||
+    asArray(payload.links).length > 0 ||
+    asArray(payload.secondary_actions).length > 0 ||
+    Boolean(payload.primary_action?.url)
+  );
+  const hasTopicSignals = countRegexMatches(text, [
+    '\\b(evict|eviction|notice|housing|tenant|landlord|custody|guardianship|ssi|benefits|disability|office|forms?|guides?|resource|family|divorce|consumer|debt|desalojo|custodia)\\b',
+  ]) > 0;
+  const genericPattern = (
+    /^(how can i help you today\??|what would you like to know\??|could you clarify\??|please clarify\??|i could not find information\.?|please contact us\.?)$/i.test(text) ||
+    /^please contact us\b/i.test(text) ||
+    /^what kind of help do you need\b/i.test(text)
+  );
+  const contactOnly = (
+    /\b(please contact us|call us|contact our office)\b/i.test(text) &&
+    !hasRetrievalArtifacts &&
+    !hasTopicSignals
+  );
+  const debugFallback = String(debug.gate_decision || '').toLowerCase().includes('generic_fallback');
+  return genericPattern || contactOnly || debugFallback;
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function compactNumber(value, decimals = 4) {
+  const raw = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(raw) ? Number(raw.toFixed(decimals)) : null;
+}
+
+function normalizeConfidence(value) {
+  const raw = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(raw)
+    ? Number(Math.max(0, Math.min(1, raw)).toFixed(4))
+    : null;
+}
+
+function createSafeTraceId(value) {
+  if (!value) {
+    return null;
+  }
+  return crypto.createHash('sha256').update(String(value)).digest('hex').slice(0, 20);
+}
+
+function isAllowedIlasUrl(url, siteBaseUrl = DEFAULT_SITE_BASE_URL) {
+  if (!url || typeof url !== 'string') {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(toAbsoluteUrl(url, siteBaseUrl));
+    const siteHost = new URL(siteBaseUrl).host.toLowerCase();
+    return [
+      siteHost,
+      'idaholegalaid.org',
+      'www.idaholegalaid.org',
+    ].includes(parsed.host.toLowerCase());
+  } catch (_) {
+    return false;
+  }
+}
+
+function summarizeAction(action, siteBaseUrl) {
+  if (!action || typeof action !== 'object') {
+    return null;
+  }
+
+  return compactObject({
+    label: compactString(action.label),
+    url: action.url ? toAbsoluteUrl(action.url, siteBaseUrl) : null,
+    type: compactString(action.type, 80),
+  });
+}
+
+function summarizeActions(actions, siteBaseUrl, limit = 8) {
+  if (!Array.isArray(actions)) {
+    return [];
+  }
+
+  return actions
+    .slice(0, limit)
+    .map((action) => summarizeAction(action, siteBaseUrl))
+    .filter((action) => action && Object.keys(action).length > 0);
+}
+
+function summarizeResults(results, siteBaseUrl, limit = 10) {
+  if (!Array.isArray(results)) {
+    return [];
+  }
+
+  return results
+    .slice(0, limit)
+    .map((result) => {
+      if (!result || typeof result !== 'object') {
+        return null;
+      }
+      return compactObject({
+        id: compactString(result.id || result.paragraph_id, 120),
+        title: compactString(result.title || result.question),
+        url: result.url || result.source_url ? toAbsoluteUrl(result.url || result.source_url, siteBaseUrl) : null,
+        type: compactString(result.type, 80),
+        source: compactString(result.source, 80),
+        source_class: compactString(result.source_class, 80),
+        topic: compactString(result.topic || result.topic_name || result.category, 120),
+        topic_id: compactString(result.topic_id || result.term_id || result.category_id, 120),
+        score: Number.isFinite(Number(result.score)) ? Number(result.score) : null,
+      });
+    })
+    .filter((result) => result && Object.keys(result).length > 0);
+}
+
+// Vocabulary of topic slugs we recognize. These mirror the assistant's
+// canonical taxonomy and map URL slugs / source_class fragments back to the
+// topic an assertion will look for.
+const TOPIC_HINTS = [
+  'eviction',
+  'tenant',
+  'housing',
+  'foreclosure',
+  'deposit',
+  'custody',
+  'guardianship',
+  'divorce',
+  'family',
+  'protection',
+  'domestic-violence',
+  'dv',
+  'benefits',
+  'ssi',
+  'ssa',
+  'medicaid',
+  'snap',
+  'unemployment',
+  'debt',
+  'consumer',
+  'wage',
+  'employment',
+  'immigration',
+  'criminal',
+];
+
+function deriveTopicHint({ sourceClass, url, title }) {
+  const probe = `${sourceClass || ''} ${url || ''} ${title || ''}`.toLowerCase();
+  for (const hint of TOPIC_HINTS) {
+    // Match either a raw word or a slugified word inside source_class/url.
+    const pattern = new RegExp(`(^|[^a-z])${hint.replace('-', '[-_]?')}([^a-z]|$)`, 'i');
+    if (pattern.test(probe)) {
+      // Normalize hyphenated DV → protection.
+      if (hint === 'dv' || hint === 'domestic-violence') {
+        return 'protection';
+      }
+      return hint;
+    }
+  }
+  return null;
+}
+
+function normalizeCitationItem(citation, siteBaseUrl, sourceKind, supported = false) {
+  if (!citation || typeof citation !== 'object') {
+    return null;
+  }
+
+  const url = citation.url || citation.source_url
+    ? toAbsoluteUrl(citation.url || citation.source_url, siteBaseUrl)
+    : null;
+
+  const explicitTopic = compactString(
+    citation.topic || citation.topic_name || citation.category,
+    120
+  );
+  // Defense-in-depth: when the API doesn't yet emit `topic`, derive a hint
+  // from source_class / url / title. Assertion library matches the topic by
+  // substring, so a slug like "eviction" inside the URL is sufficient.
+  const topic = explicitTopic ||
+    deriveTopicHint({
+      sourceClass: citation.source_class,
+      url,
+      title: citation.title || citation.label || citation.name,
+    });
+
+  return compactObject({
+    id: compactString(citation.id || citation.paragraph_id || citation.uuid, 120),
+    title: compactString(citation.title || citation.label || citation.name),
+    url,
+    source: compactString(citation.source, 80),
+    source_class: compactString(citation.source_class, 80),
+    topic,
+    topic_id: compactString(citation.topic_id || citation.term_id || citation.category_id, 120),
+    supported: Boolean(supported && url && isAllowedIlasUrl(url, siteBaseUrl)),
+    source_kind: sourceKind,
+  });
+}
+
+function summarizeCitationMetadata(data, siteBaseUrl, limit = 10) {
+  const explicitSources = asArray(data.sources)
+    .slice(0, limit)
+    .map((citation) => normalizeCitationItem(citation, siteBaseUrl, 'sources', true))
+    .filter((citation) => citation && Object.keys(citation).length > 0);
+
+  const publicCitations = asArray(data.citations)
+    .slice(0, limit)
+    .map((citation) => {
+      const explicitlySupported = citation?.supported === true || citation?.explicit === true;
+      return normalizeCitationItem(citation, siteBaseUrl, 'citations', explicitlySupported);
+    })
+    .filter((citation) => citation && Object.keys(citation).length > 0);
+
+  const supported = explicitSources.length > 0
+    ? explicitSources
+    : publicCitations.filter((citation) => citation.supported === true);
+
+  return {
+    explicit_sources: explicitSources,
+    public_citations: publicCitations,
+    supported,
+    all: [...explicitSources, ...publicCitations],
+  };
+}
+
+function collectDerivedCitationCandidates(data, siteBaseUrl) {
+  const candidates = [];
+  const push = (sourceKind, item) => {
+    if (!item?.url) {
+      return;
+    }
+    candidates.push(compactObject({
+      title: compactString(item.title || item.label || item.name || item.question),
+      url: toAbsoluteUrl(item.url, siteBaseUrl),
+      source_kind: sourceKind,
+      source_class: compactString(item.source_class, 80),
+      topic: compactString(item.topic || item.topic_name || item.category, 120),
+    }));
+  };
+
+  if (data.url) {
+    push('response_url', { url: data.url, label: data.title || data.type });
+  }
+  push('primary_action', data.primary_action);
+  asArray(data.secondary_actions).forEach((action) => push('secondary_action', action));
+  asArray(data.links).forEach((link) => push('link', link));
+  asArray(data.results).forEach((result) => push('result', result));
+
+  const seen = new Set();
+  return candidates.filter((candidate) => {
+    const key = candidate.url;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function collectProviderLinks(data, siteBaseUrl) {
+  const links = [];
+  const push = (sourceKind, item) => {
+    if (!item?.url) {
+      return;
+    }
+    links.push(compactObject({
+      label: compactString(item.label || item.title || item.name || item.question),
+      url: toAbsoluteUrl(item.url, siteBaseUrl),
+      source_kind: sourceKind,
+      type: compactString(item.type, 80),
+    }));
+  };
+
+  if (data.url) {
+    push('response_url', { url: data.url, label: data.title || data.type });
+  }
+  push('primary_action', data.primary_action);
+  asArray(data.secondary_actions).forEach((action) => push('secondary_action', action));
+  asArray(data.links).forEach((link) => push('link', link));
+
+  return links;
+}
+
+function collectUrls(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return Array.from(new Set(items
+    .map((item) => item && typeof item === 'object' ? item.url : null)
+    .filter((url) => typeof url === 'string' && url !== '')));
+}
+
+function inferFallbackUsed(data) {
+  const fields = [
+    data.type,
+    data.response_mode,
+    data.reason_code,
+    data.decision_reason,
+  ].map((value) => String(value || '').toLowerCase());
+
+  return fields.some((value) =>
+    value.includes('fallback') ||
+    value.includes('clarify') ||
+    value.includes('no_match') ||
+    value.includes('no_results') ||
+    value.includes('low_confidence') ||
+    value.includes('low_retrieval') ||
+    value.includes('unavailable')
+  );
+}
+
 function summarizeRetrievalProvenance(data) {
   const sourceClasses = new Set();
   let vectorResultCount = 0;
@@ -304,8 +669,7 @@ function summarizeRetrievalProvenance(data) {
     });
   }
 
-  if (Array.isArray(data.citations)) {
-    data.citations.forEach((citation) => {
+  [...asArray(data.sources), ...asArray(data.citations)].forEach((citation) => {
       const source = typeof citation?.source === 'string' ? citation.source.trim().toLowerCase() : '';
       if (!source) {
         return;
@@ -317,8 +681,7 @@ function summarizeRetrievalProvenance(data) {
       if (source.includes('lexical')) {
         lexicalCitationCount += 1;
       }
-    });
-  }
+  });
 
   return {
     result_source_classes: Array.from(sourceClasses).sort(),
@@ -329,60 +692,460 @@ function summarizeRetrievalProvenance(data) {
   };
 }
 
-function buildContractMeta(data, siteBaseUrl) {
-  const derivedCitationUrls = new Set();
-  if (data.url) {
-    derivedCitationUrls.add(toAbsoluteUrl(data.url, siteBaseUrl));
-  }
-  if (data.primary_action?.url) {
-    derivedCitationUrls.add(toAbsoluteUrl(data.primary_action.url, siteBaseUrl));
-  }
-  if (Array.isArray(data.secondary_actions)) {
-    data.secondary_actions.forEach((action) => {
-      if (action?.url) {
-        derivedCitationUrls.add(toAbsoluteUrl(action.url, siteBaseUrl));
-      }
-    });
-  }
-  if (Array.isArray(data.links)) {
-    data.links.forEach((link) => {
-      if (link?.url) {
-        derivedCitationUrls.add(toAbsoluteUrl(link.url, siteBaseUrl));
-      }
-    });
-  }
-  if (Array.isArray(data.results)) {
-    data.results.forEach((result) => {
-      if (result?.url) {
-        derivedCitationUrls.add(toAbsoluteUrl(result.url, siteBaseUrl));
-      }
-    });
+function summarizeClassification(value) {
+  if (!value || typeof value !== 'object') {
+    return null;
   }
 
-  const rawConfidence =
-    typeof data.confidence === 'number' ? data.confidence : Number(data.confidence);
-  const normalizedConfidence = Number.isFinite(rawConfidence)
-    ? Number(Math.max(0, Math.min(1, rawConfidence)).toFixed(4))
+  return compactObject({
+    class: compactString(value.class || value.label || value.category, 80),
+    category: compactString(value.category, 80),
+    reason_code: compactString(value.reason_code || value.reason, 120),
+    confidence: compactNumber(value.confidence),
+    blocked: typeof value.blocked === 'boolean' ? value.blocked : null,
+    in_scope: typeof value.in_scope === 'boolean' ? value.in_scope : null,
+  });
+}
+
+function inferTopic(data) {
+  const debug = data._debug && typeof data._debug === 'object' ? data._debug : {};
+  const topic = data.topic && typeof data.topic === 'object' ? data.topic : {};
+  const activeSelection = data.active_selection && typeof data.active_selection === 'object'
+    ? data.active_selection
+    : {};
+
+  return compactObject({
+    id: topic.id || activeSelection.button_id || debug.topic_id || null,
+    name: topic.name || activeSelection.label || debug.topic_name || null,
+    source: data.route_source || debug.intent_source || debug.route_source || null,
+  });
+}
+
+function inferGroundingStatus(data, supportedCitationCount, derivedCitationCount) {
+  const responseType = String(data.type || '').toLowerCase();
+  const responseMode = String(data.response_mode || '').toLowerCase();
+  const reasonCode = String(data.reason_code || '').toLowerCase();
+  const requiresCitation = CITATION_REQUIRED_RESPONSE_TYPES.has(responseType);
+  const safeNonAnswer = (
+    responseMode.includes('clarify') ||
+    responseType.includes('clarify') ||
+    responseType.includes('refusal') ||
+    responseType.includes('escalation') ||
+    reasonCode.includes('safety') ||
+    reasonCode.includes('out_of_scope')
+  );
+
+  if (supportedCitationCount > 0) {
+    return 'supported';
+  }
+  if (safeNonAnswer) {
+    return 'not_required';
+  }
+  if (requiresCitation && derivedCitationCount > 0) {
+    return 'unsupported_link_or_result_only';
+  }
+  if (requiresCitation) {
+    return 'citation_required_missing';
+  }
+  if (derivedCitationCount > 0) {
+    return 'candidate_only';
+  }
+  return 'not_required';
+}
+
+function collectUnsupportedClaimFlags(data, grounded) {
+  const text = String(data.message || '');
+  const flags = [];
+  if (!grounded && /\b(within|in)\s+\d+\s+(day|days|hour|hours|week|weeks)\b/i.test(text)) {
+    flags.push('deadline_without_supported_citation');
+  }
+  if (!grounded && /\$\s?\d+|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b/.test(text)) {
+    flags.push('specific_fact_without_supported_citation');
+  }
+  if (/\b(you will win|guaranteed to win|i am your lawyer|as your lawyer)\b/i.test(text)) {
+    flags.push('legal_boundary_overclaim');
+  }
+  return flags;
+}
+
+function inferRetrievalAttempted(payload, debug = {}, provenance = {}) {
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  if (typeof publicDiagnostics.retrieval?.attempted === 'boolean') {
+    return publicDiagnostics.retrieval.attempted;
+  }
+  if (typeof publicDiagnostics.retrieval?.used === 'boolean' && publicDiagnostics.retrieval.used) {
+    return true;
+  }
+  if (typeof payload.retrieval?.vector_attempted === 'boolean' && payload.retrieval.vector_attempted) {
+    return true;
+  }
+  if (
+    typeof payload.retrieval?.lexical_result_count === 'number' &&
+    payload.retrieval.lexical_result_count > 0
+  ) {
+    return true;
+  }
+  const trace = debug.retrieval_trace && typeof debug.retrieval_trace === 'object'
+    ? debug.retrieval_trace
+    : {};
+  const explicitAttempt =
+    trace.attempted ??
+    trace.retrieval_attempted ??
+    trace.vector_attempted ??
+    trace.lexical_attempted ??
+    null;
+  if (typeof explicitAttempt === 'boolean') {
+    return explicitAttempt;
+  }
+
+  if (
+    asArray(payload.results).length > 0 ||
+    asArray(payload.sources).length > 0 ||
+    asArray(payload.citations).length > 0 ||
+    Number(provenance.vector_result_count || 0) > 0 ||
+    Number(provenance.lexical_result_count || 0) > 0 ||
+    Number(provenance.vector_citation_count || 0) > 0 ||
+    Number(provenance.lexical_citation_count || 0) > 0
+  ) {
+    return true;
+  }
+
+  const reasonText = [
+    payload.reason_code,
+    payload.decision_reason,
+    payload.type,
+    payload.response_mode,
+  ]
+    .map((value) => String(value || '').toLowerCase())
+    .join(' ');
+
+  if (/(retriev|search|no_results|low_retrieval|vector|lexical|citation_required)/.test(reasonText)) {
+    return true;
+  }
+
+  return false;
+}
+
+function inferSafetyBlocked(payload, safetyClassification) {
+  if (typeof safetyClassification?.blocked === 'boolean') {
+    return safetyClassification.blocked;
+  }
+  // Public diagnostics envelope: an authoritative safety.blocked flag set by
+  // the assistant trumps text/type heuristics.
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  if (typeof publicDiagnostics.safety?.blocked === 'boolean') {
+    return publicDiagnostics.safety.blocked;
+  }
+
+  const responseType = String(payload.type || '').toLowerCase();
+  const responseMode = String(payload.response_mode || '').toLowerCase();
+  const reasonCode = String(payload.reason_code || '').toLowerCase();
+  const safetyClass = String(payload.safety_class || '').toLowerCase();
+
+  return (
+    responseType.includes('refusal') ||
+    responseType.includes('escalation') ||
+    responseMode.includes('refusal') ||
+    reasonCode.includes('safety') ||
+    reasonCode.includes('violence') ||
+    reasonCode.includes('unsafe') ||
+    safetyClass.includes('unsafe') ||
+    safetyClass.includes('violence')
+  );
+}
+
+function inferSafetyStage(payload, safetyBlocked, llmUsed) {
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  const explicitStage = publicDiagnostics.safety?.stage;
+  if (typeof explicitStage === 'string' && explicitStage !== '') {
+    return explicitStage;
+  }
+  if (!safetyBlocked) {
+    return llmUsed === true ? 'generation_allowed' : 'not_blocked';
+  }
+  return llmUsed === true ? 'generation_after_safety' : 'pre_generation_block';
+}
+
+function inferGenerationProvider(payload, debug = {}) {
+  // Prefer explicit public diagnostics, then legacy debug, then top-level
+  // shorthand fields. Order matters: a deployed assistant may emit the
+  // structured diagnostics object publicly and skip the legacy fields.
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  return (
+    publicDiagnostics.generation?.provider ||
+    payload.generation?.provider ||
+    debug.llm_provider ||
+    debug.generation?.provider ||
+    payload.llm_provider ||
+    payload.provider ||
+    null
+  );
+}
+
+function inferGenerationUsed(payload, debug = {}) {
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  // Source-of-truth list, in priority order. The first source that returns a
+  // boolean wins; null/undefined means "no opinion, keep looking".
+  const candidates = [
+    publicDiagnostics.generation?.used,
+    payload.generation?.used,
+    payload.llm_used,
+    debug.llm_used,
+    debug.generation?.used,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'boolean') {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function buildIlasProviderMeta(data, siteBaseUrl = DEFAULT_SITE_BASE_URL, options = {}) {
+  const payload = data && typeof data === 'object' ? data : {};
+  const debug = payload._debug && typeof payload._debug === 'object' ? payload._debug : {};
+  const provenance = summarizeRetrievalProvenance(payload);
+  const primaryAction = summarizeAction(payload.primary_action, siteBaseUrl);
+  const secondaryActions = summarizeActions(payload.secondary_actions, siteBaseUrl);
+  const actionUrls = collectUrls([primaryAction, ...secondaryActions]);
+  const links = collectProviderLinks(payload, siteBaseUrl);
+  const linkUrls = collectUrls(links);
+  const results = summarizeResults(payload.results, siteBaseUrl);
+  const resultUrls = collectUrls(results);
+  const citationMetadata = summarizeCitationMetadata(payload, siteBaseUrl);
+  const derivedCitationCandidates = collectDerivedCitationCandidates(payload, siteBaseUrl);
+  const supportedCitationCount = citationMetadata.supported.length;
+  const derivedCitationCount = derivedCitationCandidates.length;
+  const groundingStatus = inferGroundingStatus(payload, supportedCitationCount, derivedCitationCount);
+  const grounded = groundingStatus === 'supported';
+  const vectorUsed = (provenance.vector_result_count + provenance.vector_citation_count) > 0;
+  const rerankMeta = debug.rerank_meta && typeof debug.rerank_meta === 'object'
+    ? debug.rerank_meta
     : null;
+  const requestId = payload.request_id || options.requestId || options.correlationId || null;
+  const publicDiagnostics = payload.meta && typeof payload.meta === 'object'
+    ? payload.meta
+    : (payload.diagnostics && typeof payload.diagnostics === 'object' ? payload.diagnostics : {});
+  const safetyClassification = summarizeClassification(
+    payload.safety_classification ||
+    publicDiagnostics.safety ||
+    debug.safety_classification ||
+    null
+  );
+  const outOfScopeClassification = summarizeClassification(
+    payload.out_of_scope_classification ||
+    payload.oos_classification ||
+    publicDiagnostics.out_of_scope ||
+    debug.oos_classification ||
+    null
+  );
+  const retrievalAttempted = inferRetrievalAttempted(payload, debug, provenance);
+  const generationProvider = inferGenerationProvider(payload, debug);
+  const llmUsed = inferGenerationUsed(payload, debug);
+  const genericFallback = inferGenericFallback(payload, debug);
+  const safetyBlocked = inferSafetyBlocked(payload, safetyClassification);
+  const safetyStage = inferSafetyStage(payload, safetyBlocked, llmUsed);
+  const conversationIdHash = createSafeTraceId(options.conversationId);
 
-  const explicitCitationCount = Array.isArray(data.citations)
-    ? data.citations.length
-    : (Array.isArray(data.sources) ? data.sources.length : 0);
-  const fallbackCitationCount = derivedCitationUrls.size;
-  const provenance = summarizeRetrievalProvenance(data);
+  return compactObject({
+    schema_version: ILAS_PROVIDER_META_SCHEMA_VERSION,
+    provider_mode: options.providerMode || 'live_api',
+    metadata_availability: {
+      public_contract: true,
+      debug_contract: Object.keys(debug).length > 0,
+      safety_classification: safetyClassification ? 'debug_or_public' : 'unavailable',
+      out_of_scope_classification: outOfScopeClassification ? 'debug_or_public' : 'unavailable',
+      fallback_decision: debug.gate_decision ? 'debug' : 'public_inference',
+      llm_fallback: Object.prototype.hasOwnProperty.call(debug, 'llm_used') ? 'debug' : 'unavailable',
+      vector_usage: vectorUsed ? 'public_source_class' : 'unavailable',
+      voyage_or_rerank: rerankMeta ? 'debug' : 'unavailable',
+    },
+    raw_response_text: String(payload.message || ''),
+    normalized_response_text: normalizeResponseText(payload.message),
+    response_type: payload.type || null,
+    response_mode: payload.response_mode || null,
+    reason_code: payload.reason_code || null,
+    decision_reason: payload.decision_reason || null,
+    confidence: normalizeConfidence(payload.confidence),
+    route: compactObject({
+      intent: payload.intent_selected || debug.intent_selected || null,
+      intent_confidence: compactNumber(payload.intent_confidence || debug.intent_confidence),
+      source: payload.route_source || debug.intent_source || null,
+      topic: inferTopic(payload),
+    }),
+    citations: {
+      all: citationMetadata.all,
+      explicit_sources: citationMetadata.explicit_sources,
+      public_citations: citationMetadata.public_citations,
+      supported: citationMetadata.supported,
+      derived_candidates: derivedCitationCandidates,
+    },
+    citations_count: supportedCitationCount,
+    supported_citations_count: supportedCitationCount,
+    citation_candidates_count: citationMetadata.all.length + derivedCitationCount,
+    derived_citation_count: derivedCitationCount,
+    unsupported_citation_candidates_count: Math.max(
+      0,
+      citationMetadata.public_citations.length + derivedCitationCount - supportedCitationCount
+    ),
+    has_supported_citation: supportedCitationCount > 0,
+    grounded,
+    grounding_status: groundingStatus,
+    unsupported_claim_flags: collectUnsupportedClaimFlags(payload, grounded),
+    links,
+    retrieval_results: results,
+    results_count: asArray(payload.results).length,
+    result_source_classes: provenance.result_source_classes,
+    result_urls: resultUrls,
+    citation_urls: collectUrls(citationMetadata.supported),
+    action_urls: actionUrls,
+    link_urls: linkUrls,
+    primary_action: primaryAction,
+    secondary_actions: secondaryActions,
+    fallback: {
+      used: inferFallbackUsed(payload),
+      decision: debug.gate_decision || null,
+      reason_code: payload.reason_code || null,
+      generic: genericFallback,
+    },
+    fallback_used: inferFallbackUsed(payload),
+    generic_fallback: genericFallback,
+    // Catch-all degraded markers — populated only by the controller's
+    // graceful-degradation path. See AssistantApiController::message()
+    // catch block. Smoke gates fail when these appear in normal output.
+    escalation_type: payload.escalation_type || null,
+    degraded: payload.degraded === true || publicDiagnostics?.degraded === true,
+    llm_fallback: {
+      used: llmUsed,
+      provider: generationProvider,
+      availability: Object.prototype.hasOwnProperty.call(debug, 'llm_used') ? 'debug' : 'unavailable',
+    },
+    llm_used: llmUsed,
+    generation: {
+      provider: generationProvider,
+      used: llmUsed,
+      expected: null,
+      availability: generationProvider || llmUsed !== null ? 'debug_or_public' : 'unavailable',
+    },
+    vector_search: {
+      used: vectorUsed,
+      attempted: debug.retrieval_trace?.vector_attempted ?? null,
+      result_count: provenance.vector_result_count,
+      citation_count: provenance.vector_citation_count,
+      source_classes: provenance.result_source_classes.filter((sourceClass) =>
+        String(sourceClass).toLowerCase().includes('vector')
+      ),
+      status: vectorUsed ? 'used' : 'unknown',
+    },
+    vector_used: vectorUsed,
+    voyage: {
+      embeddings_used: vectorUsed ? true : null,
+      rerank_used: rerankMeta ? Boolean(rerankMeta.applied) : null,
+      rerank_model: rerankMeta?.model || null,
+      fallback_reason: rerankMeta?.fallback_reason || null,
+      availability: rerankMeta ? 'debug' : (vectorUsed ? 'inferred_from_vector_source_class' : 'unavailable'),
+    },
+    rerank_used: rerankMeta ? Boolean(rerankMeta.applied) : null,
+    retrieval_contract: payload.retrieval && typeof payload.retrieval === 'object' ? payload.retrieval : null,
+    retrieval_attempted: retrievalAttempted,
+    safety_classification: safetyClassification,
+    out_of_scope_classification: outOfScopeClassification,
+    safety_class: payload.safety_class || safetyClassification?.class || payload.escalation_type || null,
+    safety_reason_code: safetyClassification?.reason_code || payload.reason_code || null,
+    safety: {
+      blocked: safetyBlocked,
+      stage: safetyStage,
+      class: payload.safety_class || safetyClassification?.class || payload.escalation_type || null,
+      reason_code: safetyClassification?.reason_code || payload.reason_code || null,
+    },
+    conversation_id_hash: conversationIdHash,
+    trace: compactObject({
+      request_id: requestId,
+      correlation_id: options.correlationId || requestId,
+      conversation_id_hash: conversationIdHash,
+    }),
+    transport: options.transportMeta || null,
+    errors: asArray(options.errors).map((error) => compactObject({
+      kind: error.kind || null,
+      code: error.code || null,
+      message: compactString(error.message, 220),
+      phase: error.phase || null,
+      status: error.status ?? null,
+    })),
+    lexical_result_count: provenance.lexical_result_count,
+    vector_result_count: provenance.vector_result_count,
+    lexical_citation_count: provenance.lexical_citation_count,
+    vector_citation_count: provenance.vector_citation_count,
+  });
+}
+
+function buildContractMeta(data, siteBaseUrl, options = {}) {
+  const providerMeta = options.providerMeta || buildIlasProviderMeta(data, siteBaseUrl, options);
 
   return {
-    confidence: normalizedConfidence,
-    citations_count: explicitCitationCount > 0 ? explicitCitationCount : fallbackCitationCount,
-    response_type: data.type || null,
-    response_mode: data.response_mode || null,
-    reason_code: data.reason_code || null,
-    decision_reason: data.decision_reason || null,
-    result_source_classes: provenance.result_source_classes,
-    vector_result_count: provenance.vector_result_count,
-    lexical_result_count: provenance.lexical_result_count,
-    vector_citation_count: provenance.vector_citation_count,
-    lexical_citation_count: provenance.lexical_citation_count,
+    metadata_schema_version: providerMeta.schema_version,
+    message_text: compactString(providerMeta.raw_response_text, 500),
+    confidence: providerMeta.confidence,
+    results_count: providerMeta.results_count || 0,
+    citations_count: providerMeta.supported_citations_count || 0,
+    supported_citations_count: providerMeta.supported_citations_count || 0,
+    citation_candidates_count: providerMeta.citation_candidates_count || 0,
+    derived_citation_count: providerMeta.derived_citation_count || 0,
+    unsupported_citation_candidates_count: providerMeta.unsupported_citation_candidates_count || 0,
+    grounded: providerMeta.grounded === true,
+    grounding_status: providerMeta.grounding_status || null,
+    response_type: providerMeta.response_type || null,
+    response_mode: providerMeta.response_mode || null,
+    reason_code: providerMeta.reason_code || null,
+    decision_reason: providerMeta.decision_reason || null,
+    intent_selected: providerMeta.route?.intent || null,
+    intent_confidence: providerMeta.route?.intent_confidence || null,
+    route_source: providerMeta.route?.source || null,
+    topic_id: providerMeta.route?.topic?.id || null,
+    topic_name: providerMeta.route?.topic?.name || null,
+    primary_action: providerMeta.primary_action || null,
+    secondary_actions: providerMeta.secondary_actions || [],
+    links: providerMeta.links || [],
+    results: providerMeta.retrieval_results || [],
+    citations: providerMeta.citations?.supported || [],
+    citation_candidates: providerMeta.citations?.derived_candidates || [],
+    action_urls: providerMeta.action_urls || [],
+    link_urls: providerMeta.link_urls || [],
+    result_urls: providerMeta.result_urls || [],
+    citation_urls: providerMeta.citation_urls || [],
+    fallback_used: providerMeta.fallback_used || false,
+    generic_fallback: providerMeta.generic_fallback || false,
+    // Catch-all degraded markers. The controller's graceful-degradation
+    // path returns HTTP 200 with type=escalation,
+    // escalation_type=internal_error_fallback, degraded=true. These two
+    // fields are surfaced into contract_meta so smoke/quality eval gates
+    // can hard-fail when degraded responses leak into normal output.
+    escalation_type: providerMeta.escalation_type || null,
+    degraded: providerMeta.degraded === true,
+    llm_used: providerMeta.llm_used ?? null,
+    generation: providerMeta.generation || null,
+    vector_used: providerMeta.vector_used || false,
+    rerank_used: providerMeta.rerank_used ?? null,
+    retrieval_attempted: providerMeta.retrieval_attempted ?? null,
+    safety_class: providerMeta.safety_class || null,
+    safety_reason_code: providerMeta.safety_reason_code || null,
+    safety: providerMeta.safety || null,
+    conversation_id_hash: providerMeta.conversation_id_hash || providerMeta.trace?.conversation_id_hash || null,
+    result_source_classes: providerMeta.result_source_classes || [],
+    vector_result_count: providerMeta.vector_result_count || 0,
+    lexical_result_count: providerMeta.lexical_result_count || 0,
+    vector_citation_count: providerMeta.vector_citation_count || 0,
+    lexical_citation_count: providerMeta.lexical_citation_count || 0,
   };
 }
 
@@ -403,12 +1166,13 @@ function summarizeAssistantResponse(data, siteBaseUrl = DEFAULT_SITE_BASE_URL) {
   };
 }
 
-function renderAssistantOutput(data, siteBaseUrl = DEFAULT_SITE_BASE_URL) {
+function renderAssistantOutput(data, siteBaseUrl = DEFAULT_SITE_BASE_URL, options = {}) {
   const humanParts = buildHumanReadableOutput(data, siteBaseUrl);
-  const contractMeta = buildContractMeta(data, siteBaseUrl);
+  const providerMeta = options.providerMeta || buildIlasProviderMeta(data, siteBaseUrl, options);
+  const contractMeta = buildContractMeta(data, siteBaseUrl, { ...options, providerMeta });
   const humanOutput =
-    absolutizeRelativePathsInText(humanParts.join('\n\n'), siteBaseUrl) || JSON.stringify(data);
-  return `${humanOutput}\n\n[contract_meta]${JSON.stringify(contractMeta)}`;
+    absolutizeRelativePathsInText(humanParts.join('\n\n'), siteBaseUrl) || 'No assistant message returned.';
+  return `${humanOutput}\n\n${CONTRACT_META_PREFIX}${JSON.stringify(contractMeta)}\n\n${ILAS_PROVIDER_META_PREFIX}${JSON.stringify(providerMeta)}`;
 }
 
 function createTransportOptions(options = {}) {
@@ -436,6 +1200,38 @@ function createTransportOptions(options = {}) {
     fetchImpl: options.fetchImpl || global.fetch,
     pacer: options.pacer,
     silent: readBoolean(options.silent, false),
+  };
+}
+
+function createTransportMeta(existingCookie = null, existingToken = null) {
+  return {
+    http_status: null,
+    bootstrap: {
+      attempted: false,
+      success: Boolean(existingToken),
+      endpoint: null,
+      attempts: 0,
+      refreshed_after_403: false,
+      csrf_token_present: Boolean(existingToken),
+      session_cookie_present: Boolean(existingCookie),
+      cookie_reused: Boolean(existingCookie),
+    },
+    retries: {
+      csrf_403: 0,
+      rate_limit: 0,
+    },
+    errors: [],
+  };
+}
+
+function mergeBootstrapMetadata(transportMeta, bootstrapMeta, extra = {}) {
+  if (!transportMeta || !bootstrapMeta) {
+    return;
+  }
+  transportMeta.bootstrap = {
+    ...transportMeta.bootstrap,
+    ...bootstrapMeta,
+    ...extra,
   };
 }
 
@@ -540,7 +1336,9 @@ class IlasLiveTransport {
     ];
 
     let lastError = null;
+    let attempts = 0;
     for (const tokenUrl of urls) {
+      attempts++;
       const result = await this.fetchText(
         tokenUrl,
         {
@@ -608,6 +1406,15 @@ class IlasLiveTransport {
         token,
         cookie: this.cookie,
         url: tokenUrl,
+        metadata: {
+          attempted: true,
+          success: true,
+          endpoint: tokenUrl,
+          attempts,
+          csrf_token_present: true,
+          session_cookie_present: Boolean(this.cookie),
+          cookie_reused: Boolean(this.cookie && !cookiePair),
+        },
       };
     }
 
@@ -621,6 +1428,15 @@ class IlasLiveTransport {
           'CSRF token fetch failed: no token endpoint succeeded',
           { phase: 'bootstrap_get' }
         ),
+      metadata: {
+        attempted: true,
+        success: false,
+        endpoint: null,
+        attempts,
+        csrf_token_present: false,
+        session_cookie_present: Boolean(this.cookie),
+        cookie_reused: Boolean(this.cookie),
+      },
     };
   }
 
@@ -629,11 +1445,16 @@ class IlasLiveTransport {
       this.resolveUrls();
     }
 
+    const transportMeta = createTransportMeta(this.cookie, this.csrfToken);
+
     if (!this.csrfToken) {
       const tokenResult = await this.fetchCsrfToken();
       if (!tokenResult.ok) {
-        return tokenResult;
+        mergeBootstrapMetadata(transportMeta, tokenResult.metadata);
+        transportMeta.errors.push(tokenResult.error);
+        return { ...tokenResult, transport: transportMeta };
       }
+      mergeBootstrapMetadata(transportMeta, tokenResult.metadata);
     }
 
     await this.pacer();
@@ -672,28 +1493,40 @@ class IlasLiveTransport {
         attempt === 0 ? 'message_post' : 'message_post_retry'
       );
       if (!result.ok) {
-        return result;
+        transportMeta.errors.push(result.error);
+        return { ...result, transport: transportMeta };
       }
 
       response = result.response;
+      transportMeta.http_status = response.status;
 
       if (response.status === 403 && attempt === 0) {
+        transportMeta.retries.csrf_403 += 1;
         const tokenRefresh = await this.fetchCsrfToken();
         if (!tokenRefresh.ok) {
+          mergeBootstrapMetadata(transportMeta, tokenRefresh.metadata, {
+            refreshed_after_403: true,
+          });
+          const error = createStructuredError(
+            'connectivity',
+            'csrf_retry_failed',
+            tokenRefresh.error.message,
+            {
+              phase: 'message_post_retry',
+              retry_error_code: tokenRefresh.error.code,
+            }
+          );
+          transportMeta.errors.push(error);
           return {
             ok: false,
-            error: createStructuredError(
-              'connectivity',
-              'csrf_retry_failed',
-              tokenRefresh.error.message,
-              {
-                phase: 'message_post_retry',
-                retry_error_code: tokenRefresh.error.code,
-              }
-            ),
+            error,
+            transport: transportMeta,
           };
         }
 
+        mergeBootstrapMetadata(transportMeta, tokenRefresh.metadata, {
+          refreshed_after_403: true,
+        });
         headers['X-CSRF-Token'] = this.csrfToken;
         if (this.cookie) {
           headers.Cookie = this.cookie;
@@ -705,35 +1538,42 @@ class IlasLiveTransport {
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After');
         if (this.options.failFast429 || this.options.max429Retries <= 0) {
+          const error = createStructuredError(
+            'capacity',
+            'rate_limited',
+            'HTTP 429 rate limit received',
+            {
+              phase: 'message_post',
+              status: 429,
+              retry_after: retryAfter || null,
+            }
+          );
+          transportMeta.errors.push(error);
           return {
             ok: false,
-            error: createStructuredError(
-              'capacity',
-              'rate_limited',
-              'HTTP 429 rate limit received',
-              {
-                phase: 'message_post',
-                status: 429,
-                retry_after: retryAfter || null,
-              }
-            ),
+            error,
+            transport: transportMeta,
           };
         }
 
         attempt++;
+        transportMeta.retries.rate_limit += 1;
         if (attempt > this.options.max429Retries) {
+          const error = createStructuredError(
+            'capacity',
+            'rate_limited',
+            `HTTP 429 after ${this.options.max429Retries} retries`,
+            {
+              phase: 'message_post',
+              status: 429,
+              retry_after: retryAfter || null,
+            }
+          );
+          transportMeta.errors.push(error);
           return {
             ok: false,
-            error: createStructuredError(
-              'capacity',
-              'rate_limited',
-              `HTTP 429 after ${this.options.max429Retries} retries`,
-              {
-                phase: 'message_post',
-                status: 429,
-                retry_after: retryAfter || null,
-              }
-            ),
+            error,
+            transport: transportMeta,
           };
         }
 
@@ -759,17 +1599,20 @@ class IlasLiveTransport {
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
+      const error = createStructuredError(
+        'connectivity',
+        'message_http',
+        `HTTP ${response.status}: ${text.slice(0, 300)}`,
+        {
+          phase: 'message_post',
+          status: response.status,
+        }
+      );
+      transportMeta.errors.push(error);
       return {
         ok: false,
-        error: createStructuredError(
-          'connectivity',
-          'message_http',
-          `HTTP ${response.status}: ${text.slice(0, 300)}`,
-          {
-            phase: 'message_post',
-            status: response.status,
-          }
-        ),
+        error,
+        transport: transportMeta,
       };
     }
 
@@ -783,18 +1626,20 @@ class IlasLiveTransport {
     try {
       data = await response.json();
     } catch (err) {
-      const text = await response.text().catch(() => '');
+      const error = createStructuredError(
+        'connectivity',
+        'invalid_json',
+        'Invalid JSON response',
+        {
+          phase: 'message_post',
+          status: response.status,
+        }
+      );
+      transportMeta.errors.push(error);
       return {
         ok: false,
-        error: createStructuredError(
-          'connectivity',
-          'invalid_json',
-          `Invalid JSON response: ${err?.message || String(err)} - ${text.slice(0, 200)}`,
-          {
-            phase: 'message_post',
-            status: response.status,
-          }
-        ),
+        error,
+        transport: transportMeta,
       };
     }
 
@@ -802,6 +1647,7 @@ class IlasLiveTransport {
       ok: true,
       data,
       status: response.status,
+      transport: transportMeta,
     };
   }
 
@@ -855,13 +1701,18 @@ class IlasLiveTransport {
 }
 
 module.exports = {
+  CONTRACT_META_PREFIX,
   DEFAULT_EXPECTED_REQUEST_TOTAL,
   DEFAULT_SITE_BASE_URL,
+  ILAS_PROVIDER_META_PREFIX,
+  ILAS_PROVIDER_META_SCHEMA_VERSION,
   IlasLiveTransport,
   STRUCTURED_ERROR_PREFIX,
   absolutizeRelativePathsInText,
   buildContractMeta,
+  buildIlasProviderMeta,
   classifyFetchError,
+  collectProviderLinks,
   createSerializedPacer,
   createStructuredError,
   deterministicUuidV4,
@@ -869,6 +1720,7 @@ module.exports = {
   formatStructuredError,
   parseStructuredError,
   renderAssistantOutput,
+  summarizeCitationMetadata,
   summarizeAssistantResponse,
   summarizeRetrievalProvenance,
   toAbsoluteUrl,

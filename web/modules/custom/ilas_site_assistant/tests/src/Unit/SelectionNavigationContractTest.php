@@ -73,6 +73,9 @@ final class SelectionNavigationContractTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
@@ -411,7 +414,8 @@ final class SelectionNavigationContractTest extends TestCase {
         'title' => 'I want to get involved. How can I help?',
         'url' => 'https://idaholegalaid.org/get-involved',
         'score' => 0.99,
-      ]]
+      ]
+]
     );
 
     $response = $controller->message($this->buildJsonRequest([
@@ -452,7 +456,8 @@ final class SelectionNavigationContractTest extends TestCase {
         'title' => 'I want to get involved. How can I help?',
         'url' => 'https://idaholegalaid.org/get-involved',
         'score' => 0.99,
-      ]]
+      ]
+]
     );
     $conversationId = '77777777-7777-4777-8777-777777777777';
 
@@ -784,7 +789,7 @@ final class SelectionRepeatGuardTestableController extends AssistantApiControlle
   /**
    * {@inheritdoc}
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = [], array $conversation_context_summary = []) {
     $selection = is_array($intent['selection'] ?? NULL) ? $intent['selection'] : [];
     if (($selection['button_id'] ?? '') !== 'forms_topic_family_divorce' || $this->forcedRepeatCount > 0) {
       return parent::processIntent($intent, $message, $context, $request_id, $server_history);

@@ -41,6 +41,9 @@ class TypoCorrectorTest extends TestCase {
     $this->assertGreaterThan(50, $size, 'Vocabulary should have at least 50 terms');
   }
 
+  /**
+ *
+ */
   #[DataProvider('typoCorrectionProvider')]
   public function testTypoCorrection(string $input, string $expected_word, string $description): void {
     $result = $this->corrector->correct(strtolower($input));
@@ -55,6 +58,9 @@ class TypoCorrectorTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function typoCorrectionProvider(): array {
     return [
       // === Family law typos (10 cases) ===
@@ -111,6 +117,9 @@ class TypoCorrectorTest extends TestCase {
     ];
   }
 
+  /**
+ *
+ */
   #[DataProvider('noFalseCorrectionProvider')]
   public function testNoFalseCorrection(string $input, string $description): void {
     $result = $this->corrector->correct(strtolower($input));
@@ -120,6 +129,9 @@ class TypoCorrectorTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function noFalseCorrectionProvider(): array {
     return [
       ['divorce', 'Correct word should not be corrected'],

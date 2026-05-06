@@ -128,7 +128,15 @@
 @import 'search-results';
 @import 'press-room';
 @import 'events';
-@import 'employment-page';
+// Employment partials. `_employment-shared.scss` is loaded first so that
+// any cross-component @extend it carries is parsed before the listing
+// and wizard partials. `_employment-listing.scss` (was `_employment-page.scss`)
+// owns the landing/job-listing UI; `_employment-wizard.scss`
+// (was `_employment-application.scss`) owns the multi-step application
+// wizard and is loaded later (see "Application forms" block below)
+// to preserve the existing cascade — wizard wins on tie.
+@import 'employment-shared';
+@import 'employment-listing';
 @import 'job-badges';
 @import 'callouts';
 
@@ -146,7 +154,7 @@
 
 // Application forms
 @import 'employment-form-webform';
-@import 'employment-application';
+@import 'employment-wizard';
 
 // Resources
 @import 'resource';

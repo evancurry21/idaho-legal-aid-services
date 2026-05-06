@@ -5,6 +5,10 @@
  * Install, update and uninstall functions for the ILAS Site Assistant module.
  */
 
+use Drupal\Component\Serialization\Yaml;
+use Drupal\Core\Utility\UpdateException;
+use Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer;
+
 /**
  * Implements hook_schema().
  */
@@ -623,7 +627,7 @@ function ilas_site_assistant_update_10007() {
 
       $aggregates = [];
       foreach ($rows as $row) {
-        $metadata = \Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer::buildTextMetadataWithLanguage((string) $row->sanitized_query);
+        $metadata = ObservabilityPayloadMinimizer::buildTextMetadataWithLanguage((string) $row->sanitized_query);
         $hash = $metadata['text_hash'];
         if (!isset($aggregates[$hash])) {
           $aggregates[$hash] = [
@@ -684,7 +688,7 @@ function ilas_site_assistant_update_10007() {
         ->fetchAll();
 
       foreach ($rows as $row) {
-        $metadata = \Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer::buildTextMetadata((string) $row->redacted_message);
+        $metadata = ObservabilityPayloadMinimizer::buildTextMetadata((string) $row->redacted_message);
         $database->update('ilas_site_assistant_conversations')
           ->fields([
             'message_hash' => $metadata['text_hash'],
@@ -966,6 +970,51 @@ function ilas_site_assistant_update_10013() {
 }
 
 /**
+ * Restores non-secret Cohere provider/model config for bounded generation.
+ */
+function ilas_site_assistant_update_10014() {
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $llm = $config->get('llm');
+  $llm = is_array($llm) ? $llm : [];
+  $changed = FALSE;
+
+  if (trim((string) ($llm['provider'] ?? '')) === '') {
+    $llm['provider'] = 'cohere';
+    $changed = TRUE;
+  }
+
+  if (trim((string) ($llm['model'] ?? '')) === '') {
+    $llm['model'] = 'command-a-03-2025';
+    $changed = TRUE;
+  }
+
+  if (!$changed) {
+    return t('Cohere provider and model were already explicit in assistant config.');
+  }
+
+  $config->set('llm', $llm)->save(TRUE);
+  return t('Added explicit non-secret Cohere provider and model to assistant config.');
+}
+
+/**
+ * Seeds the FAQ-miss → resource-fallthrough kill-switch for existing installs.
+ *
+ * Sites that were installed before the flag existed will not pick up the new
+ * default from config/install. This explicitly sets the flag to TRUE so the
+ * grounded fallthrough is enabled on update; operators can disable it later
+ * via drush cset if needed.
+ */
+function ilas_site_assistant_update_10015() {
+  $config = \Drupal::configFactory()->getEditable('ilas_site_assistant.settings');
+  $current = $config->get('enable_faq_resource_fallthrough');
+  if ($current === NULL) {
+    $config->set('enable_faq_resource_fallthrough', TRUE)->save(TRUE);
+    return t('Seeded enable_faq_resource_fallthrough = TRUE for existing install.');
+  }
+  return t('enable_faq_resource_fallthrough already set; no change.');
+}
+
+/**
  * Creates a lexical Search API index from canonical config when missing.
  *
  * @param string $index_id
@@ -983,14 +1032,14 @@ function ilas_site_assistant_raud21_ensure_index_exists(string $index_id): bool 
   $definition = ilas_site_assistant_raud21_load_canonical_index_definition($index_id);
   $server_id = (string) ($definition['server'] ?? '');
   if ($server_id === '') {
-    throw new \Drupal\Core\Utility\UpdateException(sprintf('Canonical Search API index definition for "%s" is missing the server ID.', $index_id));
+    throw new UpdateException(sprintf('Canonical Search API index definition for "%s" is missing the server ID.', $index_id));
   }
 
   $server = \Drupal::entityTypeManager()
     ->getStorage('search_api_server')
     ->load($server_id);
   if (!$server) {
-    throw new \Drupal\Core\Utility\UpdateException(sprintf('Cannot create Search API index "%s" because server "%s" is missing.', $index_id, $server_id));
+    throw new UpdateException(sprintf('Cannot create Search API index "%s" because server "%s" is missing.', $index_id, $server_id));
   }
 
   $index_storage->create($definition)->save();
@@ -1016,12 +1065,12 @@ function ilas_site_assistant_raud21_load_canonical_index_definition(string $inde
   $module_path = \Drupal::service('extension.list.module')->getPath('ilas_site_assistant');
   $path = DRUPAL_ROOT . '/' . $module_path . '/config/install/' . $config_name . '.yml';
   if (!is_file($path)) {
-    throw new \Drupal\Core\Utility\UpdateException(sprintf('Canonical Search API index definition "%s" is missing from config sync and module install config.', $config_name));
+    throw new UpdateException(sprintf('Canonical Search API index definition "%s" is missing from config sync and module install config.', $config_name));
   }
 
-  $definition = \Drupal\Component\Serialization\Yaml::decode(file_get_contents($path));
+  $definition = Yaml::decode(file_get_contents($path));
   if (!is_array($definition) || ($definition['id'] ?? NULL) !== $index_id) {
-    throw new \Drupal\Core\Utility\UpdateException(sprintf('Canonical Search API index definition "%s" could not be parsed.', $config_name));
+    throw new UpdateException(sprintf('Canonical Search API index definition "%s" could not be parsed.', $config_name));
   }
 
   return $definition;
@@ -1074,11 +1123,26 @@ function ilas_site_assistant_raud11_topic_lookup(): array {
 
 /**
  * Returns a lookup of office names to canonical office paths.
+ *
+ * Sourced from the OfficeDirectory service so the lookup tracks current
+ * office_information node data. Returns an empty array when the directory
+ * service is unavailable (e.g., during early install bootstrap).
  */
 function ilas_site_assistant_raud11_office_lookup(): array {
   $lookup = [];
 
-  foreach (\Drupal\ilas_site_assistant\Service\OfficeLocationResolver::OFFICES as $office) {
+  if (!\Drupal::hasService('ilas_site_assistant.office_directory')) {
+    return $lookup;
+  }
+
+  try {
+    $offices = \Drupal::service('ilas_site_assistant.office_directory')->all();
+  }
+  catch (\Throwable $e) {
+    return $lookup;
+  }
+
+  foreach ($offices as $office) {
     $name = mb_strtolower(trim((string) ($office['name'] ?? '')));
     $url = (string) ($office['url'] ?? '');
     if ($name !== '' && $url !== '') {
@@ -1093,7 +1157,7 @@ function ilas_site_assistant_raud11_office_lookup(): array {
  * Normalizes analytics values through the shared RAUD-11 minimizer.
  */
 function ilas_site_assistant_raud11_normalize_analytics_value(string $event_type, string $event_value, array $topic_lookup, array $office_lookup): string {
-  return \Drupal\ilas_site_assistant\Service\ObservabilityPayloadMinimizer::normalizeAnalyticsValue($event_type, $event_value, [
+  return ObservabilityPayloadMinimizer::normalizeAnalyticsValue($event_type, $event_value, [
     'topic_lookup' => $topic_lookup,
     'office_lookup' => $office_lookup,
   ]);

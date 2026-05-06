@@ -24,7 +24,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * - G-2: Paraphrase bypass of legal advice patterns
  * - G-4: Homoglyph bypass via Cyrillic/Greek confusables
  * - G-5: Mixed EN/ES code-switching
- * - Navigation-negative: paraphrased navigation must NOT trigger exits
+ * - Navigation-negative: paraphrased navigation must NOT trigger exits.
  */
 #[Group('ilas_site_assistant')]
 class SafetyEnforcementChainContractTest extends TestCase {
@@ -142,6 +142,11 @@ class SafetyEnforcementChainContractTest extends TestCase {
         'help me fill out this form for my divorce',
         PreRoutingDecisionEngine::DECISION_POLICY_EXIT,
         'Document drafting defers from safety; PolicyFilter catches doc_drafting patterns',
+      ],
+      'lease drafting → policy exit' => [
+        'can you write my lease',
+        PreRoutingDecisionEngine::DECISION_POLICY_EXIT,
+        'Lease drafting defers from safety; PolicyFilter catches doc_drafting patterns',
       ],
     ];
   }

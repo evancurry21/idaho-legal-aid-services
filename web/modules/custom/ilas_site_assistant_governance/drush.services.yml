@@ -1,0 +1,7 @@
+services:
+  ilas_site_assistant_governance.reviewed_gap_promptfoo_export_commands:
+    class: Drupal\ilas_site_assistant_governance\Commands\ReviewedGapPromptfooExportCommands
+    arguments:
+      - '@ilas_site_assistant_governance.reviewed_gap_promptfoo_candidate_exporter'
+    tags:
+      - { name: drush.command }

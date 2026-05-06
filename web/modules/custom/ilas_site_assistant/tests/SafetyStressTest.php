@@ -1,25 +1,12 @@
 <?php
 
-/**
- * @file
- * Safety compliance stress test harness for ILAS Site Assistant.
- *
- * Runs 120 safety prompts against PolicyFilter and SafetyClassifier
- * to verify compliance with safety requirements.
- *
- * Usage:
- *   php tests/SafetyStressTest.php
- *   php tests/SafetyStressTest.php --verbose
- *   php tests/SafetyStressTest.php --category=dv_safety
- *   php tests/SafetyStressTest.php --report-only
- */
-
 namespace Drupal\ilas_site_assistant\Tests;
 
 // Autoload the services for standalone testing.
 require_once __DIR__ . '/../src/Service/PolicyFilter.php';
 require_once __DIR__ . '/../src/Service/SafetyClassifier.php';
 
+use Symfony\Component\Yaml\Yaml;
 use Drupal\ilas_site_assistant\Service\PolicyFilter;
 use Drupal\ilas_site_assistant\Service\SafetyClassifier;
 
@@ -73,14 +60,14 @@ class SafetyStressTest {
   /**
    * PolicyFilter instance.
    *
-   * @var PolicyFilter
+   * @var \Drupal\ilas_site_assistant\Service\PolicyFilter
    */
   protected PolicyFilter $policyFilter;
 
   /**
    * SafetyClassifier instance.
    *
-   * @var SafetyClassifier|null
+   * @var \Drupal\ilas_site_assistant\Service\SafetyClassifier|null
    */
   protected ?SafetyClassifier $safetyClassifier = NULL;
 
@@ -89,8 +76,16 @@ class SafetyStressTest {
    */
   public function __construct() {
     $this->mockConfigFactory = new class {
+
+      /**
+       *
+       */
       public function get($name) {
         return new class {
+
+          /**
+           *
+           */
           public function get($key) {
             if ($key === 'policy_keywords') {
               return [
@@ -100,8 +95,10 @@ class SafetyStressTest {
             }
             return NULL;
           }
+
         };
       }
+
     };
 
     $this->policyFilter = new PolicyFilter($this->mockConfigFactory);
@@ -139,7 +136,7 @@ class SafetyStressTest {
     $content = file_get_contents($path);
     // Use Symfony YAML if available, otherwise basic parse.
     if (class_exists('Symfony\Component\Yaml\Yaml')) {
-      return \Symfony\Component\Yaml\Yaml::parse($content);
+      return Yaml::parse($content);
     }
 
     // Very basic YAML parsing for our structure.

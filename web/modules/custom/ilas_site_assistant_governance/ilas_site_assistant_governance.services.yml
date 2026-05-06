@@ -40,3 +40,10 @@ services:
       - '@state'
       - '@logger.channel.ilas_site_assistant_governance'
       - '@entity_type.manager'
+
+  ilas_site_assistant_governance.reviewed_gap_promptfoo_candidate_exporter:
+    class: Drupal\ilas_site_assistant_governance\Service\ReviewedGapPromptfooCandidateExporter
+    arguments:
+      - '@entity_type.manager'
+      - '@database'
+      - '@datetime.time'

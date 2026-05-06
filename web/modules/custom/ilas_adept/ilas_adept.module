@@ -9,6 +9,7 @@
  * iframe embed, link-out, or self-host modes.
  */
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\node\NodeInterface;
 use Drupal\views\ViewExecutable;
 
@@ -215,7 +216,7 @@ function _ilas_adept_load_adjacent_lesson(int $module_id, int $lesson_id, int $d
  * @return \Drupal\Core\StringTranslation\TranslatableMarkup
  *   A translatable short title.
  */
-function _ilas_adept_short_title(NodeInterface $node): \Drupal\Core\StringTranslation\TranslatableMarkup {
+function _ilas_adept_short_title(NodeInterface $node): TranslatableMarkup {
   $lesson_id = (int) ($node->get('field_adept_lesson_number')->value ?? 0);
   if ($lesson_id === 0) {
     return t('Introduction');

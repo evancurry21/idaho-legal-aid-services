@@ -59,6 +59,8 @@ services:
       - '@ilas_site_assistant.conversation_logger'
       - '@ilas_site_assistant.llm_enhancer'
       - '@ilas_site_assistant.voyage_reranker'
+      - '@ilas_site_assistant.llm_runtime_config'
+      - '@ilas_site_assistant.cohere_generation_probe'
 
   ilas_site_assistant.runtime_diagnostics_matrix_builder:
     class: Drupal\ilas_site_assistant\Service\RuntimeDiagnosticsMatrixBuilder
@@ -114,9 +116,24 @@ services:
       - '@ilas_site_assistant.llm_rate_limiter'
       - '@ilas_site_assistant.llm_admission_coordinator'
 
+  ilas_site_assistant.llm_runtime_config:
+    class: Drupal\ilas_site_assistant\Service\LlmRuntimeConfigResolver
+    arguments: ['@config.factory']
+
   ilas_site_assistant.cohere_llm_transport:
     class: Drupal\ilas_site_assistant\Service\CohereLlmTransport
-    arguments: ['@http_client']
+    arguments: ['@http_client', '@ilas_site_assistant.llm_runtime_config']
+
+  ilas_site_assistant.cohere_generation_probe:
+    class: Drupal\ilas_site_assistant\Service\CohereGenerationProbe
+    arguments: ['@ilas_site_assistant.llm_runtime_config', '@ilas_site_assistant.cohere_llm_transport', '@state']
+
+  ilas_site_assistant.provider_health_check:
+    class: Drupal\ilas_site_assistant\Service\ProviderHealthCheck
+    arguments:
+      - '@ilas_site_assistant.cohere_generation_probe'
+      - '@ilas_site_assistant.voyage_reranker'
+      - '@ilas_site_assistant.vector_index_hygiene'
 
   ilas_site_assistant.llm_enhancer:
     class: Drupal\ilas_site_assistant\Service\LlmEnhancer
@@ -139,7 +156,7 @@ services:
 
   ilas_site_assistant.response_grounder:
     class: Drupal\ilas_site_assistant\Service\ResponseGrounder
-    arguments: ['@ilas_site_assistant.source_governance']
+    arguments: ['@ilas_site_assistant.source_governance', '@ilas_site_assistant.office_directory']
 
   ilas_site_assistant.safety_classifier:
     class: Drupal\ilas_site_assistant\Service\SafetyClassifier
@@ -160,6 +177,9 @@ services:
     class: Drupal\ilas_site_assistant\Service\SelectionStateStore
     arguments: ['@cache.ilas_site_assistant']
 
+  ilas_site_assistant.conversation_context_summary:
+    class: Drupal\ilas_site_assistant\Service\ConversationContextSummary
+
   ilas_site_assistant.conversation_state_store:
     class: Drupal\ilas_site_assistant\Service\ConversationStateStore
     arguments: ['@database', '@datetime.time']
@@ -168,12 +188,20 @@ services:
     class: Drupal\ilas_site_assistant\Service\DisambiguationPack
     arguments: ['@cache.default']
 
+  ilas_site_assistant.office_directory:
+    class: Drupal\ilas_site_assistant\Service\OfficeDirectory
+    arguments: ['@entity_type.manager', '@cache.default', '@logger.channel.ilas_site_assistant', '@ilas_site_assistant.environment_detector']
+
   ilas_site_assistant.office_location_resolver:
     class: Drupal\ilas_site_assistant\Service\OfficeLocationResolver
+    arguments: ['@ilas_site_assistant.office_directory']
+
+  ilas_site_assistant.housing_eviction_continuity_decider:
+    class: Drupal\ilas_site_assistant\Service\HousingEvictionContinuityDecider
 
   ilas_site_assistant.assistant_flow_runner:
     class: Drupal\ilas_site_assistant\Service\AssistantFlowRunner
-    arguments: ['@config.factory', '@ilas_site_assistant.office_location_resolver', '@ilas_site_assistant.conversation_state_store']
+    arguments: ['@config.factory', '@ilas_site_assistant.office_location_resolver', '@ilas_site_assistant.conversation_state_store', '@ilas_site_assistant.housing_eviction_continuity_decider']
 
   ilas_site_assistant.turn_classifier:
     class: Drupal\ilas_site_assistant\Service\TurnClassifier
@@ -255,7 +283,7 @@ services:
 
   ilas_site_assistant.queue_health_monitor:
     class: Drupal\ilas_site_assistant\Service\QueueHealthMonitor
-    arguments: ['@queue', '@state']
+    arguments: ['@queue', '@state', '@database']
 
   ilas_site_assistant.slo_alert:
     class: Drupal\ilas_site_assistant\Service\SloAlertService

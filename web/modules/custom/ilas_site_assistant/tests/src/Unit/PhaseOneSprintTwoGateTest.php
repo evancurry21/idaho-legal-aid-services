@@ -115,4 +115,3 @@ final class PhaseOneSprintTwoGateTest extends TestCase {
   }
 
 }
-

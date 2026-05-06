@@ -93,4 +93,5 @@ class LangfuseLookupCommandTest extends TestCase {
       $services['services']['ilas_site_assistant.langfuse_lookup_commands']['class'],
     );
   }
+
 }

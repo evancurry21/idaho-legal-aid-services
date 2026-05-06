@@ -3,10 +3,13 @@
 
 /**
  * @file
- * Fallback Gate Evaluation Runner.
+ * Fallback Gate Evaluation Runner - deprecated legacy harness.
  *
  * Evaluates the FallbackGate confidence model against test fixtures.
  * Runs without Drupal bootstrap using simulated routing.
+ *
+ * Preserved for historical fixture review only. This is not a current Site
+ * Assistant quality gate.
  *
  * Usage:
  *   php run-gate-eval.php [options]
@@ -116,7 +119,10 @@ $options = getopt('', [
 
 if (isset($options['help'])) {
   echo <<<HELP
-Fallback Gate Evaluation Runner
+Fallback Gate Evaluation Runner - DEPRECATED legacy harness
+
+This is historical fixture tooling only. Use Promptfoo for current answer
+quality gates.
 
 Usage:
   php run-gate-eval.php [options]
@@ -152,7 +158,8 @@ if (!file_exists($fixture_path)) {
   exit(1);
 }
 
-echo "=== Fallback Gate Evaluation ===\n\n";
+echo "=== Fallback Gate Evaluation (Deprecated Legacy) ===\n\n";
+echo "Warning: this is historical fixture tooling only, not a current Site Assistant quality gate.\n\n";
 echo "Fixture: {$fixture_path}\n";
 echo "Suite: {$suite}\n\n";
 

@@ -60,7 +60,8 @@ class PerformanceMonitorTest extends TestCase {
     for ($i = 0; $i < 20; $i++) {
       $requests[] = [
         'time' => time() - 10,
-        'duration' => 3000.0, // Above 2000ms P95 threshold.
+      // Above 2000ms P95 threshold.
+        'duration' => 3000.0,
         'success' => TRUE,
         'scenario' => 'retrieval',
       ];
@@ -71,7 +72,8 @@ class PerformanceMonitorTest extends TestCase {
         'requests' => $requests,
         'total_requests' => 20,
         'total_errors' => 0,
-        'last_alert' => 0, // No recent alert — threshold will fire.
+    // No recent alert — threshold will fire.
+        'last_alert' => 0,
       ]);
 
     // The logger should receive a warning about degraded latency.
@@ -118,7 +120,8 @@ class PerformanceMonitorTest extends TestCase {
         'requests' => $requests,
         'total_requests' => 20,
         'total_errors' => 0,
-        'last_alert' => time() - 60, // Alert 60 seconds ago (within 300s cooldown).
+    // Alert 60 seconds ago (within 300s cooldown).
+        'last_alert' => time() - 60,
       ]);
 
     // No warning should be logged due to cooldown.

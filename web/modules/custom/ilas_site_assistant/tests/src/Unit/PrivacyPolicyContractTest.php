@@ -16,7 +16,6 @@ use Symfony\Component\Yaml\Yaml;
  * Guards against config drift, missing retention caps, broken access controls,
  * and cron cleanup dispatch. Reads deployed artifacts directly — no Drupal
  * bootstrap required.
- *
  */
 #[Group('ilas_site_assistant')]
 class PrivacyPolicyContractTest extends TestCase {

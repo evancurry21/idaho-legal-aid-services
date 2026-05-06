@@ -13,10 +13,16 @@ use PHPUnit\Framework\TestCase;
 #[Group('ilas_site_assistant')]
 final class PhaseOneNoLiveLlmRolloutGuardTest extends TestCase {
 
+  /**
+   *
+   */
   private static function repoRoot(): string {
     return dirname(__DIR__, 7);
   }
 
+  /**
+   *
+   */
   private static function readFile(string $relativePath): string {
     $path = self::repoRoot() . '/' . ltrim($relativePath, '/');
     self::assertFileExists($path);
@@ -25,6 +31,9 @@ final class PhaseOneNoLiveLlmRolloutGuardTest extends TestCase {
     return $contents;
   }
 
+  /**
+   *
+   */
   public function testDocsDescribeRuntimeToggleControlledCohereRollout(): void {
     $roadmap = self::readFile('docs/aila/roadmap.md');
     $currentState = self::readFile('docs/aila/current-state.md');
@@ -36,6 +45,9 @@ final class PhaseOneNoLiveLlmRolloutGuardTest extends TestCase {
     $this->assertStringContainsString('ILAS_LLM_ENABLED` + `ILAS_COHERE_API_KEY`', $runbook);
   }
 
+  /**
+   *
+   */
   public function testSettingsPhpKeepsLiveVectorRuntimeControlledAndLlmRuntimeControlled(): void {
     $settings = self::readFile('web/sites/default/settings.php');
 
@@ -50,6 +62,9 @@ final class PhaseOneNoLiveLlmRolloutGuardTest extends TestCase {
     $this->assertStringNotContainsString("\$config['ilas_site_assistant.settings']['llm.enabled'] = FALSE;", $settings);
   }
 
+  /**
+   *
+   */
   public function testAssistantSettingsFormKeepsLiveLlmGuardrails(): void {
     $form = self::readFile('web/modules/custom/ilas_site_assistant/src/Form/AssistantSettingsForm.php');
 

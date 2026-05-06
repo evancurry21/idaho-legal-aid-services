@@ -2,6 +2,13 @@
 
 namespace Drupal\employment_application\Controller;
 
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use setasign\Fpdi\Fpdi;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -12,6 +19,7 @@ use Drupal\Core\Mail\MailManagerInterface;
 use Drupal\Core\Access\CsrfTokenGenerator;
 use Drupal\Core\Render\Markup;
 use Drupal\Core\Url;
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Flood\FloodInterface;
@@ -111,18 +119,18 @@ class EmploymentApplicationController extends ControllerBase {
    * Returns list of currently posted jobs.
    */
   public function getPostedJobs(): CacheableJsonResponse {
-    $jobs = $this->loadPostedJobs();
+    $result = $this->loadPostedJobs();
 
     $response = new CacheableJsonResponse([
-      'jobs' => $jobs,
-      'count' => count($jobs),
+      'jobs' => $result['jobs'],
+      'count' => count($result['jobs']),
     ]);
 
-    $cacheMetadata = new CacheableMetadata();
-    $cacheMetadata->setCacheTags(['node_list', 'paragraph_list', 'employment_jobs']);
-    $cacheMetadata->setCacheContexts(['url.query_args']);
-    $cacheMetadata->setCacheMaxAge(300);
-    $response->addCacheableDependency($cacheMetadata);
+    $response->addCacheableDependency($this->buildJobsCacheMetadata(
+      $result['node_ids'],
+      $result['paragraph_ids'],
+      $result['next_expiry'],
+    ));
 
     $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
 
@@ -174,10 +182,11 @@ class EmploymentApplicationController extends ControllerBase {
       $response = new CacheableJsonResponse($errorData, Response::HTTP_NOT_FOUND);
     }
 
-    $cacheMetadata = new CacheableMetadata();
-    $cacheMetadata->setCacheTags(['paragraph_list', 'employment_jobs']);
-    $cacheMetadata->setCacheMaxAge(300);
-    $response->addCacheableDependency($cacheMetadata);
+    $response->addCacheableDependency($this->buildJobsCacheMetadata(
+      [],
+      $result['paragraph_ids'] ?? [],
+      $result['next_expiry'] ?? NULL,
+    ));
 
     $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
 
@@ -186,9 +195,17 @@ class EmploymentApplicationController extends ControllerBase {
 
   /**
    * Loads all currently posted jobs from the Employment node.
+   *
+   * @return array{jobs: array, node_ids: int[], paragraph_ids: int[], next_expiry: ?int}
+   *   Result payload. `next_expiry` is the soonest unix timestamp at which any
+   *   active, time-bounded job will transition to closed (one day after its
+   *   `field_job_valid_through`), or NULL when no time-based expiry applies.
    */
   private function loadPostedJobs(): array {
     $jobs = [];
+    $nodeIds = [];
+    $paragraphIds = [];
+    $nextExpiry = NULL;
 
     $query = $this->entityTypeManager
       ->getStorage('node')
@@ -201,15 +218,26 @@ class EmploymentApplicationController extends ControllerBase {
     $nids = $query->execute();
 
     if (empty($nids)) {
-      return $jobs;
+      return [
+        'jobs' => $jobs,
+        'node_ids' => $nodeIds,
+        'paragraph_ids' => $paragraphIds,
+        'next_expiry' => $nextExpiry,
+      ];
     }
 
     $node = Node::load(reset($nids));
 
     if (!$node || !$node->hasField('field_job_listings')) {
-      return $jobs;
+      return [
+        'jobs' => $jobs,
+        'node_ids' => $node ? [(int) $node->id()] : $nodeIds,
+        'paragraph_ids' => $paragraphIds,
+        'next_expiry' => $nextExpiry,
+      ];
     }
 
+    $nodeIds[] = (int) $node->id();
     $now = time();
 
     foreach ($node->get('field_job_listings') as $categoryRef) {
@@ -219,6 +247,8 @@ class EmploymentApplicationController extends ControllerBase {
         continue;
       }
 
+      $paragraphIds[] = (int) $category->id();
+
       $categoryName = $category->get('field_category_name')->value ?? '';
 
       foreach ($category->get('field_category_jobs') as $jobRef) {
@@ -227,6 +257,10 @@ class EmploymentApplicationController extends ControllerBase {
         if (!$jobParagraph) {
           continue;
         }
+
+        // Tag every visited job paragraph so that closing one (by save) busts
+        // the cache, even if it was filtered out below.
+        $paragraphIds[] = (int) $jobParagraph->id();
 
         $datePosted = $jobParagraph->get('field_job_date_posted')->value ?? NULL;
         if (empty($datePosted)) {
@@ -240,6 +274,13 @@ class EmploymentApplicationController extends ControllerBase {
 
         if (!$isActive) {
           continue;
+        }
+
+        if (!$openUntilFilled && !empty($validThrough)) {
+          $expiresAt = strtotime($validThrough . ' +1 day');
+          if ($expiresAt && $expiresAt > $now) {
+            $nextExpiry = ($nextExpiry === NULL) ? $expiresAt : min($nextExpiry, $expiresAt);
+          }
         }
 
         $jobTitle = $jobParagraph->get('field_accordion_title')->value ?? '';
@@ -275,7 +316,12 @@ class EmploymentApplicationController extends ControllerBase {
       return strcmp($a['title'], $b['title']);
     });
 
-    return $jobs;
+    return [
+      'jobs' => $jobs,
+      'node_ids' => $nodeIds,
+      'paragraph_ids' => array_values(array_unique($paragraphIds)),
+      'next_expiry' => $nextExpiry,
+    ];
   }
 
   /**
@@ -315,13 +361,30 @@ class EmploymentApplicationController extends ControllerBase {
       ->loadByProperties(['uuid' => $uuid]);
 
     if (empty($paragraphs)) {
-      return ['job' => NULL, 'reason' => 'not_found', 'job_title' => NULL];
+      return [
+        'job' => NULL,
+        'reason' => 'not_found',
+        'job_title' => NULL,
+        'paragraph_ids' => [],
+        'next_expiry' => NULL,
+      ];
     }
 
     $jobParagraph = reset($paragraphs);
+    $paragraphIds = [(int) $jobParagraph->id()];
+    $parentCategoryId = $this->getJobCategoryParentId($jobParagraph);
+    if ($parentCategoryId !== NULL) {
+      $paragraphIds[] = $parentCategoryId;
+    }
 
     if ($jobParagraph->bundle() !== 'accordion_item') {
-      return ['job' => NULL, 'reason' => 'not_found', 'job_title' => NULL];
+      return [
+        'job' => NULL,
+        'reason' => 'not_found',
+        'job_title' => NULL,
+        'paragraph_ids' => $paragraphIds,
+        'next_expiry' => NULL,
+      ];
     }
 
     $jobTitle = $jobParagraph->get('field_accordion_title')->value ?? '';
@@ -330,7 +393,13 @@ class EmploymentApplicationController extends ControllerBase {
     $datePosted = $jobParagraph->get('field_job_date_posted')->value ?? NULL;
 
     if (empty($datePosted)) {
-      return ['job' => NULL, 'reason' => 'not_job_posting', 'job_title' => $jobTitle];
+      return [
+        'job' => NULL,
+        'reason' => 'not_job_posting',
+        'job_title' => $jobTitle,
+        'paragraph_ids' => $paragraphIds,
+        'next_expiry' => NULL,
+      ];
     }
 
     $validThrough = $jobParagraph->get('field_job_valid_through')->value ?? NULL;
@@ -346,7 +415,17 @@ class EmploymentApplicationController extends ControllerBase {
         'job_title' => $jobTitle,
         'job_location' => $jobLocation,
         'closed_date' => $validThrough,
+        'paragraph_ids' => $paragraphIds,
+        'next_expiry' => NULL,
       ];
+    }
+
+    $nextExpiry = NULL;
+    if (!$openUntilFilled && !empty($validThrough)) {
+      $expiresAt = strtotime($validThrough . ' +1 day');
+      if ($expiresAt && $expiresAt > $now) {
+        $nextExpiry = $expiresAt;
+      }
     }
 
     $positionFamily = $jobParagraph->get('field_position_family')->value ?? '';
@@ -373,7 +452,59 @@ class EmploymentApplicationController extends ControllerBase {
         'label' => $jobLocation ? "{$jobTitle} — {$jobLocation}" : $jobTitle,
       ],
       'reason' => NULL,
+      'paragraph_ids' => $paragraphIds,
+      'next_expiry' => $nextExpiry,
     ];
+  }
+
+  /**
+   * Returns the parent category paragraph id, if any.
+   */
+  private function getJobCategoryParentId(Paragraph $jobParagraph): ?int {
+    $parentField = $jobParagraph->get('parent_field_name')->value;
+    $parentType = $jobParagraph->get('parent_type')->value;
+    $parentId = $jobParagraph->get('parent_id')->value;
+
+    if ($parentType === 'paragraph' && $parentField === 'field_category_jobs' && $parentId) {
+      return (int) $parentId;
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Builds cache metadata for the jobs JSON endpoints.
+   *
+   * Drives freshness off entity cache tags so admin edits invalidate the
+   * response immediately. A computed max-age is only applied when at least
+   * one active job has a fixed `field_job_valid_through` deadline — it is set
+   * to the precise number of seconds until that job transitions to closed,
+   * not an arbitrary fudge factor. Otherwise the response is permanently
+   * cacheable until a relevant entity is saved.
+   */
+  private function buildJobsCacheMetadata(array $nodeIds, array $paragraphIds, ?int $nextExpiryTs): CacheableMetadata {
+    $tags = ['node_list:employment', 'paragraph_list', 'employment_jobs'];
+    foreach ($nodeIds as $nid) {
+      $tags[] = 'node:' . $nid;
+    }
+    foreach ($paragraphIds as $pid) {
+      $tags[] = 'paragraph:' . $pid;
+    }
+
+    $maxAge = Cache::PERMANENT;
+    if ($nextExpiryTs !== NULL) {
+      $delta = $nextExpiryTs - time();
+      if ($delta > 0) {
+        $maxAge = $delta;
+      }
+    }
+
+    $metadata = new CacheableMetadata();
+    $metadata->setCacheTags(array_values(array_unique($tags)));
+    $metadata->setCacheContexts(['url.query_args', 'languages:language_content']);
+    $metadata->setCacheMaxAge($maxAge);
+
+    return $metadata;
   }
 
   /**
@@ -1203,7 +1334,7 @@ class EmploymentApplicationController extends ControllerBase {
   /**
    * Validates an uploaded file using the ApplicationValidator service.
    */
-  private function validateUploadedFile(\Symfony\Component\HttpFoundation\File\UploadedFile $file, string $correlationId): array {
+  private function validateUploadedFile(UploadedFile $file, string $correlationId): array {
     $extension = strtolower($file->getClientOriginalExtension());
     $mimeType = $file->getMimeType();
     $originalName = $file->getClientOriginalName();
@@ -1237,7 +1368,7 @@ class EmploymentApplicationController extends ControllerBase {
   /**
    * Saves uploaded file securely.
    */
-  private function saveFile(\Symfony\Component\HttpFoundation\File\UploadedFile $uploadedFile, string $fieldName): ?File {
+  private function saveFile(UploadedFile $uploadedFile, string $fieldName): ?File {
     try {
       $filename = $this->validator->generateSecureFilename($uploadedFile->getClientOriginalName());
       $yearMonth = date('Y-m');
@@ -1315,16 +1446,16 @@ class EmploymentApplicationController extends ControllerBase {
    */
   private function generateApplicationPDF(array $data, array $files, string $applicationId): string {
     try {
-      if (!class_exists(\Dompdf\Options::class)) {
+      if (!class_exists(Options::class)) {
         $this->appLogger->error('Dompdf library is not installed. Run: composer require dompdf/dompdf');
         return '';
       }
-      $options = new \Dompdf\Options();
+      $options = new Options();
       $options->set('defaultFont', 'DejaVu Sans');
       $options->set('isRemoteEnabled', FALSE);
       $options->set('isHtml5ParserEnabled', TRUE);
 
-      $dompdf = new \Dompdf\Dompdf($options);
+      $dompdf = new Dompdf($options);
 
       $html = $this->buildApplicationHTML($data, $files, $applicationId);
 
@@ -1358,7 +1489,7 @@ class EmploymentApplicationController extends ControllerBase {
       $tempMainFile = tempnam(sys_get_temp_dir(), 'app_main_') . '.pdf';
       file_put_contents($tempMainFile, $mainPdfContent);
 
-      $pdf = new \setasign\Fpdi\Fpdi();
+      $pdf = new Fpdi();
 
       $pageCount = $pdf->setSourceFile($tempMainFile);
       for ($i = 1; $i <= $pageCount; $i++) {
@@ -1924,7 +2055,7 @@ class EmploymentApplicationController extends ControllerBase {
       ->fetchObject();
 
     if (!$application) {
-      throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('Application not found.');
+      throw new NotFoundHttpException('Application not found.');
     }
 
     $formData = json_decode($application->form_data, TRUE) ?: [];
@@ -2117,13 +2248,13 @@ class EmploymentApplicationController extends ControllerBase {
   public function updateStatus(int $id, Request $request): Response {
     $csrfToken = $request->request->get('csrf_token', '');
     if (!$this->csrfToken->validate($csrfToken, 'employment_application_admin')) {
-      throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('Invalid CSRF token.');
+      throw new AccessDeniedHttpException('Invalid CSRF token.');
     }
 
     $newStatus = $request->request->get('status', '');
     if (!isset(self::ALLOWED_STATUSES[$newStatus])) {
       $this->messenger()->addError('Invalid status value.');
-      return new \Symfony\Component\HttpFoundation\RedirectResponse('/admin/employment-applications/' . $id);
+      return new RedirectResponse('/admin/employment-applications/' . $id);
     }
 
     $this->database->update('employment_applications')
@@ -2133,7 +2264,7 @@ class EmploymentApplicationController extends ControllerBase {
 
     $this->messenger()->addStatus('Application status updated to "' . self::ALLOWED_STATUSES[$newStatus] . '".');
 
-    return new \Symfony\Component\HttpFoundation\RedirectResponse('/admin/employment-applications/' . $id);
+    return new RedirectResponse('/admin/employment-applications/' . $id);
   }
 
   /**
@@ -2331,7 +2462,7 @@ class EmploymentApplicationController extends ControllerBase {
       ->fetchObject();
 
     if (!$application) {
-      throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('Application not found.');
+      throw new NotFoundHttpException('Application not found.');
     }
 
     $fileData = json_decode($application->file_data, TRUE);
@@ -2356,12 +2487,12 @@ class EmploymentApplicationController extends ControllerBase {
         '@fid' => $fid,
         '@app' => $id,
       ]);
-      throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('File does not belong to this application.');
+      throw new AccessDeniedHttpException('File does not belong to this application.');
     }
 
     $file = File::load($fid);
     if (!$file) {
-      throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('File not found.');
+      throw new NotFoundHttpException('File not found.');
     }
 
     $uri = $file->getFileUri();
@@ -2370,12 +2501,12 @@ class EmploymentApplicationController extends ControllerBase {
         '@fid' => $fid,
         '@uri' => $uri,
       ]);
-      throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('Invalid file location.');
+      throw new AccessDeniedHttpException('Invalid file location.');
     }
 
     $filepath = $this->fileSystem->realpath($uri);
     if (!$filepath || !file_exists($filepath)) {
-      throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException('Physical file not found.');
+      throw new NotFoundHttpException('Physical file not found.');
     }
 
     return new BinaryFileResponse(

@@ -121,6 +121,10 @@ desktop.ini
 # Playwright CLI test artifacts
 .playwright-cli/
 output/playwright/
+output/playwright-a11y/
+
+# Local planning / agent workspace artifacts
+.planning/
 
 # DDEV local dev environment
 .ddev/*

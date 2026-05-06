@@ -1,0 +1,181 @@
+name: Assistant Nightly Quality
+
+on:
+  schedule:
+    - cron: '0 10 * * 0'
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: Pantheon/local target environment for hosted assistant checks
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - test
+          - live
+      assistant_base_url:
+        description: Optional base URL for hosted smoke and Playwright checks
+        required: false
+        default: ''
+      run_runtime_matrix:
+        description: Run deterministic no-LLM/vector-disabled/vector-enabled matrix coverage
+        required: false
+        default: true
+        type: boolean
+      run_full_playwright:
+        description: Run full Playwright journey suite against the target
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assistant-nightly-quality-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TARGET_ENV: ${{ inputs.target_env || vars.ASSISTANT_NIGHTLY_TARGET_ENV || vars.CI_PROMPTFOO_ENV || 'dev' }}
+
+jobs:
+  deterministic-runtime-matrix:
+    name: Deterministic Runtime Matrix
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'schedule' || inputs.run_runtime_matrix == true }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, mbstring, zip, pdo, pdo_mysql, gd
+          coverage: none
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Set up DDEV for functional API behavior tests
+        uses: ddev/github-action-setup-ddev@fdf2f5c97943bae638f31df6df86f1defa6210c0 # v1.12.1
+
+      - name: Ensure DDEV Composer dependencies
+        run: ddev composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run no-LLM/vector-disabled/vector-enabled deterministic coverage
+        env:
+          ASSISTANT_FUNCTIONAL_MODE: ddev
+        run: |
+          echo "::notice::Nightly deterministic matrix includes AssistantMessageRuntimeBehaviorFunctionalTest.php and AssistantRetrievalGroundingKernelTest.php."
+          bash web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh --profile assistant-pr --skip-phpunit
+
+      - name: Upload deterministic matrix artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: assistant-nightly-deterministic-matrix
+          path: promptfoo-evals/output/phpunit-summary.txt
+          if-no-files-found: warn
+
+  hosted-deep-quality:
+    name: Hosted Deep Quality
+    runs-on: ubuntu-latest
+    env:
+      ASSISTANT_BASE_URL: ${{ inputs.assistant_base_url || secrets.ASSISTANT_BASE_URL || vars.ASSISTANT_BASE_URL }}
+      ILAS_ASSISTANT_URL: ${{ secrets.ILAS_ASSISTANT_URL || vars.ILAS_ASSISTANT_URL }}
+      ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE: ${{ vars.ILAS_CONFIGURED_RATE_LIMIT_PER_MINUTE }}
+      ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR: ${{ vars.ILAS_CONFIGURED_RATE_LIMIT_PER_HOUR }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Normalize hosted assistant endpoint
+        id: endpoint
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${ASSISTANT_BASE_URL:-}" && -n "${ILAS_ASSISTANT_URL:-}" ]]; then
+            ASSISTANT_BASE_URL="${ILAS_ASSISTANT_URL%/assistant/api/message}"
+          fi
+          if [[ -z "${ILAS_ASSISTANT_URL:-}" && -n "${ASSISTANT_BASE_URL:-}" ]]; then
+            ILAS_ASSISTANT_URL="${ASSISTANT_BASE_URL%/}/assistant/api/message"
+          fi
+
+          if [[ -z "${ASSISTANT_BASE_URL:-}" || -z "${ILAS_ASSISTANT_URL:-}" ]]; then
+            echo "::warning file=.github/workflows/assistant-nightly-quality.yml::Hosted nightly skipped because ASSISTANT_BASE_URL/ILAS_ASSISTANT_URL is unavailable. This scheduled workflow is non-blocking unless a real endpoint is configured."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "ASSISTANT_BASE_URL=$ASSISTANT_BASE_URL"
+            echo "PLAYWRIGHT_BASE_URL=$ASSISTANT_BASE_URL"
+            echo "ILAS_ASSISTANT_URL=$ILAS_ASSISTANT_URL"
+            echo "CI_PROMPTFOO_ENV=$TARGET_ENV"
+          } >> "$GITHUB_ENV"
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "::notice::Hosted nightly provider mode=real target_env=$TARGET_ENV endpoint=$ILAS_ASSISTANT_URL"
+
+      - name: Run deep Promptfoo conversation and hosted quality suites
+        if: ${{ steps.endpoint.outputs.should_run == 'true' }}
+        run: |
+          set -euo pipefail
+          bash scripts/ci/run-promptfoo-gate.sh \
+            --env "$TARGET_ENV" \
+            --mode blocking \
+            --config promptfooconfig.hosted.yaml \
+            --deep-config promptfooconfig.deep.yaml
+
+      - name: Run retrieval/vector provenance smoke
+        if: ${{ steps.endpoint.outputs.should_run == 'true' }}
+        run: node scripts/ci/run-vector-provenance-smoke.js --environment "$TARGET_ENV"
+
+      - name: Run full Playwright journeys
+        if: ${{ steps.endpoint.outputs.should_run == 'true' && (github.event_name == 'schedule' || inputs.run_full_playwright == true) }}
+        run: |
+          npm run test:assistant:playwright:install
+          npm run test:assistant:playwright:journeys
+
+      - name: Upload hosted nightly artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: assistant-nightly-hosted-artifacts
+          path: |
+            promptfoo-evals/output/gate-summary.txt
+            promptfoo-evals/output/results.json
+            promptfoo-evals/output/results-smoke.json
+            promptfoo-evals/output/results-deep.json
+            promptfoo-evals/output/structured-error-summary.json
+            promptfoo-evals/output/structured-error-summary.txt
+            promptfoo-evals/output/vector-provenance-smoke.jsonl
+            output/playwright/report
+            output/playwright/test-results
+          if-no-files-found: warn

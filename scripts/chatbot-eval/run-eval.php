@@ -3,14 +3,17 @@
 
 /**
  * @file
- * ILAS Chatbot Evaluation Runner.
+ * ILAS Chatbot Evaluation Runner - deprecated legacy harness.
+ *
+ * Preserved for historical fixture review only. HTTP mode does not honor the
+ * current Site Assistant bootstrap/session/CSRF/conversation contract.
  *
  * Usage:
  *   php run-eval.php [options]
  *
  * Options:
  *   --fixture=PATH    Path to fixture file (CSV or JSON)
- *   --http            Use HTTP mode (default: internal Drupal calls)
+ *   --http            Use legacy HTTP mode (default: internal Drupal calls)
  *   --base-url=URL    Base URL for HTTP mode
  *   --output=DIR      Output directory for reports
  *   --category=NAME   Filter to specific intent category
@@ -60,7 +63,10 @@ $options = getopt('', [
 // Show help.
 if (isset($options['help'])) {
   echo <<<HELP
-ILAS Chatbot Evaluation Runner
+ILAS Chatbot Evaluation Runner - DEPRECATED legacy harness
+
+This is not a current Site Assistant quality gate. Use Promptfoo for answer
+quality and scripts/smoke/assistant-smoke.mjs for HTTP/session/security checks.
 
 Usage:
   php run-eval.php [options]
@@ -68,7 +74,7 @@ Usage:
 Options:
   --fixture=PATH    Path to fixture file (CSV or JSON)
                     Default: ../../chatbot-golden-dataset.csv
-  --http            Use HTTP mode (requires running Drupal site)
+  --http            Use legacy HTTP mode (requires running Drupal site)
   --base-url=URL    Base URL for HTTP mode
                     Default: https://ilas-pantheon.ddev.site
   --output=DIR      Output directory for reports
@@ -125,7 +131,9 @@ if (!file_exists($fixture_path)) {
   exit(1);
 }
 
-echo "=== ILAS Chatbot Evaluation Harness ===\n\n";
+echo "=== ILAS Chatbot Evaluation Harness (Deprecated Legacy) ===\n\n";
+echo "Warning: this harness is historical fixture material only, not a current Site Assistant quality gate.\n";
+echo "HTTP mode does not exercise the current bootstrap/session/CSRF/conversation contract.\n\n";
 
 // Validate only mode.
 if ($validate_only) {

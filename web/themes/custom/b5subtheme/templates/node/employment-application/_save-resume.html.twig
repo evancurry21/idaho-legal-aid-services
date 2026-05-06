@@ -1,0 +1,30 @@
+        {# Auto-save Indicator #}
+        <div class="auto-save-status" role="status" aria-live="polite" aria-atomic="true">
+          <i class="fas fa-check-circle" aria-hidden="true"></i>
+          <span class="save-text">All changes saved</span>
+        </div>
+
+        {# Save & Resume Later #}
+        <div class="save-resume-section">
+          <button type="button" class="btn btn-nav btn-save-resume" aria-expanded="false" aria-controls="save-resume-form">
+            <i class="fas fa-envelope" aria-hidden="true"></i> Save &amp; Resume Later
+          </button>
+          <div id="save-resume-form" class="save-resume-form" style="display: none;" role="region" aria-label="Save and resume later">
+            <p class="save-resume-description">Enter your email and we'll send you a link to resume this application from any device. The link expires in 7 days.</p>
+            <div class="save-resume-input-group">
+              <label for="save-resume-email" class="visually-hidden">Email address for resume link</label>
+              <input type="email"
+                     id="save-resume-email"
+                     class="form-control"
+                     placeholder="Your email address"
+                     autocomplete="email"
+                     required
+                     aria-describedby="save-resume-help">
+              <button type="button" class="btn btn-primary btn-send-resume-link">
+                <i class="fas fa-paper-plane" aria-hidden="true"></i> Send Link
+              </button>
+            </div>
+            <small id="save-resume-help" class="form-text text-muted">We'll only use this email to send your resume link.</small>
+            <div class="save-resume-status" role="status" aria-live="polite"></div>
+          </div>
+        </div>

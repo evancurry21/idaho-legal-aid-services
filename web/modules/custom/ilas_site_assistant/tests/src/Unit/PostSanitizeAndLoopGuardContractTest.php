@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Symfony\Component\HttpFoundation\Request;
+use Drupal\ilas_site_assistant\Service\SelectionStateStore;
+use Drupal\ilas_site_assistant\Service\TopIntentsPack;
+use Drupal\ilas_site_assistant\Service\SelectionRegistry;
+use Psr\Log\LoggerInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -59,6 +64,9 @@ class PostSanitizeAndLoopGuardContractTest extends TestCase {
     $container = new ContainerBuilder();
     $container->set('logger.factory', new class {
 
+      /**
+       *
+       */
       public function get(string $channel): NullLogger {
         return new NullLogger();
       }
@@ -128,7 +136,7 @@ class PostSanitizeAndLoopGuardContractTest extends TestCase {
       $cache->method('get')->willReturn(FALSE);
     }
 
-    $logger = $this->createStub(\Psr\Log\LoggerInterface::class);
+    $logger = $this->createStub(LoggerInterface::class);
 
     return new LoopGuardTestableController(
       $configFactory,
@@ -143,8 +151,8 @@ class PostSanitizeAndLoopGuardContractTest extends TestCase {
       $cache,
       $logger,
       assistant_flow_runner: $this->createStub(AssistantFlowRunner::class),
-      selection_registry: new \Drupal\ilas_site_assistant\Service\SelectionRegistry(new \Drupal\ilas_site_assistant\Service\TopIntentsPack()),
-      selection_state_store: new \Drupal\ilas_site_assistant\Service\SelectionStateStore($cache),
+      selection_registry: new SelectionRegistry(new TopIntentsPack()),
+      selection_state_store: new SelectionStateStore($cache),
     );
   }
 
@@ -161,7 +169,7 @@ class PostSanitizeAndLoopGuardContractTest extends TestCase {
     $this->assertSame('', $sanitized, 'HTML-only input must sanitize to empty string');
 
     // Now verify the controller returns 400 for empty message.
-    $request = \Symfony\Component\HttpFoundation\Request::create(
+    $request = Request::create(
       '/assistant/api/message',
       'POST',
       [],
@@ -322,7 +330,7 @@ class LoopGuardTestableController extends AssistantApiController {
   /**
    * {@inheritdoc}
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = [], array $conversation_context_summary = []) {
     return [
       'type' => 'faq',
       'message' => 'Test FAQ response',

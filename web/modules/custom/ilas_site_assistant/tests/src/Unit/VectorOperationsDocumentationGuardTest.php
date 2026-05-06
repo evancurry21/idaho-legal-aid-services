@@ -32,6 +32,9 @@ final class VectorOperationsDocumentationGuardTest extends TestCase {
     return $contents;
   }
 
+  /**
+   *
+   */
   public function testCanonicalDocsDescribeSplitVectorArchitectureAndOperatorCommands(): void {
     $currentState = self::readFile('docs/aila/current-state.md');
     $runbook = self::readFile('docs/aila/runbook.md');

@@ -1,72 +1,38 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\ilas_site_assistant\Service;
 
 /**
  * Resolves user-provided city/county text to the nearest ILAS office.
  *
- * Standalone class with no Drupal dependencies. Office data is sourced from
- * ResponseGrounder::OFFICIAL_CONTACTS and hardcoded here for fast lookup.
+ * Holds only lookup logic (city -> office slug, county -> office slug,
+ * abbreviations). All office address/phone/hour facts come from
+ * {@see OfficeDirectory}, which is the canonical first-party source backed by
+ * published office_information nodes.
  */
 class OfficeLocationResolver {
 
   /**
-   * ILAS office data keyed by internal slug.
-   */
-  const OFFICES = [
-    'boise' => [
-      'name' => 'Boise',
-      'address' => '310 N 5th Street, Boise, ID 83702',
-      'phone' => '(208) 345-0106',
-      'hours' => 'Monday-Friday, 8:30 a.m.-4:30 p.m. (call to confirm current office hours).',
-      'url' => '/contact/offices/boise',
-    ],
-    'pocatello' => [
-      'name' => 'Pocatello',
-      'address' => '201 N 8th Ave, Suite 100, Pocatello, ID 83201',
-      'phone' => '(208) 233-0079',
-      'hours' => 'Monday-Friday, 8:30 a.m.-4:30 p.m. (call to confirm current office hours).',
-      'url' => '/contact/offices/pocatello',
-    ],
-    'twin_falls' => [
-      'name' => 'Twin Falls',
-      'address' => '496 Shoup Ave W, Twin Falls, ID 83301',
-      'phone' => '(208) 734-7024',
-      'hours' => 'Monday-Friday, 8:30 a.m.-4:30 p.m. (call to confirm current office hours).',
-      'url' => '/contact/offices/twin-falls',
-    ],
-    'lewiston' => [
-      'name' => 'Lewiston',
-      'address' => '1424 Main Street, Lewiston, ID 83501',
-      'phone' => '(208) 746-7541',
-      'hours' => 'Monday-Friday, 8:30 a.m.-4:30 p.m. (call to confirm current office hours).',
-      'url' => '/contact/offices/lewiston',
-    ],
-    'idaho_falls' => [
-      'name' => 'Idaho Falls',
-      'address' => '482 Constitution Way, Suite 101, Idaho Falls, ID 83402',
-      'phone' => '(208) 524-3660',
-      'hours' => 'Monday-Friday, 8:30 a.m.-4:30 p.m. (call to confirm current office hours).',
-      'url' => '/contact/offices/idaho-falls',
-    ],
-  ];
-
-  /**
    * City -> office slug map.
+   *
+   * Slugs match {@see OfficeDirectory} keys (derived from node titles).
    */
   const CITY_MAP = [
     // Boise region.
     'boise' => 'boise',
-    'nampa' => 'boise',
     'meridian' => 'boise',
     'eagle' => 'boise',
-    'caldwell' => 'boise',
     'mountain home' => 'boise',
     'garden city' => 'boise',
     'star' => 'boise',
     'kuna' => 'boise',
-    'emmett' => 'boise',
     'mccall' => 'boise',
+    // Nampa region.
+    'nampa' => 'nampa',
+    'caldwell' => 'nampa',
+    'emmett' => 'nampa',
     // Pocatello region.
     'pocatello' => 'pocatello',
     'blackfoot' => 'pocatello',
@@ -86,15 +52,16 @@ class OfficeLocationResolver {
     // Lewiston region.
     'lewiston' => 'lewiston',
     'moscow' => 'lewiston',
-    "coeur d'alene" => 'lewiston',
-    'coeur dalene' => 'lewiston',
-    'sandpoint' => 'lewiston',
-    'post falls' => 'lewiston',
     'orofino' => 'lewiston',
     'grangeville' => 'lewiston',
-    'wallace' => 'lewiston',
-    'bonners ferry' => 'lewiston',
-    'hayden' => 'lewiston',
+    // Coeur d'Alene region (formerly routed to Lewiston in legacy data).
+    "coeur d'alene" => 'coeur_dalene',
+    'coeur dalene' => 'coeur_dalene',
+    'sandpoint' => 'coeur_dalene',
+    'post falls' => 'coeur_dalene',
+    'wallace' => 'coeur_dalene',
+    'bonners ferry' => 'coeur_dalene',
+    'hayden' => 'coeur_dalene',
     // Idaho Falls region.
     'idaho falls' => 'idaho_falls',
     'rexburg' => 'idaho_falls',
@@ -112,19 +79,19 @@ class OfficeLocationResolver {
   const COUNTY_MAP = [
     // Boise region.
     'ada' => 'boise',
-    'canyon' => 'boise',
-    'gem' => 'boise',
     'boise' => 'boise',
     'elmore' => 'boise',
-    'owyhee' => 'boise',
-    'payette' => 'boise',
     'valley' => 'boise',
-    'washington' => 'boise',
-    'adams' => 'boise',
+    // Nampa region.
+    'canyon' => 'nampa',
+    'gem' => 'nampa',
+    'owyhee' => 'nampa',
+    'payette' => 'nampa',
+    'washington' => 'nampa',
+    'adams' => 'nampa',
     // Pocatello region.
     'bannock' => 'pocatello',
     'bear lake' => 'pocatello',
-    'bingham' => 'pocatello',
     'caribou' => 'pocatello',
     'franklin' => 'pocatello',
     'oneida' => 'pocatello',
@@ -144,11 +111,12 @@ class OfficeLocationResolver {
     'lewis' => 'lewiston',
     'clearwater' => 'lewiston',
     'idaho' => 'lewiston',
-    'kootenai' => 'lewiston',
-    'benewah' => 'lewiston',
-    'bonner' => 'lewiston',
-    'boundary' => 'lewiston',
-    'shoshone' => 'lewiston',
+    // Coeur d'Alene region.
+    'kootenai' => 'coeur_dalene',
+    'benewah' => 'coeur_dalene',
+    'bonner' => 'coeur_dalene',
+    'boundary' => 'coeur_dalene',
+    'shoshone' => 'coeur_dalene',
     // Idaho Falls region.
     'bonneville' => 'idaho_falls',
     'butte' => 'idaho_falls',
@@ -159,6 +127,7 @@ class OfficeLocationResolver {
     'lemhi' => 'idaho_falls',
     'madison' => 'idaho_falls',
     'teton' => 'idaho_falls',
+    'bingham' => 'idaho_falls',
   ];
 
   /**
@@ -171,6 +140,10 @@ class OfficeLocationResolver {
     'mtn home' => 'mountain home',
   ];
 
+  public function __construct(
+    private readonly OfficeDirectory $officeDirectory,
+  ) {}
+
   /**
    * Resolves a user message to the nearest ILAS office.
    *
@@ -178,33 +151,52 @@ class OfficeLocationResolver {
    *   The user's message (e.g. "boise", "Ada County").
    *
    * @return array|null
-   *   Office data array with name, address, phone, hours, url keys, or NULL.
+   *   Office data array with name, address, phone, hours, url keys, or NULL
+   *   when no city/county match was found OR the matched office is not
+   *   present in the canonical directory (e.g. unpublished, poisoned).
    */
   public function resolve(string $message): ?array {
     $normalized = $this->normalize($message);
-
     if ($normalized === '') {
       return NULL;
     }
 
-    // Check abbreviations first.
     if (isset(self::ABBREVIATIONS[$normalized])) {
       $normalized = self::ABBREVIATIONS[$normalized];
     }
 
-    // Check city map.
-    if (isset(self::CITY_MAP[$normalized])) {
-      return self::OFFICES[self::CITY_MAP[$normalized]];
+    $slug = $this->lookupSlug($normalized);
+    if ($slug === NULL) {
+      return NULL;
     }
 
-    // Fuzzy city phrase match inside longer messages.
+    return $this->officeDirectory->get($slug);
+  }
+
+  /**
+   * Returns all current public ILAS offices.
+   *
+   * @return array
+   *   Offices keyed by slug.
+   */
+  public function getAllOffices(): array {
+    return $this->officeDirectory->all();
+  }
+
+  /**
+   * Returns the office slug a normalized phrase maps to, or NULL.
+   */
+  private function lookupSlug(string $normalized): ?string {
+    if (isset(self::CITY_MAP[$normalized])) {
+      return self::CITY_MAP[$normalized];
+    }
+
     foreach (self::CITY_MAP as $city => $office_slug) {
       if (preg_match('/\b' . preg_quote($city, '/') . '\b/u', $normalized)) {
-        return self::OFFICES[$office_slug];
+        return $office_slug;
       }
     }
 
-    // Check county map: handle "X county" and bare county names.
     $county = $normalized;
     $has_county_suffix = FALSE;
     if (preg_match('/^(.+?)\s+county$/', $normalized, $m)) {
@@ -212,17 +204,15 @@ class OfficeLocationResolver {
       $has_county_suffix = TRUE;
     }
     if (isset(self::COUNTY_MAP[$county]) && ($has_county_suffix || $normalized === $county)) {
-      return self::OFFICES[self::COUNTY_MAP[$county]];
+      return self::COUNTY_MAP[$county];
     }
 
-    // County phrases in longer messages must include explicit "county"
-    // context to avoid false positives like "tenant rights in idaho".
     foreach (self::COUNTY_MAP as $county_name => $office_slug) {
       if (
         preg_match('/\b' . preg_quote($county_name, '/') . '\s*county\b/u', $normalized) ||
         $normalized === $county_name
       ) {
-        return self::OFFICES[$office_slug];
+        return $office_slug;
       }
     }
 
@@ -230,30 +220,12 @@ class OfficeLocationResolver {
   }
 
   /**
-   * Returns all ILAS offices.
-   *
-   * @return array
-   *   All 5 offices keyed by slug.
-   */
-  public function getAllOffices(): array {
-    return self::OFFICES;
-  }
-
-  /**
    * Normalizes input text for lookup.
-   *
-   * @param string $text
-   *   Raw user input.
-   *
-   * @return string
-   *   Lowercased, trimmed, punctuation-stripped text.
    */
   protected function normalize(string $text): string {
     $text = mb_strtolower(trim($text));
-    // Strip punctuation except apostrophes (for "coeur d'alene").
-    $text = preg_replace("/[^\w\s']/u", '', $text);
-    // Collapse whitespace.
-    $text = preg_replace('/\s+/', ' ', $text);
+    $text = preg_replace("/[^\w\s']/u", '', $text) ?? '';
+    $text = preg_replace('/\s+/', ' ', $text) ?? '';
     return trim($text);
   }
 

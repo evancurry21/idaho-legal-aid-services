@@ -782,22 +782,42 @@ class TestFaqIndex extends FaqIndex {
    */
   private function buildLanguageManagerStub(): object {
     return new class {
+
+      /**
+       *
+       */
       public function getCurrentLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
 
+      /**
+       *
+       */
       public function getDefaultLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
 
+      /**
+       *
+       */
       public function getLanguages(): array {
         return [
           'en' => new \stdClass(),
@@ -806,6 +826,7 @@ class TestFaqIndex extends FaqIndex {
           'sw' => new \stdClass(),
         ];
       }
+
     };
   }
 
@@ -872,22 +893,42 @@ class TestResourceFinder extends ResourceFinder {
    */
   private function buildLanguageManagerStub(): object {
     return new class {
+
+      /**
+       *
+       */
       public function getCurrentLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
 
+      /**
+       *
+       */
       public function getDefaultLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
 
+      /**
+       *
+       */
       public function getLanguages(): array {
         return [
           'en' => new \stdClass(),
@@ -896,6 +937,7 @@ class TestResourceFinder extends ResourceFinder {
           'sw' => new \stdClass(),
         ];
       }
+
     };
   }
 

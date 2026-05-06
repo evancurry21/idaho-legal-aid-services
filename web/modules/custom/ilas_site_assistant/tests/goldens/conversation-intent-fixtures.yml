@@ -1,9 +1,13 @@
-# Golden Transcripts — Aila Conversation Kernel Validation
+# Conversation Intent Fixtures — Aila Unit Routing Validation
 #
-# Each transcript defines a multi-turn conversation with expected outcomes.
-# GoldenTranscriptTest replays each turn through TurnClassifier +
-# HistoryIntentResolver + TopIntentsPack and validates turn_type, intent,
-# and chip presence.
+# Each fixture defines a small multi-turn sequence with expected unit-level
+# outcomes. ConversationIntentFixtureUnitTest replays each turn through
+# TurnClassifier + HistoryIntentResolver + Disambiguator + TopIntentsPack and
+# validates turn_type, intent helper behavior, and chip presence.
+#
+# This file is intentionally not an API-level golden transcript suite. It does
+# not verify /assistant/api/message, retrieval, LLM output, or public response
+# quality.
 #
 # Fields per turn:
 #   message: user input
@@ -14,7 +18,7 @@
 
 version: '1.0'
 
-transcripts:
+fixtures:
 
   # 1. Happy path: custody advice → family context
   - id: happy_path_custody

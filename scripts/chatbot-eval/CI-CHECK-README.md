@@ -1,6 +1,20 @@
-# Chatbot CI Check - Pre-Deployment Validation
+# Chatbot CI Check (Deprecated Legacy Local Tooling)
 
-This script prevents config changes from silently regressing chatbot performance.
+> **Deprecated legacy tooling.** `ci-check.php` and the bundled pre-push hook are
+> preserved for historical local use only. They are not current Site Assistant
+> pre-push coverage, not a production confidence gate, and not used by the
+> repository's GitHub Actions workflows.
+>
+> The evaluation smoke path underneath this script uses the legacy
+> `scripts/chatbot-eval` harness. Its HTTP mode does not perform the current
+> `/assistant/api/session/bootstrap` flow, does not preserve the anonymous
+> session cookie, and does not exercise the strict CSRF/session/conversation
+> contract.
+>
+> Use Promptfoo for answer-quality gates, `scripts/smoke/assistant-smoke.mjs`
+> for HTTP/session/security smoke checks, and Playwright for UI behavior.
+
+This script was originally created to catch chatbot-era config regressions.
 
 ## Quick Start
 
@@ -9,12 +23,16 @@ This script prevents config changes from silently regressing chatbot performance
 php scripts/chatbot-eval/ci-check.php
 ```
 
-If all checks pass, you'll see:
+If all legacy checks pass, the script prints:
 ```
-All checks passed - safe to deploy
+Legacy checks passed
 ```
 
-If something fails, you'll see which threshold was violated and should fix it before deploying.
+That message does not mean the current Site Assistant is safe to deploy. Current
+deployment confidence should come from the active Promptfoo, smoke, PHPUnit, and
+Playwright checks.
+
+If something fails, you'll see which legacy threshold was violated.
 
 ---
 
@@ -50,7 +68,7 @@ If something fails, you'll see which threshold was violated and should fix it be
 
 ## Usage Examples
 
-### Quick check before pushing (recommended)
+### Quick check before pushing (legacy, not recommended as current coverage)
 ```bash
 php scripts/chatbot-eval/ci-check.php
 ```
@@ -88,9 +106,10 @@ php scripts/chatbot-eval/ci-check.php --smoke-limit=100
 
 ---
 
-## Automatic Pre-Push Hook (Optional)
+## Automatic Pre-Push Hook (Legacy, Not Recommended)
 
-Install a git hook that automatically runs checks before pushing:
+The hook is retained only so older local setups can understand what was
+installed. Do not install it as the current assistant quality gate.
 
 ```bash
 # Install the hook
@@ -106,7 +125,7 @@ The hook only runs when you're pushing changes to:
 - `ilas_site_assistant.settings.yml`
 - `chatbot-golden-dataset.csv`
 
-To bypass (not recommended):
+To bypass this legacy hook:
 ```bash
 git push --no-verify
 ```
@@ -139,12 +158,15 @@ define('THRESHOLD_OVERALL_PASS_RATE', 0.70);    // Raise to 0.75 if baseline > 8
 Run `composer install` to install dependencies.
 
 ### "Drupal bootstrap failed"
-The evaluation needs a running Drupal site for internal mode. Either:
+The legacy evaluation needs a running Drupal site for internal mode. Either:
 1. Start your DDEV environment: `ddev start`
-2. Or use HTTP mode against an existing site
+2. Or use legacy HTTP mode against an existing non-live site, understanding it
+   does not exercise the current strict assistant session contract
 
 ### "Evaluation below thresholds"
-Your changes caused a regression. Check the report in `scripts/chatbot-eval/reports/` to see which test cases failed, then fix your config.
+The legacy harness detected a historical-threshold regression. Check the report
+in `scripts/chatbot-eval/reports/` only if you are intentionally investigating
+old fixtures.
 
 ---
 
@@ -152,7 +174,7 @@ Your changes caused a regression. Check the report in `scripts/chatbot-eval/repo
 
 | File | Purpose |
 |------|---------|
-| `ci-check.php` | Main validation script |
-| `hooks/pre-push` | Git hook for automatic checking |
-| `hooks/install-hook.sh` | Installs the git hook |
-| `reports/` | Output directory for evaluation reports |
+| `ci-check.php` | Deprecated local validation script |
+| `hooks/pre-push` | Deprecated optional git hook |
+| `hooks/install-hook.sh` | Installs the deprecated git hook |
+| `reports/` | Historical evaluation report output |

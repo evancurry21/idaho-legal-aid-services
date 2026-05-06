@@ -1,9 +1,13 @@
-/***********************************************
- * Employment Page Component
- *
- * Styles for the redesigned Employment Opportunities page.
- * Uses existing tokens from _variables_theme.scss.
- ***********************************************/
+// _employment-listing.scss
+// Owns: employment landing/listing page rendered by
+// `node--employment.html.twig` and `paragraph--job-category.html.twig`.
+// Root: `.employment-page` (BEM `.employment-page__*`).
+// Driven in part by `js/sticky-jobs-bar.js` (`#sticky-jobs-bar`).
+//
+// Cross-component @extend (`.node--employment .field--name-field-faq-section-title`
+// → `.accordion-section-title`) lives in `_employment-shared.scss`.
+//
+// Uses existing tokens from `_variables_theme.scss`.
 
 /* ========== Page Layout ========== */
 .employment-page {

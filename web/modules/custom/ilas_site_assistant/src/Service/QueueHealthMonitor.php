@@ -6,6 +6,7 @@ namespace Drupal\ilas_site_assistant\Service;
 
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\State\StateInterface;
+use Drupal\Core\Database\Connection;
 
 /**
  * Monitors Langfuse export queue depth and health.
@@ -143,11 +144,19 @@ class QueueHealthMonitor {
   protected StateInterface $state;
 
   /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection|null
+   */
+  protected ?Connection $database;
+
+  /**
    * Constructs a QueueHealthMonitor.
    */
-  public function __construct(QueueFactory $queue_factory, StateInterface $state) {
+  public function __construct(QueueFactory $queue_factory, StateInterface $state, ?Connection $database = NULL) {
     $this->queueFactory = $queue_factory;
     $this->state = $state;
+    $this->database = $database;
   }
 
   /**
@@ -174,13 +183,23 @@ class QueueHealthMonitor {
 
     $utilizationPct = $maxDepth > 0 ? round(($depth / $maxDepth) * 100, 2) : 0;
     $threshold = $maxDepth * self::BACKLOG_THRESHOLD_RATIO;
-    $oldestEnqueuedAt = $this->getOldestEnqueuedAt();
+    $storedOldestEnqueuedAt = $this->getOldestEnqueuedAt();
+    $oldestEnqueuedAt = $storedOldestEnqueuedAt;
 
     // Self-heal: if the queue is empty, any residual oldest_enqueued_at
     // is stale state from a prior drain cycle — clear it.
     if ($depth <= 0 && $oldestEnqueuedAt !== NULL) {
       $this->state->delete(self::STATE_OLDEST_ENQUEUED_AT);
       $oldestEnqueuedAt = NULL;
+    }
+    elseif ($depth > 0) {
+      $actualOldestEnqueuedAt = $this->getOldestQueueRowCreatedAt();
+      if ($actualOldestEnqueuedAt !== NULL) {
+        $oldestEnqueuedAt = $actualOldestEnqueuedAt;
+        if ($storedOldestEnqueuedAt !== $actualOldestEnqueuedAt) {
+          $this->state->set(self::STATE_OLDEST_ENQUEUED_AT, $actualOldestEnqueuedAt);
+        }
+      }
     }
 
     $oldestItemAge = $oldestEnqueuedAt !== NULL ? max(0, time() - $oldestEnqueuedAt) : NULL;
@@ -448,6 +467,31 @@ class QueueHealthMonitor {
     if ($value === NULL || (int) $value <= 0) {
       return NULL;
     }
+    return (int) $value;
+  }
+
+  /**
+   * Returns the oldest actual queue row timestamp when using the DB queue.
+   */
+  protected function getOldestQueueRowCreatedAt(): ?int {
+    if ($this->database === NULL) {
+      return NULL;
+    }
+
+    try {
+      $query = $this->database->select('queue', 'q');
+      $query->addExpression('MIN(created)', 'oldest_created');
+      $query->condition('name', self::QUEUE_NAME);
+      $value = $query->execute()->fetchField();
+    }
+    catch (\Throwable) {
+      return NULL;
+    }
+
+    if ($value === FALSE || $value === NULL || (int) $value <= 0) {
+      return NULL;
+    }
+
     return (int) $value;
   }
 

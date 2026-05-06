@@ -5,11 +5,13 @@
  * Drush-runnable test for Full HTML text format security (Finding H-1).
  *
  * Usage:
- *   ddev drush php:script modules/custom/ilas_seo/tests/scripts/test-full-html-filter.php
+ *   ddev drush php:script modules/custom/ilas_seo/tests/scripts/test-full-html-filter.php.
  *
  * Tests that the full_html format strips <script> tags, restricts <iframe>
  * attributes, and preserves legitimate allowed tags.
  */
+
+use Drupal\filter\Entity\FilterFormat;
 
 $pass = 0;
 $fail = 0;
@@ -18,7 +20,7 @@ $output = [];
 echo "=== Full HTML Text Format Security Tests ===\n\n";
 
 // Verify the format exists.
-$format = \Drupal\filter\Entity\FilterFormat::load('full_html');
+$format = FilterFormat::load('full_html');
 if (!$format) {
   echo "FATAL: full_html text format not found. Run 'drush cim' first.\n";
   // Use a Drush-safe non-zero exit.

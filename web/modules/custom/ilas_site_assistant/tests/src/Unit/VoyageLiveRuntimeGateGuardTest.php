@@ -33,7 +33,7 @@ final class VoyageLiveRuntimeGateGuardTest extends TestCase {
   }
 
   /**
-   * settings.php must keep live runtime-toggle support for both Voyage and
+   * Settings.php must keep live runtime-toggle support for both Voyage and
    * vector retrieval while limiting the private-flag fallback to dev/test.
    */
   public function testSettingsPhpAllowsLiveVoyageAndLiveVectorRuntimeToggle(): void {

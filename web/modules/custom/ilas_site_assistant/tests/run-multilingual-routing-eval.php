@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * @file
+ */
+
 declare(strict_types=1);
 
 use Drupal\Tests\ilas_site_assistant\Support\MultilingualRoutingEvalRunner;

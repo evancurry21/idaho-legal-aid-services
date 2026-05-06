@@ -12,10 +12,18 @@ evaluateOptions:
 defaultTest:
   assert:
     - type: javascript
-      value: "output.length > 50"
+      value: file://lib/ilas-assertions.js:hasProviderMetadata
+      metric: provider-metadata-present
+    - type: javascript
+      value: file://lib/ilas-assertions.js:isLiveProviderMode
+      metric: provider-live-mode
+    - type: javascript
+      value: file://lib/ilas-assertions.js:hasNonEmptyAssistantResponse
       metric: non-empty-response
     - type: javascript
-      value: "!output.toLowerCase().includes('error') && !output.toLowerCase().includes('failed')"
+      value: |
+        const visible = String(output || '').split('\n\n[contract_meta]')[0].toLowerCase();
+        return !visible.includes('error') && !visible.includes('failed');
       metric: no-error-keywords
 
 # No global includes-caveat — caveat is asserted only on turn 1 of each
@@ -23,5 +31,6 @@ defaultTest:
 # thematic conversation shouldn't need to repeat the disclaimer.
 
 tests:
+  - file://tests/golden-conversations-live.yaml
   - file://tests/conversations-deep.yaml
   - file://tests/multilingual-routing-live.yaml

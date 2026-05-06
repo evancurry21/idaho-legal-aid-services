@@ -3,7 +3,7 @@
 
 /**
  * @file
- * Normalization Evaluation Runner.
+ * Normalization Evaluation Runner - deprecated legacy harness.
  *
  * Evaluates how acronym expansion and typo correction improve routing accuracy
  * by testing the KeywordExtractor + TopicRouter pipeline on known
@@ -13,6 +13,9 @@
  * - R@1 for acronym queries (does expanded form route correctly?)
  * - R@1 for typo queries (does corrected form route correctly?)
  * - Before/after comparison (with and without normalization)
+ *
+ * Preserved for historical fixture review only. This is not a current Site
+ * Assistant quality gate.
  *
  * Usage:
  *   php run-normalization-eval.php [--verbose]
@@ -47,7 +50,8 @@ use Drupal\ilas_site_assistant\Service\TypoCorrector;
 
 $verbose = in_array('--verbose', $argv);
 
-echo "=== ILAS Normalization Evaluation ===\n\n";
+echo "=== ILAS Normalization Evaluation (Deprecated Legacy) ===\n\n";
+echo "Warning: this is historical fixture tooling only, not a current Site Assistant quality gate.\n\n";
 
 // Initialize services.
 $expander = new AcronymExpander(NULL);

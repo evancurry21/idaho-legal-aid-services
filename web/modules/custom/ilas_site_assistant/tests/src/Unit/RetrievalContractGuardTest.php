@@ -13,7 +13,6 @@ use Symfony\Component\Yaml\Yaml;
  *
  * Static analysis guards (following PhaseOneNoRetrievalArchitectureRedesignGuardTest
  * pattern): reads file contents and asserts structural invariants.
- *
  */
 #[Group('ilas_site_assistant')]
 final class RetrievalContractGuardTest extends TestCase {

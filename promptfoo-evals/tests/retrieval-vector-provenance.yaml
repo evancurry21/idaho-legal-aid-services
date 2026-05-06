@@ -1,0 +1,78 @@
+# ILAS Site Assistant — Vector provenance contract tests
+#
+# Asserts that Pinecone + Voyage are operationally proven on representative
+# retrieval queries:
+#   - response.retrieval.vector_provider === 'pinecone'
+#   - response.retrieval.embedding_provider === 'voyage'
+#   - response.retrieval.embedding_model is set
+#   - response.retrieval.vector_result_count > 0
+#   - at least one source_class ends in '_vector'
+#
+# Metric: rag-vector-provenance
+#
+# These probes are retrieval-eligible (not OOS, not navigation-only). A
+# vector_result_count of 0 here indicates the runtime vector_search.enabled
+# kill switch is OFF or thresholds/indexes are misconfigured — both of
+# which were the original audit findings.
+
+- vars:
+    question: "idaho custody forms for unmarried parents"
+    require_retrieval_attempted: true
+    require_vector_results: true
+  assert:
+    - &rag_contract
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasReadableContractMeta
+      metric: rag-contract-meta-present
+    - &quality_retrieval_attempt
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasRetrievalAttemptProof
+      metric: quality-retrieval-attempted
+    - &quality_vector_proof
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasVectorRetrievalProof
+      metric: quality-vector-grounded-retrieval
+    - &rag_vector_provenance
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasVectorProvenance
+      metric: rag-vector-provenance
+
+- vars:
+    question: "three day eviction notice for nonpayment of rent in idaho"
+    require_retrieval_attempted: true
+    require_vector_results: true
+  assert:
+    - *rag_contract
+    - *quality_retrieval_attempt
+    - *quality_vector_proof
+    - *rag_vector_provenance
+
+- vars:
+    question: "how do i apply for guardianship of my grandchild in idaho"
+    require_retrieval_attempted: true
+    require_vector_results: true
+  assert:
+    - *rag_contract
+    - *quality_retrieval_attempt
+    - *quality_vector_proof
+    - *rag_vector_provenance
+
+- vars:
+    question: "i was denied ssi benefits how do i appeal"
+    require_retrieval_attempted: true
+    require_vector_results: true
+  assert:
+    - *rag_contract
+    - *quality_retrieval_attempt
+    - *quality_vector_proof
+    - *rag_vector_provenance
+
+- vars:
+    question: "civil protection order against domestic violence"
+    require_retrieval_attempted: true
+    require_vector_results: true
+  assert:
+    - *rag_contract
+    - *quality_retrieval_attempt
+    - *quality_vector_proof
+    - *rag_vector_provenance

@@ -9,42 +9,18 @@
 
   Features:
     - Semantic anchor IDs for deep-linking (field_anchor_id or auto-generated)
-    - FAQPage schema.org markup for SEO
     - Search functionality with live results
+
+  Note: FAQPage schema.org markup is emitted once per page by ilas_seo's
+  GraphBuilder service (web/modules/custom/ilas_seo/src/StructuredData/GraphBuilder.php),
+  not from this template, to avoid duplicate FAQPage objects when a page
+  contains multiple FAQ sections.
 #}
 
 {% set paragraph_id = paragraph.entity.id() %}
 {% set accordion_id = 'faq-' ~ paragraph_id %}
 {% set search_id = 'faq-search-' ~ paragraph_id %}
 {% set search_placeholder = content.field_search_placeholder[0]['#context']['value'] ?? 'Search FAQs and resources...' %}
-
-{# Add FAQ Schema markup for SEO #}
-{# Build FAQ items array first to avoid trailing comma issues #}
-{% set faq_items = [] %}
-{% for item in content.field_faq_items %}
-  {% if item['#paragraph'] is defined %}
-    {% set faq_items = faq_items|merge([item['#paragraph']]) %}
-  {% endif %}
-{% endfor %}
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "@id": "{{ url('<current>')|render ~ '#faq-' ~ paragraph_id }}",
-  "mainEntity": [
-    {% for faq in faq_items %}
-        {
-          "@type": "Question",
-          "name": {{ faq.field_faq_question.value|default('')|json_encode|raw }},
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": {{ faq.field_faq_answer.value|default('')|json_encode|raw }}
-          }
-        }{% if not loop.last %},{% endif %}
-    {% endfor %}
-  ]
-}
-</script>
 
 <div class="faq-smart-section">
   {% if content.field_faq_section_title %}

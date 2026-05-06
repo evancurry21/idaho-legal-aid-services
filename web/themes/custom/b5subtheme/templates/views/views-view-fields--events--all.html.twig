@@ -25,6 +25,19 @@
   {% endif %}
 {% endif %}
 
+{#
+  Safety note: every `|raw` below outputs a variable assigned from
+  `fields.<name>.content|render|trim`. `fields.X.content` is the already-rendered
+  Views field — passed through Drupal's render pipeline and the field's Views
+  formatter — so it is safe HTML. We re-emit through `|raw` because Twig would
+  otherwise double-escape the formatter output.
+
+  Field formatters (see config/views.view.events.yml display "all"):
+  - field_event__date:           smartdate_default
+  - field_description:           basic_string + alter.strip_tags=true (max_length 300)
+  - field_event__file:           entity_reference_label (link: true)
+#}
+
 {# Get field values #}
 {% set event_date = fields.field_event__date.content|render|trim %}
 {% set location = fields.field_event__location_name.content|render|striptags|trim %}

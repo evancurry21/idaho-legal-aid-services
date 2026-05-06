@@ -103,7 +103,7 @@ abstract class BehavioralDependencyGateTestBase extends TestCase {
    *     count_fail: bool,
    *     fail: bool
    *   }>
-   * }
+   *   }
    *   Parsed threshold evaluation state.
    */
   protected function thresholdReport(string $resultsRelativePath, float $threshold, int $minCount, array $metricNames): array {

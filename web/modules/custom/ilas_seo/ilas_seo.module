@@ -5,8 +5,28 @@
  * ILAS SEO module - provides SEO optimizations for Idaho Legal Aid Services.
  */
 
+use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\node\NodeInterface;
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Single entry point for all custom JSON-LD structured-data emission. Defers
+ * the actual schema construction to the ilas_seo.graph_builder service so that
+ * theme/Twig do not need to own any JSON-LD logic.
+ */
+function ilas_seo_page_attachments(array &$attachments): void {
+  /** @var \Drupal\ilas_seo\StructuredData\GraphBuilder $builder */
+  $builder = \Drupal::service('ilas_seo.graph_builder');
+  $result = $builder->build();
+  foreach ($result['blocks'] as $block) {
+    $attachments['#attached']['html_head'][] = $block;
+  }
+  $cache = CacheableMetadata::createFromRenderArray($attachments);
+  $cache = $cache->merge($result['cache']);
+  $cache->applyTo($attachments);
+}
 
 /**
  * Implements hook_page_attachments_alter().

@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\Component\Uuid\Php;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -58,15 +59,19 @@ class CorrelationIdTest extends TestCase {
     return [
       'empty string' => [''],
       'random text' => ['not-a-uuid'],
-      'uuid v1' => ['550e8400-e29b-11d4-a716-446655440000'], // version 1, not 4.
-      'uuid v3' => ['550e8400-e29b-31d4-a716-446655440000'], // version 3.
-      'uuid v5' => ['550e8400-e29b-51d4-a716-446655440000'], // version 5.
+    // Version 1, not 4.
+      'uuid v1' => ['550e8400-e29b-11d4-a716-446655440000'],
+    // Version 3.
+      'uuid v3' => ['550e8400-e29b-31d4-a716-446655440000'],
+    // Version 5.
+      'uuid v5' => ['550e8400-e29b-51d4-a716-446655440000'],
       'too short' => ['550e8400-e29b-41d4-a716'],
       'too long' => ['550e8400-e29b-41d4-a716-446655440000-extra'],
       'no dashes' => ['550e8400e29b41d4a716446655440000'],
       'injection attempt' => ['550e8400-e29b-41d4-a716-446655440000; DROP TABLE users'],
       'xss attempt' => ['<script>alert(1)</script>'],
-      'invalid variant' => ['550e8400-e29b-41d4-c716-446655440000'], // variant c not allowed.
+    // Variant c not allowed.
+      'invalid variant' => ['550e8400-e29b-41d4-c716-446655440000'],
       'newline injection' => ["550e8400-e29b-41d4-a716-446655440000\nX-Injected: yes"],
     ];
   }
@@ -78,7 +83,7 @@ class CorrelationIdTest extends TestCase {
    * would pass resolveCorrelationId validation.
    */
   public function testFallbackGeneratesValidUuid4(): void {
-    $generator = new \Drupal\Component\Uuid\Php();
+    $generator = new Php();
     $uuid = $generator->generate();
     $this->assertMatchesRegularExpression(self::UUID4_PATTERN, $uuid);
   }
@@ -87,7 +92,7 @@ class CorrelationIdTest extends TestCase {
    * Tests that generated UUIDs are unique.
    */
   public function testFallbackGeneratesUniqueUuids(): void {
-    $generator = new \Drupal\Component\Uuid\Php();
+    $generator = new Php();
     $uuids = [];
     for ($i = 0; $i < 100; $i++) {
       $uuids[] = $generator->generate();

@@ -153,8 +153,8 @@ final class CrossPhaseDependencyRowFourGateTest extends TestCase {
     $this->assertStringContainsString('name: Quality Gate', $workflow);
     $this->assertStringContainsString("'release/**'", $workflow);
     $this->assertStringContainsString('cancel-in-progress: true', $workflow);
-    $this->assertStringContainsString('name: PHPUnit Quality Gate', $workflow);
-    $this->assertStringContainsString('name: Promptfoo Gate', $workflow);
+    $this->assertStringContainsString('name: Basic Quality Gate', $workflow);
+    $this->assertStringContainsString('name: Assistant PR Quality Gate', $workflow);
 
     $this->assertStringContainsString('$CI_BRANCH_NAME" == "master"', $promptfooGateScript);
     $this->assertStringContainsString('$CI_BRANCH_NAME" == "main"', $promptfooGateScript);
@@ -173,8 +173,7 @@ final class CrossPhaseDependencyRowFourGateTest extends TestCase {
     $this->assertStringContainsString('testRunbookContainsEnforcedQualityGateVerificationSteps', $phaseOneQualityGateContractTest);
 
     $this->assertStringContainsString('.github/workflows/quality-gate.yml:1:name: Quality Gate', $phaseTwoEntryOneRuntime);
-    $this->assertStringContainsString('name: PHPUnit Quality Gate', $phaseTwoEntryOneRuntime);
-    $this->assertStringContainsString('name: Promptfoo Gate', $phaseTwoEntryOneRuntime);
+    $this->assertStringContainsString('name: Quality Gate', $phaseTwoEntryOneRuntime);
 
     $this->assertCurrentDiagramAQualityGateAnchors($systemMap);
   }

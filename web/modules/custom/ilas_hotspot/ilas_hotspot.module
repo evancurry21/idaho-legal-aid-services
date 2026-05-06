@@ -10,14 +10,14 @@ use Drupal\Component\Utility\Xss;
 
 /**
  * Create a hotspot render array.
- * 
+ *
  * @param string $background_image
  *   Path to the background image.
  * @param array $hotspots
  *   Array of hotspot data.
  * @param bool $responsive
  *   Whether the hotspot should be responsive.
- * 
+ *
  * @return array
  *   Render array for the hotspot.
  */
@@ -33,13 +33,13 @@ function ilas_hotspot_create($background_image, array $hotspots, $responsive = T
     ],
   ];
 
-  // Add lazy loading support
+  // Add lazy loading support.
   if ($lazy_load) {
     $build['#attributes']['data-lazy-load'] = 'hotspot';
     $build['#attached']['library'][] = 'b5subtheme/lazy-loading';
   }
 
-  // Background image with lazy loading
+  // Background image with lazy loading.
   $build['background'] = [
     '#type' => 'html_tag',
     '#tag' => 'img',
@@ -48,15 +48,16 @@ function ilas_hotspot_create($background_image, array $hotspots, $responsive = T
       'class' => ['hotspot-background'],
     ],
   ];
-  
+
   if ($lazy_load) {
     $build['background']['#attributes']['data-src'] = $background_image;
     $build['background']['#attributes']['src'] = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
-  } else {
+  }
+  else {
     $build['background']['#attributes']['src'] = $background_image;
   }
 
-  // Add hotspots
+  // Add hotspots.
   foreach ($hotspots as $index => $hotspot) {
     $build['hotspot_' . $index] = [
       '#type' => 'container',

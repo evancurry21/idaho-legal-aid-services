@@ -16,9 +16,10 @@ run-promptfoo-gate.sh
 $ for ENV in dev test live; do terminus remote:drush idaho-legal-aid-services.${ENV} -- pml --status=enabled --type=module --no-core --format=list | rg "^raven$"; done
 ## ENV=dev
 raven
-langfuse_enabled=true
-langfuse_public_key=present
-langfuse_secret_key=present
+langfuse_policy=live_only_default
+langfuse_enabled=false
+langfuse_public_key=not_injected
+langfuse_secret_key=not_injected
 langfuse_sample_rate=1
 raven_client_key=present
 'ilas_site_assistant.settings:llm.enabled': false
@@ -26,9 +27,10 @@ raven_client_key=present
 
 ## ENV=test
 raven
-langfuse_enabled=true
-langfuse_public_key=present
-langfuse_secret_key=present
+langfuse_policy=live_only_default
+langfuse_enabled=false
+langfuse_public_key=not_injected
+langfuse_secret_key=not_injected
 langfuse_sample_rate=1
 raven_client_key=present
 'ilas_site_assistant.settings:llm.enabled': false
@@ -36,6 +38,7 @@ raven_client_key=present
 
 ## ENV=live
 raven
+langfuse_policy=live_only_default
 langfuse_enabled=true
 langfuse_public_key=present
 langfuse_secret_key=present

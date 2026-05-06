@@ -84,6 +84,9 @@ class UiTroubleshootingTest extends TestCase {
     $this->assertGreaterThanOrEqual(0.85, $result['confidence']);
   }
 
+  /**
+   *
+   */
   public static function uiComplaintProvider(): array {
     return [
       // English negation + display verb.
@@ -129,6 +132,9 @@ class UiTroubleshootingTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public static function nonUiComplaintProvider(): array {
     return [
       ['I need help with custody'],

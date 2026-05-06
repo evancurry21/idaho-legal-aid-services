@@ -6,6 +6,7 @@
  * when b5subtheme is the active theme.
  */
 #}
+{{ attach_library('b5subtheme/admin-toolbar-state') }}
 <aside class="admin-toolbar" id="admin-toolbar" data-drupal-admin-styles>
   <div class="admin-toolbar__displace-placeholder"></div>
 
@@ -42,8 +43,4 @@
     {{ menu_bottom }}
   </div>
 </aside>
-<script>
-  if (localStorage.getItem('Drupal.navigation.sidebarExpanded') !== 'false') {
-    document.documentElement.classList.add('admin-toolbar-expanded');
-  }
-</script>
+{# Admin toolbar expanded-state restore is handled by b5subtheme/admin-toolbar-state library. #}

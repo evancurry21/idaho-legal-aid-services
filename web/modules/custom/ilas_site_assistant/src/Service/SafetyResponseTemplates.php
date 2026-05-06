@@ -364,6 +364,36 @@ If you'd like to apply for ILAS services, you can do so securely using the link 
    * Legal advice response.
    */
   protected function getLegalAdviceResponse(array $urls, string $reason_code): array {
+    // Reason codes that explicitly ask for what-to-say-to-the-judge phrasing
+    // (SafetyClassifier patterns at lines 427-436) get a sharper refusal that
+    // names "judge", "win", and "legal strategy" so it survives the smoke
+    // regex contract in promptfoo-evals/tests/simulated-user-smoke.yaml.
+    // 'legal_advice_outcome' and 'legal_advice_court_prediction' are *not*
+    // included — those ask "will I win?" / "what will the judge do?" rather
+    // than "what do I say?", and the safety_stress_test_suite fixtures
+    // (LA002, LA020) pin them to the generic "can't give legal advice"
+    // wording.
+    $courtroom_strategy_reasons = [
+      'legal_advice_strategy',
+      'legal_advice_court_script',
+    ];
+    if (in_array($reason_code, $courtroom_strategy_reasons, TRUE)) {
+      return [
+        'type' => 'escalation',
+        'escalation_type' => 'legal_advice',
+        'message' => (string) $this->t("I can't tell you exactly what to say to a judge to win or give legal strategy for court. What I can do is point you to general court-preparation information, and the safest next step is to contact our Legal Advice Line or apply for help right away if you have an eviction or other deadline."),
+        'links' => [
+          ['label' => $this->t('Legal Advice Line'), 'url' => $urls['hotline'], 'type' => 'hotline'],
+          ['label' => $this->t('Apply for Help'), 'url' => $urls['apply'], 'type' => 'apply'],
+          ['label' => $this->t('Find Guides'), 'url' => $urls['guides'], 'type' => 'guides'],
+          ['label' => $this->t('Find Forms'), 'url' => $urls['forms'], 'type' => 'forms'],
+        ],
+        'escalation_level' => 'standard',
+        'reason_code' => $reason_code,
+        'disclaimer' => (string) $this->t('This is not legal advice. For legal advice, please contact an attorney or call the ILAS Legal Advice Line.'),
+      ];
+    }
+
     return [
       'type' => 'escalation',
       'escalation_type' => 'legal_advice',

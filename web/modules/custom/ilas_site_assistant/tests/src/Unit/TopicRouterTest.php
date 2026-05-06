@@ -43,6 +43,9 @@ class TopicRouterTest extends TestCase {
     $this->assertArrayHasKey('employment', $map);
   }
 
+  /**
+ *
+ */
   #[DataProvider('exactTokenProvider')]
   public function testExactTokenMatch(string $input, string $expected_topic, string $expected_url): void {
     $result = $this->router->route($input);
@@ -53,6 +56,9 @@ class TopicRouterTest extends TestCase {
     $this->assertGreaterThanOrEqual(TopicRouter::CONFIDENCE_EXACT, $result['confidence']);
   }
 
+  /**
+   *
+   */
   public static function exactTokenProvider(): array {
     return [
       ['divorce', 'family', '/legal-help/family'],
@@ -84,6 +90,9 @@ class TopicRouterTest extends TestCase {
     ];
   }
 
+  /**
+ *
+ */
   #[DataProvider('stemProvider')]
   public function testStemMatch(string $input, string $expected_topic): void {
     $result = $this->router->route($input);
@@ -93,6 +102,9 @@ class TopicRouterTest extends TestCase {
     $this->assertGreaterThanOrEqual(TopicRouter::CONFIDENCE_STEM, $result['confidence']);
   }
 
+  /**
+   *
+   */
   public static function stemProvider(): array {
     return [
       ['divorced', 'family'],
@@ -109,6 +121,9 @@ class TopicRouterTest extends TestCase {
     ];
   }
 
+  /**
+ *
+ */
   #[DataProvider('synonymProvider')]
   public function testSynonymMatch(string $input, string $expected_topic): void {
     $result = $this->router->route($input);
@@ -117,6 +132,9 @@ class TopicRouterTest extends TestCase {
     $this->assertGreaterThanOrEqual(TopicRouter::CONFIDENCE_SYNONYM, $result['confidence']);
   }
 
+  /**
+   *
+   */
   public static function synonymProvider(): array {
     return [
       ['divorcio', 'family'],
@@ -137,6 +155,9 @@ class TopicRouterTest extends TestCase {
     ];
   }
 
+  /**
+ *
+ */
   #[DataProvider('phraseProvider')]
   public function testPhraseMatch(string $input, string $expected_topic): void {
     $result = $this->router->route($input);
@@ -144,6 +165,9 @@ class TopicRouterTest extends TestCase {
     $this->assertEquals($expected_topic, $result['topic'], "Topic mismatch for '$input'");
   }
 
+  /**
+   *
+   */
   public static function phraseProvider(): array {
     return [
       ['child support', 'family'],
@@ -159,6 +183,9 @@ class TopicRouterTest extends TestCase {
     ];
   }
 
+  /**
+ *
+ */
   #[DataProvider('fuzzyProvider')]
   public function testFuzzyMatch(string $input, string $expected_topic): void {
     $result = $this->router->route($input);
@@ -167,6 +194,9 @@ class TopicRouterTest extends TestCase {
     $this->assertGreaterThanOrEqual(TopicRouter::CONFIDENCE_FUZZY - 0.05, $result['confidence']);
   }
 
+  /**
+   *
+   */
   public static function fuzzyProvider(): array {
     return [
       ['divorec', 'family'],
@@ -176,12 +206,18 @@ class TopicRouterTest extends TestCase {
     ];
   }
 
+  /**
+ *
+ */
   #[DataProvider('negativeProvider')]
   public function testNegativeCases(string $input): void {
     $result = $this->router->route($input);
     $this->assertNull($result, "Expected no match for '$input', got topic: " . ($result['topic'] ?? 'none'));
   }
 
+  /**
+   *
+   */
   public static function negativeProvider(): array {
     return [
       ['hi'],
@@ -238,6 +274,9 @@ class TopicRouterTest extends TestCase {
     $this->assertEquals($expected_topic, $result['topic'], "Topic mismatch for '$input'");
   }
 
+  /**
+   *
+   */
   public static function urgencyModifiedProvider(): array {
     return [
       ['custody now', 'family'],
@@ -307,6 +346,9 @@ class TopicRouterTest extends TestCase {
     $this->assertEquals($expected_url, $result['url'], "URL mismatch for '$input'");
   }
 
+  /**
+   *
+   */
   public static function consumerDebtExactProvider(): array {
     return [
       ['debt', '/legal-help/consumer'],
@@ -334,6 +376,9 @@ class TopicRouterTest extends TestCase {
     $this->assertEquals('/legal-help/consumer', $result['url']);
   }
 
+  /**
+   *
+   */
   public static function consumerDebtSpanishProvider(): array {
     return [
       ['deuda'],
@@ -367,6 +412,9 @@ class TopicRouterTest extends TestCase {
     $this->assertEquals('/legal-help/consumer', $result['url']);
   }
 
+  /**
+   *
+   */
   public static function consumerDebtPhraseProvider(): array {
     return [
       ['medical bills'],
@@ -406,6 +454,9 @@ class TopicRouterTest extends TestCase {
       "'$input' should NOT route to health page");
   }
 
+  /**
+   *
+   */
   public static function medicalDebtNotHealthProvider(): array {
     return [
       ['medical bills'],
@@ -427,6 +478,9 @@ class TopicRouterTest extends TestCase {
     $this->assertEquals('consumer', $result['topic'], "Stem '$input' should route to consumer");
   }
 
+  /**
+   *
+   */
   public static function consumerDebtStemProvider(): array {
     return [
       ['garnished'],

@@ -1,0 +1,99 @@
+          <fieldset class="wizard-step" data-step="5" role="group" aria-labelledby="step5-heading" hidden>
+            <div class="step-header">
+              <h2 id="step5-heading">Additional Information & Review</h2>
+            </div>
+            
+            <div class="step-content">
+              <div class="form-grid">
+                
+                <div class="form-group">
+                  <label for="referral_source" class="form-label">How did you hear about us?</label>
+                  <select id="referral_source" 
+                          name="referral_source" 
+                          class="form-control">
+                    <option value="">Please select</option>
+                    <option value="company_website">Company Website</option>
+                    <option value="job_board">Job Board</option>
+                    <option value="social_media">Social Media</option>
+                    <option value="employee_referral">Employee Referral</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                
+                <div class="form-group referral-details" style="display: none;">
+                  <label for="referral_details" class="form-label">Please provide details</label>
+                  <input type="text" 
+                         id="referral_details" 
+                         name="referral_details" 
+                         class="form-control">
+                </div>
+                
+                <div class="form-group full-width">
+                  <label for="additional_comments" class="form-label">Additional Comments</label>
+                  <textarea id="additional_comments" 
+                            name="additional_comments" 
+                            class="form-control auto-resize" 
+                            rows="4"
+                            placeholder="Share anything else you'd like us to know about your application..."></textarea>
+                </div>
+
+                {# Accommodation Request (ADA/Section 503) #}
+                <div class="form-group full-width">
+                  <div class="accommodation-notice">
+                    <p class="accommodation-notice__text">
+                      Idaho Legal Aid Services is committed to providing reasonable accommodations to qualified individuals with disabilities.
+                      If you need an accommodation to complete this application or participate in the interview process, please describe your request below.
+                    </p>
+                    <label for="accommodation_request" class="form-label">Accommodation Request <span class="optional-label">(optional)</span></label>
+                    <textarea id="accommodation_request"
+                              name="accommodation_request"
+                              class="form-control auto-resize"
+                              rows="3"
+                              placeholder="Describe any accommodations you may need..."></textarea>
+                  </div>
+                </div>
+
+                {# EEO Statement #}
+                <div class="form-group full-width">
+                  <div class="eeo-statement">
+                    <p class="eeo-statement__text">
+                      Idaho Legal Aid Services is an Equal Opportunity Employer. We do not discriminate on the basis of race, color, religion, sex, national origin, age, disability, genetic information, veteran status, sexual orientation, gender identity, or any other legally protected characteristic.
+                    </p>
+                  </div>
+                </div>
+
+                {# Privacy Notice #}
+                <div class="form-group full-width">
+                  <div class="privacy-notice">
+                    <p class="privacy-notice__text">
+                      The personal information you provide in this application will be used solely for the purpose of evaluating your candidacy for employment.
+                      Your data will be stored securely and retained in accordance with our data retention policies.
+                      For more information about how we collect, use, and protect your personal data, please review our <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="form-group full-width">
+                  <fieldset class="application-agreements" role="group" aria-labelledby="agreements-heading">
+                    <legend id="agreements-heading" class="visually-hidden">Application Agreements</legend>
+
+                    <div class="agreement-item">
+                      <label class="checkbox-label">
+                        <input type="checkbox"
+                               id="agreement"
+                               name="agreement"
+                               required
+                               aria-required="true"
+                               aria-describedby="agreement_error"
+                               value="1">
+                        <span class="checkmark"></span>
+                        I certify that the information provided in this application is true and complete to the best of my knowledge.
+                      </label>
+                      <div class="form-feedback" id="agreement_error" role="alert" aria-live="polite"></div>
+                    </div>
+                  </fieldset>
+                </div>
+
+              </div>
+            </div>
+          </fieldset>

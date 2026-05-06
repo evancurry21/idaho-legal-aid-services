@@ -13,7 +13,6 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * Tests prompt injection, jailbreaking, and unethical request patterns
  * to ensure they are properly blocked by the SafetyClassifier.
- *
  */
 #[CoversClass(SafetyClassifier::class)]
 #[Group('ilas_site_assistant')]

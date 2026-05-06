@@ -90,7 +90,9 @@
             "drupal/core-composer-scaffold": true,
             "drupal/core-project-message": true,
             "php-http/discovery": true,
-            "cweagans/composer-patches": true
+            "cweagans/composer-patches": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "phpstan/extension-installer": true
         },
         "sort-packages": true,
         "optimize-autoloader": true,
@@ -160,13 +162,26 @@
     "require-dev": {
         "behat/mink": "^1.13",
         "behat/mink-browserkit-driver": "^2.3",
+        "drupal/coder": "^8.3",
+        "mglaman/phpstan-drupal": "^2.0",
         "mikey179/vfsstream": "^1.6",
         "phpspec/prophecy-phpunit": "^2.4",
-        "phpunit/phpunit": "^11.5"
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-deprecation-rules": "^2.0",
+        "phpunit/phpunit": "^11.5",
+        "squizlabs/php_codesniffer": "^3.10"
     },
     "scripts": {
         "test:pure": "vendor/bin/phpunit -c phpunit.pure.xml",
         "test:drupal": "vendor/bin/phpunit -c phpunit.xml --testsuite drupal-unit",
-        "test:all": "vendor/bin/phpunit -c phpunit.xml"
+        "test:all": "vendor/bin/phpunit -c phpunit.xml",
+        "phpcs": "phpcs",
+        "phpcbf": "phpcbf",
+        "phpstan": "phpstan analyse --memory-limit=2G",
+        "static": [
+            "@phpcs",
+            "@phpstan"
+        ]
     }
 }

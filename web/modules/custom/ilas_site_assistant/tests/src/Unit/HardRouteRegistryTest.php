@@ -325,7 +325,8 @@ class HardRouteRegistryTest extends TestCase {
     // Also verify enforcement.
     $response = [
       'type' => 'escalation',
-      'primary_action' => ['url' => '/apply-for-help'], // Wrong!
+    // Wrong!
+      'primary_action' => ['url' => '/apply-for-help'],
     ];
     $enforced = $this->registry->enforceCanonicalUrl($response, ['type' => 'high_risk_deadline']);
 
@@ -452,7 +453,7 @@ class HardRouteRegistryTest extends TestCase {
   public function testOverrideIntentOverridesSoftRouteIntent(
     string $intent_type,
     ?array $override_intent,
-    string $expected_url
+    string $expected_url,
   ): void {
     $intent = ['type' => $intent_type, 'area' => 'housing'];
     $response = [

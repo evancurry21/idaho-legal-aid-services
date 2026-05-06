@@ -92,13 +92,21 @@ final class VoyageAiProviderTest extends TestCase {
    */
   public function testModelRegistryAndVectorSize(): void {
     $httpClient = new class implements PsrClientInterface {
+
+      /**
+       *
+       */
       public function sendRequest(RequestInterface $request): ResponseInterface {
         throw new \BadMethodCallException('Not used in this test.');
       }
 
+      /**
+       *
+       */
       public function request(string $method, string $uri, array $options = []): ResponseInterface {
         throw new \BadMethodCallException('Not used in this test.');
       }
+
     };
 
     $provider = $this->buildProvider($httpClient);
@@ -126,10 +134,16 @@ final class VoyageAiProviderTest extends TestCase {
         $this->captured =& $captured;
       }
 
+      /**
+       *
+       */
       public function sendRequest(RequestInterface $request): ResponseInterface {
         throw new \BadMethodCallException('Not used in this test.');
       }
 
+      /**
+       *
+       */
       public function request(string $method, string $uri, array $options = []): ResponseInterface {
         $this->captured = [
           'method' => $method,
@@ -138,6 +152,7 @@ final class VoyageAiProviderTest extends TestCase {
         ];
         return $this->response;
       }
+
     };
 
     $provider = $this->buildProvider($httpClient);
@@ -158,15 +173,23 @@ final class VoyageAiProviderTest extends TestCase {
     $response = new Response(200, [], '{"data":[{"embedding":[0.1,0.2,0.3]}],"usage":{"total_tokens":12}}');
 
     $httpClient = new class($response) implements PsrClientInterface {
+
       public function __construct(private ResponseInterface $response) {}
 
+      /**
+       *
+       */
       public function sendRequest(RequestInterface $request): ResponseInterface {
         throw new \BadMethodCallException('Not used in this test.');
       }
 
+      /**
+       *
+       */
       public function request(string $method, string $uri, array $options = []): ResponseInterface {
         return $this->response;
       }
+
     };
 
     $provider = $this->buildProvider($httpClient);
@@ -180,13 +203,21 @@ final class VoyageAiProviderTest extends TestCase {
    */
   public function testEmbeddingsThrowsWhenApiKeyMissing(): void {
     $httpClient = new class implements PsrClientInterface {
+
+      /**
+       *
+       */
       public function sendRequest(RequestInterface $request): ResponseInterface {
         throw new \BadMethodCallException('Not used in this test.');
       }
 
+      /**
+       *
+       */
       public function request(string $method, string $uri, array $options = []): ResponseInterface {
         throw new \BadMethodCallException('Not used in this test.');
       }
+
     };
 
     $provider = $this->buildProvider($httpClient, $this->buildKeyRepository(NULL));
@@ -202,15 +233,23 @@ final class VoyageAiProviderTest extends TestCase {
     $response = new Response(200, [], '{"data":[]}');
 
     $httpClient = new class($response) implements PsrClientInterface {
+
       public function __construct(private ResponseInterface $response) {}
 
+      /**
+       *
+       */
       public function sendRequest(RequestInterface $request): ResponseInterface {
         throw new \BadMethodCallException('Not used in this test.');
       }
 
+      /**
+       *
+       */
       public function request(string $method, string $uri, array $options = []): ResponseInterface {
         return $this->response;
       }
+
     };
 
     $provider = $this->buildProvider($httpClient);

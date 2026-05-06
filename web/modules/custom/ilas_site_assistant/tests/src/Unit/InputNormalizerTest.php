@@ -163,7 +163,8 @@ class InputNormalizerTest extends TestCase {
     }
 
     // Fullwidth latin letters should be normalized.
-    $fullwidth = "\xEF\xBC\xAC\xEF\xBC\xA5\xEF\xBC\xA7\xEF\xBC\xA1\xEF\xBC\xAC"; // ＬＥＧＡＬ
+    // ＬＥＧＡＬ.
+    $fullwidth = "\xEF\xBC\xAC\xEF\xBC\xA5\xEF\xBC\xA7\xEF\xBC\xA1\xEF\xBC\xAC";
     $result = InputNormalizer::unicodeNfkc($fullwidth);
     $this->assertEquals('LEGAL', $result);
   }

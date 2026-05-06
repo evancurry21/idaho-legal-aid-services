@@ -1,6 +1,8 @@
-# ILAS Chatbot API Load Testing
+# ILAS Site Assistant API Load Testing
 
 Load and latency benchmarks for the `/assistant/api/message` endpoint using k6.
+This is non-live load tooling for local, multidev, or staging targets. It is not
+an answer-quality eval and is not a production confidence gate.
 
 ## Quick Start
 
@@ -21,6 +23,10 @@ ddev start
 # Against a custom URL
 ./scripts/load/run-loadtest.sh --url https://staging.example.com
 ```
+
+The script refuses production-like targets such as `idaholegalaid.org` and the
+Pantheon live origin unless `ALLOW_LIVE_LOAD=1` is set for an explicitly
+approved load test window.
 
 ## Test Configuration
 
@@ -69,12 +75,25 @@ Reports are saved to `reports/load/`:
 
 ## API Endpoint Details
 
-- **URL**: `/assistant/api/message`
+- **Bootstrap URL**: `/assistant/api/session/bootstrap`
+- **Message URL**: `/assistant/api/message`
 - **Method**: `POST`
 - **Headers**:
   - `Content-Type: application/json`
-  - `X-CSRF-Token: <token>` (fetched from `/session/token`)
-- **Body**: `{ "message": "user query" }`
+  - `X-CSRF-Token: <token>` fetched from `/assistant/api/session/bootstrap`
+- **Session**: each VU bootstraps and reuses its own anonymous Drupal session cookie
+- **Body**:
+
+```json
+{
+  "message": "user query",
+  "conversation_id": "deterministic-per-iteration-uuid",
+  "context": { "history": [] }
+}
+```
+
+The old `/session/token` flow is not valid for the strict Site Assistant API
+contract and should not be used for new tests.
 
 ## Performance Optimization Recommendations
 
@@ -196,6 +215,11 @@ k6 run scripts/load/chatbot-api-loadtest.js \
 ```
 
 ### CI/CD Integration
+
+Use CI load testing only against a disposable local, multidev, or staging
+environment. Do not use this script as an assistant quality gate; use
+Promptfoo for answer quality and `scripts/smoke/assistant-smoke.mjs` for
+HTTP/session/security smoke checks.
 
 ```yaml
 # .github/workflows/load-test.yml

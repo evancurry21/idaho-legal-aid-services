@@ -3,11 +3,14 @@
 
 /**
  * @file
- * Navigation Intent Evaluation Runner.
+ * Navigation Intent Evaluation Runner - deprecated legacy harness.
  *
  * Tests NavigationIntent detection + page matching against a fixture of
  * navigation-style queries. Computes recall@1, recall@3, recall@5, and
  * intent detection accuracy.
+ *
+ * Preserved for historical fixture review only. This is not a current Site
+ * Assistant quality gate.
  *
  * Usage:
  *   php run-navigation-eval.php [--verbose] [--before]
@@ -26,6 +29,9 @@ $options = getopt('', ['verbose', 'before', 'output:']);
 $verbose = isset($options['verbose']);
 $before_mode = isset($options['before']);
 $output_dir = $options['output'] ?? __DIR__ . '/reports';
+
+echo "=== ILAS Navigation Intent Evaluation (Deprecated Legacy) ===\n\n";
+echo "Warning: this is historical fixture tooling only, not a current Site Assistant quality gate.\n\n";
 
 // Navigation test fixture.
 // Each case: [query, expected_page_key, expected_url, notes]
@@ -118,8 +124,6 @@ $navigation_fixture = [
   ['can you show me where to donate', 'donate', '/donate', 'Edge: can you show me'],
   ['direct link to offices', 'offices', '/contact/offices', 'Edge: direct link'],
 ];
-
-echo "=== ILAS Navigation Intent Evaluation ===\n\n";
 
 if ($before_mode) {
   echo "Mode: BEFORE (baseline - no NavigationIntent, testing raw IntentRouter patterns)\n";

@@ -38,7 +38,7 @@ class ImpRel01Rel02DocumentationGuardTest extends TestCase {
   }
 
   /**
-   * evidence-index.md must contain IMP-REL-01 and IMP-REL-02 addenda.
+   * Evidence-index.md must contain IMP-REL-01 and IMP-REL-02 addenda.
    */
   public function testEvidenceIndexContainsImpRelAddenda(): void {
     $evidence = self::readFile('docs/aila/evidence-index.md');
@@ -76,7 +76,7 @@ class ImpRel01Rel02DocumentationGuardTest extends TestCase {
   }
 
   /**
-   * current-state.md must formalize IMP-REL-01 and IMP-REL-02 contracts.
+   * Current-state.md must formalize IMP-REL-01 and IMP-REL-02 contracts.
    */
   public function testCurrentStateFormalizesImpRelContracts(): void {
     $currentState = self::readFile('docs/aila/current-state.md');
@@ -94,7 +94,7 @@ class ImpRel01Rel02DocumentationGuardTest extends TestCase {
   }
 
   /**
-   * runbook.md must contain verification commands for both test suites.
+   * Runbook.md must contain verification commands for both test suites.
    */
   public function testRunbookContainsVerificationCommands(): void {
     $runbook = self::readFile('docs/aila/runbook.md');
@@ -122,7 +122,7 @@ class ImpRel01Rel02DocumentationGuardTest extends TestCase {
   }
 
   /**
-   * risk-register.md R-REL-01 and R-REL-03 must show Mitigated status.
+   * Risk-register.md R-REL-01 and R-REL-03 must show Mitigated status.
    */
   public function testRiskRegisterShowsMitigated(): void {
     $register = self::readFile('docs/aila/risk-register.md');

@@ -223,7 +223,7 @@ class HardRouteUrlEnforcementTest extends TestCase {
   public function testOverrideIntentSoftRouteIntents(
     string $intent_type,
     ?array $override_intent,
-    string $expected_url
+    string $expected_url,
   ): void {
     $intent = ['type' => $intent_type, 'area' => 'housing'];
     $original_url = '/legal-help/housing';

@@ -1,0 +1,117 @@
+# ILAS Site Assistant - office/contact grounding regression
+#
+# Pins office answers to first-party data and verifies that bare-city
+# follow-ups inside an active legal-topic conversation are NOT treated as
+# office searches.
+#
+# Stale tokens that must NEVER appear in any response:
+#   310 N 5th Street | 310 N. 5th St | 83702-as-Boise
+#   208-345-0106 | 208-336-8980 | 208-331-9031 | 1424 Main Street
+
+- description: "Office grounding - direct Boise office request returns current data"
+  vars:
+    question: "Where is your Boise office?"
+  metadata:
+    scenario_family: office_contact_grounding
+    scenario_id: direct-boise-office
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        const hasCurrent = l.includes('1447') && l.includes('tyrell') && l.includes('83706');
+        const hasNoStale = !l.includes('310 n 5th') && !l.includes('208-345-0106') && !l.includes('208-336-8980') && !l.includes('208-331-9031') && !l.includes('1424 main');
+        hasCurrent && hasNoStale;
+      metric: office-grounding-direct-boise
+
+- description: "Office grounding - office list contains all 7 current offices"
+  vars:
+    question: "What office locations do you have?"
+  metadata:
+    scenario_family: office_contact_grounding
+    scenario_id: office-list-coverage
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        const cities = ['boise', "coeur d'alene", 'idaho falls', 'lewiston', 'nampa', 'pocatello', 'twin falls'];
+        const present = cities.filter(c => l.includes(c)).length;
+        const hasNoStale = !l.includes('310 n 5th') && !l.includes('1424 main') && !l.includes('83702');
+        present >= 5 && hasNoStale;
+      metric: office-grounding-list
+
+- description: "Office grounding - multi-turn eviction location refinement (turn 1)"
+  vars:
+    question: "I got an eviction notice."
+  metadata:
+    conversationId: "70cd0001-0000-4000-8000-000000000001"
+    conversationName: eviction-bare-city-followup
+    scenario_family: office_contact_grounding
+    scenario_id: eviction-location-followup-turn-1
+    turn: 1
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        /(eviction|notice|landlord|housing|3.day|tenant)/.test(l);
+      metric: office-grounding-turn1-housing-context
+
+- description: "Office grounding - multi-turn eviction location refinement (turn 2)"
+  vars:
+    question: "This is in Boise."
+  metadata:
+    conversationId: "70cd0001-0000-4000-8000-000000000001"
+    conversationName: eviction-bare-city-followup
+    scenario_family: office_contact_grounding
+    scenario_id: eviction-location-followup-turn-2
+    turn: 2
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        const treatedAsOffice = /here are the details for the .*boise.* office/.test(l) || /address:.*boise/.test(l);
+        const hasStale = l.includes('310 n 5th') || l.includes('208-345-0106') || l.includes('83702');
+        !treatedAsOffice && !hasStale;
+      metric: office-grounding-bare-city-not-office
+
+- description: "Office grounding - eviction-then-custody topic switch"
+  vars:
+    question: "What should I do about custody, I'm in Ada County?"
+  metadata:
+    conversationId: "70cd0002-0000-4000-8000-000000000002"
+    conversationName: eviction-then-custody
+    scenario_family: office_contact_grounding
+    scenario_id: eviction-then-custody-switch
+    turn: 2
+    totalTurns: 2
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        const isFamily = /(custody|family|parenting|child)/.test(l);
+        const notEviction = !/(eviction|notice to (vacate|quit)|3.day notice|landlord)/.test(l);
+        const noOfficeDump = !/here are the details for the .*office/.test(l);
+        const hasNoStale = !l.includes('310 n 5th') && !l.includes('208-345-0106');
+        isFamily && notEviction && noOfficeDump && hasNoStale;
+      metric: office-grounding-topic-switch
+
+- description: "Office grounding - cross-cutting deny-list assertion"
+  vars:
+    question: "What is the address and phone for your Boise office?"
+  metadata:
+    scenario_family: office_contact_grounding
+    scenario_id: deny-list-cross-cutting
+  assert:
+    - type: javascript
+      value: >-
+        const l = output.toLowerCase();
+        !l.includes('310 n 5th') &&
+        !l.includes('310 n. 5th') &&
+        !l.includes('208-345-0106') &&
+        !l.includes('(208) 345-0106') &&
+        !l.includes('208-336-8980') &&
+        !l.includes('208-331-9031') &&
+        !l.includes('1424 main') &&
+        !(l.includes('boise') && l.includes('83702'));
+      metric: office-grounding-deny-list

@@ -126,8 +126,8 @@ final class PhaseTwoEntryCriteriaOneGateTest extends TestCase {
     $this->assertStringContainsString('name: Quality Gate', $workflow);
     $this->assertStringContainsString("'release/**'", $workflow);
     $this->assertStringContainsString('cancel-in-progress: true', $workflow);
-    $this->assertStringContainsString('name: PHPUnit Quality Gate', $workflow);
-    $this->assertStringContainsString('name: Promptfoo Gate', $workflow);
+    $this->assertStringContainsString('name: Basic Quality Gate', $workflow);
+    $this->assertStringContainsString('name: Assistant PR Quality Gate', $workflow);
 
     self::assertFileExists(self::repoRoot() . '/scripts/ci/run-promptfoo-gate.sh');
     self::assertFileExists(self::repoRoot() . '/scripts/ci/run-external-quality-gate.sh');

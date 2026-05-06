@@ -5,16 +5,36 @@
  * Functions to support theming in the B5 Subtheme.
  */
 
+use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Markup;
 use Drupal\Core\Url;
 use Drupal\Core\Site\Settings;
-use Drupal\Core\Menu\MenuTreeParameters;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Component\Utility\Html;
 use Drupal\block\Entity\Block;
 use Drupal\node\NodeInterface;
 use Drupal\media\MediaInterface;
 use Drupal\file\FileInterface;
+
+// Focused helpers split out of this file for maintainability. Each include
+// holds private (_b5subtheme_*) helpers only — Drupal hook implementations
+// remain in this file so the theme registry can discover them.
+require_once __DIR__ . '/b5subtheme.lazy_loading.inc';
+require_once __DIR__ . '/b5subtheme.menu.inc';
+require_once __DIR__ . '/b5subtheme.views.inc';
+
+/**
+ * Implements hook_page_attachments_alter().
+ *
+ * Exposes a single `drupalSettings.ilasDebug` flag so custom theme/module JS
+ * can gate developer diagnostics. Defaults FALSE; opt-in via
+ * $settings['ilas_debug'] = TRUE in settings.local.php for local development.
+ * Pantheon live's settings.php does not set it, so production stays OFF.
+ */
+function b5subtheme_page_attachments_alter(array &$attachments): void {
+  $attachments['#attached']['drupalSettings']['ilasDebug'] = (bool) Settings::get('ilas_debug', FALSE);
+}
 
 /**
  * Implements hook_preprocess_image().
@@ -33,47 +53,6 @@ function b5subtheme_preprocess_image(array &$variables): void {
  */
 function b5subtheme_preprocess_responsive_image(array &$variables): void {
   _b5subtheme_add_lazy_loading($variables);
-}
-
-/**
- * Helper function to add lazy loading attributes to images.
- *
- * @param array $variables
- *   The image variables array.
- */
-function _b5subtheme_add_lazy_loading(array &$variables): void {
-  // Skip if loading attribute already set.
-  if (!empty($variables['attributes']['loading'])) {
-    return;
-  }
-
-  // Skip hero images (preserve LCP - Largest Contentful Paint).
-  $skip_classes = ['hero-image', 'hero__image', 'above-fold', 'no-lazy'];
-  if (!empty($variables['attributes']['class'])) {
-    $classes = (array) $variables['attributes']['class'];
-    foreach ($skip_classes as $skip_class) {
-      if (in_array($skip_class, $classes, TRUE)) {
-        // Explicitly set eager loading for above-fold images.
-        $variables['attributes']['loading'] = 'eager';
-        $variables['attributes']['fetchpriority'] = 'high';
-        return;
-      }
-    }
-  }
-
-  // Skip images with fetchpriority="high" (explicitly marked as important).
-  if (!empty($variables['attributes']['fetchpriority']) && $variables['attributes']['fetchpriority'] === 'high') {
-    $variables['attributes']['loading'] = 'eager';
-    return;
-  }
-
-  // Add native lazy loading.
-  $variables['attributes']['loading'] = 'lazy';
-
-  // Add decoding="async" for better performance (non-blocking decode).
-  if (empty($variables['attributes']['decoding'])) {
-    $variables['attributes']['decoding'] = 'async';
-  }
 }
 
 /**
@@ -122,15 +101,35 @@ function b5subtheme_theme_suggestions_page_alter(array &$suggestions, array $var
 }
 
 /**
+ * Returns TRUE when the given node is flagged as the Events hub.
+ *
+ * Detection is content/config-driven: a boolean field
+ * `field_is_events_hub` on the `standard_page` bundle. This avoids tying
+ * theme behavior to an environment-specific node ID, so the Events hub
+ * survives database rebuilds, content migrations, and node recreation.
+ *
+ * Fails closed: returns FALSE if the bundle is wrong, the field is
+ * missing (e.g. fresh install before config import), or the field is
+ * empty/0.
+ */
+function b5subtheme_is_events_hub(NodeInterface $node): bool {
+  if ($node->bundle() !== 'standard_page') {
+    return FALSE;
+  }
+  if (!$node->hasField('field_is_events_hub')) {
+    return FALSE;
+  }
+  return (bool) $node->get('field_is_events_hub')->value;
+}
+
+/**
  * Implements hook_theme_suggestions_HOOK_alter() for node templates.
  *
- * Adds a targeted template suggestion for the Events hub page (NID 124).
- * This standard_page node embeds the events listing View, similar to how
- * the press_room content type embeds press_room_listing.
- *
- * Targeting by NID (not alias) is intentional: the NID is stable across
- * alias changes, language prefixes, and redirects. If the Events hub node
- * is ever recreated, update the NID constant below.
+ * Adds a targeted template suggestion for the Events hub page. The hub is
+ * detected via the `field_is_events_hub` boolean on the `standard_page`
+ * bundle (see b5subtheme_is_events_hub()). The hub embeds the events
+ * listing View, similar to how the press_room content type embeds
+ * press_room_listing.
  */
 function b5subtheme_theme_suggestions_node_alter(array &$suggestions, array $variables): void {
   $node = $variables['elements']['#node'] ?? NULL;
@@ -138,8 +137,7 @@ function b5subtheme_theme_suggestions_node_alter(array &$suggestions, array $var
     return;
   }
 
-  // Events hub page: standard_page node 124 gets its own template.
-  if ($node->bundle() === 'standard_page' && (int) $node->id() === 124) {
+  if (b5subtheme_is_events_hub($node)) {
     $suggestions[] = 'node__standard_page__events';
   }
 }
@@ -235,8 +233,8 @@ function b5subtheme_preprocess_page(array &$variables): void {
       }
     }
 
-    // Events hub page (standard_page NID 124) uses custom layout.
-    if ($bundle === 'standard_page' && (int) $node->id() === 124) {
+    // Events hub page uses custom layout (flagged via field_is_events_hub).
+    if (b5subtheme_is_events_hub($node)) {
       $variables['is_custom_layout'] = TRUE;
     }
 
@@ -247,54 +245,9 @@ function b5subtheme_preprocess_page(array &$variables): void {
     // If a node type needs its own footer, add it here and render in its template.
   }
 
-  // Split the main menu into left/right chunks for the centered logo layout.
-  $menu_name = 'main';
-  $left_count = 3;
-
-  try {
-    $menu_tree = \Drupal::menuTree();
-    $parameters = (new MenuTreeParameters())
-      ->onlyEnabledLinks()
-      ->setMaxDepth(2);
-
-    $tree = $menu_tree->load($menu_name, $parameters);
-    $tree = $menu_tree->transform($tree, [
-      ['callable' => 'menu.default_tree_manipulators:checkAccess'],
-      ['callable' => 'menu.default_tree_manipulators:generateIndexAndSort'],
-    ]);
-
-    $left_tree = array_slice($tree, 0, $left_count);
-    $right_tree = array_slice($tree, $left_count);
-
-    $variables['main_menu_left'] = $menu_tree->build($left_tree);
-    $variables['main_menu_right'] = $menu_tree->build($right_tree);
-
-    // Add stable classes for styling.
-    foreach (['main_menu_left', 'main_menu_right'] as $key) {
-      if (!isset($variables[$key]) || !is_array($variables[$key])) {
-        continue;
-      }
-      $existing = $variables[$key]['#attributes']['class'] ?? [];
-      if (!is_array($existing)) {
-        $existing = [$existing];
-      }
-      $variables[$key]['#attributes']['class'] = array_values(array_unique(array_merge(
-        $existing,
-        ['menu--split', 'navbar-nav']
-      )));
-    }
-
-    // Build mobile menu items for the mobile-menu.html.twig include.
-    // The include inherits variables from page.html.twig context.
-    $mobile_build = $menu_tree->build($tree);
-    $variables['mobile_menu_items'] = $mobile_build['#items'] ?? [];
-  }
-  catch (\Throwable $e) {
-    // Fail safely—page still renders even if menu splitting fails for any reason.
-    $variables['main_menu_left'] = NULL;
-    $variables['main_menu_right'] = NULL;
-    $variables['mobile_menu_items'] = [];
-  }
+  // Split the main menu into left/right chunks (and build the mobile-menu
+  // items) — see b5subtheme.menu.inc.
+  _b5subtheme_build_split_menu($variables);
 }
 
 /**
@@ -460,31 +413,52 @@ function _b5subtheme_preprocess_employment_tabs(array &$variables, NodeInterface
 function _b5subtheme_preprocess_home_page_hero(array &$variables, NodeInterface $node): void {
   $variables['hero_images_data'] = [];
   $variables['hero_images_count'] = 0;
+  $variables['hero_rotator_script'] = [];
+
+  // Always bubble the home node's cache tags so the node render output
+  // invalidates on node save even when no rotator markup is built.
+  $cache_meta = CacheableMetadata::createFromRenderArray($variables)
+    ->addCacheableDependency($node);
 
   if (!$node->hasField('field_hero_image') || $node->get('field_hero_image')->isEmpty()) {
+    $cache_meta->applyTo($variables);
     return;
   }
 
   $media_items = $node->get('field_hero_image')->referencedEntities();
   if (empty($media_items)) {
+    $cache_meta->applyTo($variables);
     return;
   }
 
   $variables['hero_images_count'] = count($media_items);
 
-  // Only set up rotator data if there's more than one image.
+  // Even in the single-image case, bubble the referenced media's cache
+  // tags so the server-side first-image fallback invalidates correctly
+  // when the media entity is updated independently of the home node.
   if (count($media_items) <= 1) {
+    foreach ($media_items as $media) {
+      if ($media instanceof MediaInterface) {
+        $cache_meta->addCacheableDependency($media);
+      }
+    }
+    $cache_meta->applyTo($variables);
     return;
   }
 
   $file_url_generator = \Drupal::service('file_url_generator');
   $image_style = \Drupal::entityTypeManager()->getStorage('image_style')->load('large');
+  if ($image_style) {
+    $cache_meta->addCacheableDependency($image_style);
+  }
 
   $hero_images = [];
   foreach ($media_items as $media) {
     if (!$media instanceof MediaInterface) {
       continue;
     }
+
+    $cache_meta->addCacheableDependency($media);
 
     $source_field = $media->getSource()->getConfiguration()['source_field'] ?? 'field_media_image';
     if (!$media->hasField($source_field) || $media->get($source_field)->isEmpty()) {
@@ -500,6 +474,8 @@ function _b5subtheme_preprocess_home_page_hero(array &$variables, NodeInterface 
     if (!$file instanceof FileInterface) {
       continue;
     }
+
+    $cache_meta->addCacheableDependency($file);
 
     $uri = $file->getFileUri();
     $mime_type = $file->getMimeType();
@@ -531,7 +507,24 @@ function _b5subtheme_preprocess_home_page_hero(array &$variables, NodeInterface 
   if (!empty($hero_images)) {
     $variables['hero_images_data'] = $hero_images;
     $variables['#attached']['library'][] = 'b5subtheme/hero-rotator';
+
+    // Build the JSON payload as a cache-aware render array so the embedded
+    // <script> tag carries the same cache tags as the surrounding node
+    // render. json_encode output is safe by construction; Markup::create
+    // prevents Twig from double-escaping the JSON string.
+    $variables['hero_rotator_script'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'script',
+      '#attributes' => [
+        'type' => 'application/json',
+        'id' => 'hero-rotator-data',
+      ],
+      '#value' => Markup::create(json_encode($hero_images, JSON_UNESCAPED_SLASHES)),
+    ];
+    $cache_meta->applyTo($variables['hero_rotator_script']);
   }
+
+  $cache_meta->applyTo($variables);
 }
 
 /**
@@ -637,173 +630,27 @@ function b5subtheme_preprocess_html(array &$variables): void {
   $variables['language'] = $current_language;
 
   // Keep sitewide GA available, but deny GA/bootstrap on the assistant page.
-  $variables['google_tag_id'] = $route_name === 'ilas_site_assistant.page'
+  $google_tag_id = $route_name === 'ilas_site_assistant.page'
     ? NULL
     : Settings::get('google_tag_id');
-  // Add JSON-LD BreadcrumbList schema for SEO.
-  _b5subtheme_add_breadcrumb_schema($variables);
-
-  // Add WebSite + SearchAction schema on the front page.
-  _b5subtheme_add_website_search_schema($variables);
-}
-
-/**
- * Adds WebSite + SearchAction JSON-LD schema to the front page head.
- *
- * The schema_metatag module's serialized PHP array for potentialAction does
- * not reliably deserialize into the rendered JSON-LD. This helper ensures the
- * SearchAction is always present on the homepage, which is required for
- * Google's sitelinks search box eligibility.
- *
- * @param array $variables
- *   The variables array from hook_preprocess_html.
- */
-function _b5subtheme_add_website_search_schema(array &$variables): void {
-  if (!\Drupal::service('path.matcher')->isFrontPage()) {
-    return;
-  }
-
-  $schema = [
-    '@context' => 'https://schema.org',
-    '@type' => 'WebSite',
-    '@id' => 'https://idaholegalaid.org/#website',
-    'name' => 'Idaho Legal Aid Services',
-    'url' => 'https://idaholegalaid.org',
-    'description' => 'Free civil legal assistance for low-income Idahoans. Idaho Legal Aid Services provides legal help with family law, housing, public benefits, consumer rights, and more.',
-    'publisher' => [
-      '@type' => 'NGO',
-      '@id' => 'https://idaholegalaid.org/#organization',
-    ],
-    'inLanguage' => ['en', 'es'],
-    'potentialAction' => [
-      '@type' => 'SearchAction',
-      'target' => [
-        '@type' => 'EntryPoint',
-        'urlTemplate' => 'https://idaholegalaid.org/search?keys={search_term_string}',
-      ],
-      'query-input' => 'required name=search_term_string',
-    ],
-  ];
-
-  if (!isset($variables['page']) || !is_array($variables['page'])) {
-    $variables['page'] = [];
-  }
-  $variables['page']['#attached']['html_head'][] = [
-    [
-      '#type' => 'html_tag',
-      '#tag' => 'script',
-      '#attributes' => ['type' => 'application/ld+json'],
-      '#value' => json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
-    ],
-    'website_search_schema',
-  ];
-}
-
-/**
- * Adds BreadcrumbList JSON-LD schema to the page head.
- *
- * @param array $variables
- *   The variables array from hook_preprocess_html.
- */
-function _b5subtheme_add_breadcrumb_schema(array &$variables): void {
-  if (\Drupal::service('router.admin_context')->isAdminRoute()) {
-    return;
-  }
-
-  $breadcrumb_manager = \Drupal::service('breadcrumb');
-  $route_match = \Drupal::routeMatch();
-  $breadcrumb = $breadcrumb_manager->build($route_match);
-  $links = $breadcrumb->getLinks();
-
-  $request = \Drupal::request();
-  $base_url = $request->getSchemeAndHttpHost();
-  $current_url = $base_url . $request->getRequestUri();
-  $current_url = strtok($current_url, '?');
-
-  $breadcrumb_items = [];
-  $position = 1;
-  $last_valid_url = '';
-
-  foreach ($links as $link) {
-    $url = $link->getUrl();
-    $text = $link->getText();
-    $name = is_object($text) ? $text->__toString() : (string) $text;
-
-    if ($name === '') {
-      continue;
-    }
-
-    $absolute_url = '';
-    if ($url->isRouted()) {
-      $route_name = $url->getRouteName();
-      if (in_array($route_name, ['<nolink>', '<none>', '<button>'], TRUE)) {
-        continue;
-      }
-      $absolute_url = $url->setAbsolute()->toString();
-    }
-    else {
-      $uri = $url->toString();
-      if (!empty($uri)) {
-        $absolute_url = (strpos($uri, 'http') === 0) ? $uri : $base_url . $uri;
-      }
-    }
-
-    if (empty($absolute_url)) {
-      continue;
-    }
-
-    $breadcrumb_items[] = [
-      '@type' => 'ListItem',
-      'position' => $position,
-      'name' => $name,
-      'item' => $absolute_url,
-    ];
-
-    $last_valid_url = $absolute_url;
-    $position++;
-  }
-
-  $current_title = '';
-  if (isset($variables['head_title']['title'])) {
-    $title = $variables['head_title']['title'];
-    $current_title = is_object($title) ? $title->__toString() : (string) $title;
-    $current_title = preg_replace('/\s*\|\s*Idaho Legal Aid Services$/', '', $current_title);
-    $current_title = preg_replace('/\s*\|\s*[^|]+$/', '', $current_title);
-  }
-
-  if (!empty($current_title) && $last_valid_url !== $current_url) {
-    $breadcrumb_items[] = [
-      '@type' => 'ListItem',
-      'position' => $position,
-      'name' => $current_title,
-      'item' => $current_url,
+  $variables['google_tag_id'] = $google_tag_id;
+  if (!empty($google_tag_id)) {
+    // Externalised gtag bootstrap — see js/ga4-init.js. Inline <script>
+    // formerly in templates/page/html.html.twig was removed to allow CSP
+    // without 'unsafe-inline' on script-src.
+    $node_type = $variables['node_type'] ?? NULL;
+    $variables['#attached']['library'][] = 'b5subtheme/ga4';
+    $variables['#attached']['drupalSettings']['b5subtheme']['ga4'] = [
+      'id' => $google_tag_id,
+      'contentGroup' => $node_type ?: 'general',
+      'pageType' => $node_type ?: 'page',
     ];
   }
 
-  if (count($breadcrumb_items) < 2) {
-    return;
-  }
-
-  $schema = [
-    '@context' => 'https://schema.org',
-    '@type' => 'BreadcrumbList',
-    '@id' => $current_url . '#breadcrumb',
-    'itemListElement' => $breadcrumb_items,
-  ];
-
-  // Attach JSON-LD to the page head.
-  if (!isset($variables['page']) || !is_array($variables['page'])) {
-    $variables['page'] = [];
-  }
-  $variables['page']['#attached']['html_head'][] = [
-    [
-      '#type' => 'html_tag',
-      '#tag' => 'script',
-      '#attributes' => ['type' => 'application/ld+json'],
-      '#value' => json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
-    ],
-    'breadcrumb_schema',
-  ];
+  // All custom JSON-LD (WebSite/SearchAction, BreadcrumbList, FAQPage,
+  // JobPosting, LearningResource) is owned by ilas_seo's GraphBuilder service
+  // and emitted from ilas_seo_page_attachments(). The theme intentionally has
+  // no schema responsibilities — see web/modules/custom/ilas_seo/src/StructuredData/GraphBuilder.php.
 }
 
 /**
@@ -901,110 +748,6 @@ function b5subtheme_preprocess_views_view(array &$variables): void {
     $variables['topic_nav_label'] = t('Jump to Topic');
     $variables['topic_nav_id'] = 'guides-topic-nav';
   }
-}
-
-/**
- * Gets topics that have documents of a specific type.
- *
- * @param string $document_type
- *   The document type ('form' or 'guide').
- * @param string $show_field
- *   The field name that controls visibility (e.g., 'field_show_on_forms_page').
- *
- * @return array
- *   Array of topic options with 'tid', 'name', and 'url_slug' keys.
- */
-function _b5subtheme_get_document_topics(string $document_type, string $show_field): array {
-  $options = [];
-
-  try {
-    $database = \Drupal::database();
-
-    // Query topics that:
-    // 1. Are published
-    // 2. Have the show_on_*_page field set to TRUE
-    // 3. Have at least one published document media item of the correct type.
-    $query = $database->select('taxonomy_term_field_data', 't');
-    $query->fields('t', ['tid', 'name']);
-    $query->condition('t.vid', 'topics');
-    $query->condition('t.status', 1);
-
-    // Join the show_on field.
-    $query->innerJoin(
-      'taxonomy_term__' . $show_field,
-      'show_field',
-      't.tid = show_field.entity_id AND show_field.' . $show_field . '_value = 1'
-    );
-
-    // Join to media via document_topics field.
-    $query->innerJoin(
-      'media__field_document_topics',
-      'dt',
-      't.tid = dt.field_document_topics_target_id'
-    );
-
-    // Join to media field data to check status.
-    $query->innerJoin(
-      'media_field_data',
-      'm',
-      'dt.entity_id = m.mid AND m.status = 1'
-    );
-
-    // Join to document type field to filter by form/guide.
-    $query->innerJoin(
-      'media__field_document_type',
-      'doc_type',
-      'dt.entity_id = doc_type.entity_id AND doc_type.field_document_type_value = :doc_type',
-      [':doc_type' => $document_type]
-    );
-
-    // Group by term and order alphabetically.
-    $query->groupBy('t.tid');
-    $query->groupBy('t.name');
-    $query->orderBy('t.name', 'ASC');
-
-    $results = $query->execute()->fetchAll();
-
-    foreach ($results as $row) {
-      // Create URL-friendly slug from topic name.
-      $slug = _b5subtheme_create_url_slug($row->name);
-      $options[] = [
-        'tid' => $row->tid,
-        'name' => $row->name,
-        'url_slug' => $slug,
-      ];
-    }
-  }
-  catch (\Exception $e) {
-    // Log error but don't break the page.
-    \Drupal::logger('b5subtheme')->error('Error fetching document topics: @message', ['@message' => $e->getMessage()]);
-  }
-
-  return $options;
-}
-
-/**
- * Creates a URL-friendly slug from a string.
- *
- * @param string $string
- *   The string to convert.
- *
- * @return string
- *   URL-friendly slug.
- */
-function _b5subtheme_create_url_slug(string $string): string {
-  // Convert to lowercase.
-  $slug = strtolower($string);
-  // Replace spaces and underscores with hyphens.
-  $slug = preg_replace('/[\s_]+/', '-', $slug);
-  // Remove special characters except hyphens.
-  $slug = preg_replace('/[^a-z0-9\-]/', '', $slug);
-  // Remove multiple consecutive hyphens.
-  $slug = preg_replace('/-+/', '-', $slug);
-  // Trim hyphens from ends.
-  $slug = trim($slug, '-');
-
-  return $slug;
 }
 
 /**

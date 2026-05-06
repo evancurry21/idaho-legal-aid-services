@@ -169,22 +169,42 @@ final class LanguageIsolationResourceFinder extends ResourceFinder {
   ) {
     // Skip parent constructor — no Drupal services needed.
     $this->languageManager = new class {
+
+      /**
+       *
+       */
       public function getCurrentLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
 
+      /**
+       *
+       */
       public function getDefaultLanguage(): object {
         return new class {
+
+          /**
+           *
+           */
           public function getId(): string {
             return 'en';
           }
+
         };
       }
 
+      /**
+       *
+       */
       public function getLanguages(): array {
         return [
           'en' => new \stdClass(),
@@ -193,15 +213,32 @@ final class LanguageIsolationResourceFinder extends ResourceFinder {
           'nl' => new \stdClass(),
         ];
       }
+
     };
     $this->topicResolver = new class {
+
+      /**
+       *
+       */
       public function resolveFromText(string $text): ?array {
         return NULL;
       }
+
     };
     $this->cache = new class {
-      public function get(string $cid) { return FALSE; }
+
+      /**
+       *
+       */
+      public function get(string $cid) {
+        return FALSE;
+      }
+
+      /**
+       *
+       */
       public function set(string $cid, $data, $expire = -1, array $tags = []) {}
+
     };
     $this->rankingEnhancer = NULL;
     $this->sourceGovernance = NULL;

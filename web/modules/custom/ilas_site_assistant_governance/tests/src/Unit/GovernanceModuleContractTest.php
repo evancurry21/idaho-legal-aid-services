@@ -254,6 +254,29 @@ class GovernanceModuleContractTest extends TestCase {
   }
 
   /**
+   * Tests the reviewed-gap Promptfoo exporter services are registered.
+   */
+  public function testReviewedGapPromptfooExporterServicesExist(): void {
+    $services = self::parseYaml('web/modules/custom/ilas_site_assistant_governance/ilas_site_assistant_governance.services.yml');
+    $drush_services = self::parseYaml('web/modules/custom/ilas_site_assistant_governance/drush.services.yml');
+
+    $this->assertArrayHasKey('ilas_site_assistant_governance.reviewed_gap_promptfoo_candidate_exporter', $services['services']);
+    $this->assertSame(
+      'Drupal\ilas_site_assistant_governance\Service\ReviewedGapPromptfooCandidateExporter',
+      $services['services']['ilas_site_assistant_governance.reviewed_gap_promptfoo_candidate_exporter']['class']
+    );
+
+    $this->assertArrayHasKey('ilas_site_assistant_governance.reviewed_gap_promptfoo_export_commands', $drush_services['services']);
+    $command = $drush_services['services']['ilas_site_assistant_governance.reviewed_gap_promptfoo_export_commands'];
+    $this->assertSame(
+      'Drupal\ilas_site_assistant_governance\Commands\ReviewedGapPromptfooExportCommands',
+      $command['class']
+    );
+    $this->assertContains('@ilas_site_assistant_governance.reviewed_gap_promptfoo_candidate_exporter', $command['arguments']);
+    $this->assertSame('drush.command', $command['tags'][0]['name']);
+  }
+
+  /**
    * Tests the secondary labels include the governance review labels.
    */
   public function testAssistantGapItemDeclaresSecondaryReviewLabels(): void {

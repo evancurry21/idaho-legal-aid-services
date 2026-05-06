@@ -15,12 +15,19 @@ const {
 } = require('../../lib/gate-target');
 const {
   IlasLiveTransport,
+  buildContractMeta,
+  buildIlasProviderMeta,
   classifyFetchError,
   createSerializedPacer,
   formatStructuredError,
   parseStructuredError,
+  renderAssistantOutput,
   summarizeAssistantResponse,
 } = require('../../lib/ilas-live-shared');
+const {
+  hasSupportedCitation,
+  isLiveProviderMode,
+} = require('../../lib/ilas-assertions');
 
 function makeTempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ilas-promptfoo-gate-'));
@@ -320,6 +327,234 @@ test('IlasLiveTransport times out hung requests with a structured timeout error'
   assert.equal(result.error.request_timeout_ms, 5);
 });
 
+test('IlasLiveTransport bootstraps with sanitized transport metadata', async () => {
+  const transport = new IlasLiveTransport({
+    assistantUrl: 'https://example.test/assistant/api/message',
+    pacer: async () => {},
+    silent: true,
+    fetchImpl: async (url) => {
+      if (url.endsWith('/assistant/api/session/bootstrap')) {
+        return createResponse({
+          status: 200,
+          body: 'csrf-token-secret',
+          headers: { 'set-cookie': 'SSESS=private-cookie; Path=/; HttpOnly' },
+        });
+      }
+      if (url.endsWith('/assistant/api/message')) {
+        return createResponse({
+          status: 200,
+          body: { message: 'The Boise office is available for walk-ins.' },
+        });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    },
+  });
+
+  const result = await transport.callMessageApi({
+    question: 'Where is your Boise office?',
+    conversationId: 'conversation-one',
+    history: [{ role: 'user', content: 'Where is your Boise office?' }],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.transport.bootstrap.attempted, true);
+  assert.equal(result.transport.bootstrap.success, true);
+  assert.equal(result.transport.bootstrap.csrf_token_present, true);
+  assert.equal(result.transport.bootstrap.session_cookie_present, true);
+  const serialized = JSON.stringify(result.transport);
+  assert.equal(serialized.includes('csrf-token-secret'), false);
+  assert.equal(serialized.includes('private-cookie'), false);
+});
+
+test('IlasLiveTransport reuses cookies across message calls without exposing cookie values', async () => {
+  const postCookies = [];
+  let bootstrapCalls = 0;
+  const transport = new IlasLiveTransport({
+    assistantUrl: 'https://example.test/assistant/api/message',
+    pacer: async () => {},
+    silent: true,
+    fetchImpl: async (url, options = {}) => {
+      if (url.endsWith('/assistant/api/session/bootstrap')) {
+        bootstrapCalls++;
+        return createResponse({
+          status: 200,
+          body: 'csrf-token',
+          headers: { 'set-cookie': 'SSESS=reused-cookie; Path=/; HttpOnly' },
+        });
+      }
+      if (url.endsWith('/assistant/api/message')) {
+        postCookies.push(options.headers?.Cookie || null);
+        return createResponse({
+          status: 200,
+          body: { message: 'The Boise office is available for walk-ins.' },
+        });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    },
+  });
+
+  await transport.callMessageApi({
+    question: 'Where is your Boise office?',
+    conversationId: 'conversation-one',
+    history: [],
+  });
+  const second = await transport.callMessageApi({
+    question: 'What are the hours?',
+    conversationId: 'conversation-one',
+    history: [],
+  });
+
+  assert.equal(bootstrapCalls, 1);
+  assert.deepEqual(postCookies, ['SSESS=reused-cookie', 'SSESS=reused-cookie']);
+  assert.equal(second.transport.bootstrap.cookie_reused, true);
+  assert.equal(JSON.stringify(second.transport).includes('reused-cookie'), false);
+});
+
+test('IlasLiveTransport retries once after CSRF 403 and records recovery metadata', async () => {
+  let bootstrapCalls = 0;
+  let postCalls = 0;
+  const transport = new IlasLiveTransport({
+    assistantUrl: 'https://example.test/assistant/api/message',
+    pacer: async () => {},
+    silent: true,
+    fetchImpl: async (url) => {
+      if (url.endsWith('/assistant/api/session/bootstrap')) {
+        bootstrapCalls++;
+        return createResponse({
+          status: 200,
+          body: `csrf-token-${bootstrapCalls}`,
+          headers: { 'set-cookie': `SSESS=cookie-${bootstrapCalls}; Path=/; HttpOnly` },
+        });
+      }
+      if (url.endsWith('/assistant/api/message')) {
+        postCalls++;
+        if (postCalls === 1) {
+          return createResponse({ status: 403, body: { message: 'Forbidden' } });
+        }
+        return createResponse({
+          status: 200,
+          body: { message: 'The Boise office is available for walk-ins.' },
+        });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    },
+  });
+
+  const result = await transport.callMessageApi({
+    question: 'Where is your Boise office?',
+    conversationId: 'conversation-one',
+    history: [],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(bootstrapCalls, 2);
+  assert.equal(postCalls, 2);
+  assert.equal(result.transport.retries.csrf_403, 1);
+  assert.equal(result.transport.bootstrap.refreshed_after_403, true);
+});
+
+test('IlasLiveTransport handles invalid JSON as structured failure', async () => {
+  const transport = new IlasLiveTransport({
+    assistantUrl: 'https://example.test/assistant/api/message',
+    pacer: async () => {},
+    silent: true,
+    fetchImpl: async (url) => {
+      if (url.endsWith('/assistant/api/session/bootstrap')) {
+        return createResponse({
+          status: 200,
+          body: 'csrf-token',
+          headers: { 'set-cookie': 'SSESS=abc123; Path=/; HttpOnly' },
+        });
+      }
+      if (url.endsWith('/assistant/api/message')) {
+        return createResponse({ status: 200, body: 'not-json' });
+      }
+      throw new Error(`Unexpected URL: ${url}`);
+    },
+  });
+
+  const result = await transport.callMessageApi({
+    question: 'Where is your Boise office?',
+    conversationId: 'conversation-one',
+    history: [],
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.kind, 'connectivity');
+  assert.equal(result.error.code, 'invalid_json');
+  assert.equal(result.error.message.includes('not-json'), false);
+  assert.equal(result.transport.errors[0].code, 'invalid_json');
+});
+
+test('citation metadata is parsed as supported grounding only when explicit source metadata exists', () => {
+  const response = {
+    message: 'Read the Idaho eviction notice guide.',
+    type: 'search_results',
+    response_mode: 'grounded_answer',
+    reason_code: 'retrieval_match',
+    confidence: 0.82,
+    sources: [
+      {
+        id: 'resource-1',
+        title: 'Eviction notices',
+        url: '/node/123',
+        source: 'vector',
+        source_class: 'resource_vector',
+        topic: 'eviction',
+      },
+    ],
+    results: [
+      {
+        title: 'Eviction notices',
+        url: '/node/123',
+        source_class: 'resource_vector',
+        topic: 'eviction',
+      },
+    ],
+  };
+
+  const meta = buildIlasProviderMeta(response, 'https://idaholegalaid.org');
+  const output = renderAssistantOutput(response, 'https://idaholegalaid.org', { providerMeta: meta });
+
+  assert.equal(meta.grounded, true);
+  assert.equal(meta.supported_citations_count, 1);
+  assert.equal(buildContractMeta(response, 'https://idaholegalaid.org', { providerMeta: meta }).citations_count, 1);
+  assert.equal(hasSupportedCitation(output, { vars: { expected_topic: 'eviction' } }).pass, true);
+});
+
+test('links and results without explicit citation metadata do not silently pass as grounded', () => {
+  const response = {
+    message: 'You can review Idaho family-law forms here.',
+    type: 'search_results',
+    response_mode: 'grounded_answer',
+    reason_code: 'retrieval_match',
+    confidence: 0.82,
+    results: [
+      { title: 'Family law overview', url: '/issues/family-law' },
+      { title: 'Court forms', url: '/forms/court-assistance' },
+    ],
+    links: [{ label: 'Court Assistance Office', url: '/forms/court-assistance' }],
+  };
+
+  const meta = buildIlasProviderMeta(response, 'https://idaholegalaid.org');
+  const output = renderAssistantOutput(response, 'https://idaholegalaid.org', { providerMeta: meta });
+
+  assert.equal(meta.grounded, false);
+  assert.equal(meta.supported_citations_count, 0);
+  assert.equal(meta.derived_citation_count, 2);
+  assert.equal(hasSupportedCitation(output).pass, false);
+});
+
+test('simulated provider metadata cannot pass live-mode assertion', () => {
+  const response = { message: 'Simulated assistant response.' };
+  const providerMeta = buildIlasProviderMeta(response, 'https://idaholegalaid.org', {
+    providerMode: 'simulated',
+  });
+  const output = renderAssistantOutput(response, 'https://idaholegalaid.org', { providerMeta });
+
+  assert.equal(isLiveProviderMode(output).pass, false);
+});
+
 test('IlasLiveTransport normalizes accidental double slashes in assistant URLs', () => {
   const transport = new IlasLiveTransport({
     assistantUrl: 'https://example.test//assistant/api/message',
@@ -344,7 +579,7 @@ test('summarizeAssistantResponse captures lexical and vector provenance counts',
       { source_class: 'faq_vector' },
       { source_class: 'resource_vector' },
     ],
-    citations: [
+    sources: [
       { source: 'lexical' },
       { source: 'vector' },
       { source: 'vector' },

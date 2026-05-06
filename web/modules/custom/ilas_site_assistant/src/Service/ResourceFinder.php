@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_site_assistant\Service;
 
+use Drupal\search_api\SearchApiException;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
@@ -186,10 +187,10 @@ class ResourceFinder {
     TopicResolver $topic_resolver,
     CacheBackendInterface $cache,
     LanguageManagerInterface $language_manager,
-    RankingEnhancer $ranking_enhancer = NULL,
-    ConfigFactoryInterface $config_factory = NULL,
-    RetrievalConfigurationService $retrieval_configuration = NULL,
-    SourceGovernanceService $source_governance = NULL,
+    ?RankingEnhancer $ranking_enhancer = NULL,
+    ?ConfigFactoryInterface $config_factory = NULL,
+    ?RetrievalConfigurationService $retrieval_configuration = NULL,
+    ?SourceGovernanceService $source_governance = NULL,
     ?TopIntentsPack $top_intents_pack = NULL,
     ?FileUrlGeneratorInterface $file_url_generator = NULL,
   ) {
@@ -961,6 +962,39 @@ class ResourceFinder {
   }
 
   /**
+   * Returns static identity describing the vector + embedding stack.
+   *
+   * Safe to expose: contains no secrets. Used by the response contract to
+   * prove which provider/model is wired to resource vector retrieval.
+   *
+   * @return array<string, mixed>
+   */
+  public function getVectorTelemetryIdentity(): array {
+    [$embedding_provider, $embedding_model] = $this->splitEmbeddingsEngine(self::EXPECTED_VECTOR_EMBEDDINGS_ENGINE);
+    return [
+      'service' => 'resource',
+      'vector_provider' => 'pinecone',
+      'vector_index_id' => $this->retrievalConfiguration?->getResourceVectorIndexId(),
+      'embedding_provider' => $embedding_provider,
+      'embedding_model' => $embedding_model,
+      'embeddings_engine' => self::EXPECTED_VECTOR_EMBEDDINGS_ENGINE,
+      'expected_dimensions' => self::EXPECTED_VECTOR_DIMENSIONS,
+    ];
+  }
+
+  /**
+   * Splits an `<provider>__<model>` engine identifier.
+   */
+  protected function splitEmbeddingsEngine(string $engine): array {
+    if (strpos($engine, '__') !== FALSE) {
+      [$provider, $model] = explode('__', $engine, 2);
+      $provider = preg_replace('/^ilas_/', '', $provider) ?: $provider;
+      return [$provider, $model];
+    }
+    return [$engine, $engine];
+  }
+
+  /**
    * Builds a cache key for memoizing resource queries without storing PII.
    */
   protected function buildQueryCacheKey(string $query, ?string $type, int $limit): ?string {
@@ -1019,6 +1053,30 @@ class ResourceFinder {
     $lexical_degraded_reason = isset($decision['lexical_degraded_reason']) && is_string($decision['lexical_degraded_reason'])
       ? $decision['lexical_degraded_reason']
       : NULL;
+    $vector_top_scores = [];
+    $vector_top_match_ids = [];
+    foreach ($items as $item) {
+      $is_vector_item = (($item['source'] ?? '') === 'vector')
+        || (isset($item['source_class']) && is_string($item['source_class']) && str_ends_with($item['source_class'], '_vector'));
+      if (!$is_vector_item) {
+        continue;
+      }
+      if (isset($item['vector_score']) && is_numeric($item['vector_score'])) {
+        $vector_top_scores[] = (float) $item['vector_score'];
+      }
+      if (isset($item['id']) && (is_string($item['id']) || is_int($item['id']))) {
+        $vector_top_match_ids[] = (string) $item['id'];
+      }
+    }
+    rsort($vector_top_scores, SORT_NUMERIC);
+    $vector_top_scores = array_slice($vector_top_scores, 0, 5);
+    $vector_top_match_ids = array_slice($vector_top_match_ids, 0, 5);
+
+    $identity = $this->getVectorTelemetryIdentity();
+    $resolved_index_id = isset($vector_outcome['vector_index_id']) && is_string($vector_outcome['vector_index_id'])
+      ? $vector_outcome['vector_index_id']
+      : ($identity['vector_index_id'] ?? NULL);
+
     $this->retrievalTelemetry[] = [
       'service' => 'resource',
       'path' => $path,
@@ -1035,6 +1093,14 @@ class ResourceFinder {
         ? ($vector_outcome['reason'] ?? 'degraded')
         : NULL),
       'vector_elapsed_ms' => isset($vector_outcome['elapsed_ms']) ? (int) $vector_outcome['elapsed_ms'] : NULL,
+      'vector_index_id' => $resolved_index_id,
+      'vector_provider' => $identity['vector_provider'],
+      'embedding_provider' => $identity['embedding_provider'],
+      'embedding_model' => $identity['embedding_model'],
+      'expected_dimensions' => $identity['expected_dimensions'],
+      'topk_requested' => $vector_outcome['topk_requested'] ?? NULL,
+      'vector_top_scores' => $vector_top_scores,
+      'vector_top_match_ids' => $vector_top_match_ids,
       'result_count' => count($items),
       'lexical_result_count' => $lexical_result_count,
       'vector_result_count' => $vector_result_count,
@@ -1912,7 +1978,7 @@ class ResourceFinder {
         ]);
       }
 
-      return $this->buildVectorOutcome(
+      $outcome = $this->buildVectorOutcome(
         TRUE,
         empty($items) ? 'healthy_empty' : 'healthy',
         empty($items) ? 'no_results_above_threshold' : 'results_available',
@@ -1920,13 +1986,16 @@ class ResourceFinder {
         $elapsed_ms,
         TRUE,
       );
+      $outcome['vector_index_id'] = $index_id;
+      $outcome['topk_requested'] = $limit;
+      return $outcome;
     }
     catch (\Exception $e) {
       $exception_class = get_class($e);
       $level = 'error';
       $category = 'unexpected';
 
-      if ($e instanceof \Drupal\search_api\SearchApiException) {
+      if ($e instanceof SearchApiException) {
         $category = 'search_api';
         $level = 'warning';
       }
@@ -1947,7 +2016,10 @@ class ResourceFinder {
           '@seconds' => self::VECTOR_BACKOFF_SECONDS,
         ]
       );
-      return $this->buildVectorOutcome(TRUE, 'degraded', $category, [], NULL, FALSE);
+      $outcome = $this->buildVectorOutcome(TRUE, 'degraded', $category, [], NULL, FALSE);
+      $outcome['vector_index_id'] = $index_id;
+      $outcome['topk_requested'] = $limit;
+      return $outcome;
     }
   }
 

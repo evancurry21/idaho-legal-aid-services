@@ -3,19 +3,22 @@
 
 /**
  * @file
- * ILAS Chatbot Retrieval Evaluation Runner.
+ * ILAS Chatbot Retrieval Evaluation Runner - deprecated legacy harness.
  *
  * Evaluates FAQ and resource retrieval quality using standard IR metrics:
  * - Recall@K (K=1, 3, 5)
  * - Mean Reciprocal Rank (MRR)
  * - Normalized Discounted Cumulative Gain (nDCG)
  *
+ * Preserved for historical fixture review only. HTTP mode does not honor the
+ * current Site Assistant bootstrap/session/CSRF/conversation contract.
+ *
  * Usage:
  *   php run-retrieval-eval.php [options]
  *
  * Options:
  *   --fixture=PATH       Path to retrieval fixture JSON
- *   --http               Use HTTP mode (default: internal)
+ *   --http               Use legacy HTTP mode (default: internal)
  *   --base-url=URL       Base URL for HTTP mode
  *   --output=DIR         Output directory for reports
  *   --category=NAME      Filter to specific category
@@ -48,7 +51,10 @@ $options = getopt('', [
 // Show help.
 if (isset($options['help'])) {
   echo <<<HELP
-ILAS Chatbot Retrieval Evaluation Runner
+ILAS Chatbot Retrieval Evaluation Runner - DEPRECATED legacy harness
+
+This is not a current Site Assistant quality gate. Use Promptfoo retrieval and
+grounding suites for current answer-quality coverage.
 
 Evaluates FAQ and resource retrieval quality using standard IR metrics.
 
@@ -58,7 +64,7 @@ Usage:
 Options:
   --fixture=PATH       Path to retrieval fixture JSON
                        Default: ./retrieval-fixture.json
-  --http               Use HTTP mode (requires running Drupal site)
+  --http               Use legacy HTTP mode (requires running Drupal site)
   --base-url=URL       Base URL for HTTP mode
                        Default: https://ilas-pantheon.ddev.site
   --output=DIR         Output directory for reports
@@ -119,7 +125,9 @@ if (!file_exists($fixture_path)) {
   exit(1);
 }
 
-echo "=== ILAS Retrieval Evaluation Harness ===\n\n";
+echo "=== ILAS Retrieval Evaluation Harness (Deprecated Legacy) ===\n\n";
+echo "Warning: this harness is historical fixture material only, not a current Site Assistant quality gate.\n";
+echo "HTTP mode does not exercise the current bootstrap/session/CSRF/conversation contract.\n\n";
 
 // Initialize evaluator.
 $config = [

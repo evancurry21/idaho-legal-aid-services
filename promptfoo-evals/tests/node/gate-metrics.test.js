@@ -7,34 +7,49 @@ const {
   findStructuredError,
   parseResultsPassRate,
   renderAssistantFixture,
+  summarizeDiagnosticResults,
 } = require('../../lib/gate-metrics');
 
 function fixturePath(name) {
   return path.join(__dirname, '..', 'fixtures', name);
 }
 
-test('renderAssistantFixture emits contract_meta with required fields and derived citation count', () => {
+test('renderAssistantFixture emits strict contract_meta without counting derived links as citations', () => {
   const rendered = renderAssistantFixture(fixturePath('assistant-response-derived-citations.json'));
 
   assert.equal(rendered.hasContractMetaLine, true);
+  assert.equal(rendered.hasProviderMetaLine, true);
   assert.match(rendered.output, /\[contract_meta\]/);
-  assert.deepEqual(
-    Object.keys(rendered.contractMeta).sort(),
-    [
-      'citations_count',
-      'confidence',
-      'decision_reason',
-      'lexical_citation_count',
-      'lexical_result_count',
-      'reason_code',
-      'response_mode',
-      'response_type',
-      'result_source_classes',
-      'vector_citation_count',
-      'vector_result_count',
-    ]
-  );
-  assert.equal(rendered.contractMeta.citations_count, 3);
+  assert.match(rendered.output, /\[ilas_provider_meta\]/);
+  const requiredKeys = [
+    'citations_count',
+    'confidence',
+    'decision_reason',
+    'derived_citation_count',
+    'grounded',
+    'grounding_status',
+    'lexical_citation_count',
+    'lexical_result_count',
+    'reason_code',
+    'response_mode',
+    'response_type',
+    'result_source_classes',
+    'supported_citations_count',
+    'vector_citation_count',
+    'vector_result_count',
+  ];
+  for (const key of requiredKeys) {
+    assert.equal(Object.prototype.hasOwnProperty.call(rendered.contractMeta, key), true, key);
+  }
+  for (const key of ['results_count', 'result_urls', 'citation_urls', 'fallback_used', 'vector_used']) {
+    assert.equal(Object.prototype.hasOwnProperty.call(rendered.contractMeta, key), true, key);
+  }
+  assert.equal(rendered.contractMeta.citations_count, 0);
+  assert.equal(rendered.contractMeta.supported_citations_count, 0);
+  assert.equal(rendered.contractMeta.derived_citation_count, 3);
+  assert.equal(rendered.contractMeta.grounded, false);
+  assert.equal(rendered.contractMeta.grounding_status, 'unsupported_link_or_result_only');
+  assert.equal(rendered.contractMeta.results_count, 2);
   assert.equal(rendered.contractMeta.response_type, 'search_results');
   assert.equal(rendered.contractMeta.response_mode, 'grounded_answer');
   assert.equal(rendered.contractMeta.reason_code, 'retrieval_match');
@@ -44,6 +59,14 @@ test('renderAssistantFixture emits contract_meta with required fields and derive
   assert.equal(rendered.contractMeta.lexical_result_count, 0);
   assert.equal(rendered.contractMeta.vector_citation_count, 0);
   assert.equal(rendered.contractMeta.lexical_citation_count, 0);
+  assert.deepEqual(rendered.contractMeta.result_urls, [
+    'https://idaholegalaid.org/issues/family-law',
+    'https://idaholegalaid.org/forms/court-assistance',
+  ]);
+  assert.deepEqual(rendered.contractMeta.citation_urls, []);
+  assert.equal(rendered.contractMeta.vector_used, false);
+  assert.equal(rendered.providerMeta.grounded, false);
+  assert.equal(rendered.providerMeta.supported_citations_count, 0);
 });
 
 test('evaluateMetricSet passes when retrieval thresholds meet score and count floors', () => {
@@ -111,4 +134,18 @@ test('gate metrics helper reports pass-rate summaries and structured eval errors
     code: 'missing_metric_count',
     message: 'retrieval threshold metric count missing',
   });
+});
+
+test('diagnostic summary includes grouped quality dimensions', () => {
+  const summary = summarizeDiagnosticResults([fixturePath('gate-results-rag-pass.json')], {
+    config_file: 'promptfooconfig.quality.yaml',
+  });
+
+  const retrievalGroup = summary.metric_groups.find((group) => group.group === 'retrieval_quality');
+  const groundingGroup = summary.metric_groups.find((group) => group.group === 'grounding_quality');
+
+  assert.ok(retrievalGroup);
+  assert.ok(groundingGroup);
+  assert.equal(retrievalGroup.count > 0, true);
+  assert.equal(groundingGroup.count > 0, true);
 });

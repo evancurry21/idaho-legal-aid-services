@@ -92,7 +92,7 @@ class LangfuseExportWorker extends QueueWorkerBase implements ContainerFactoryPl
     $config = $this->configFactory->get('ilas_site_assistant.settings');
 
     // Discard items that are too old or lack a timestamp (pre-upgrade).
-    $maxAge = (int) ($config->get('langfuse.max_item_age_seconds') ?? 3600);
+    $maxAge = (int) ($config->get('langfuse.max_item_age_seconds') ?? 7200);
     if (!isset($data['enqueued_at'])) {
       $this->logger->notice('Langfuse export: discarding pre-upgrade item without enqueued_at (@count events).', [
         '@count' => count($data['batch']),

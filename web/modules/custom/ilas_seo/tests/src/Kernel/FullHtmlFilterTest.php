@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_seo\Kernel;
 
+use Drupal\Core\Config\FileStorage;
 use Drupal\KernelTests\KernelTestBase;
 
 /**
@@ -35,7 +36,7 @@ class FullHtmlFilterTest extends KernelTestBase {
     $this->installConfig(['filter']);
 
     $config_path = $this->root . '/../config';
-    $source = new \Drupal\Core\Config\FileStorage($config_path);
+    $source = new FileStorage($config_path);
     $config_data = $source->read('filter.format.full_html');
 
     if ($config_data) {

@@ -13,7 +13,6 @@ use Psr\Log\LoggerInterface;
  *
  * Tests the count-upsert pattern, metadata-only no-answer storage, and
  * normalization of analytics event values against a real database.
- *
  */
 #[CoversClass(AnalyticsLogger::class)]
 #[Group('ilas_site_assistant')]

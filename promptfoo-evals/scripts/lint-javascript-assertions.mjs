@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import yaml from 'js-yaml';
 
 const repoRoot = process.cwd();
+const evalsRoot = path.join(repoRoot, 'promptfoo-evals');
 const testsDir = path.join(repoRoot, 'promptfoo-evals', 'tests');
+const require = createRequire(import.meta.url);
 
 function listYamlFiles(explicitArgs) {
   if (explicitArgs.length > 0) {
@@ -108,6 +111,56 @@ function compileAssertion(jsCode, multiline) {
   }
 }
 
+function parseExternalJavascriptAssertion(value) {
+  const text = String(value || '').trim();
+  if (!text.startsWith('file://')) {
+    return null;
+  }
+
+  const ref = text.slice('file://'.length);
+  const match = ref.match(/^(.*\.(?:cjs|js|mjs|ts))(?:\:([\w.]+))?$/);
+  if (!match) {
+    return {
+      filePath: null,
+      functionName: null,
+      error: 'External javascript assertion must be file://path/to/assertion.js:functionName',
+    };
+  }
+
+  return {
+    filePath: path.isAbsolute(match[1]) ? match[1] : path.join(evalsRoot, match[1]),
+    functionName: match[2] || null,
+    error: null,
+  };
+}
+
+function validateExternalJavascriptAssertion(value) {
+  const parsed = parseExternalJavascriptAssertion(value);
+  if (!parsed) {
+    return null;
+  }
+  if (parsed.error) {
+    return parsed.error;
+  }
+  if (!fs.existsSync(parsed.filePath)) {
+    return `External javascript assertion file does not exist: ${path.relative(repoRoot, parsed.filePath)}`;
+  }
+  if (!parsed.functionName) {
+    return null;
+  }
+
+  try {
+    const moduleExports = require(parsed.filePath);
+    const exported = parsed.functionName.split('.').reduce((current, key) => current?.[key], moduleExports);
+    return typeof exported === 'function'
+      ? null
+      : `External javascript assertion function is not exported: ${parsed.functionName}`;
+  }
+  catch (error) {
+    return `External javascript assertion could not be loaded: ${error?.message || error}`;
+  }
+}
+
 function lintFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const parsed = yaml.load(content);
@@ -122,6 +175,22 @@ function lintFile(filePath) {
       }
 
       const value = String(assertion?.value || '');
+      const externalError = validateExternalJavascriptAssertion(value);
+      if (externalError !== null) {
+        errors.push({
+          file: path.relative(repoRoot, filePath),
+          test_index: testIndex,
+          assert_index: assertIndex,
+          description: test?.description || null,
+          metric: assertion?.metric || null,
+          message: externalError,
+        });
+        return;
+      }
+      if (parseExternalJavascriptAssertion(value)) {
+        return;
+      }
+
       const multiline = isMultiline(value);
 
       if (multiline && !hasExplicitReturn(value)) {

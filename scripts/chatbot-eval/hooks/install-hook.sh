@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install the chatbot pre-push hook.
+# Install the deprecated legacy chatbot pre-push hook.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
@@ -16,6 +16,9 @@ cp "$SCRIPT_DIR/pre-push" "$HOOKS_DIR/pre-push"
 chmod +x "$HOOKS_DIR/pre-push"
 
 echo "Pre-push hook installed successfully!"
+echo ""
+echo "Warning: this is legacy local tooling, not the current Site Assistant quality gate."
+echo "Use Promptfoo, assistant-smoke, PHPUnit/functional tests, and Playwright for current coverage."
 echo ""
 echo "The hook will run validation checks when you push changes to:"
 echo "  - config/routing/*.yml"

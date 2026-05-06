@@ -64,6 +64,29 @@ class TestModuleSecurityTest extends TestCase {
   }
 
   /**
+   * L-7: Run route must require Drupal's CSRF token.
+   *
+   * POST-only is not sufficient on its own — a controller endpoint without
+   * `_csrf_token: TRUE` can still be triggered cross-site by an authenticated
+   * admin's browser.
+   */
+  public function testRunRouteRequiresCsrfToken(): void {
+    $routing = Yaml::parseFile($this->moduleDir . '/ilas_test.routing.yml');
+    $this->assertArrayHasKey('ilas_test.run', $routing);
+
+    $route = $routing['ilas_test.run'];
+    $this->assertArrayHasKey('requirements', $route);
+    $this->assertArrayHasKey('_csrf_token', $route['requirements'],
+      'SECURITY L-7: ilas_test.run must require _csrf_token to block cross-site POSTs.');
+    $this->assertSame('TRUE', $route['requirements']['_csrf_token'],
+      'ilas_test.run _csrf_token requirement must be the string "TRUE".');
+    $this->assertArrayHasKey('_permission', $route['requirements'],
+      'ilas_test.run must require an explicit permission.');
+    $this->assertSame('run ilas tests', $route['requirements']['_permission'],
+      'ilas_test.run must be gated by the restricted "run ilas tests" permission.');
+  }
+
+  /**
    * H-4: Controller loadTestReport() must validate report_id.
    */
   public function testControllerValidatesReportId(): void {

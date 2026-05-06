@@ -259,6 +259,15 @@ mix.sass('scss/style.scss', 'css/style.css')
      ] : [],
    });
 
+// Critical (above-the-fold) CSS — compiled from scss/critical.scss so the
+// rules and tokens stay in sync with _variables_theme.scss / _header.scss
+// instead of drifting via a hand-maintained css/critical.css. Loaded via
+// the b5subtheme/critical-styles library. Intentionally NOT run through
+// PurgeCSS: the file is small and curated, and PurgeCSS would only see
+// the early-paint window's selectors.
+mix.sass('scss/critical.scss', 'css/critical.css')
+   .options({ processCssUrls: false });
+
 // JavaScript: scripts.js is loaded directly (not bundled through webpack)
 // The file is already ES5-compatible and uses Drupal.behaviors pattern
 // Removed: mix.js('js/scripts.js', 'js/scripts.min.js') - was building unused file
@@ -277,7 +286,12 @@ mix.copy('node_modules/@fortawesome/fontawesome-free/webfonts', 'webfonts');
 
 // Version files in production for cache busting
 if (mix.inProduction()) {
-  mix.sourceMaps(true, 'source-map');
+  // Hidden source maps: emit .map files so scripts/observability/sentry-release.sh
+  // can upload them to Sentry, but do NOT add a sourceMappingURL comment to the
+  // public CSS/JS. Avoids exposing source structure to anonymous browsers while
+  // keeping Sentry stack-trace symbolication working (Sentry CLI matches by
+  // release artifact name, not by inline comment).
+  mix.sourceMaps(true, 'hidden-source-map');
   mix.version();
 }
 

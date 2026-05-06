@@ -125,6 +125,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     return new SourceGovernanceService($configFactory, $state, $logger);
   }
 
+  /**
+ *
+ */
   #[DataProvider('allowedCitationUrlProvider')]
   public function testSanitizeCitationUrlAllowsApprovedUrls(string $url): void {
     $service = $this->buildService();
@@ -132,6 +135,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame($url, $service->sanitizeCitationUrl($url));
   }
 
+  /**
+ *
+ */
   #[DataProvider('disallowedCitationUrlProvider')]
   public function testSanitizeCitationUrlRejectsDisallowedUrls(string $url): void {
     $service = $this->buildService();
@@ -139,6 +145,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertNull($service->sanitizeCitationUrl($url));
   }
 
+  /**
+   *
+   */
   public static function allowedCitationUrlProvider(): array {
     return [
       'relative path' => ['/faq#housing'],
@@ -147,6 +156,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     ];
   }
 
+  /**
+   *
+   */
   public static function disallowedCitationUrlProvider(): array {
     return [
       'javascript' => ['javascript:alert(1)'],
@@ -160,6 +172,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     ];
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultClassifiesFreshStaleAndUnknown(): void {
     $service = $this->buildService();
     $now = time();
@@ -192,6 +207,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertContains('unknown_freshness', $unknown['governance_flags']);
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultFlagsMissingSourceUrl(): void {
     $service = $this->buildService();
 
@@ -204,6 +222,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertContains('missing_source_url', $result['governance_flags']);
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultFlagsInvalidSourceUrl(): void {
     $service = $this->buildService();
 
@@ -219,6 +240,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertNotContains('missing_source_url', $result['governance_flags']);
   }
 
+  /**
+   *
+   */
   public function testObservationSnapshotAggregatesBySourceClass(): void {
     $service = $this->buildService();
     $now = time();
@@ -260,6 +284,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertArrayHasKey('min_observations_met', $snapshot);
   }
 
+  /**
+   *
+   */
   public function testDegradedThresholdAndAlertCooldownBehavior(): void {
     $logger = $this->createMock(LoggerInterface::class);
     $logger->expects($this->once())
@@ -304,6 +331,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertArrayHasKey('next_alert_eligible_at', $secondSnapshot);
   }
 
+  /**
+   *
+   */
   public function testUnknownMissingBelowMinimumObservationsDoesNotDegrade(): void {
     $service = $this->buildService();
     $now = time();
@@ -336,6 +366,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame('healthy', $snapshot['status']);
   }
 
+  /**
+   *
+   */
   public function testUnknownRatioDegradesWhenMinimumObservationsMet(): void {
     $service = $this->buildService();
     $now = time();
@@ -363,6 +396,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame('degraded', $snapshot['status']);
   }
 
+  /**
+   *
+   */
   public function testMissingSourceUrlRatioDegradesWhenMinimumObservationsMet(): void {
     $service = $this->buildService();
     $now = time();
@@ -390,6 +426,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame('degraded', $snapshot['status']);
   }
 
+  /**
+   *
+   */
   public function testStaleRatioStillDegradesIndependentOfMinimumSampleGate(): void {
     $service = $this->buildService();
     $batch = [
@@ -417,8 +456,10 @@ final class SourceGovernanceServiceTest extends TestCase {
 
   // =========================================================================
   // Retrieval contract tests (PHARD-06)
-  // =========================================================================
 
+  /**
+   * =========================================================================
+   */
   public function testAnnotateResultRejectsUnapprovedSourceClass(): void {
     $service = $this->buildService();
 
@@ -432,6 +473,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     ], 'external_scraper');
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultAcceptsAllApprovedSourceClasses(): void {
     $service = $this->buildService();
 
@@ -446,6 +490,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultIncludesContractVersion(): void {
     $service = $this->buildService();
 
@@ -459,6 +506,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame(RetrievalContract::POLICY_VERSION, $result['provenance']['retrieval_contract_version']);
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultIncludesEnforcementMode(): void {
     $service = $this->buildService();
 
@@ -474,8 +524,10 @@ final class SourceGovernanceServiceTest extends TestCase {
 
   // =========================================================================
   // Retrieval method truthfulness tests (AFRP-08)
-  // =========================================================================
 
+  /**
+   * =========================================================================
+   */
   public function testAnnotateResultLegacyFaqGetsEntityQueryProvenanceLabel(): void {
     $service = $this->buildService();
 
@@ -490,6 +542,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame('entity_query', $result['provenance']['retrieval_method']);
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultLegacyResourceGetsEntityQueryProvenanceLabel(): void {
     $service = $this->buildService();
 
@@ -504,6 +559,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame('entity_query', $result['provenance']['retrieval_method']);
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultSearchApiPreservesConfiguredProvenanceLabel(): void {
     $service = $this->buildService();
 
@@ -517,6 +575,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame('search_api', $result['provenance']['retrieval_method']);
   }
 
+  /**
+   *
+   */
   public function testAnnotateResultDefaultRetrievalMethodIsSearchApi(): void {
     $service = $this->buildService();
 
@@ -530,6 +591,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame('search_api.index.faq_accordion', $result['provenance']['provenance_label']);
   }
 
+  /**
+   *
+   */
   public function testAnnotateBatchPropagatesRetrievalMethod(): void {
     $service = $this->buildService();
 
@@ -544,6 +608,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public function testLegacyAndSearchApiProvenanceLabelsAreDifferent(): void {
     $service = $this->buildService();
 
@@ -572,6 +639,9 @@ final class SourceGovernanceServiceTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public function testObservationSnapshotTracksByRetrievalMethod(): void {
     $service = $this->buildService();
     $now = time();
@@ -598,8 +668,10 @@ final class SourceGovernanceServiceTest extends TestCase {
 
   // =========================================================================
   // AFRP-10: Config-driven enforcement mode + governance summary
-  // =========================================================================
 
+  /**
+   * =========================================================================
+   */
   public function testEnforcementModeReadsFromConfig(): void {
     $service = $this->buildServiceWithEnforcementMode('soft');
 
@@ -612,18 +684,27 @@ final class SourceGovernanceServiceTest extends TestCase {
     $this->assertSame('soft', $result['provenance']['enforcement_mode']);
   }
 
+  /**
+   *
+   */
   public function testEnforcementModeDefaultsToAdvisoryWhenConfigMissing(): void {
     $service = $this->buildService();
 
     $this->assertSame('advisory', $service->getEnforcementMode());
   }
 
+  /**
+   *
+   */
   public function testEnforcementModeRejectsInvalidValues(): void {
     $service = $this->buildServiceWithEnforcementMode('nuclear');
 
     $this->assertSame('advisory', $service->getEnforcementMode());
   }
 
+  /**
+   *
+   */
   public function testGovernanceSummaryShape(): void {
     $service = $this->buildService();
 

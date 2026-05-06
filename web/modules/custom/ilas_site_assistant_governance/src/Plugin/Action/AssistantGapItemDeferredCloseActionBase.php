@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\ilas_site_assistant_governance\Plugin\Action;
 
+use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\ilas_site_assistant_governance\Entity\AssistantGapItem;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -22,7 +23,7 @@ abstract class AssistantGapItemDeferredCloseActionBase extends AssistantGapItemS
     array $configuration,
     $plugin_id,
     $plugin_definition,
-    \Drupal\Core\Session\AccountProxyInterface $currentUser,
+    AccountProxyInterface $currentUser,
     protected PrivateTempStoreFactory $tempStoreFactory,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $currentUser);

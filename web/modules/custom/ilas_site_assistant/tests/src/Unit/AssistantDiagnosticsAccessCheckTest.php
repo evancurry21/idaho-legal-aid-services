@@ -118,7 +118,7 @@ final class AssistantDiagnosticsAccessCheckTest extends TestCase {
   }
 
   /**
-   * getenv() is used when settings.php has not injected the runtime token.
+   * Getenv() is used when settings.php has not injected the runtime token.
    */
   public function testEnvironmentFallbackAllowsValidHeader(): void {
     putenv('ILAS_ASSISTANT_DIAGNOSTICS_TOKEN=env-token');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\ilas_site_assistant\Unit;
 
+use Drupal\Core\State\StateInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Queue\QueueFactory;
@@ -31,8 +32,8 @@ class QueueHealthMonitorTest extends TestCase {
   /**
    * Builds a mock StateInterface.
    */
-  private function buildState(): \Drupal\Core\State\StateInterface {
-    $state = $this->createMock(\Drupal\Core\State\StateInterface::class);
+  private function buildState(): StateInterface {
+    $state = $this->createMock(StateInterface::class);
 
     $state->method('get')
       ->willReturnCallback(function (string $key, $default = NULL) {
@@ -356,6 +357,46 @@ class QueueHealthMonitorTest extends TestCase {
     $this->assertSame(0, $status['depth']);
     $this->assertNull($status['oldest_item_age_seconds']);
     $this->assertNull($monitor->getOldestEnqueuedAt());
+  }
+
+  /**
+   * Tests actual queue rows override stale oldest-state after partial drains.
+   */
+  public function testActualQueueRowAgeOverridesResidualOldestState(): void {
+    $factory = $this->buildQueueFactory(8);
+    $state = $this->buildState();
+    $actualOldest = time() - 1800;
+    $monitor = new class($factory, $state, $actualOldest) extends QueueHealthMonitor {
+
+      public function __construct(
+        QueueFactory $queueFactory,
+        StateInterface $state,
+        private readonly int $actualOldest,
+      ) {
+        parent::__construct($queueFactory, $state);
+      }
+
+      /**
+       *
+       */
+      protected function getOldestQueueRowCreatedAt(): ?int {
+        return $this->actualOldest;
+      }
+
+    };
+
+    $monitor->recordEnqueue(time() - 8000, 0);
+    $slo = $this->buildSlo([
+      'queue_max_depth' => 10000,
+      'queue_max_age_seconds' => 7200,
+    ]);
+
+    $status = $monitor->getQueueHealthStatus($slo);
+
+    $this->assertSame('healthy', $status['status']);
+    $this->assertSame($actualOldest, $status['oldest_enqueued_at']);
+    $this->assertLessThan(7200, $status['oldest_item_age_seconds']);
+    $this->assertSame($actualOldest, $monitor->getOldestEnqueuedAt());
   }
 
 }

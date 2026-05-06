@@ -11,7 +11,6 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * Tests deterministic variant assignment, config-driven experiment loading,
  * and allocation boundary behavior.
- *
  */
 #[CoversClass(AbTestingService::class)]
 #[Group('ilas_site_assistant')]

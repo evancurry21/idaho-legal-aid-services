@@ -2,6 +2,7 @@
 
 namespace Drupal\ilas_site_assistant\Controller;
 
+use Sentry\State\Scope;
 use Drupal\Core\Access\CsrfRequestHeaderAccessCheck;
 use Drupal\Core\Access\CsrfTokenGenerator;
 use Drupal\Core\Controller\ControllerBase;
@@ -27,6 +28,7 @@ use Drupal\ilas_site_assistant\Service\GapReviewDecider;
 use Drupal\ilas_site_assistant\Service\InputNormalizer;
 use Drupal\ilas_site_assistant\Service\PiiRedactor;
 use Drupal\ilas_site_assistant\Service\HistoryIntentResolver;
+use Drupal\ilas_site_assistant\Service\ConversationContextSummary;
 use Drupal\ilas_site_assistant\Service\ResponseBuilder;
 use Drupal\ilas_site_assistant\Service\TelemetrySchema;
 use Drupal\ilas_site_assistant\Service\TopIntentsPack;
@@ -54,6 +56,8 @@ use Drupal\Core\Cache\CacheableJsonResponse;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Site\Settings;
 use Drupal\ilas_site_assistant\Service\EnvironmentDetector;
+use Drupal\ilas_site_assistant\Service\HousingEvictionContinuityDecider;
+use Drupal\ilas_site_assistant\Service\OfficeDirectory;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -115,6 +119,26 @@ class AssistantApiController extends ControllerBase {
   ];
 
   /**
+   * Header used by private diagnostics callers.
+   */
+  private const DIAGNOSTICS_TOKEN_HEADER = 'X-ILAS-Observability-Key';
+
+  /**
+   * Optional header that requests sanitized diagnostics metadata.
+   */
+  private const DIAGNOSTICS_INCLUDE_HEADER = 'X-ILAS-Diagnostics';
+
+  /**
+   * Runtime settings key for the diagnostics token.
+   */
+  private const DIAGNOSTICS_TOKEN_SETTINGS_KEY = 'ilas_assistant_diagnostics_token';
+
+  /**
+   * Environment variable fallback for the diagnostics token.
+   */
+  private const DIAGNOSTICS_TOKEN_ENV = 'ILAS_ASSISTANT_DIAGNOSTICS_TOKEN';
+
+  /**
    * The config factory.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
@@ -134,6 +158,13 @@ class AssistantApiController extends ControllerBase {
    * @var \Drupal\ilas_site_assistant\Service\FaqIndex
    */
   protected $faqIndex;
+
+  /**
+   * The most recent Voyage rerank meta payload (per-request).
+   *
+   * @var array<string, mixed>|null
+   */
+  protected ?array $lastRerankMeta = NULL;
 
   /**
    * The resource finder service.
@@ -360,6 +391,23 @@ class AssistantApiController extends ControllerBase {
   protected SelectionStateStore $selectionStateStore;
 
   /**
+   * Ephemeral structured continuity summary service.
+   *
+   * @var \Drupal\ilas_site_assistant\Service\ConversationContextSummary|null
+   */
+  protected ?ConversationContextSummary $conversationContextSummary = NULL;
+
+  /**
+   * Canonical housing-eviction continuity predicate (shared with flow runner).
+   */
+  protected ?HousingEvictionContinuityDecider $housingEvictionContinuityDecider = NULL;
+
+  /**
+   * Canonical office directory (entity-backed).
+   */
+  protected ?OfficeDirectory $officeDirectory = NULL;
+
+  /**
    * Constructs an AssistantApiController object.
    */
   public function __construct(
@@ -377,27 +425,30 @@ class AssistantApiController extends ControllerBase {
     AssistantFlowRunner $assistant_flow_runner,
     SelectionRegistry $selection_registry,
     SelectionStateStore $selection_state_store,
-    ResponseGrounder $response_grounder = NULL,
-    SafetyClassifier $safety_classifier = NULL,
-    SafetyResponseTemplates $safety_response_templates = NULL,
-    OutOfScopeClassifier $out_of_scope_classifier = NULL,
-    OutOfScopeResponseTemplates $out_of_scope_response_templates = NULL,
-    PerformanceMonitor $performance_monitor = NULL,
-    ConversationLogger $conversation_logger = NULL,
-    AbTestingService $ab_testing = NULL,
-    SafetyViolationTracker $violation_tracker = NULL,
-    LangfuseTracer $langfuse_tracer = NULL,
-    TopIntentsPack $top_intents_pack = NULL,
-    SourceGovernanceService $source_governance = NULL,
-    VectorIndexHygieneService $vector_index_hygiene = NULL,
-    RetrievalConfigurationService $retrieval_configuration = NULL,
-    RequestTrustInspector $request_trust_inspector = NULL,
-    CsrfTokenGenerator $csrf_token_generator = NULL,
-    EnvironmentDetector $environment_detector = NULL,
-    AssistantSessionBootstrapGuard $session_bootstrap_guard = NULL,
-    PreRoutingDecisionEngine $pre_routing_decision_engine = NULL,
-    AssistantReadEndpointGuard $read_endpoint_guard = NULL,
-    VoyageReranker $voyage_reranker = NULL,
+    ?ResponseGrounder $response_grounder = NULL,
+    ?SafetyClassifier $safety_classifier = NULL,
+    ?SafetyResponseTemplates $safety_response_templates = NULL,
+    ?OutOfScopeClassifier $out_of_scope_classifier = NULL,
+    ?OutOfScopeResponseTemplates $out_of_scope_response_templates = NULL,
+    ?PerformanceMonitor $performance_monitor = NULL,
+    ?ConversationLogger $conversation_logger = NULL,
+    ?AbTestingService $ab_testing = NULL,
+    ?SafetyViolationTracker $violation_tracker = NULL,
+    ?LangfuseTracer $langfuse_tracer = NULL,
+    ?TopIntentsPack $top_intents_pack = NULL,
+    ?SourceGovernanceService $source_governance = NULL,
+    ?VectorIndexHygieneService $vector_index_hygiene = NULL,
+    ?RetrievalConfigurationService $retrieval_configuration = NULL,
+    ?RequestTrustInspector $request_trust_inspector = NULL,
+    ?CsrfTokenGenerator $csrf_token_generator = NULL,
+    ?EnvironmentDetector $environment_detector = NULL,
+    ?AssistantSessionBootstrapGuard $session_bootstrap_guard = NULL,
+    ?PreRoutingDecisionEngine $pre_routing_decision_engine = NULL,
+    ?AssistantReadEndpointGuard $read_endpoint_guard = NULL,
+    ?VoyageReranker $voyage_reranker = NULL,
+    ?ConversationContextSummary $conversation_context_summary = NULL,
+    ?HousingEvictionContinuityDecider $housing_eviction_continuity_decider = NULL,
+    ?OfficeDirectory $office_directory = NULL,
   ) {
     $this->configFactory = $config_factory;
     $this->intentRouter = $intent_router;
@@ -434,6 +485,9 @@ class AssistantApiController extends ControllerBase {
     $this->preRoutingDecisionEngine = $pre_routing_decision_engine;
     $this->selectionRegistry = $selection_registry;
     $this->selectionStateStore = $selection_state_store;
+    $this->conversationContextSummary = $conversation_context_summary;
+    $this->housingEvictionContinuityDecider = $housing_eviction_continuity_decider;
+    $this->officeDirectory = $office_directory;
   }
 
   /**
@@ -491,6 +545,9 @@ class AssistantApiController extends ControllerBase {
       $container->get('ilas_site_assistant.pre_routing_decision_engine'),
       $container->get('ilas_site_assistant.read_endpoint_guard'),
       $container->has('ilas_site_assistant.voyage_reranker') ? $container->get('ilas_site_assistant.voyage_reranker') : NULL,
+      $container->has('ilas_site_assistant.conversation_context_summary') ? $container->get('ilas_site_assistant.conversation_context_summary') : NULL,
+      $container->has('ilas_site_assistant.housing_eviction_continuity_decider') ? $container->get('ilas_site_assistant.housing_eviction_continuity_decider') : NULL,
+      $container->has('ilas_site_assistant.office_directory') ? $container->get('ilas_site_assistant.office_directory') : NULL,
     );
   }
 
@@ -861,7 +918,7 @@ class AssistantApiController extends ControllerBase {
    * Normalizes the public /message request context to the approved schema.
    *
    * Unknown keys are stripped deterministically. Accepted keys are
-   * quickAction and selection.
+   * quickAction, selection, and diagnostics.
    *
    * @param mixed $context
    *   Raw decoded context value from the request payload.
@@ -892,6 +949,22 @@ class AssistantApiController extends ControllerBase {
 
     if (array_key_exists('selection', $context)) {
       $normalized['selection'] = $this->normalizeSelectionContext($context['selection']);
+    }
+
+    if (array_key_exists('diagnostics', $context)) {
+      $diagnostics = $context['diagnostics'];
+      if (!is_array($diagnostics) || array_is_list($diagnostics)) {
+        throw new \InvalidArgumentException('Diagnostics must be an object.');
+      }
+
+      $include = !empty($diagnostics['include']);
+      $force_llm_probe = !empty($diagnostics['force_llm_probe']);
+      if ($include || $force_llm_probe) {
+        $normalized['diagnostics'] = [
+          'include' => $include || $force_llm_probe,
+          'force_llm_probe' => $force_llm_probe,
+        ];
+      }
     }
 
     return $normalized;
@@ -1902,6 +1975,9 @@ class AssistantApiController extends ControllerBase {
       'active_selection' => NULL,
       'last_menu_signature' => '',
     ];
+    $conversation_context_summary = $this->conversationContextSummary
+      ? $this->conversationContextSummary->normalizeStoredSummary([])
+      : [];
     $active_selection = NULL;
     $resolved_selection = NULL;
     $selection_back_navigation = FALSE;
@@ -1927,6 +2003,11 @@ class AssistantApiController extends ControllerBase {
         }
         else {
           $server_history = is_array($cached_data) ? array_filter($cached_data, 'is_int', ARRAY_FILTER_USE_KEY) : [];
+          if ($this->conversationContextSummary && is_array($cached_data)) {
+            $conversation_context_summary = $this->conversationContextSummary->normalizeStoredSummary(
+              $cached_data['conversation_context_summary'] ?? []
+            );
+          }
         }
       }
       $clarify_meta = $this->loadClarifyMeta($conversation_id);
@@ -1971,81 +2052,91 @@ class AssistantApiController extends ControllerBase {
 
     try {
 
-    $context_trace_metadata = $this->buildLangfuseRequestContextMetadata($context);
-    if ($context_trace_metadata !== []) {
-      $langfuse_base_metadata = array_merge($langfuse_base_metadata, $context_trace_metadata);
-      $this->langfuseTracer?->appendTraceMetadata($context_trace_metadata);
-    }
+      $context_trace_metadata = $this->buildLangfuseRequestContextMetadata($context);
+      if ($context_trace_metadata !== []) {
+        $langfuse_base_metadata = array_merge($langfuse_base_metadata, $context_trace_metadata);
+        $this->langfuseTracer?->appendTraceMetadata($context_trace_metadata);
+      }
 
-    $user_message = $this->sanitizeInput($data['message']);
-    if ($user_message === '') {
-      $finish_validation_trace([
-        'type' => 'validation',
-      ], 400, 'invalid_message', $context_trace_metadata);
-      return $this->monitoredJsonResponse($request, PerformanceMonitor::ENDPOINT_MESSAGE, [
-        'error' => 'Invalid request',
-        'error_code' => 'invalid_message',
-        'message' => 'Message is empty after sanitization.',
-        'request_id' => $request_id,
-      ], 400, [], $request_id, FALSE, 'message.invalid_message', TRUE);
-    }
-    // Normalize for classifier checks: strips evasion techniques
-    // (interstitial punctuation, Unicode tricks, spaced-out letters).
-    // $user_message is kept intact for display, intent routing, and retrieval.
-    $normalized_message = InputNormalizer::normalize($user_message);
-    $langfuse_input = $this->buildLangfuseInputPayload($user_message);
-    $this->langfuseTracer?->setTraceInput($langfuse_input['display']);
-    $this->langfuseTracer?->appendTraceMetadata(array_merge(
+      $user_message = $this->sanitizeInput($data['message']);
+      if ($user_message === '') {
+        $finish_validation_trace([
+          'type' => 'validation',
+        ], 400, 'invalid_message', $context_trace_metadata);
+        return $this->monitoredJsonResponse($request, PerformanceMonitor::ENDPOINT_MESSAGE, [
+          'error' => 'Invalid request',
+          'error_code' => 'invalid_message',
+          'message' => 'Message is empty after sanitization.',
+          'request_id' => $request_id,
+        ], 400, [], $request_id, FALSE, 'message.invalid_message', TRUE);
+      }
+      // Normalize for classifier checks: strips evasion techniques
+      // (interstitial punctuation, Unicode tricks, spaced-out letters).
+      // $user_message is kept intact for display, intent routing, and retrieval.
+      $normalized_message = InputNormalizer::normalize($user_message);
+      $langfuse_input = $this->buildLangfuseInputPayload($user_message);
+      $this->langfuseTracer?->setTraceInput($langfuse_input['display']);
+      $this->langfuseTracer?->appendTraceMetadata(array_merge(
       $langfuse_input['metadata'],
       $context_trace_metadata,
       [
         'history_length' => count($server_history),
       ],
-    ));
+      ));
 
-    // Check for DEBUG mode (server-side env var only).
-    $debug_mode = $this->isDebugMode($request);
+      // Check for DEBUG mode (server-side env var only).
+      $debug_mode = $this->isDebugMode($request);
+      // The privileged `diagnostics` envelope (which can include redacted
+      // conversation context) is gated behind explicit authorization. The
+      // always-public `meta` envelope below carries only non-PII proof
+      // signals (provider id, model id, used/attempted/blocked booleans,
+      // intent label) so external probes like promptfoo can prove what the
+      // assistant did without holding a diagnostics token.
+      $diagnostics_meta = $this->isDiagnosticsMetadataAllowed($request, $context)
+      ? $this->buildDiagnosticsContract()
+      : NULL;
+      $public_meta = $this->buildDiagnosticsContract();
 
-    // Initialize debug metadata.
-    $debug_meta = $debug_mode ? [
-      'timestamp' => date('c'),
-      'intent_selected' => NULL,
-      'intent_confidence' => NULL,
-      'intent_source' => 'rule_based',
-      'extracted_keywords' => [],
-      'retrieval_results' => [],
-      'retrieval_confidence' => NULL,
-      'final_action' => NULL,
-      'reason_code' => NULL,
-      'gate_decision' => NULL,
-      'gate_reason_code' => NULL,
-      'gate_confidence' => NULL,
-      'safety_flags' => [],
-      'pre_routing_decision' => NULL,
-      'policy_check' => ['passed' => TRUE, 'violation_type' => NULL],
-      'llm_used' => FALSE,
-      'processing_stages' => [],
-    ] : NULL;
+      // Initialize debug metadata.
+      $debug_meta = $debug_mode ? [
+        'timestamp' => date('c'),
+        'intent_selected' => NULL,
+        'intent_confidence' => NULL,
+        'intent_source' => 'rule_based',
+        'extracted_keywords' => [],
+        'retrieval_results' => [],
+        'retrieval_confidence' => NULL,
+        'final_action' => NULL,
+        'reason_code' => NULL,
+        'gate_decision' => NULL,
+        'gate_reason_code' => NULL,
+        'gate_confidence' => NULL,
+        'safety_flags' => [],
+        'pre_routing_decision' => NULL,
+        'policy_check' => ['passed' => TRUE, 'violation_type' => NULL],
+        'llm_used' => FALSE,
+        'processing_stages' => [],
+      ] : NULL;
 
-    // Abuse detection: repeated identical messages.
-    if ($conversation_id && count($server_history) >= 3) {
-      $recent_messages = array_column(array_slice($server_history, -3), 'text');
-      if (count(array_unique($recent_messages)) === 1 && $recent_messages[0] === PiiRedactor::redactForStorage($user_message, 200)) {
-        $response_data = [
-          'type' => 'escalation',
-          'escalation_type' => 'repeated',
-          'message' => (string) $this->t('It looks like you may be having trouble. Please call our Legal Advice Line for direct assistance.'),
-          'actions' => $this->getEscalationActions(),
-          'request_id' => $request_id,
-        ];
-        $langfuse_output = $this->buildLangfuseOutputPayload(
+      // Abuse detection: repeated identical messages.
+      if ($conversation_id && count($server_history) >= 3) {
+        $recent_messages = array_column(array_slice($server_history, -3), 'text');
+        if (count(array_unique($recent_messages)) === 1 && $recent_messages[0] === PiiRedactor::redactForStorage($user_message, 200)) {
+          $response_data = [
+            'type' => 'escalation',
+            'escalation_type' => 'repeated',
+            'message' => (string) $this->t('It looks like you may be having trouble. Please call our Legal Advice Line for direct assistance.'),
+            'actions' => $this->getEscalationActions(),
+            'request_id' => $request_id,
+          ];
+          $langfuse_output = $this->buildLangfuseOutputPayload(
           (string) ($response_data['message'] ?? ''),
           (string) ($response_data['type'] ?? 'unknown'),
           'repeated_message_escalation',
-        );
-        $this->langfuseTracer?->endTrace(
-          output: $langfuse_output['display'],
-          metadata: array_merge(
+          );
+          $this->langfuseTracer?->endTrace(
+            output: $langfuse_output['display'],
+            metadata: array_merge(
             $langfuse_base_metadata,
             [
               'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
@@ -2055,84 +2146,95 @@ class AssistantApiController extends ControllerBase {
               'fallback_path' => 'repeated_message_escalation',
             ],
             $langfuse_output['metadata'],
-          ),
-        );
-        $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
-        return $this->monitoredJsonResponse(
-          $request,
-          PerformanceMonitor::ENDPOINT_MESSAGE,
-          $response_data,
-          200,
-          [],
-          $request_id,
-          TRUE,
-          'message.repeated_message_escalation',
-        );
+            ),
+          );
+          $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
+          $public_meta['safety']['blocked'] = FALSE;
+          $public_meta['safety']['stage'] = 'escalation_redirect';
+          $public_meta['safety']['class'] = 'repeated_message';
+          $public_meta['safety']['reason_code'] = 'repeated_message_escalation';
+          $public_meta['generation']['used'] = FALSE;
+          $public_meta['generation']['reason'] = 'repeated_message_escalation';
+          $response_data['meta'] = $public_meta;
+          if (is_array($diagnostics_meta)) {
+            $diagnostics_meta = array_replace_recursive($diagnostics_meta, $public_meta);
+            $response_data = $this->attachDiagnosticsMetadata($response_data, $diagnostics_meta);
+          }
+          return $this->monitoredJsonResponse(
+            $request,
+            PerformanceMonitor::ENDPOINT_MESSAGE,
+            $response_data,
+            200,
+            [],
+            $request_id,
+            TRUE,
+            'message.repeated_message_escalation',
+          );
+        }
       }
-    }
 
-    // Compute A/B testing variant assignments (deterministic per conversation).
-    $ab_assignments = [];
-    if ($conversation_id && $this->abTesting && $this->abTesting->isEnabled()) {
-      $ab_assignments = $this->abTesting->getAssignments($conversation_id);
-      if (!empty($ab_assignments)) {
-        $this->analyticsLogger->log('ab_assignment', ObservabilityPayloadMinimizer::serializeAssignments($ab_assignments));
+      // Compute A/B testing variant assignments (deterministic per conversation).
+      $ab_assignments = [];
+      if ($conversation_id && $this->abTesting && $this->abTesting->isEnabled()) {
+        $ab_assignments = $this->abTesting->getAssignments($conversation_id);
+        if (!empty($ab_assignments)) {
+          $this->analyticsLogger->log('ab_assignment', ObservabilityPayloadMinimizer::serializeAssignments($ab_assignments));
+        }
       }
-    }
 
-    // Extract keywords for debug (avoid storing raw user text).
-    if ($debug_mode) {
-      $debug_meta['extracted_keywords'] = $this->extractKeywords($user_message);
-      if (!empty($ab_assignments)) {
-        $debug_meta['ab_assignments'] = $ab_assignments;
+      // Extract keywords for debug (avoid storing raw user text).
+      if ($debug_mode) {
+        $debug_meta['extracted_keywords'] = $this->extractKeywords($user_message);
+        if (!empty($ab_assignments)) {
+          $debug_meta['ab_assignments'] = $ab_assignments;
+        }
+        $debug_meta['processing_stages'][] = 'input_sanitized';
       }
-      $debug_meta['processing_stages'][] = 'input_sanitized';
-    }
 
-    // ─── PRE-ROUTING DECISION CONTRACT (v3.0) ────────────────────────
-    // Safety, out-of-scope, policy fallback, and urgency override precedence
-    // are evaluated once by PreRoutingDecisionEngine.
-    // ─────────────────────────────────────────────────────────────────
-    $this->langfuseTracer?->startSpan('pre_routing.evaluate');
-    $pre_routing_decision = $this->preRoutingDecisionEngine->evaluate($normalized_message);
-    $safety_classification = $pre_routing_decision['safety'];
-    $oos_classification = $pre_routing_decision['oos'];
-    $policy_result = $pre_routing_decision['policy'];
-    $safety_flags_for_gate = $pre_routing_decision['urgency_signals'] ?? [];
-    $routing_override_intent = $pre_routing_decision['routing_override_intent'];
+      // ─── PRE-ROUTING DECISION CONTRACT (v3.0) ────────────────────────
+      // Safety, out-of-scope, policy fallback, and urgency override precedence
+      // are evaluated once by PreRoutingDecisionEngine.
+      // ─────────────────────────────────────────────────────────────────
+      $this->langfuseTracer?->startSpan('pre_routing.evaluate');
+      $pre_routing_decision = $this->preRoutingDecisionEngine->evaluate($normalized_message);
+      $safety_classification = $pre_routing_decision['safety'];
+      $oos_classification = $pre_routing_decision['oos'];
+      $policy_result = $pre_routing_decision['policy'];
+      $safety_flags_for_gate = $pre_routing_decision['urgency_signals'] ?? [];
+      $routing_override_intent = $pre_routing_decision['routing_override_intent'];
 
-    if ($debug_mode) {
-      $debug_meta['safety_flags'] = $safety_flags_for_gate;
-      $debug_meta['safety_classification'] = [
-        'class' => $safety_classification['class'] ?? SafetyClassifier::CLASS_SAFE,
-        'reason_code' => $safety_classification['reason_code'] ?? 'safe',
-        'escalation_level' => $safety_classification['escalation_level'] ?? SafetyClassifier::ESCALATION_NONE,
-        'is_safe' => $safety_classification['is_safe'] ?? TRUE,
-      ];
-      $debug_meta['oos_classification'] = [
-        'is_out_of_scope' => $oos_classification['is_out_of_scope'] ?? FALSE,
-        'category' => $oos_classification['category'] ?? OutOfScopeClassifier::CATEGORY_IN_SCOPE,
-        'reason_code' => $oos_classification['reason_code'] ?? 'in_scope',
-        'response_type' => $oos_classification['response_type'] ?? OutOfScopeClassifier::RESPONSE_IN_SCOPE,
-      ];
-      $debug_meta['policy_check'] = [
-        'passed' => !($policy_result['violation'] ?? FALSE),
-        'violation_type' => $policy_result['type'] ?? NULL,
-      ];
-      $debug_meta['pre_routing_decision'] = [
-        'decision_type' => $pre_routing_decision['decision_type'],
-        'winner_source' => $pre_routing_decision['winner_source'],
-        'reason_code' => $pre_routing_decision['reason_code'],
-        'routing_override_intent' => $routing_override_intent,
-      ];
-      $debug_meta['processing_stages'][] = 'safety_classified';
-      $debug_meta['processing_stages'][] = 'oos_classified';
-      $debug_meta['processing_stages'][] = 'policy_checked';
-      $debug_meta['processing_stages'][] = 'pre_routing_evaluated';
-    }
+      if ($debug_mode) {
+        $debug_meta['safety_flags'] = $safety_flags_for_gate;
+        $debug_meta['safety_classification'] = [
+          'class' => $safety_classification['class'] ?? SafetyClassifier::CLASS_SAFE,
+          'reason_code' => $safety_classification['reason_code'] ?? 'safe',
+          'escalation_level' => $safety_classification['escalation_level'] ?? SafetyClassifier::ESCALATION_NONE,
+          'is_safe' => $safety_classification['is_safe'] ?? TRUE,
+        ];
+        $debug_meta['oos_classification'] = [
+          'is_out_of_scope' => $oos_classification['is_out_of_scope'] ?? FALSE,
+          'category' => $oos_classification['category'] ?? OutOfScopeClassifier::CATEGORY_IN_SCOPE,
+          'reason_code' => $oos_classification['reason_code'] ?? 'in_scope',
+          'response_type' => $oos_classification['response_type'] ?? OutOfScopeClassifier::RESPONSE_IN_SCOPE,
+        ];
+        $debug_meta['policy_check'] = [
+          'passed' => !($policy_result['violation'] ?? FALSE),
+          'violation_type' => $policy_result['type'] ?? NULL,
+        ];
+        $debug_meta['pre_routing_decision'] = [
+          'decision_type' => $pre_routing_decision['decision_type'],
+          'winner_source' => $pre_routing_decision['winner_source'],
+          'reason_code' => $pre_routing_decision['reason_code'],
+          'routing_override_intent' => $routing_override_intent,
+        ];
+        $debug_meta['processing_stages'][] = 'safety_classified';
+        $debug_meta['processing_stages'][] = 'oos_classified';
+        $debug_meta['processing_stages'][] = 'policy_checked';
+        $debug_meta['processing_stages'][] = 'pre_routing_evaluated';
+      }
 
-    if ($pre_routing_decision['decision_type'] === PreRoutingDecisionEngine::DECISION_SAFETY_EXIT) {
-      $safety_response = $this->safetyResponseTemplates
+      if ($pre_routing_decision['decision_type'] === PreRoutingDecisionEngine::DECISION_SAFETY_EXIT) {
+        $safety_response = $this->safetyResponseTemplates
         ? $this->safetyResponseTemplates->getResponse($safety_classification)
         : [
           'type' => ($safety_classification['requires_refusal'] ?? FALSE) ? 'refusal' : 'escalation',
@@ -2142,69 +2244,69 @@ class AssistantApiController extends ControllerBase {
           'links' => [],
         ];
 
-      $this->analyticsLogger->log('safety_violation', $safety_classification['reason_code']);
-      if ($this->violationTracker) {
-        $this->violationTracker->record(time());
-      }
+        $this->analyticsLogger->log('safety_violation', $safety_classification['reason_code']);
+        if ($this->violationTracker) {
+          $this->violationTracker->record(time());
+        }
 
-      if ($debug_mode) {
-        $debug_meta['policy_check'] = [
-          'passed' => FALSE,
-          'violation_type' => $safety_classification['class'],
+        if ($debug_mode) {
+          $debug_meta['policy_check'] = [
+            'passed' => FALSE,
+            'violation_type' => $safety_classification['class'],
+            'reason_code' => $safety_classification['reason_code'],
+          ];
+          $debug_meta['final_action'] = ($safety_classification['requires_refusal'] ?? FALSE) ? 'refusal' : 'escalation';
+          $debug_meta['reason_code'] = $safety_classification['reason_code'];
+          $debug_meta['intent_selected'] = 'safety_' . $safety_classification['class'];
+        }
+
+        $response_data = [
+          'type' => $safety_response['type'],
+          'escalation_type' => $safety_response['escalation_type'] ?? ($safety_classification['class'] ?? 'safety'),
+          'escalation_level' => $safety_response['escalation_level'] ?? ($safety_classification['escalation_level'] ?? 'standard'),
+          'message' => $safety_response['message'],
+          'links' => $safety_response['links'] ?? [],
+          'actions' => $this->getEscalationActions(),
           'reason_code' => $safety_classification['reason_code'],
+          'request_id' => $request_id,
         ];
-        $debug_meta['final_action'] = ($safety_classification['requires_refusal'] ?? FALSE) ? 'refusal' : 'escalation';
-        $debug_meta['reason_code'] = $safety_classification['reason_code'];
-        $debug_meta['intent_selected'] = 'safety_' . $safety_classification['class'];
-      }
 
-      $response_data = [
-        'type' => $safety_response['type'],
-        'escalation_type' => $safety_response['escalation_type'] ?? ($safety_classification['class'] ?? 'safety'),
-        'escalation_level' => $safety_response['escalation_level'] ?? ($safety_classification['escalation_level'] ?? 'standard'),
-        'message' => $safety_response['message'],
-        'links' => $safety_response['links'] ?? [],
-        'actions' => $this->getEscalationActions(),
-        'reason_code' => $safety_classification['reason_code'],
-        'request_id' => $request_id,
-      ];
+        if (!empty($safety_response['disclaimer'])) {
+          $response_data['disclaimer'] = $safety_response['disclaimer'];
+        }
 
-      if (!empty($safety_response['disclaimer'])) {
-        $response_data['disclaimer'] = $safety_response['disclaimer'];
-      }
+        if ($debug_mode) {
+          $response_data['_debug'] = $debug_meta;
+        }
 
-      if ($debug_mode) {
-        $response_data['_debug'] = $debug_meta;
-      }
-
-      $safety_telemetry = TelemetrySchema::normalize(
+        $safety_telemetry = TelemetrySchema::normalize(
         intent: 'safety_exit',
         safety_class: $safety_classification['class'],
         fallback_path: 'none',
         request_id: $request_id,
-      );
-      $this->logger->notice('[@request_id] Safety exit: class=@class reason=@reason level=@level', TelemetrySchema::toLogContext(
-        $safety_telemetry,
-        [
-          '@class' => $safety_classification['class'],
-          '@reason' => $safety_classification['reason_code'],
-          '@level' => $safety_classification['escalation_level'],
-        ]
-      ));
+        );
+        $this->logger->notice('[@request_id] Safety exit: class=@class reason=@reason level=@level', TelemetrySchema::toLogContext(
+          $safety_telemetry,
+          [
+            '@class' => $safety_classification['class'],
+            '@reason' => $safety_classification['reason_code'],
+            '@level' => $safety_classification['escalation_level'],
+          ]
+        ));
 
-      $this->langfuseTracer?->endSpan([
-        'decision_type' => $pre_routing_decision['decision_type'],
-        'winner_source' => $pre_routing_decision['winner_source'],
-        'reason_code' => $pre_routing_decision['reason_code'],
-      ]);
-      $langfuse_output = $this->buildLangfuseOutputPayload(
-        (string) ($response_data['message'] ?? ''),
-        (string) ($response_data['type'] ?? 'unknown'),
-        $response_data['reason_code'] ?? NULL,
-      );
-      $this->langfuseTracer?->endTrace(
-        output: $langfuse_output['display'],
-        metadata: array_merge(
+        $this->langfuseTracer?->endSpan([
+          'decision_type' => $pre_routing_decision['decision_type'],
+          'winner_source' => $pre_routing_decision['winner_source'],
+          'reason_code' => $pre_routing_decision['reason_code'],
+        ]);
+        $langfuse_output = $this->buildLangfuseOutputPayload(
+          (string) ($response_data['message'] ?? ''),
+          (string) ($response_data['type'] ?? 'unknown'),
+          $response_data['reason_code'] ?? NULL,
+        );
+        $this->langfuseTracer?->endTrace(
+          output: $langfuse_output['display'],
+          metadata: array_merge(
           $langfuse_base_metadata,
           [
             'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
@@ -2213,24 +2315,61 @@ class AssistantApiController extends ControllerBase {
           ],
           $safety_telemetry,
           $langfuse_output['metadata'],
-        )
-      );
+          )
+        );
 
-      $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
-      return $this->monitoredJsonResponse(
-        $request,
-        PerformanceMonitor::ENDPOINT_MESSAGE,
-        $response_data,
-        200,
-        [],
-        $request_id,
-        TRUE,
-        'message.safety_exit',
-      );
-    }
+        $this->persistEvictionSafetyExitContext(
+          $conversation_id,
+          $server_history,
+          $user_message,
+          $safety_classification,
+          $safety_flags_for_gate,
+          $response_data['type'] ?? NULL,
+          $session_fingerprint,
+        );
 
-    if ($pre_routing_decision['decision_type'] === PreRoutingDecisionEngine::DECISION_OOS_EXIT) {
-      $oos_response = $this->outOfScopeResponseTemplates
+        $response_data = $this->assembleContractFields($response_data, NULL, 'safety');
+        $public_meta['safety']['blocked'] = TRUE;
+        // Generation never ran on the safety-exit path: the pre-routing
+        // decision short-circuits before LLM admission. Mark the stage so
+        // promptfoo can prove pre-generation refusal.
+        $public_meta['safety']['stage'] = 'pre_generation_block';
+        $public_meta['safety']['class'] = (string) ($safety_classification['class'] ?? '');
+        $public_meta['safety']['reason_code'] = (string) ($safety_classification['reason_code'] ?? '');
+        $public_meta['generation']['used'] = FALSE;
+        $public_meta['generation']['reason'] = 'safety_blocked';
+        // Surface the safety classification on the public response so the
+        // promptfoo normalizer can map it to safety.* metadata without
+        // privileged access.
+        $response_data['safety_classification'] = [
+          'class' => (string) ($safety_classification['class'] ?? ''),
+          'reason_code' => (string) ($safety_classification['reason_code'] ?? ''),
+          'blocked' => TRUE,
+        ];
+        $this->recordIntentDiagnostics(
+          $public_meta,
+          ['type' => 'safety_' . ($safety_classification['class'] ?? 'unknown'), 'source' => 'safety_classifier'],
+          'safety_classifier'
+        );
+        $response_data['meta'] = $public_meta;
+        if (is_array($diagnostics_meta)) {
+          $diagnostics_meta = array_replace_recursive($diagnostics_meta, $public_meta);
+          $response_data = $this->attachDiagnosticsMetadata($response_data, $diagnostics_meta);
+        }
+        return $this->monitoredJsonResponse(
+          $request,
+          PerformanceMonitor::ENDPOINT_MESSAGE,
+          $response_data,
+          200,
+          [],
+          $request_id,
+          TRUE,
+          'message.safety_exit',
+        );
+      }
+
+      if ($pre_routing_decision['decision_type'] === PreRoutingDecisionEngine::DECISION_OOS_EXIT) {
+        $oos_response = $this->outOfScopeResponseTemplates
         ? $this->outOfScopeResponseTemplates->getResponse($oos_classification)
         : [
           'type' => 'out_of_scope',
@@ -2242,62 +2381,62 @@ class AssistantApiController extends ControllerBase {
           'can_still_help' => FALSE,
         ];
 
-      $this->analyticsLogger->log('out_of_scope', $oos_classification['reason_code']);
+        $this->analyticsLogger->log('out_of_scope', $oos_classification['reason_code']);
 
-      if ($debug_mode) {
-        $debug_meta['final_action'] = 'out_of_scope';
-        $debug_meta['reason_code'] = $oos_classification['reason_code'];
-        $debug_meta['intent_selected'] = 'oos_' . $oos_classification['category'];
-      }
+        if ($debug_mode) {
+          $debug_meta['final_action'] = 'out_of_scope';
+          $debug_meta['reason_code'] = $oos_classification['reason_code'];
+          $debug_meta['intent_selected'] = 'oos_' . $oos_classification['category'];
+        }
 
-      $response_data = [
-        'type' => $oos_response['type'],
-        'response_mode' => $oos_response['response_mode'] ?? 'redirect',
-        'escalation_type' => $oos_response['escalation_type'] ?? ($oos_classification['category'] ?? 'out_of_scope'),
-        'message' => $oos_response['message'],
-        'links' => $oos_response['links'] ?? [],
-        'suggestions' => $oos_response['suggestions'] ?? [],
-        'actions' => $this->getEscalationActions(),
-        'reason_code' => $oos_classification['reason_code'],
-        'can_still_help' => $oos_response['can_still_help'] ?? FALSE,
-        'request_id' => $request_id,
-      ];
+        $response_data = [
+          'type' => $oos_response['type'],
+          'response_mode' => $oos_response['response_mode'] ?? 'redirect',
+          'escalation_type' => $oos_response['escalation_type'] ?? ($oos_classification['category'] ?? 'out_of_scope'),
+          'message' => $oos_response['message'],
+          'links' => $oos_response['links'] ?? [],
+          'suggestions' => $oos_response['suggestions'] ?? [],
+          'actions' => $this->getEscalationActions(),
+          'reason_code' => $oos_classification['reason_code'],
+          'can_still_help' => $oos_response['can_still_help'] ?? FALSE,
+          'request_id' => $request_id,
+        ];
 
-      if (!empty($oos_response['disclaimer'])) {
-        $response_data['disclaimer'] = $oos_response['disclaimer'];
-      }
+        if (!empty($oos_response['disclaimer'])) {
+          $response_data['disclaimer'] = $oos_response['disclaimer'];
+        }
 
-      if ($debug_mode) {
-        $response_data['_debug'] = $debug_meta;
-      }
+        if ($debug_mode) {
+          $response_data['_debug'] = $debug_meta;
+        }
 
-      $oos_telemetry = TelemetrySchema::normalize(
+        $oos_telemetry = TelemetrySchema::normalize(
         intent: 'oos_' . $oos_classification['category'],
         safety_class: $safety_classification ? $safety_classification['class'] : 'safe',
         fallback_path: 'none',
         request_id: $request_id,
-      );
-      $this->logger->notice('[@request_id] Out-of-scope exit: category=@category reason=@reason', TelemetrySchema::toLogContext(
-        $oos_telemetry,
-        [
-          '@category' => $oos_classification['category'],
-          '@reason' => $oos_classification['reason_code'],
-        ]
-      ));
+        );
+        $this->logger->notice('[@request_id] Out-of-scope exit: category=@category reason=@reason', TelemetrySchema::toLogContext(
+          $oos_telemetry,
+          [
+            '@category' => $oos_classification['category'],
+            '@reason' => $oos_classification['reason_code'],
+          ]
+        ));
 
-      $this->langfuseTracer?->endSpan([
-        'decision_type' => $pre_routing_decision['decision_type'],
-        'winner_source' => $pre_routing_decision['winner_source'],
-        'reason_code' => $pre_routing_decision['reason_code'],
-      ]);
-      $langfuse_output = $this->buildLangfuseOutputPayload(
-        (string) ($response_data['message'] ?? ''),
-        (string) ($response_data['type'] ?? 'unknown'),
-        $response_data['reason_code'] ?? NULL,
-      );
-      $this->langfuseTracer?->endTrace(
-        output: $langfuse_output['display'],
-        metadata: array_merge(
+        $this->langfuseTracer?->endSpan([
+          'decision_type' => $pre_routing_decision['decision_type'],
+          'winner_source' => $pre_routing_decision['winner_source'],
+          'reason_code' => $pre_routing_decision['reason_code'],
+        ]);
+        $langfuse_output = $this->buildLangfuseOutputPayload(
+          (string) ($response_data['message'] ?? ''),
+          (string) ($response_data['type'] ?? 'unknown'),
+          $response_data['reason_code'] ?? NULL,
+        );
+        $this->langfuseTracer?->endTrace(
+          output: $langfuse_output['display'],
+          metadata: array_merge(
           $langfuse_base_metadata,
           [
             'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
@@ -2306,76 +2445,101 @@ class AssistantApiController extends ControllerBase {
           ],
           $oos_telemetry,
           $langfuse_output['metadata'],
-        )
-      );
+          )
+        );
 
-      $response_data = $this->assembleContractFields($response_data, NULL, 'oos');
-      return $this->monitoredJsonResponse(
-        $request,
-        PerformanceMonitor::ENDPOINT_MESSAGE,
-        $response_data,
-        200,
-        [],
-        $request_id,
-        TRUE,
-        'message.out_of_scope_exit',
-      );
-    }
-
-    if ($pre_routing_decision['decision_type'] === PreRoutingDecisionEngine::DECISION_POLICY_EXIT) {
-      $this->analyticsLogger->log('policy_violation', $policy_result['type']);
-
-      if ($debug_mode) {
-        $debug_meta['policy_check'] = [
-          'passed' => FALSE,
-          'violation_type' => $policy_result['type'],
+        $response_data = $this->assembleContractFields($response_data, NULL, 'oos');
+        // OOS is a redirect, not a hard refusal — generation also never
+        // ran, but the response is informational rather than a safety
+        // block. The normalizer relies on `stage` to disambiguate.
+        $public_meta['safety']['blocked'] = FALSE;
+        $public_meta['safety']['stage'] = 'out_of_scope_redirect';
+        $public_meta['safety']['class'] = (string) ($oos_classification['class'] ?? '');
+        $public_meta['safety']['reason_code'] = (string) ($oos_classification['reason_code'] ?? '');
+        $public_meta['generation']['used'] = FALSE;
+        $public_meta['generation']['reason'] = 'out_of_scope_blocked';
+        $response_data['out_of_scope_classification'] = [
+          'class' => (string) ($oos_classification['class'] ?? ''),
+          'category' => (string) ($oos_classification['category'] ?? ''),
+          'reason_code' => (string) ($oos_classification['reason_code'] ?? ''),
+          'blocked' => FALSE,
         ];
-        $debug_meta['final_action'] = 'escalation';
-        $debug_meta['reason_code'] = 'policy_' . $policy_result['type'];
-        $debug_meta['intent_selected'] = 'escalation';
+        $this->recordIntentDiagnostics(
+          $public_meta,
+          ['type' => 'oos_' . ($oos_classification['category'] ?? 'unknown'), 'source' => 'oos_classifier'],
+          'oos_classifier'
+        );
+        $response_data['meta'] = $public_meta;
+        if (is_array($diagnostics_meta)) {
+          $diagnostics_meta = array_replace_recursive($diagnostics_meta, $public_meta);
+          $response_data = $this->attachDiagnosticsMetadata($response_data, $diagnostics_meta);
+        }
+        return $this->monitoredJsonResponse(
+          $request,
+          PerformanceMonitor::ENDPOINT_MESSAGE,
+          $response_data,
+          200,
+          [],
+          $request_id,
+          TRUE,
+          'message.out_of_scope_exit',
+        );
       }
 
-      $response_data = [
-        'type' => 'escalation',
-        'escalation_type' => $policy_result['type'],
-        'escalation_level' => $policy_result['escalation_level'] ?? 'standard',
-        'message' => $policy_result['response'] ?? '',
-        'links' => $policy_result['links'] ?? [],
-        'actions' => $this->getEscalationActions(),
-        'reason_code' => 'policy_' . $policy_result['type'],
-        'request_id' => $request_id,
-      ];
+      if ($pre_routing_decision['decision_type'] === PreRoutingDecisionEngine::DECISION_POLICY_EXIT) {
+        $this->analyticsLogger->log('policy_violation', $policy_result['type']);
 
-      if ($debug_mode) {
-        $response_data['_debug'] = $debug_meta;
-      }
+        if ($debug_mode) {
+          $debug_meta['policy_check'] = [
+            'passed' => FALSE,
+            'violation_type' => $policy_result['type'],
+          ];
+          $debug_meta['final_action'] = 'escalation';
+          $debug_meta['reason_code'] = 'policy_' . $policy_result['type'];
+          $debug_meta['intent_selected'] = 'escalation';
+        }
 
-      $policy_telemetry = TelemetrySchema::normalize(
+        $response_data = [
+          'type' => 'escalation',
+          'escalation_type' => $policy_result['type'],
+          'escalation_level' => $policy_result['escalation_level'] ?? 'standard',
+          'message' => $policy_result['response'] ?? '',
+          'links' => $policy_result['links'] ?? [],
+          'actions' => $this->getEscalationActions(),
+          'reason_code' => 'policy_' . $policy_result['type'],
+          'request_id' => $request_id,
+        ];
+
+        if ($debug_mode) {
+          $response_data['_debug'] = $debug_meta;
+        }
+
+        $policy_telemetry = TelemetrySchema::normalize(
         intent: 'policy_violation',
         safety_class: $safety_classification ? $safety_classification['class'] : 'safe',
         fallback_path: 'none',
         request_id: $request_id,
-      );
-      $this->logger->notice('[@request_id] Policy violation exit: type=@type', TelemetrySchema::toLogContext(
-        $policy_telemetry,
-        [
-          '@type' => $policy_result['type'],
-        ]
-      ));
+        );
+        $this->logger->notice('[@request_id] Policy violation exit: type=@type', TelemetrySchema::toLogContext(
+          $policy_telemetry,
+          [
+            '@type' => $policy_result['type'],
+          ]
+        ));
 
-      $this->langfuseTracer?->endSpan([
-        'decision_type' => $pre_routing_decision['decision_type'],
-        'winner_source' => $pre_routing_decision['winner_source'],
-        'reason_code' => $pre_routing_decision['reason_code'],
-      ]);
-      $langfuse_output = $this->buildLangfuseOutputPayload(
-        (string) ($response_data['message'] ?? ''),
-        (string) ($response_data['type'] ?? 'unknown'),
-        $response_data['reason_code'] ?? NULL,
-      );
-      $this->langfuseTracer?->endTrace(
-        output: $langfuse_output['display'],
-        metadata: array_merge(
+        $this->langfuseTracer?->endSpan([
+          'decision_type' => $pre_routing_decision['decision_type'],
+          'winner_source' => $pre_routing_decision['winner_source'],
+          'reason_code' => $pre_routing_decision['reason_code'],
+        ]);
+        $langfuse_output = $this->buildLangfuseOutputPayload(
+          (string) ($response_data['message'] ?? ''),
+          (string) ($response_data['type'] ?? 'unknown'),
+          $response_data['reason_code'] ?? NULL,
+        );
+        $this->langfuseTracer?->endTrace(
+          output: $langfuse_output['display'],
+          metadata: array_merge(
           $langfuse_base_metadata,
           [
             'duration_ms' => (microtime(TRUE) - $start_time) * 1000,
@@ -2384,294 +2548,363 @@ class AssistantApiController extends ControllerBase {
           ],
           $policy_telemetry,
           $langfuse_output['metadata'],
-        )
-      );
+          )
+        );
 
-      $response_data = $this->assembleContractFields($response_data, NULL, 'policy');
-      return $this->monitoredJsonResponse(
-        $request,
-        PerformanceMonitor::ENDPOINT_MESSAGE,
-        $response_data,
-        200,
-        [],
-        $request_id,
-        TRUE,
-        'message.policy_exit',
-      );
-    }
+        $response_data = $this->assembleContractFields($response_data, NULL, 'policy');
+        // Policy violations are a hard refusal: pre-generation block.
+        $public_meta['safety']['blocked'] = TRUE;
+        $public_meta['safety']['stage'] = 'pre_generation_block';
+        $public_meta['safety']['class'] = 'policy_violation';
+        $public_meta['safety']['reason_code'] = (string) ($policy_result['type'] ?? 'policy_violation');
+        $public_meta['generation']['used'] = FALSE;
+        $public_meta['generation']['reason'] = 'policy_blocked';
+        $response_data['safety_classification'] = [
+          'class' => 'policy_violation',
+          'reason_code' => (string) ($policy_result['type'] ?? 'policy_violation'),
+          'blocked' => TRUE,
+        ];
+        $this->recordIntentDiagnostics(
+          $public_meta,
+          ['type' => 'policy_violation', 'source' => 'policy_filter'],
+          'policy_filter'
+        );
+        $response_data['meta'] = $public_meta;
+        if (is_array($diagnostics_meta)) {
+          $diagnostics_meta = array_replace_recursive($diagnostics_meta, $public_meta);
+          $response_data = $this->attachDiagnosticsMetadata($response_data, $diagnostics_meta);
+        }
+        return $this->monitoredJsonResponse(
+          $request,
+          PerformanceMonitor::ENDPOINT_MESSAGE,
+          $response_data,
+          200,
+          [],
+          $request_id,
+          TRUE,
+          'message.policy_exit',
+        );
+      }
 
-    $this->langfuseTracer?->endSpan([
-      'decision_type' => $pre_routing_decision['decision_type'],
-      'winner_source' => $pre_routing_decision['winner_source'],
-      'reason_code' => $pre_routing_decision['reason_code'],
-      'override_risk_category' => $routing_override_intent['risk_category'] ?? NULL,
-    ]);
+      $this->langfuseTracer?->endSpan([
+        'decision_type' => $pre_routing_decision['decision_type'],
+        'winner_source' => $pre_routing_decision['winner_source'],
+        'reason_code' => $pre_routing_decision['reason_code'],
+        'override_risk_category' => $routing_override_intent['risk_category'] ?? NULL,
+      ]);
 
-    // Pending follow-up slot-fill: the runner owns state and flow-policy
-    // decisions while the controller still owns response construction.
-    if ($conversation_id) {
-      $this->langfuseTracer?->startSpan('flow.pending.evaluate', [
+      // Pending follow-up slot-fill: the runner owns state and flow-policy
+      // decisions while the controller still owns response construction.
+      // The runner now also consults the housing-eviction continuity decider
+      // so a bare-city follow-up ("This is in Boise.") inside an active
+      // eviction thread is treated as a location refinement rather than an
+      // office search. We pass the active conversation context summary and
+      // server history so the runner can make that decision.
+      if ($conversation_id) {
+        $this->langfuseTracer?->startSpan('flow.pending.evaluate', [
+          'history_length' => count($server_history),
+        ]);
+        $pending_flow_decision = $this->assistantFlowRunner->evaluatePending([
+          'conversation_id' => $conversation_id,
+          'user_message' => $user_message,
+          'is_location_like' => $this->isLocationLikeOfficeReply($user_message),
+          'is_explicit_office_followup' => $this->isExplicitOfficeFollowupTurn($user_message),
+          'session_fingerprint' => $session_fingerprint,
+          'conversation_context_summary' => $conversation_context_summary,
+          'server_history' => $server_history,
+        ]);
+        $pending_action = (string) ($pending_flow_decision['action'] ?? 'none');
+        $pending_status = (string) ($pending_flow_decision['status'] ?? 'continue');
+        $this->langfuseTracer?->endSpan([
+          'status' => $pending_status,
+          'action' => $pending_action,
+          'state_operation' => $pending_flow_decision['state_operation'] ?? NULL,
+        ]);
+        $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+          'pending_flow_action' => $pending_action,
+        ]);
+        $this->langfuseTracer?->appendTraceMetadata([
+          'pending_flow_action' => $pending_action,
+        ]);
+
+        if (($pending_flow_decision['status'] ?? 'continue') === 'handled') {
+          $this->applyOfficeFollowupStateDecision($conversation_id, $session_fingerprint, $pending_flow_decision);
+
+          if (($pending_flow_decision['action'] ?? 'none') === 'resolve' && !empty($pending_flow_decision['office'])) {
+            return $this->handleOfficeFollowUp($request, $pending_flow_decision['office'], $user_message, $conversation_id, $server_history, $request_id, $debug_mode, $debug_meta, $start_time, $langfuse_base_metadata);
+          }
+
+          if (($pending_flow_decision['action'] ?? 'none') === 'clarify' && !empty($pending_flow_decision['offices'])) {
+            return $this->handleOfficeFollowUpClarify($request, $pending_flow_decision['offices'], $user_message, $conversation_id, $server_history, $request_id, $debug_mode, $debug_meta, $start_time, $langfuse_base_metadata);
+          }
+        }
+
+        $this->applyOfficeFollowupStateDecision($conversation_id, $session_fingerprint, $pending_flow_decision);
+      }
+
+      // Quick-action short-circuit: when the request comes from a suggestion
+      // button click, bypass all classifiers/routers and use the action directly.
+      $this->langfuseTracer?->startSpan('intent.route');
+      // Turn classification: determine NEW/FOLLOW_UP/INVENTORY/RESET before routing.
+      $turn_type = TurnClassifier::classifyTurn($user_message, $server_history, time());
+      $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+        'turn_type' => $turn_type,
         'history_length' => count($server_history),
       ]);
-      $pending_flow_decision = $this->assistantFlowRunner->evaluatePending([
-        'conversation_id' => $conversation_id,
-        'user_message' => $user_message,
-        'is_location_like' => $this->isLocationLikeOfficeReply($user_message),
-        'is_explicit_office_followup' => $this->isExplicitOfficeFollowupTurn($user_message),
-        'session_fingerprint' => $session_fingerprint,
-      ]);
-      $pending_action = (string) ($pending_flow_decision['action'] ?? 'none');
-      $pending_status = (string) ($pending_flow_decision['status'] ?? 'continue');
-      $this->langfuseTracer?->endSpan([
-        'status' => $pending_status,
-        'action' => $pending_action,
-        'state_operation' => $pending_flow_decision['state_operation'] ?? NULL,
-      ]);
-      $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
-        'pending_flow_action' => $pending_action,
-      ]);
       $this->langfuseTracer?->appendTraceMetadata([
-        'pending_flow_action' => $pending_action,
+        'turn_type' => $turn_type,
+        'history_length' => count($server_history),
       ]);
+      $this->langfuseTracer?->addEvent('turn.classified', [
+        'turn_type' => $turn_type,
+        'history_length' => count($server_history),
+      ]);
+      if ($debug_mode) {
+        $debug_meta['turn_type'] = $turn_type;
+        $debug_meta['processing_stages'][] = 'turn_classified';
+      }
 
-      if (($pending_flow_decision['status'] ?? 'continue') === 'handled') {
-        $this->applyOfficeFollowupStateDecision($conversation_id, $session_fingerprint, $pending_flow_decision);
+      if ($this->isBackNavigationMessage($user_message) && $active_selection !== NULL) {
+        $resolved_selection = $this->selectionRegistry->getParent($active_selection);
+        $selection_back_navigation = $resolved_selection !== NULL;
+      }
 
-        if (($pending_flow_decision['action'] ?? 'none') === 'resolve' && !empty($pending_flow_decision['office'])) {
-          return $this->handleOfficeFollowUp($request, $pending_flow_decision['office'], $user_message, $conversation_id, $server_history, $request_id, $debug_mode, $debug_meta, $start_time, $langfuse_base_metadata);
+      if ($resolved_selection === NULL) {
+        $resolved_selection = $this->resolveTurnSelection($context, $user_message, $active_selection);
+      }
+
+      $quick_action = $context['quickAction'] ?? NULL;
+      if ($resolved_selection !== NULL) {
+        $this->langfuseTracer?->addEvent('selection.short_circuit', [
+          'selection_button_id' => $resolved_selection['button_id'] ?? NULL,
+          'selection_label' => $resolved_selection['label'] ?? NULL,
+          'selection_source' => $resolved_selection['source'] ?? NULL,
+          'selection_back_navigation' => $selection_back_navigation,
+        ]);
+        $intent = $this->buildSelectionIntent($resolved_selection, $user_message, $selection_back_navigation);
+
+        if ($debug_mode) {
+          $debug_meta['intent_selected'] = $intent['type'];
+          $debug_meta['intent_source'] = $intent['source'] ?? 'selection';
+          $debug_meta['intent_confidence'] = 1.0;
+          $debug_meta['processing_stages'][] = $selection_back_navigation
+            ? 'selection_back_shortcircuit'
+            : 'selection_shortcircuit';
         }
+      }
+      elseif ($quick_action && isset(self::REQUEST_CONTEXT_QUICK_ACTIONS[$quick_action])) {
+        $this->langfuseTracer?->addEvent('quick_action.short_circuit', [
+          'quick_action' => $quick_action,
+        ]);
+        $intent = [
+          'type' => self::REQUEST_CONTEXT_QUICK_ACTIONS[$quick_action],
+          'confidence' => 1.0,
+          'source' => 'quick_action',
+          'extraction' => [],
+        ];
 
-        if (($pending_flow_decision['action'] ?? 'none') === 'clarify' && !empty($pending_flow_decision['offices'])) {
-          return $this->handleOfficeFollowUpClarify($request, $pending_flow_decision['offices'], $user_message, $conversation_id, $server_history, $request_id, $debug_mode, $debug_meta, $start_time, $langfuse_base_metadata);
+        if ($debug_mode) {
+          $debug_meta['intent_selected'] = $intent['type'];
+          $debug_meta['intent_source'] = 'quick_action';
+          $debug_meta['intent_confidence'] = 1.0;
+          $debug_meta['processing_stages'][] = 'quick_action_shortcircuit';
         }
       }
+      elseif ($turn_type === TurnClassifier::TURN_INVENTORY) {
+        // Inventory routing: resolve to forms/guides/services inventory
+        // based on message keywords, bypassing normal intent routing.
+        $inventory_type = TurnClassifier::resolveInventoryType($user_message);
+        $intent = [
+          'type' => $inventory_type,
+          'confidence' => 0.90,
+          'source' => 'turn_classifier_inventory',
+          'extraction' => [],
+        ];
 
-      $this->applyOfficeFollowupStateDecision($conversation_id, $session_fingerprint, $pending_flow_decision);
-    }
-
-    // Quick-action short-circuit: when the request comes from a suggestion
-    // button click, bypass all classifiers/routers and use the action directly.
-    $this->langfuseTracer?->startSpan('intent.route');
-    // Turn classification: determine NEW/FOLLOW_UP/INVENTORY/RESET before routing.
-    $turn_type = TurnClassifier::classifyTurn($user_message, $server_history, time());
-    $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
-      'turn_type' => $turn_type,
-      'history_length' => count($server_history),
-    ]);
-    $this->langfuseTracer?->appendTraceMetadata([
-      'turn_type' => $turn_type,
-      'history_length' => count($server_history),
-    ]);
-    $this->langfuseTracer?->addEvent('turn.classified', [
-      'turn_type' => $turn_type,
-      'history_length' => count($server_history),
-    ]);
-    if ($debug_mode) {
-      $debug_meta['turn_type'] = $turn_type;
-      $debug_meta['processing_stages'][] = 'turn_classified';
-    }
-
-    if ($this->isBackNavigationMessage($user_message) && $active_selection !== NULL) {
-      $resolved_selection = $this->selectionRegistry->getParent($active_selection);
-      $selection_back_navigation = $resolved_selection !== NULL;
-    }
-
-    if ($resolved_selection === NULL) {
-      $resolved_selection = $this->resolveTurnSelection($context, $user_message, $active_selection);
-    }
-
-    $quick_action = $context['quickAction'] ?? NULL;
-    if ($resolved_selection !== NULL) {
-      $this->langfuseTracer?->addEvent('selection.short_circuit', [
-        'selection_button_id' => $resolved_selection['button_id'] ?? NULL,
-        'selection_label' => $resolved_selection['label'] ?? NULL,
-        'selection_source' => $resolved_selection['source'] ?? NULL,
-        'selection_back_navigation' => $selection_back_navigation,
-      ]);
-      $intent = $this->buildSelectionIntent($resolved_selection, $user_message, $selection_back_navigation);
-
-      if ($debug_mode) {
-        $debug_meta['intent_selected'] = $intent['type'];
-        $debug_meta['intent_source'] = $intent['source'] ?? 'selection';
-        $debug_meta['intent_confidence'] = 1.0;
-        $debug_meta['processing_stages'][] = $selection_back_navigation
-          ? 'selection_back_shortcircuit'
-          : 'selection_shortcircuit';
+        if ($debug_mode) {
+          $debug_meta['intent_selected'] = $inventory_type;
+          $debug_meta['intent_source'] = 'turn_classifier_inventory';
+          $debug_meta['intent_confidence'] = 0.90;
+          $debug_meta['processing_stages'][] = 'inventory_shortcircuit';
+        }
       }
-    }
-    elseif ($quick_action && isset(self::REQUEST_CONTEXT_QUICK_ACTIONS[$quick_action])) {
-      $this->langfuseTracer?->addEvent('quick_action.short_circuit', [
-        'quick_action' => $quick_action,
-      ]);
-      $intent = [
-        'type' => self::REQUEST_CONTEXT_QUICK_ACTIONS[$quick_action],
-        'confidence' => 1.0,
-        'source' => 'quick_action',
-        'extraction' => [],
-      ];
-
-      if ($debug_mode) {
-        $debug_meta['intent_selected'] = $intent['type'];
-        $debug_meta['intent_source'] = 'quick_action';
-        $debug_meta['intent_confidence'] = 1.0;
-        $debug_meta['processing_stages'][] = 'quick_action_shortcircuit';
+      else {
+        // Route the intent via normal classification pipeline.
+        $intent = $this->intentRouter->route($user_message, $context);
       }
-    }
-    elseif ($turn_type === TurnClassifier::TURN_INVENTORY) {
-      // Inventory routing: resolve to forms/guides/services inventory
-      // based on message keywords, bypassing normal intent routing.
-      $inventory_type = TurnClassifier::resolveInventoryType($user_message);
-      $intent = [
-        'type' => $inventory_type,
-        'confidence' => 0.90,
-        'source' => 'turn_classifier_inventory',
-        'extraction' => [],
-      ];
 
-      if ($debug_mode) {
-        $debug_meta['intent_selected'] = $inventory_type;
-        $debug_meta['intent_source'] = 'turn_classifier_inventory';
-        $debug_meta['intent_confidence'] = 0.90;
-        $debug_meta['processing_stages'][] = 'inventory_shortcircuit';
-      }
-    }
-    else {
-      // Route the intent via normal classification pipeline.
-      $intent = $this->intentRouter->route($user_message, $context);
-    }
+      // History-aware fallback: if direct routing returns unknown, check
+      // conversation history for a dominant recent intent.
+      $direct_intent_type = $intent['type'] ?? 'unknown';
 
-    // History-aware fallback: if direct routing returns unknown, check
-    // conversation history for a dominant recent intent.
-    $direct_intent_type = $intent['type'] ?? 'unknown';
-
-    // Enhanced follow-up: when TurnClassifier detects FOLLOW_UP, proactively
-    // resolve history context even before routing fails. This allows topic
-    // context to be available for partial matches, not just unknown.
-    if ($turn_type === TurnClassifier::TURN_FOLLOW_UP && !empty($server_history)) {
-      $topic_ctx = HistoryIntentResolver::extractTopicContext($server_history);
-      if ($topic_ctx && !empty($topic_ctx['area'])) {
-        // If routing returned unknown, use full history fallback.
-        if ($direct_intent_type === 'unknown') {
-          $history_config = $this->configFactory->get('ilas_site_assistant.settings');
-          $history_fallback_settings = $history_config->get('history_fallback') ?? [];
-          if ($history_fallback_settings['enabled'] ?? TRUE) {
-            $history_result = HistoryIntentResolver::resolveFromHistory(
+      // Enhanced follow-up: when TurnClassifier detects FOLLOW_UP, proactively
+      // resolve history context even before routing fails. This allows topic
+      // context to be available for partial matches, not just unknown.
+      if ($turn_type === TurnClassifier::TURN_FOLLOW_UP && !empty($server_history)) {
+        $topic_ctx = HistoryIntentResolver::extractTopicContext($server_history);
+        if ($topic_ctx && !empty($topic_ctx['area'])) {
+          // If routing returned unknown, use full history fallback.
+          if ($direct_intent_type === 'unknown') {
+            $history_config = $this->configFactory->get('ilas_site_assistant.settings');
+            $history_fallback_settings = $history_config->get('history_fallback') ?? [];
+            if ($history_fallback_settings['enabled'] ?? TRUE) {
+              $history_result = HistoryIntentResolver::resolveFromHistory(
               $server_history, $user_message, time(), $history_fallback_settings
-            );
-            if ($history_result) {
-              $h_topic_ctx = $history_result['topic_context'] ?? NULL;
-              $intent = [
-                'type' => $history_result['intent'],
-                'confidence' => min(0.65, $history_result['confidence']),
-                'source' => 'history_fallback',
-                'extraction' => $intent['extraction'] ?? [],
-                'history_meta' => $history_result,
-              ];
-              if ($h_topic_ctx) {
-                $intent['area'] = $h_topic_ctx['area'] ?? NULL;
-                $intent['topic_id'] = $h_topic_ctx['topic_id'] ?? NULL;
-                $intent['topic'] = $h_topic_ctx['topic'] ?? NULL;
+              );
+              if ($history_result) {
+                $h_topic_ctx = $history_result['topic_context'] ?? NULL;
+                $intent = [
+                  'type' => $history_result['intent'],
+                  'confidence' => min(0.65, $history_result['confidence']),
+                  'source' => 'history_fallback',
+                  'extraction' => $intent['extraction'] ?? [],
+                  'history_meta' => $history_result,
+                ];
+                if ($h_topic_ctx) {
+                  $intent['area'] = $h_topic_ctx['area'] ?? NULL;
+                  $intent['topic_id'] = $h_topic_ctx['topic_id'] ?? NULL;
+                  $intent['topic'] = $h_topic_ctx['topic'] ?? NULL;
+                }
               }
             }
           }
-        }
-        else {
-          // Routing found a match, but enrich it with topic context from
-          // history so downstream can use it (e.g., service_area follow-up).
-          $intent_source = (string) ($intent['source'] ?? '');
-          if (empty($intent['area']) && !$this->isDeterministicIntentSource($intent_source) && $direct_intent_type !== 'thanks') {
-            $intent['area'] = $topic_ctx['area'];
-            $intent['topic_id'] = $topic_ctx['topic_id'] ?? NULL;
-            $intent['topic'] = $topic_ctx['topic'] ?? NULL;
+          else {
+            // Routing found a match, but enrich it with topic context from
+            // history so downstream can use it (e.g., service_area follow-up).
+            $intent_source = (string) ($intent['source'] ?? '');
+            if (empty($intent['area']) && !$this->isDeterministicIntentSource($intent_source) && $direct_intent_type !== 'thanks') {
+              $intent['area'] = $topic_ctx['area'];
+              $intent['topic_id'] = $topic_ctx['topic_id'] ?? NULL;
+              $intent['topic'] = $topic_ctx['topic'] ?? NULL;
+            }
           }
         }
       }
-    }
-    elseif ($direct_intent_type === 'unknown' && !empty($server_history)) {
-      // Standard history fallback for non-follow-up unknown intents.
-      $history_config = $this->configFactory->get('ilas_site_assistant.settings');
-      $history_fallback_settings = $history_config->get('history_fallback') ?? [];
-      if ($history_fallback_settings['enabled'] ?? TRUE) {
-        $history_result = HistoryIntentResolver::resolveFromHistory(
+      elseif ($direct_intent_type === 'unknown' && !empty($server_history)) {
+        // Standard history fallback for non-follow-up unknown intents.
+        $history_config = $this->configFactory->get('ilas_site_assistant.settings');
+        $history_fallback_settings = $history_config->get('history_fallback') ?? [];
+        if ($history_fallback_settings['enabled'] ?? TRUE) {
+          $history_result = HistoryIntentResolver::resolveFromHistory(
           $server_history, $user_message, time(), $history_fallback_settings
-        );
-        if ($history_result) {
-          $topic_ctx = $history_result['topic_context'] ?? NULL;
-          $intent = [
-            'type' => $history_result['intent'],
-            'confidence' => min(0.65, $history_result['confidence']),
-            'source' => 'history_fallback',
-            'extraction' => $intent['extraction'] ?? [],
-            'history_meta' => $history_result,
-          ];
-          if ($topic_ctx) {
-            $intent['area'] = $topic_ctx['area'] ?? NULL;
-            $intent['topic_id'] = $topic_ctx['topic_id'] ?? NULL;
-            $intent['topic'] = $topic_ctx['topic'] ?? NULL;
+          );
+          if ($history_result) {
+            $topic_ctx = $history_result['topic_context'] ?? NULL;
+            $intent = [
+              'type' => $history_result['intent'],
+              'confidence' => min(0.65, $history_result['confidence']),
+              'source' => 'history_fallback',
+              'extraction' => $intent['extraction'] ?? [],
+              'history_meta' => $history_result,
+            ];
+            if ($topic_ctx) {
+              $intent['area'] = $topic_ctx['area'] ?? NULL;
+              $intent['topic_id'] = $topic_ctx['topic_id'] ?? NULL;
+              $intent['topic'] = $topic_ctx['topic'] ?? NULL;
+            }
           }
         }
       }
-    }
 
-    // Follow-up continuity guard: when the user asks a generic follow-up
-    // question, preserve the prior service-area context instead of drifting
-    // into generic resources/offices navigation.
-    $followup_topic_context = HistoryIntentResolver::extractTopicContext($server_history);
-    $history_area = $followup_topic_context['area'] ?? NULL;
-    $generic_followup_intents = [
-      'unknown',
-      'resources',
-      'faq',
-      'meta_help',
-      'meta_information',
-      'services_overview',
-      'forms_finder',
-      'guides_finder',
-    ];
-    $is_acknowledgement_turn = (bool) preg_match('/\b(thanks|thank\s*you|gracias|ok(?:ay)?|got\s*it|sounds\s*good)\b/u', mb_strtolower($user_message));
-    $is_follow_up_turn = ($turn_type === TurnClassifier::TURN_FOLLOW_UP);
+      // Follow-up continuity guard: when the user asks a generic follow-up
+      // question, preserve the prior service-area context instead of drifting
+      // into generic resources/offices navigation.
+      $followup_topic_context = HistoryIntentResolver::extractTopicContext($server_history);
+      $history_area = $followup_topic_context['area'] ?? NULL;
+      $generic_followup_intents = [
+        'unknown',
+        'resources',
+        'faq',
+        'meta_help',
+        'meta_information',
+        'meta_what_do_you_do',
+        'intent_pack_meta_what_do_you_do',
+        'intent_pack_meta_information',
+        'services_overview',
+        'forms_finder',
+        'guides_finder',
+      ];
+      $is_acknowledgement_turn = (bool) preg_match('/\b(thanks|thank\s*you|gracias|ok(?:ay)?|got\s*it|sounds\s*good)\b/u', mb_strtolower($user_message));
+      $is_follow_up_turn = ($turn_type === TurnClassifier::TURN_FOLLOW_UP);
 
-    // Office continuity guard: if a follow-up asks for office details and
-    // office context can be resolved from recent history, force office intent.
-    if (!empty($server_history) && $this->isOfficeDetailRequest($user_message)) {
-      $office_resolver = new OfficeLocationResolver();
-      $office_from_context = $this->resolveOfficeFromMessageOrHistory($user_message, $server_history, $office_resolver);
-      if ($office_from_context) {
+      // Office continuity guard: if a follow-up asks for office details and
+      // office context can be resolved from recent history, force office intent.
+      if (!empty($server_history) && $this->isOfficeDetailRequest($user_message)) {
+        $office_resolver = $this->assistantFlowRunner->getOfficeLocationResolver();
+        $office_from_context = $this->resolveOfficeFromMessageOrHistory($user_message, $server_history, $office_resolver);
+        if ($office_from_context) {
+          $intent = [
+            'type' => 'offices',
+            'confidence' => max(0.82, (float) ($intent['confidence'] ?? 0.0)),
+            'source' => 'office_detail_followup_context',
+            'extraction' => $intent['extraction'] ?? [],
+          ];
+        }
+      }
+
+      // Housing-eviction continuity guard: a generic location reply
+      // ("I'm in Ada County") or "what are my next steps" inside an active
+      // eviction conversation must stay in housing context so the
+      // service_area branch can render the eviction-specific message
+      // instead of falling into a low-confidence grounding refusal.
+      //
+      // Only fires when the current intent is one of the generic / ambiguous
+      // follow-up intents already enumerated above. A clear new topic (e.g.
+      // topic_family for "custody", topic_consumer for "debt collection",
+      // service_area area=family) must never be overridden, even if the
+      // message also carries a county or "next steps" phrase.
+      $is_next_step_followup = (bool) preg_match(
+        '/\b(next\s*step|what\s*do\s*i\s*do|what\s*should\s*i\s*do|how\s*do\s*i\s+(?:start|proceed))\b/iu',
+        mb_strtolower($user_message)
+      );
+      if (self::shouldApplyHousingEvictionContinuityGuard(
+        $intent,
+        $generic_followup_intents,
+        $server_history,
+        $conversation_context_summary,
+        $user_message,
+        $this->isLocationLikeOfficeReply($user_message),
+        $is_next_step_followup
+      )) {
         $intent = [
-          'type' => 'offices',
-          'confidence' => max(0.82, (float) ($intent['confidence'] ?? 0.0)),
-          'source' => 'office_detail_followup_context',
+          'type' => 'service_area',
+          'area' => 'housing',
+          'topic_id' => $followup_topic_context['topic_id'] ?? NULL,
+          'topic' => $followup_topic_context['topic'] ?? 'eviction',
+          'confidence' => max(0.78, (float) ($intent['confidence'] ?? 0.0)),
+          'source' => 'followup_eviction_continuity',
           'extraction' => $intent['extraction'] ?? [],
         ];
       }
-    }
 
-    $intent_type = (string) ($intent['type'] ?? 'unknown');
-    $intent_area = (string) ($intent['area'] ?? '');
-    $is_contextual_legal_complaint = (
+      $intent_type = (string) ($intent['type'] ?? 'unknown');
+      $intent_area = (string) ($intent['area'] ?? '');
+      $is_generic_followup_intent = in_array($intent_type, $generic_followup_intents, TRUE)
+      || str_starts_with($intent_type, 'intent_pack_meta_');
+      $is_contextual_legal_complaint = (
       !empty($server_history) &&
       $history_area &&
       $intent_type === 'feedback' &&
       !$this->isExplicitSiteFeedbackRequest($user_message) &&
       (bool) preg_match('/\b(complaint|grievance|queja|file)\b/u', mb_strtolower($user_message)) &&
       !HistoryIntentResolver::detectResetSignal($user_message)
-    );
+      );
 
-    if ($is_contextual_legal_complaint) {
-      $intent = [
-        'type' => 'service_area',
-        'area' => $history_area,
-        'topic_id' => $followup_topic_context['topic_id'] ?? NULL,
-        'topic' => $followup_topic_context['topic'] ?? NULL,
-        'confidence' => max(0.70, (float) ($intent['confidence'] ?? 0.0)),
-        'source' => 'followup_service_area_complaint_continuity',
-        'extraction' => $intent['extraction'] ?? [],
-      ];
-      $intent_type = 'service_area';
-      $intent_area = $history_area;
-    }
+      if ($is_contextual_legal_complaint) {
+        $intent = [
+          'type' => 'service_area',
+          'area' => $history_area,
+          'topic_id' => $followup_topic_context['topic_id'] ?? NULL,
+          'topic' => $followup_topic_context['topic'] ?? NULL,
+          'confidence' => max(0.70, (float) ($intent['confidence'] ?? 0.0)),
+          'source' => 'followup_service_area_complaint_continuity',
+          'extraction' => $intent['extraction'] ?? [],
+        ];
+        $intent_type = 'service_area';
+        $intent_area = $history_area;
+      }
 
-    $service_area_drift = (
+      $service_area_drift = (
       $is_follow_up_turn &&
       $history_area &&
       $intent_type === 'service_area' &&
@@ -2679,162 +2912,207 @@ class AssistantApiController extends ControllerBase {
       $intent_area !== $history_area &&
       !HistoryIntentResolver::detectResetSignal($user_message) &&
       !$this->isExplicitServiceAreaShift($user_message, $history_area)
-    );
+      );
+      $is_deterministic_intent_source = $this->isDeterministicIntentSource((string) ($intent['source'] ?? ''));
+      $generic_followup_context = (
+      $is_generic_followup_intent &&
+      !$is_deterministic_intent_source &&
+      !$is_acknowledgement_turn &&
+      ($intent_area === '' || $intent_area === $history_area)
+      );
 
-    if (
+      if (
       !empty($server_history) &&
       $history_area &&
       (
-        (
-          in_array($intent_type, $generic_followup_intents, TRUE) &&
-          empty($intent['area']) &&
-          !$is_acknowledgement_turn
-        ) ||
+        $generic_followup_context ||
         $service_area_drift
       ) &&
-      !$this->isDeterministicIntentSource((string) ($intent['source'] ?? '')) &&
+      (
+        $generic_followup_context ||
+        !$is_deterministic_intent_source
+      ) &&
       !HistoryIntentResolver::detectResetSignal($user_message) &&
       !$this->isExplicitServiceAreaShift($user_message, $history_area)
-    ) {
-      $intent = [
-        'type' => 'service_area',
-        'area' => $history_area,
-        'topic_id' => $followup_topic_context['topic_id'] ?? NULL,
-        'topic' => $followup_topic_context['topic'] ?? NULL,
-        'confidence' => max(0.70, (float) ($intent['confidence'] ?? 0.0)),
-        'source' => 'followup_service_area_continuity',
-        'extraction' => $intent['extraction'] ?? [],
-      ];
-    }
-
-    if ($debug_mode) {
-      $debug_meta['intent_selected'] = $intent['type'];
-      $debug_meta['intent_confidence'] = $this->fallbackGate->calculateIntentConfidence($intent, $user_message);
-      $debug_meta['route_source'] = $intent['source'] ?? 'direct';
-      $debug_meta['processing_stages'][] = 'intent_routed';
-      if (isset($intent['history_meta'])) {
-        $debug_meta['direct_intent'] = $direct_intent_type;
-        $debug_meta['history_fallback'] = [
-          'fallback_intent' => $intent['history_meta']['intent'],
-          'fallback_confidence' => $intent['history_meta']['confidence'],
-          'turns_analyzed' => $intent['history_meta']['turns_analyzed'],
-          'fallback_reason' => $intent['history_meta']['reason'],
+      ) {
+        $intent = [
+          'type' => 'service_area',
+          'area' => $history_area,
+          'topic_id' => $followup_topic_context['topic_id'] ?? NULL,
+          'topic' => $followup_topic_context['topic'] ?? NULL,
+          'confidence' => max(0.70, (float) ($intent['confidence'] ?? 0.0)),
+          'source' => 'followup_service_area_continuity',
+          'extraction' => $intent['extraction'] ?? [],
         ];
       }
-    }
 
-    $topic_context = HistoryIntentResolver::extractTopicContext($server_history);
-    $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
-      'intent_type' => $intent['type'] ?? 'unknown',
-      'intent_source' => $intent['source'] ?? 'direct',
-      'history_fallback_used' => ($intent['source'] ?? '') === 'history_fallback',
-    ]);
-    $this->langfuseTracer?->appendTraceMetadata([
-      'intent_type' => $intent['type'] ?? 'unknown',
-      'intent_source' => $intent['source'] ?? 'direct',
-      'history_fallback_used' => ($intent['source'] ?? '') === 'history_fallback',
-    ]);
-    $this->langfuseTracer?->endSpan([
-      'type' => $intent['type'] ?? 'unknown',
-      'confidence' => $intent['confidence'] ?? NULL,
-      'source' => $intent['source'] ?? 'direct',
-      'turn_type' => $turn_type,
-      'topic_context' => $topic_context ? $topic_context['area'] : NULL,
-    ]);
+      if (
+      $this->conversationContextSummary &&
+      !empty($conversation_context_summary) &&
+      !HistoryIntentResolver::detectResetSignal($user_message) &&
+      !$this->isExplicitServiceAreaShift($user_message, (string) ($conversation_context_summary['service_area'] ?? ''))
+      ) {
+        $summary_continuation_intent = $this->conversationContextSummary->buildContinuationIntent(
+        $user_message,
+        $intent,
+        $conversation_context_summary,
+        );
+        if (is_array($summary_continuation_intent)) {
+          $intent = $summary_continuation_intent;
+        }
+      }
 
-    // Early retrieval for gate evaluation (search FAQ/resources for context).
-    $this->langfuseTracer?->startSpan('retrieval.early');
-    $early_retrieval = [];
-    $config = $this->configFactory->get('ilas_site_assistant.settings');
-    $skip_retrieval_intents = ['greeting', 'thanks', 'apply_for_help', 'apply'];
-    if ($config->get('enable_faq') && !in_array($intent['type'], $skip_retrieval_intents)) {
-      $early_retrieval = $this->faqIndex->search($user_message, 3);
-    }
-    $top_score = !empty($early_retrieval) ? ($early_retrieval[0]['score'] ?? NULL) : NULL;
-    $this->langfuseTracer?->endSpan([
-      'result_count' => count($early_retrieval),
-      'top_score' => $top_score,
-      'retrieval_artifacts' => $this->buildRetrievalArtifactSummaries($early_retrieval, 3),
-    ]);
+      if ($debug_mode) {
+        $debug_meta['intent_selected'] = $intent['type'];
+        $debug_meta['intent_confidence'] = $this->fallbackGate->calculateIntentConfidence($intent, $user_message);
+        $debug_meta['route_source'] = $intent['source'] ?? 'direct';
+        $debug_meta['processing_stages'][] = 'intent_routed';
+        if (isset($intent['history_meta'])) {
+          $debug_meta['direct_intent'] = $direct_intent_type;
+          $debug_meta['history_fallback'] = [
+            'fallback_intent' => $intent['history_meta']['intent'],
+            'fallback_confidence' => $intent['history_meta']['confidence'],
+            'turns_analyzed' => $intent['history_meta']['turns_analyzed'],
+            'fallback_reason' => $intent['history_meta']['reason'],
+          ];
+        }
+      }
 
-    // Evaluate fallback gate to decide: answer, clarify, or hard-route.
-    $this->langfuseTracer?->startSpan('gate.evaluate');
-    $gate_context = [
-      'message' => $user_message,
-      'policy_violation' => $pre_routing_decision['decision_type'] === PreRoutingDecisionEngine::DECISION_POLICY_EXIT,
-    ];
-    $gate_decision = $this->fallbackGate->evaluate(
+      $topic_context = HistoryIntentResolver::extractTopicContext($server_history);
+      $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+        'intent_type' => $intent['type'] ?? 'unknown',
+        'intent_source' => $intent['source'] ?? 'direct',
+        'history_fallback_used' => ($intent['source'] ?? '') === 'history_fallback',
+      ]);
+      $this->langfuseTracer?->appendTraceMetadata([
+        'intent_type' => $intent['type'] ?? 'unknown',
+        'intent_source' => $intent['source'] ?? 'direct',
+        'history_fallback_used' => ($intent['source'] ?? '') === 'history_fallback',
+      ]);
+      $this->langfuseTracer?->endSpan([
+        'type' => $intent['type'] ?? 'unknown',
+        'confidence' => $intent['confidence'] ?? NULL,
+        'source' => $intent['source'] ?? 'direct',
+        'turn_type' => $turn_type,
+        'topic_context' => $topic_context ? $topic_context['area'] : NULL,
+      ]);
+
+      // Early retrieval for gate evaluation (search FAQ/resources for context).
+      $this->langfuseTracer?->startSpan('retrieval.early');
+      $early_retrieval = [];
+      $config = $this->configFactory->get('ilas_site_assistant.settings');
+      $skip_retrieval_intents = ['greeting', 'thanks', 'apply_for_help', 'apply'];
+      if ($config->get('enable_faq') && !in_array($intent['type'], $skip_retrieval_intents)) {
+        $early_retrieval = $this->faqIndex->search($user_message, 3);
+      }
+      $top_score = !empty($early_retrieval) ? ($early_retrieval[0]['score'] ?? NULL) : NULL;
+      $this->langfuseTracer?->endSpan([
+        'result_count' => count($early_retrieval),
+        'top_score' => $top_score,
+        'retrieval_artifacts' => $this->buildRetrievalArtifactSummaries($early_retrieval, 3),
+      ]);
+
+      // Evaluate fallback gate to decide: answer, clarify, or hard-route.
+      $this->langfuseTracer?->startSpan('gate.evaluate');
+      $gate_context = [
+        'message' => $user_message,
+        'policy_violation' => $pre_routing_decision['decision_type'] === PreRoutingDecisionEngine::DECISION_POLICY_EXIT,
+      ];
+      $gate_decision = $this->fallbackGate->evaluate(
       $intent,
       $early_retrieval,
       $routing_override_intent,
       $gate_context
-    );
-    $this->langfuseTracer?->endSpan([
-      'decision' => $gate_decision['decision'] ?? 'unknown',
-      'reason_code' => $gate_decision['reason_code'] ?? NULL,
-      'confidence' => $gate_decision['confidence'] ?? NULL,
-    ]);
-
-    if ($debug_mode) {
-      $debug_meta['gate_decision'] = $gate_decision['decision'];
-      $debug_meta['gate_reason_code'] = $gate_decision['reason_code'];
-      $debug_meta['gate_confidence'] = $gate_decision['confidence'];
-      $debug_meta['processing_stages'][] = 'gate_evaluated';
-    }
-
-    // Handle gate decision.
-    // Never override deterministic structured-navigation intents.
-    $is_deterministic_selection = $this->isDeterministicIntentSource((string) ($intent['source'] ?? ''));
-    $is_quick_action = ($intent['source'] ?? '') === 'quick_action';
-    if (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_HARD_ROUTE) {
-      // Enforce hard-route decisions so urgent/deadline signals cannot be
-      // silently bypassed by normal navigation routing.
-      $hard_route_source = (string) ($gate_decision['reason_code'] ?? '');
-      if (($intent['type'] ?? '') !== 'high_risk' && ($intent['type'] ?? '') !== 'out_of_scope') {
-        if ($hard_route_source === FallbackGate::REASON_SAFETY_URGENT && $routing_override_intent !== NULL) {
-          $intent = array_merge($routing_override_intent, [
-            'confidence' => max(
-              (float) ($routing_override_intent['confidence'] ?? 1.0),
-              (float) ($gate_decision['confidence'] ?? 1.0)
-            ),
-            'source' => 'pre_routing_gate_hard_route',
-            'extraction' => $intent['extraction'] ?? [],
-          ]);
-        }
-        else {
+      );
+      if ($this->shouldForceDiagnosticLlmProbe($context, $diagnostics_meta)) {
+        if ($this->llmEnhancer->isEnabled()) {
+          $gate_decision = [
+            'decision' => FallbackGate::DECISION_FALLBACK_LLM,
+            'reason_code' => 'DIAGNOSTIC_FORCE_LLM_PROBE',
+            'confidence' => 0.45,
+            'details' => [
+              'diagnostic_force_llm_probe' => TRUE,
+              'original_gate_decision' => $gate_decision['decision'] ?? 'unknown',
+              'original_gate_reason_code' => $gate_decision['reason_code'] ?? NULL,
+            ],
+          ];
           $intent = [
-            'type' => 'apply_for_help',
-            'confidence' => max(0.90, (float) ($gate_decision['confidence'] ?? 0.90)),
-            'source' => 'gate_hard_route',
+            'type' => 'unknown',
+            'confidence' => 0.15,
+            'source' => 'diagnostic_force_llm_probe',
             'extraction' => $intent['extraction'] ?? [],
           ];
         }
+        else {
+          $diagnostics_meta['generation']['reason'] = 'disabled';
+        }
       }
-      if ($debug_mode) {
-        $debug_meta['intent_selected'] = $intent['type'];
-        $debug_meta['intent_source'] = 'gate_hard_route';
-        $debug_meta['gate_hard_route_reason'] = $hard_route_source;
-        $debug_meta['processing_stages'][] = 'hard_route_forced';
-      }
-    }
-    elseif (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_CLARIFY) {
-      // Force clarification response.
-      $intent = ['type' => 'clarify', 'original_intent' => $intent['type'], 'extraction' => $intent['extraction'] ?? []];
+      $this->langfuseTracer?->endSpan([
+        'decision' => $gate_decision['decision'] ?? 'unknown',
+        'reason_code' => $gate_decision['reason_code'] ?? NULL,
+        'confidence' => $gate_decision['confidence'] ?? NULL,
+      ]);
 
       if ($debug_mode) {
-        $debug_meta['intent_selected'] = 'clarify';
-        $debug_meta['processing_stages'][] = 'clarification_forced';
+        $debug_meta['gate_decision'] = $gate_decision['decision'];
+        $debug_meta['gate_reason_code'] = $gate_decision['reason_code'];
+        $debug_meta['gate_confidence'] = $gate_decision['confidence'];
+        $debug_meta['processing_stages'][] = 'gate_evaluated';
       }
-    }
-    elseif (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_FALLBACK_LLM) {
-      $llm_provider = $this->llmEnhancer->getProviderId();
-      $llm_model = $this->llmEnhancer->getModelId();
-      $llm_current_intent = (string) ($intent['type'] ?? 'unknown');
-      $llm_params = [
-        'temperature' => max(0.0, min(0.4, (float) ($config->get('llm.temperature') ?? 0.3))),
-        'max_tokens' => max(32, min(128, (int) ($config->get('llm.max_tokens') ?? 150))),
-      ];
-      $this->langfuseTracer?->startGeneration(
+
+      // Handle gate decision.
+      // Never override deterministic structured-navigation intents.
+      $is_deterministic_selection = $this->isDeterministicIntentSource((string) ($intent['source'] ?? ''));
+      $is_quick_action = ($intent['source'] ?? '') === 'quick_action';
+      if (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_HARD_ROUTE) {
+        // Enforce hard-route decisions so urgent/deadline signals cannot be
+        // silently bypassed by normal navigation routing.
+        $hard_route_source = (string) ($gate_decision['reason_code'] ?? '');
+        if (($intent['type'] ?? '') !== 'high_risk' && ($intent['type'] ?? '') !== 'out_of_scope') {
+          if ($hard_route_source === FallbackGate::REASON_SAFETY_URGENT && $routing_override_intent !== NULL) {
+            $intent = array_merge($routing_override_intent, [
+              'confidence' => max(
+              (float) ($routing_override_intent['confidence'] ?? 1.0),
+              (float) ($gate_decision['confidence'] ?? 1.0)
+              ),
+              'source' => 'pre_routing_gate_hard_route',
+              'extraction' => $intent['extraction'] ?? [],
+            ]);
+          }
+          else {
+            $intent = [
+              'type' => 'apply_for_help',
+              'confidence' => max(0.90, (float) ($gate_decision['confidence'] ?? 0.90)),
+              'source' => 'gate_hard_route',
+              'extraction' => $intent['extraction'] ?? [],
+            ];
+          }
+        }
+        if ($debug_mode) {
+          $debug_meta['intent_selected'] = $intent['type'];
+          $debug_meta['intent_source'] = 'gate_hard_route';
+          $debug_meta['gate_hard_route_reason'] = $hard_route_source;
+          $debug_meta['processing_stages'][] = 'hard_route_forced';
+        }
+      }
+      elseif (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_CLARIFY) {
+        // Force clarification response.
+        $intent = ['type' => 'clarify', 'original_intent' => $intent['type'], 'extraction' => $intent['extraction'] ?? []];
+
+        if ($debug_mode) {
+          $debug_meta['intent_selected'] = 'clarify';
+          $debug_meta['processing_stages'][] = 'clarification_forced';
+        }
+      }
+      elseif (!$is_deterministic_selection && $gate_decision['decision'] === FallbackGate::DECISION_FALLBACK_LLM) {
+        $llm_provider = $this->llmEnhancer->getProviderId();
+        $llm_model = $this->llmEnhancer->getModelId();
+        $llm_current_intent = (string) ($intent['type'] ?? 'unknown');
+        $llm_params = [
+          'temperature' => max(0.0, min(0.4, (float) ($config->get('llm.temperature') ?? 0.3))),
+          'max_tokens' => max(32, min(128, (int) ($config->get('llm.max_tokens') ?? 150))),
+        ];
+        $this->langfuseTracer?->startGeneration(
         'llm.intent_classification',
         $llm_model,
         $llm_params + ['provider' => $llm_provider],
@@ -2853,343 +3131,388 @@ class AssistantApiController extends ControllerBase {
             ],
           ],
         ],
-      );
-      $llm_classification = $this->llmEnhancer->classifyIntent($user_message, $llm_current_intent, $ip ?: NULL);
-      $llm_route_resolution = ($llm_classification !== 'unknown' && $llm_classification !== 'clarify')
-        ? 'rerouted'
-        : 'clarify';
-      $this->langfuseTracer?->endGeneration([
-        'provider' => $llm_provider,
-        'model' => $llm_model,
-        'classification' => $llm_classification,
-        'route_resolution' => $llm_route_resolution,
-        'changed_route' => $llm_classification !== $llm_current_intent,
-      ], $this->llmEnhancer->getLastUsage() ?? []);
-      $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
-        'llm_provider' => $llm_provider,
-        'llm_model' => $llm_model,
-      ]);
-      $this->langfuseTracer?->appendTraceMetadata([
-        'llm_provider' => $llm_provider,
-        'llm_model' => $llm_model,
-        'llm_route_resolution' => $llm_route_resolution,
-      ]);
-
-      if ($llm_classification !== 'unknown' && $llm_classification !== 'clarify') {
-        $intent = [
-          'type' => $llm_classification,
-          'confidence' => max(0.65, (float) ($gate_decision['confidence'] ?? 0.65)),
-          'source' => 'fallback_llm',
-          'extraction' => $intent['extraction'] ?? [],
-        ];
-
-        if ($debug_mode) {
-          $debug_meta['intent_selected'] = $intent['type'];
-          $debug_meta['intent_source'] = 'fallback_llm';
-          $debug_meta['llm_used'] = TRUE;
-          $debug_meta['llm_provider'] = $this->llmEnhancer->getProviderId();
-          $debug_meta['processing_stages'][] = 'fallback_llm_classified';
-        }
-      }
-      else {
-        $intent = [
-          'type' => 'clarify',
-          'original_intent' => $intent['type'] ?? 'unknown',
-          'extraction' => $intent['extraction'] ?? [],
-        ];
-
-        if ($debug_mode) {
-          $debug_meta['intent_selected'] = 'clarify';
-          $debug_meta['processing_stages'][] = 'fallback_llm_clarify';
-        }
-      }
-    }
-
-    // Process based on intent.
-    $this->langfuseTracer?->startSpan('intent.process', ['intent_type' => $intent['type'] ?? 'unknown']);
-    $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history);
-    if ($this->shouldRecoverRepeatedSelectionMenu($resolved_selection, $response, (string) ($selection_state['last_menu_signature'] ?? ''))) {
-      $intent = $this->buildSelectionIntent($resolved_selection, $user_message, FALSE, 'selection_recovery');
-      $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history);
-      if ($debug_mode) {
-        $debug_meta['processing_stages'][] = 'selection_repeat_menu_recovered';
-        $debug_meta['intent_selected'] = $intent['type'];
-        $debug_meta['intent_source'] = 'selection_recovery';
-      }
-    }
-    $this->langfuseTracer?->endSpan([
-      'response_type' => $response['type'] ?? 'unknown',
-      'result_count' => count($response['results'] ?? []),
-      'has_fallback_url' => !empty($response['fallback_url']),
-      'fallback_level' => $response['fallback_level'] ?? NULL,
-      'has_suggestions' => !empty($response['suggestions']) || !empty($response['topic_suggestions']),
-    ]);
-
-    // CRITICAL: Enforce canonical URL for hard-route intents.
-    $canonical_urls = ilas_site_assistant_get_canonical_urls();
-    $builder = new ResponseBuilder($canonical_urls, $this->topIntentsPack);
-    $response = $builder->enforceHardRouteUrlWithOverrideIntent($response, $intent, $routing_override_intent);
-
-    // Apply Voyage AI reranking (if enabled, after retrieval, before grounding).
-    $rerank_meta = NULL;
-    $rerank_trace = [];
-    if ($this->voyageReranker && !empty($response['results'])
-        && count($response['results']) >= 2
-        && in_array($response['type'] ?? '', ResponseGrounder::CITATION_REQUIRED_TYPES, TRUE)) {
-      $rerank_results_before = $response['results'];
-      $this->langfuseTracer?->startSpan('rerank.voyage', [
-        'candidate_count_before' => count($rerank_results_before),
-      ], [
-        'candidate_ids_before' => $this->extractRetrievalResultIds($rerank_results_before),
-      ]);
-      $rerank_result = $this->voyageReranker->rerank($user_message, $response['results']);
-      $response['results'] = $rerank_result['items'];
-      $rerank_meta = $rerank_result['meta'];
-      $rerank_trace = $this->buildRerankTraceMetadata($rerank_results_before, $response['results'], $rerank_meta);
-      $this->langfuseTracer?->endSpan([
-        'applied' => $rerank_meta['applied'] ?? FALSE,
-        'order_changed' => $rerank_meta['order_changed'] ?? FALSE,
-        'score_delta' => $rerank_meta['score_delta'] ?? NULL,
-        'model' => $rerank_meta['model'] ?? NULL,
-        'latency_ms' => $rerank_meta['latency_ms'] ?? NULL,
-        'fallback_reason' => $rerank_meta['fallback_reason'] ?? NULL,
-      ], $rerank_trace);
-      if ($rerank_trace !== []) {
-        $this->langfuseTracer?->appendTraceMetadata($rerank_trace);
-      }
-      if ($debug_mode) {
-        $debug_meta['processing_stages'][] = ($rerank_meta['applied'] ?? FALSE)
-          ? 'voyage_reranked' : 'voyage_skipped';
-        $debug_meta['rerank_meta'] = $rerank_meta;
-      }
-    }
-
-    // Apply response grounding (add citations, validate info).
-    $grounding_trace = [];
-    if ($this->responseGrounder && !empty($response['results'])) {
-      $this->langfuseTracer?->startSpan('response.ground', [
-        'result_count' => count($response['results']),
-      ], [
-        'result_ids' => $this->extractRetrievalResultIds($response['results']),
-      ]);
-      $response = $this->responseGrounder->groundResponse($response, $response['results']);
-      $grounding_trace = $this->buildGroundingTraceMetadata($response);
-      $this->langfuseTracer?->endSpan([
-        'citations_added' => !empty($response['sources']),
-        'grounding_source_count' => count($grounding_trace['grounding_sources'] ?? []),
-        '_grounding_weak' => !empty($response['_grounding_weak']),
-        '_grounding_weak_reason' => $response['_grounding_weak_reason'] ?? NULL,
-        'freshness_enforcement_level' => $response['_freshness_enforcement'] ?? NULL,
-      ], $grounding_trace);
-      if ($grounding_trace !== []) {
-        $this->langfuseTracer?->appendTraceMetadata($grounding_trace);
-      }
-      if ($debug_mode) {
-        $debug_meta['processing_stages'][] = 'response_grounded';
-      }
-    }
-
-    if ($debug_mode) {
-      $debug_meta['final_action'] = $this->determineFinalAction($response['type']);
-      $debug_meta['reason_code'] = $this->determineReasonCode($intent, $response);
-      $debug_meta['processing_stages'][] = 'intent_processed';
-
-      // Capture retrieval results (IDs/URLs only, no content).
-      if (!empty($response['results'])) {
-        $debug_meta['retrieval_results'] = $this->extractRetrievalMeta($response['results']);
-      }
-    }
-
-    if ($this->sourceGovernance && !empty($response['results']) && is_array($response['results'])) {
-      try {
-        $this->sourceGovernance->recordObservationBatch($response['results']);
-      }
-      catch (\Throwable $e) {
-        $this->logger->warning('Source governance observation failed: @class @error_signature', $this->buildExceptionContext($e));
-      }
-    }
-
-    if ($debug_mode) {
-      $rateLimiter = $this->llmEnhancer->getRateLimiter();
-      if ($rateLimiter && $rateLimiter->wasRateLimited()) {
-        $debug_meta['global_rate_limit_triggered'] = TRUE;
-        $debug_meta['processing_stages'][] = 'global_rate_limit_triggered';
-        $debug_meta['global_rate_limit_state'] = $rateLimiter->getCurrentState();
-      }
-    }
-
-    // Final response sanitation: enforce grounded-message replacement,
-    // apply freshness caveats, and remove legacy LLM-only payload fields.
-    $this->langfuseTracer?->startSpan('safety.post_generation');
-    $post_generation_safety = $this->enforcePostGenerationSafety($response, $request_id);
-    $response = $post_generation_safety['response'];
-    $this->langfuseTracer?->endSpan($post_generation_safety['meta']);
-
-    if ($debug_mode) {
-      $debug_meta['processing_stages'][] = 'post_generation_safety';
-    }
-
-    // Clarify-loop prevention: if the same clarify question repeats too many
-    // times in a conversation, force a deterministic loop-break response.
-    if ($conversation_id) {
-      $response = $this->applyClarifyLoopGuard($response, $conversation_id, $request_id, $clarify_meta);
-      if (($response['type'] ?? '') === 'clarify_loop_break') {
+        );
+        $llm_classification = $this->llmEnhancer->classifyIntent($user_message, $llm_current_intent, $ip ?: NULL);
+        $llm_route_resolution = ($llm_classification !== 'unknown' && $llm_classification !== 'clarify')
+          ? 'rerouted'
+          : 'clarify';
+        $this->langfuseTracer?->endGeneration([
+          'provider' => $llm_provider,
+          'model' => $llm_model,
+          'classification' => $llm_classification,
+          'route_resolution' => $llm_route_resolution,
+          'changed_route' => $llm_classification !== $llm_current_intent,
+        ], $this->llmEnhancer->getLastUsage() ?? []);
         $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
-          'clarify_loop_break' => TRUE,
+          'llm_provider' => $llm_provider,
+          'llm_model' => $llm_model,
         ]);
         $this->langfuseTracer?->appendTraceMetadata([
-          'clarify_loop_break' => TRUE,
+          'llm_provider' => $llm_provider,
+          'llm_model' => $llm_model,
+          'llm_route_resolution' => $llm_route_resolution,
         ]);
-      }
-      if ($debug_mode) {
-        $debug_meta['clarify_loop_meta'] = $this->loadClarifyMeta($conversation_id);
-      }
-    }
+        // Always update the public meta so generation provenance is provable
+        // even without diagnostics authorization. The privileged diagnostics
+        // envelope mirrors the same fields when authorized.
+        $this->updateGenerationDiagnostics($public_meta, $llm_route_resolution);
+        $this->updateGenerationDiagnostics($diagnostics_meta, $llm_route_resolution);
 
-    $response = $this->decorateSelectionSuggestions($response);
-    $response = $this->prefixSelectionAcknowledgement($response, $resolved_selection, $selection_back_navigation);
-    $response = $this->sanitizeResponseCopy($response);
-    $normalized_intent = ResponseBuilder::normalizeIntentType($intent['type'] ?? 'unknown');
-    $response_selection_state = $normalized_intent === 'thanks'
+        if ($llm_classification !== 'unknown' && $llm_classification !== 'clarify') {
+          $intent = [
+            'type' => $llm_classification,
+            'confidence' => max(0.65, (float) ($gate_decision['confidence'] ?? 0.65)),
+            'source' => 'fallback_llm',
+            'extraction' => $intent['extraction'] ?? [],
+          ];
+
+          if ($debug_mode) {
+            $debug_meta['intent_selected'] = $intent['type'];
+            $debug_meta['intent_source'] = 'fallback_llm';
+            $debug_meta['llm_used'] = TRUE;
+            $debug_meta['llm_provider'] = $this->llmEnhancer->getProviderId();
+            $debug_meta['processing_stages'][] = 'fallback_llm_classified';
+          }
+        }
+        else {
+          $intent = [
+            'type' => 'clarify',
+            'original_intent' => $intent['type'] ?? 'unknown',
+            'extraction' => $intent['extraction'] ?? [],
+          ];
+
+          if ($debug_mode) {
+            $debug_meta['intent_selected'] = 'clarify';
+            $debug_meta['processing_stages'][] = 'fallback_llm_clarify';
+          }
+        }
+      }
+
+      // Process based on intent.
+      $this->langfuseTracer?->startSpan('intent.process', ['intent_type' => $intent['type'] ?? 'unknown']);
+      $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history, $conversation_context_summary);
+      if ($this->shouldRecoverRepeatedSelectionMenu($resolved_selection, $response, (string) ($selection_state['last_menu_signature'] ?? ''))) {
+        $intent = $this->buildSelectionIntent($resolved_selection, $user_message, FALSE, 'selection_recovery');
+        $response = $this->processIntent($intent, $user_message, $context, $request_id, $server_history, $conversation_context_summary);
+        if ($debug_mode) {
+          $debug_meta['processing_stages'][] = 'selection_repeat_menu_recovered';
+          $debug_meta['intent_selected'] = $intent['type'];
+          $debug_meta['intent_source'] = 'selection_recovery';
+        }
+      }
+      $this->langfuseTracer?->endSpan([
+        'response_type' => $response['type'] ?? 'unknown',
+        'result_count' => count($response['results'] ?? []),
+        'has_fallback_url' => !empty($response['fallback_url']),
+        'fallback_level' => $response['fallback_level'] ?? NULL,
+        'has_suggestions' => !empty($response['suggestions']) || !empty($response['topic_suggestions']),
+      ]);
+
+      // CRITICAL: Enforce canonical URL for hard-route intents.
+      $canonical_urls = ilas_site_assistant_get_canonical_urls();
+      $builder = new ResponseBuilder($canonical_urls, $this->topIntentsPack);
+      $response = $builder->enforceHardRouteUrlWithOverrideIntent($response, $intent, $routing_override_intent);
+
+      // Apply Voyage AI reranking (if enabled, after retrieval, before grounding).
+      $rerank_meta = NULL;
+      $rerank_trace = [];
+      if ($this->voyageReranker && !empty($response['results'])
+        && count($response['results']) >= 2
+        && in_array($response['type'] ?? '', ResponseGrounder::CITATION_REQUIRED_TYPES, TRUE)) {
+        $rerank_results_before = $response['results'];
+        $this->langfuseTracer?->startSpan('rerank.voyage', [
+          'candidate_count_before' => count($rerank_results_before),
+        ], [
+          'candidate_ids_before' => $this->extractRetrievalResultIds($rerank_results_before),
+        ]);
+        $rerank_result = $this->voyageReranker->rerank($user_message, $response['results']);
+        $response['results'] = $rerank_result['items'];
+        $rerank_meta = $rerank_result['meta'];
+        $this->lastRerankMeta = $rerank_meta;
+        $rerank_trace = $this->buildRerankTraceMetadata($rerank_results_before, $response['results'], $rerank_meta);
+        $this->langfuseTracer?->endSpan([
+          'applied' => $rerank_meta['applied'] ?? FALSE,
+          'order_changed' => $rerank_meta['order_changed'] ?? FALSE,
+          'score_delta' => $rerank_meta['score_delta'] ?? NULL,
+          'model' => $rerank_meta['model'] ?? NULL,
+          'latency_ms' => $rerank_meta['latency_ms'] ?? NULL,
+          'fallback_reason' => $rerank_meta['fallback_reason'] ?? NULL,
+        ], $rerank_trace);
+        if ($rerank_trace !== []) {
+          $this->langfuseTracer?->appendTraceMetadata($rerank_trace);
+        }
+        if ($debug_mode) {
+          $debug_meta['processing_stages'][] = ($rerank_meta['applied'] ?? FALSE)
+            ? 'voyage_reranked' : 'voyage_skipped';
+          $debug_meta['rerank_meta'] = $rerank_meta;
+        }
+      }
+
+      // Apply response grounding (add citations, validate info).
+      $grounding_trace = [];
+      if ($this->responseGrounder && !empty($response['results'])) {
+        $this->langfuseTracer?->startSpan('response.ground', [
+          'result_count' => count($response['results']),
+        ], [
+          'result_ids' => $this->extractRetrievalResultIds($response['results']),
+        ]);
+        $response = $this->responseGrounder->groundResponse($response, $response['results']);
+        $grounding_trace = $this->buildGroundingTraceMetadata($response);
+        $this->langfuseTracer?->endSpan([
+          'citations_added' => !empty($response['sources']),
+          'grounding_source_count' => count($grounding_trace['grounding_sources'] ?? []),
+          '_grounding_weak' => !empty($response['_grounding_weak']),
+          '_grounding_weak_reason' => $response['_grounding_weak_reason'] ?? NULL,
+          'freshness_enforcement_level' => $response['_freshness_enforcement'] ?? NULL,
+        ], $grounding_trace);
+        if ($grounding_trace !== []) {
+          $this->langfuseTracer?->appendTraceMetadata($grounding_trace);
+        }
+        if ($debug_mode) {
+          $debug_meta['processing_stages'][] = 'response_grounded';
+        }
+      }
+
+      if ($debug_mode) {
+        $debug_meta['final_action'] = $this->determineFinalAction($response['type']);
+        $debug_meta['reason_code'] = $this->determineReasonCode($intent, $response);
+        $debug_meta['processing_stages'][] = 'intent_processed';
+
+        // Capture retrieval results (IDs/URLs only, no content).
+        if (!empty($response['results'])) {
+          $debug_meta['retrieval_results'] = $this->extractRetrievalMeta($response['results']);
+        }
+      }
+
+      if ($this->sourceGovernance && !empty($response['results']) && is_array($response['results'])) {
+        try {
+          $this->sourceGovernance->recordObservationBatch($response['results']);
+        }
+        catch (\Throwable $e) {
+          $this->logger->warning('Source governance observation failed: @class @error_signature', $this->buildExceptionContext($e));
+        }
+      }
+
+      if ($debug_mode) {
+        $rateLimiter = $this->llmEnhancer->getRateLimiter();
+        if ($rateLimiter && $rateLimiter->wasRateLimited()) {
+          $debug_meta['global_rate_limit_triggered'] = TRUE;
+          $debug_meta['processing_stages'][] = 'global_rate_limit_triggered';
+          $debug_meta['global_rate_limit_state'] = $rateLimiter->getCurrentState();
+        }
+      }
+
+      // Final response sanitation: enforce grounded-message replacement,
+      // apply freshness caveats, and remove legacy LLM-only payload fields.
+      $this->langfuseTracer?->startSpan('safety.post_generation');
+      $post_generation_safety = $this->enforcePostGenerationSafety($response, $request_id);
+      $response = $post_generation_safety['response'];
+      $this->langfuseTracer?->endSpan($post_generation_safety['meta']);
+
+      if ($debug_mode) {
+        $debug_meta['processing_stages'][] = 'post_generation_safety';
+      }
+
+      if ($this->conversationContextSummary && !empty($conversation_context_summary)) {
+        // Overlay facts from the current message before applying hints — the
+        // stored summary reflects only prior turns, so a county or notice
+        // mentioned just now would otherwise be invisible until the post-turn
+        // summarize step (which runs after the response is finalised).
+        $current_facts = $this->conversationContextSummary->extractMessageFacts($user_message);
+        if (!empty($current_facts['county'])) {
+          $conversation_context_summary['county'] = $current_facts['county'];
+        }
+        if (!empty($current_facts['deadline_or_notice'])) {
+          $conversation_context_summary['deadline_or_notice'] = $current_facts['deadline_or_notice'];
+        }
+        $response = $this->applyConversationContextResponseHints(
+        $response,
+        $conversation_context_summary,
+        $canonical_urls,
+        );
+        if ($this->isClarifyLikeResponse($response)) {
+          $response = $this->recoverClarifyFromConversationContext(
+            $response,
+            $conversation_context_summary,
+            $canonical_urls,
+          );
+        }
+      }
+
+      // Clarify-loop prevention: if the same clarify question repeats too many
+      // times in a conversation, force a deterministic loop-break response.
+      if ($conversation_id) {
+        $response = $this->applyClarifyLoopGuard($response, $conversation_id, $request_id, $clarify_meta);
+        if (($response['type'] ?? '') === 'clarify_loop_break') {
+          $langfuse_base_metadata = array_merge($langfuse_base_metadata, [
+            'clarify_loop_break' => TRUE,
+          ]);
+          $this->langfuseTracer?->appendTraceMetadata([
+            'clarify_loop_break' => TRUE,
+          ]);
+        }
+        if ($debug_mode) {
+          $debug_meta['clarify_loop_meta'] = $this->loadClarifyMeta($conversation_id);
+        }
+      }
+
+      $response = $this->decorateSelectionSuggestions($response);
+      $response = $this->prefixSelectionAcknowledgement($response, $resolved_selection, $selection_back_navigation);
+      $response = $this->sanitizeResponseCopy($response);
+      $normalized_intent = ResponseBuilder::normalizeIntentType($intent['type'] ?? 'unknown');
+      $response_selection_state = $normalized_intent === 'thanks'
       ? NULL
       : ($resolved_selection
         ?? $this->inferActiveSelectionFromResponse($response)
         ?? $active_selection);
-    $response['active_selection'] = $response_selection_state !== NULL
+      $response['active_selection'] = $response_selection_state !== NULL
       ? $this->selectionRegistry->buildSelectionPayload($response_selection_state)
       : NULL;
-    $response_menu_signature = $this->buildMenuSignature($response);
+      $response_menu_signature = $this->buildMenuSignature($response);
 
-    // Log the interaction.
-    $analytics_events = [];
-    $this->langfuseTracer?->startSpan('analytics.persist', [
-      'intent_type' => $intent['type'] ?? 'unknown',
-    ]);
-    $this->analyticsLogger->log($intent['type'], $intent['value'] ?? '');
-    $analytics_events[] = (string) ($intent['type'] ?? 'unknown');
-    if (($intent['type'] ?? '') === 'disambiguation') {
-      $this->analyticsLogger->logDisambiguation($intent, $user_message);
-      $analytics_events[] = 'disambiguation';
-    }
+      // Log the interaction.
+      $analytics_events = [];
+      $this->langfuseTracer?->startSpan('analytics.persist', [
+        'intent_type' => $intent['type'] ?? 'unknown',
+      ]);
+      $this->analyticsLogger->log($intent['type'], $intent['value'] ?? '');
+      $analytics_events[] = (string) ($intent['type'] ?? 'unknown');
+      if (($intent['type'] ?? '') === 'disambiguation') {
+        $this->analyticsLogger->logDisambiguation($intent, $user_message);
+        $analytics_events[] = 'disambiguation';
+      }
 
-    // Log history fallback usage for observability.
-    if (($intent['source'] ?? '') === 'history_fallback') {
-      $this->analyticsLogger->log('history_fallback_used', $intent['type']);
-      $analytics_events[] = 'history_fallback_used';
-    }
+      // Log history fallback usage for observability.
+      if (($intent['source'] ?? '') === 'history_fallback') {
+        $this->analyticsLogger->log('history_fallback_used', $intent['type']);
+        $analytics_events[] = 'history_fallback_used';
+      }
 
-    $gap_item_id = NULL;
-    $governance_context = GapReviewDecider::buildGovernanceContext(
+      $gap_item_id = NULL;
+      $governance_context = GapReviewDecider::buildGovernanceContext(
       $intent,
       $response,
       $response_selection_state,
       $resolved_selection,
       $active_selection,
-    ) + [
-      'conversation_id' => $conversation_id ?? '',
-      'request_id' => $request_id,
-    ];
-
-    if (GapReviewDecider::shouldRecordGapItem($response, $intent, $governance_context, $request, $data)) {
-      $gap_item_id = $this->analyticsLogger->logNoAnswer($user_message, $governance_context);
-      $analytics_events[] = 'no_answer';
-
-      if ($debug_mode) {
-        $debug_meta['reason_code'] = (string) ($response['reason_code'] ?? 'no_match_fallback');
-      }
-    }
-    $this->langfuseTracer?->endSpan([
-      'event_count' => count($analytics_events),
-      'gap_item_id' => $gap_item_id,
-      'no_answer_logged' => $gap_item_id !== NULL,
-    ], [
-      'events' => $analytics_events,
-    ]);
-
-    // Attach debug metadata if enabled.
-    if ($debug_mode) {
-      $debug_meta['processing_stages'][] = 'response_complete';
-      $response['_debug'] = $debug_meta;
-    }
-
-    $conversation_logger_written = FALSE;
-    if ($conversation_id || $this->conversationLogger) {
-      $this->langfuseTracer?->startSpan('conversation.persist', [
-        'has_conversation_id' => !empty($conversation_id),
-      ]);
-    }
-
-    if ($conversation_id) {
-      $post_response_flow_decision = $this->assistantFlowRunner->evaluatePostResponse([
-        'conversation_id' => $conversation_id,
-        'intent_type' => $normalized_intent,
-        'has_followup_prompt' => !empty($response['followup']),
-      ]);
-      $this->applyOfficeFollowupStateDecision($conversation_id, $session_fingerprint, $post_response_flow_decision);
-    }
-
-    // Store conversation turn in cache for multi-turn continuity.
-    if ($conversation_id) {
-      $server_history[] = [
-        'role' => 'user',
-        'text' => PiiRedactor::redactForStorage($user_message, 200),
-        'intent' => $intent['type'] ?? 'unknown',
-        'route_source' => $intent['source'] ?? 'direct',
-        'safety_flags' => $safety_flags_for_gate,
-        'timestamp' => time(),
-        'area' => $normalized_intent === 'thanks' ? NULL : ($intent['area'] ?? $intent['service_area'] ?? NULL),
-        'topic_id' => $normalized_intent === 'thanks' ? NULL : ($intent['topic_id'] ?? NULL),
-        'topic' => $normalized_intent === 'thanks' ? NULL : ($intent['topic'] ?? NULL),
-        'response_type' => $response['type'] ?? NULL,
+      ) + [
+        'conversation_id' => $conversation_id ?? '',
+        'request_id' => $request_id,
       ];
-      // Keep only last 10 entries (5 exchanges).
-      $server_history = array_slice($server_history, -10);
 
-      // Build cache data: history + session fingerprint + A/B assignments.
-      $cache_data = $server_history;
-      if ($session_fingerprint !== '') {
-        $cache_data['_session_fp'] = $session_fingerprint;
+      if (GapReviewDecider::shouldRecordGapItem($response, $intent, $governance_context, $request, $data)) {
+        $gap_item_id = $this->analyticsLogger->logNoAnswer($user_message, $governance_context);
+        $analytics_events[] = 'no_answer';
+
+        if ($debug_mode) {
+          $debug_meta['reason_code'] = (string) ($response['reason_code'] ?? 'no_match_fallback');
+        }
       }
-      if (!empty($ab_assignments)) {
-        // Store assignments alongside history keyed separately so they persist.
-        $this->conversationCache->set(
+      $this->langfuseTracer?->endSpan([
+        'event_count' => count($analytics_events),
+        'gap_item_id' => $gap_item_id,
+        'no_answer_logged' => $gap_item_id !== NULL,
+      ], [
+        'events' => $analytics_events,
+      ]);
+
+      // Attach debug metadata if enabled.
+      if ($debug_mode) {
+        $debug_meta['processing_stages'][] = 'response_complete';
+        $response['_debug'] = $debug_meta;
+      }
+
+      $conversation_logger_written = FALSE;
+      if ($conversation_id || $this->conversationLogger) {
+        $this->langfuseTracer?->startSpan('conversation.persist', [
+          'has_conversation_id' => !empty($conversation_id),
+        ]);
+      }
+
+      if ($conversation_id) {
+        $post_response_flow_decision = $this->assistantFlowRunner->evaluatePostResponse([
+          'conversation_id' => $conversation_id,
+          'intent_type' => $normalized_intent,
+          'has_followup_prompt' => !empty($response['followup']),
+        ]);
+        $this->applyOfficeFollowupStateDecision($conversation_id, $session_fingerprint, $post_response_flow_decision);
+      }
+
+      // Store conversation turn in cache for multi-turn continuity.
+      if ($conversation_id) {
+        $history_intent_type = (string) ($intent['type'] ?? 'unknown');
+        if ($this->conversationContextSummary) {
+          $conversation_context_summary = $this->conversationContextSummary->summarizeTurn(
+          $user_message,
+          $intent,
+          $response,
+          $conversation_context_summary,
+          ['safety_flags' => $safety_flags_for_gate],
+          );
+        }
+        $server_history[] = [
+          'role' => 'user',
+          'text' => PiiRedactor::redactForStorage($user_message, 200),
+          'intent' => $history_intent_type,
+          'route_source' => $intent['source'] ?? 'direct',
+          'safety_flags' => $safety_flags_for_gate,
+          'timestamp' => time(),
+          'area' => $normalized_intent === 'thanks' ? NULL : ($intent['area'] ?? $intent['service_area'] ?? $this->inferAreaFromIntentType($history_intent_type)),
+          'topic_id' => $normalized_intent === 'thanks' ? NULL : ($intent['topic_id'] ?? NULL),
+          'topic' => $normalized_intent === 'thanks' ? NULL : ($intent['topic'] ?? NULL),
+          'response_type' => $response['type'] ?? NULL,
+        ];
+        // Keep only last 10 entries (5 exchanges).
+        $server_history = array_slice($server_history, -10);
+
+        // Build cache data: history + session fingerprint + A/B assignments.
+        $cache_data = $server_history;
+        if ($this->conversationContextSummary && $conversation_context_summary !== []) {
+          $cache_data['conversation_context_summary'] = $conversation_context_summary;
+        }
+        if ($session_fingerprint !== '') {
+          $cache_data['_session_fp'] = $session_fingerprint;
+        }
+        if (!empty($ab_assignments)) {
+          // Store assignments alongside history keyed separately so they persist.
+          $this->conversationCache->set(
           'ilas_conv_ab:' . $conversation_id,
           $ab_assignments,
           time() + 1800
-        );
-      }
+          );
+        }
 
-      // Store with 30-minute TTL.
-      $this->conversationCache->set(
+        // Store with 30-minute TTL.
+        $this->conversationCache->set(
         'ilas_conv:' . $conversation_id,
         $cache_data,
         time() + 1800
-      );
-      $this->selectionStateStore->save(
-        $conversation_id,
-        $response_selection_state,
-        $response_menu_signature ?? '',
-        $session_fingerprint,
-      );
+        );
+        $this->selectionStateStore->save(
+          $conversation_id,
+          $response_selection_state,
+          $response_menu_signature ?? '',
+          $session_fingerprint,
+        );
 
-      // Multi-turn safety pattern detection.
-      if (count($server_history) >= 3) {
-        $recent_flags = [];
-        foreach (array_slice($server_history, -3) as $turn) {
-          $recent_flags = array_merge($recent_flags, $turn['safety_flags'] ?? []);
-        }
-        if (count($recent_flags) >= 3) {
-          $this->logger->warning(
-            '[@request_id] Multi-turn safety pattern detected for conversation @id: @flags',
-            ['@request_id' => $request_id, '@id' => $conversation_id, '@flags' => implode(', ', $recent_flags)]
-          );
+        // Multi-turn safety pattern detection.
+        if (count($server_history) >= 3) {
+          $recent_flags = [];
+          foreach (array_slice($server_history, -3) as $turn) {
+            $recent_flags = array_merge($recent_flags, $turn['safety_flags'] ?? []);
+          }
+          if (count($recent_flags) >= 3) {
+            $this->logger->warning(
+              '[@request_id] Multi-turn safety pattern detected for conversation @id: @flags',
+              ['@request_id' => $request_id, '@id' => $conversation_id, '@flags' => implode(', ', $recent_flags)]
+            );
+          }
         }
       }
-    }
 
-    // Opt-in conversation logging (for QA/debugging).
-    if ($conversation_id && $this->conversationLogger) {
-      $this->conversationLogger->logExchange(
+      // Opt-in conversation logging (for QA/debugging).
+      if ($conversation_id && $this->conversationLogger) {
+        $this->conversationLogger->logExchange(
         $conversation_id,
         $user_message,
         $response['message'] ?? '',
@@ -3200,75 +3523,114 @@ class AssistantApiController extends ControllerBase {
           'gap_item_id' => $gap_item_id,
           'is_no_answer' => $gap_item_id !== NULL,
         ],
-      );
-      $conversation_logger_written = TRUE;
-    }
+        );
+        $conversation_logger_written = TRUE;
+      }
 
-    if ($conversation_id || $this->conversationLogger) {
-      $this->langfuseTracer?->endSpan([
-        'conversation_persisted' => !empty($conversation_id),
-        'history_length_saved' => $conversation_id ? count($server_history) : 0,
-        'selection_state_saved' => !empty($conversation_id),
-        'conversation_logger_written' => $conversation_logger_written,
-        'ab_assignments_saved' => !empty($ab_assignments),
-      ]);
-    }
+      if ($conversation_id || $this->conversationLogger) {
+        $this->langfuseTracer?->endSpan([
+          'conversation_persisted' => !empty($conversation_id),
+          'history_length_saved' => $conversation_id ? count($server_history) : 0,
+          'selection_state_saved' => !empty($conversation_id),
+          'conversation_logger_written' => $conversation_logger_written,
+          'ab_assignments_saved' => !empty($ab_assignments),
+        ]);
+      }
 
-    // Attach A/B variant assignments to response for frontend consumption.
-    if (!empty($ab_assignments)) {
-      $response['ab_variants'] = $ab_assignments;
-    }
+      // Attach A/B variant assignments to response for frontend consumption.
+      if (!empty($ab_assignments)) {
+        $response['ab_variants'] = $ab_assignments;
+      }
 
-    $success_telemetry = TelemetrySchema::normalize(
+      $success_telemetry = TelemetrySchema::normalize(
       intent: $intent['type'] ?? 'unknown',
       safety_class: $safety_classification ? $safety_classification['class'] : 'safe',
       fallback_path: $gate_decision['decision'] ?? 'none',
       request_id: $request_id,
-    );
-    $this->logger->info('[@request_id] Request complete: intent=@intent safety=@safety gate=@gate reason=@reason type=@type', TelemetrySchema::toLogContext(
+      );
+      $this->logger->info('[@request_id] Request complete: intent=@intent safety=@safety gate=@gate reason=@reason type=@type', TelemetrySchema::toLogContext(
       $success_telemetry,
       [
         '@reason' => $response['reason_code'] ?? 'none',
         '@type' => $response['type'] ?? 'unknown',
       ]
-    ));
+      ));
 
-    $duration_ms = (microtime(TRUE) - $start_time) * 1000;
-    $response['request_id'] = $request_id;
-    if (($response['type'] ?? '') === 'clarify_no_grounding') {
-      $this->langfuseTracer?->appendTraceMetadata([
-        'grounding_refusal_reason' => $response['decision_reason'] ?? $response['reason_code'] ?? 'clarify_no_grounding',
-      ]);
-    }
-    // Include turn_type in response metadata when not a default NEW turn.
-    if ($turn_type !== TurnClassifier::TURN_NEW) {
-      $response['turn_type'] = $turn_type;
-    }
-    $response = $this->assembleContractFields($response, $gate_decision, 'normal');
+      $duration_ms = (microtime(TRUE) - $start_time) * 1000;
+      $response['request_id'] = $request_id;
+      if (($response['type'] ?? '') === 'clarify_no_grounding') {
+        $this->langfuseTracer?->appendTraceMetadata([
+          'grounding_refusal_reason' => $response['decision_reason'] ?? $response['reason_code'] ?? 'clarify_no_grounding',
+        ]);
+      }
+      // Include turn_type in response metadata when not a default NEW turn.
+      if ($turn_type !== TurnClassifier::TURN_NEW) {
+        $response['turn_type'] = $turn_type;
+      }
+      $response = $this->assembleContractFields($response, $gate_decision, 'normal');
 
-    // Attach governance summary to every normal response.
-    if ($this->sourceGovernance) {
-      $response['governance'] = $this->sourceGovernance->getGovernanceSummary();
-    }
+      // Attach governance summary to every normal response.
+      if ($this->sourceGovernance) {
+        $response['governance'] = $this->sourceGovernance->getGovernanceSummary();
+      }
 
-    // PHARD-03: Refuse when answerable + low confidence + no citations.
-    $is_citation_required = in_array($response['type'] ?? '', ResponseGrounder::CITATION_REQUIRED_TYPES, TRUE);
-    if ($is_citation_required && empty($response['citations']) && ($response['confidence'] ?? 0) <= 0.5) {
-      $response['message'] = (string) $this->t("I wasn't able to find specific information on that topic. For help with your situation, please call our Legal Advice Line or apply for help.");
-      $response['type'] = 'clarify_no_grounding';
-      $response['confidence'] = 0.0;
-      $response['decision_reason'] = 'answerable_type_no_citations_low_confidence';
-      $this->analyticsLogger->log('grounding_refusal', $request_id ?? '');
-    }
+      // PHARD-03: Refuse when answerable + low confidence + no citations.
+      $is_citation_required = in_array($response['type'] ?? '', ResponseGrounder::CITATION_REQUIRED_TYPES, TRUE);
+      if ($is_citation_required && empty($response['citations']) && ($response['confidence'] ?? 0) <= 0.5) {
+        $response['message'] = (string) $this->t("I wasn't able to find specific information on that topic. For help with your situation, please call our Legal Advice Line or apply for help.");
+        $response['type'] = 'clarify_no_grounding';
+        $response['confidence'] = 0.0;
+        $response['decision_reason'] = 'answerable_type_no_citations_low_confidence';
+        $this->analyticsLogger->log('grounding_refusal', $request_id ?? '');
+      }
 
-    if (($response['reason_code'] ?? '') === 'resource_results_fallback_index' && empty($response['degraded_notice'])) {
-      $response['degraded_notice'] = (string) $this->t('These matches come from our broader site content because the dedicated assistant resource index is unavailable right now.');
-      $response['disclaimer'] = $response['disclaimer'] ?? $response['degraded_notice'];
-      $response['caveat'] = $response['caveat'] ?? $response['degraded_notice'];
-    }
+      if (($response['reason_code'] ?? '') === 'resource_results_fallback_index' && empty($response['degraded_notice'])) {
+        $response['degraded_notice'] = (string) $this->t('These matches come from our broader site content because the dedicated assistant resource index is unavailable right now.');
+        $response['disclaimer'] = $response['disclaimer'] ?? $response['degraded_notice'];
+        $response['caveat'] = $response['caveat'] ?? $response['degraded_notice'];
+      }
 
-    $retrieval_trace = $this->collectRetrievalTraceMetadata($response);
-    $this->langfuseTracer?->addEvent('request.complete', array_merge(
+      // Refresh generation metadata into the public envelope so meta and
+      // diagnostics agree on what actually ran.
+      $this->updateGenerationDiagnostics(
+        $public_meta,
+        (string) ($gate_decision['reason_code'] ?? 'deterministic_route')
+      );
+      if (!$public_meta['generation']['used'] && $public_meta['generation']['reason'] === 'not_attempted') {
+        $public_meta['generation']['reason'] = (string) ($gate_decision['reason_code'] ?? 'deterministic_route');
+      }
+      $retrieval_used = !empty($early_retrieval) || !empty($response['results']);
+      $public_meta['retrieval']['used'] = $retrieval_used;
+      $public_meta['retrieval']['attempted'] = $retrieval_used
+        || !empty($response['retrieval']['lexical_result_count'])
+        || !empty($response['retrieval']['vector_attempted']);
+      $public_meta['safety']['blocked'] = FALSE;
+      $public_meta['safety']['stage'] = 'not_blocked';
+      $public_meta['grounding']['used'] = !empty($response['citations']) || !empty($response['sources']);
+      $this->recordIntentDiagnostics(
+        $public_meta,
+        $intent,
+        $intent['source'] ?? NULL,
+        isset($gate_decision['intent_confidence']) ? (float) $gate_decision['intent_confidence'] : NULL
+      );
+      $response['meta'] = $public_meta;
+      if (is_array($diagnostics_meta)) {
+        $diagnostics_meta = array_replace_recursive($diagnostics_meta, $public_meta);
+        if ($this->conversationContextSummary && $conversation_context_summary !== []) {
+          $diagnostics_meta['conversation_context_summary'] = $conversation_context_summary;
+        }
+        $response = $this->attachDiagnosticsMetadata($response, $diagnostics_meta);
+      }
+
+      $retrieval_trace = $this->collectRetrievalTraceMetadata($response);
+      // Surface a minimal, secret-free retrieval contract on every response
+      // so external smoke tests can prove which provider/model/index were
+      // exercised. Full operation telemetry remains under _debug.
+      $response['retrieval'] = $this->buildPublicRetrievalContract($retrieval_trace);
+      if (isset($response['_debug']) && is_array($response['_debug'])) {
+        $response['_debug']['retrieval_trace'] = $retrieval_trace;
+      }
+      $this->langfuseTracer?->addEvent('request.complete', array_merge(
       $langfuse_base_metadata,
       [
         'intent_type' => $intent['type'] ?? 'unknown',
@@ -3278,13 +3640,13 @@ class AssistantApiController extends ControllerBase {
       $retrieval_trace,
       $rerank_trace,
       $grounding_trace,
-    ));
-    $langfuse_output = $this->buildLangfuseOutputPayload(
+      ));
+      $langfuse_output = $this->buildLangfuseOutputPayload(
       (string) ($response['message'] ?? ''),
       (string) ($response['type'] ?? 'unknown'),
       $response['reason_code'] ?? NULL,
-    );
-    $this->langfuseTracer?->addEvent('response.finalize', array_merge(
+      );
+      $this->langfuseTracer?->addEvent('response.finalize', array_merge(
       $langfuse_base_metadata,
       [
         'status_code' => 200,
@@ -3292,8 +3654,8 @@ class AssistantApiController extends ControllerBase {
         'reason_code' => $response['reason_code'] ?? NULL,
       ],
       $langfuse_output['metadata'],
-    ));
-    $this->langfuseTracer?->endTrace(
+      ));
+      $this->langfuseTracer?->endTrace(
       output: $langfuse_output['display'],
       metadata: array_merge(
         $langfuse_base_metadata,
@@ -3312,9 +3674,9 @@ class AssistantApiController extends ControllerBase {
         $success_telemetry,
         $langfuse_output['metadata'],
       )
-    );
+      );
 
-    return $this->monitoredJsonResponse(
+      return $this->monitoredJsonResponse(
       $request,
       PerformanceMonitor::ENDPOINT_MESSAGE,
       $response,
@@ -3326,7 +3688,7 @@ class AssistantApiController extends ControllerBase {
       FALSE,
       FALSE,
       $this->classifyScenario($intent['type'] ?? 'unknown'),
-    );
+      );
 
     }
     catch (RetrievalDependencyUnavailableException $e) {
@@ -3422,7 +3784,7 @@ class AssistantApiController extends ControllerBase {
 
       // Capture to Sentry with assistant-specific tags.
       if (function_exists('\Sentry\captureException')) {
-        \Sentry\configureScope(function (\Sentry\State\Scope $scope) use ($error_telemetry) {
+        \Sentry\configureScope(function (Scope $scope) use ($error_telemetry) {
           $scope->setTag('module', 'ilas_site_assistant');
           $scope->setTag('endpoint', 'message');
           $scope->setTag(TelemetrySchema::FIELD_REQUEST_ID, $error_telemetry[TelemetrySchema::FIELD_REQUEST_ID]);
@@ -3476,13 +3838,73 @@ class AssistantApiController extends ControllerBase {
         )
       );
 
-      return $this->monitoredJsonResponse($request, PerformanceMonitor::ENDPOINT_MESSAGE, [
-        'error' => [
-          'code' => 'internal_error',
-          'message' => 'Something went wrong. Please try again or contact us directly.',
-        ],
+      // Graceful degradation: never return HTTP 500 to the user. Surface a
+      // safe, actionable escalation response so visitors with urgent legal
+      // needs (deadlines, custody, eviction, fraud, abuse) still see the
+      // Legal Advice Line and Apply for Help paths even if the pipeline
+      // throws. The exception is already logged and Sentry-captured above,
+      // so this is graceful degradation, not suppression.
+      $language_hint = ObservabilityPayloadMinimizer::detectLanguageHint(
+        isset($user_message) && is_string($user_message) ? $user_message : ''
+      );
+      $is_spanish = ($language_hint === 'es');
+      $fallback_message = $is_spanish
+        ? (string) $this->t('Tuvimos un problema procesando tu pregunta. Si tu situación es urgente, llama a nuestra Línea de Asesoría Legal o solicita ayuda en el sitio.')
+        : (string) $this->t('We had trouble processing that question. If your situation is urgent, please call our Legal Advice Line or apply for help.');
+      try {
+        $escalation_actions = $this->getEscalationActions();
+      }
+      catch (\Throwable $action_error) {
+        // Never let action-list construction itself break the fallback.
+        $this->logger->warning(
+          '[@request_id] Escalation action construction failed during error fallback: @class',
+          ['@request_id' => $request_id, '@class' => get_class($action_error)]
+        );
+        $escalation_actions = [];
+      }
+      // Durable machine-readable markers. These are the contract that
+      // promptfoo evals, CI assertions, and monitoring dashboards use to
+      // distinguish a normal fallback (type=fallback / type=escalation
+      // through the regular pipeline) from this exception-fallback path.
+      // Eval assertions MUST be able to hard-fail when degraded=TRUE
+      // appears above some baseline rate. Removing or renaming any of
+      // these keys is a breaking change and requires updating eval
+      // contracts and dashboards in lockstep.
+      $fallback_payload = [
+        'type' => 'escalation',
+        'escalation_type' => 'internal_error_fallback',
+        'message' => $fallback_message,
+        'actions' => $escalation_actions,
         'request_id' => $request_id,
-      ], 500, [], $request_id, FALSE, 'message.internal_error', FALSE, FALSE, 'error');
+        // Top-level degraded marker — easiest assertion target for evals.
+        'degraded' => TRUE,
+        // Top-level error_code preserved for back-compat with any monitor
+        // that previously read `error.code` from the old 500 payload.
+        'error_code' => 'internal_error',
+        'meta' => [
+          'schema_version' => 'ilas_message_meta/v1',
+          'response_type' => 'escalation',
+          'response_mode' => 'escalation',
+          'reason_code' => 'internal_error',
+          'decision_reason' => 'pipeline_exception_safe_fallback',
+          'fallback_used' => TRUE,
+          'degraded' => TRUE,
+          'language_hint' => $language_hint,
+        ],
+      ];
+      return $this->monitoredJsonResponse(
+        $request,
+        PerformanceMonitor::ENDPOINT_MESSAGE,
+        $fallback_payload,
+        200,
+        [],
+        $request_id,
+        FALSE,
+        'message.internal_error_fallback',
+        FALSE,
+        TRUE,
+        'error'
+      );
     }
     finally {
       // Restore original time limit so subsequent Drupal processing is
@@ -3721,10 +4143,173 @@ class AssistantApiController extends ControllerBase {
   }
 
   /**
+   * Returns TRUE when sanitized diagnostic metadata is authorized/requested.
+   */
+  protected function isDiagnosticsMetadataAllowed(Request $request, array $context): bool {
+    $requested = !empty($context['diagnostics']['include'])
+      || trim((string) $request->headers->get(self::DIAGNOSTICS_INCLUDE_HEADER, '')) === '1';
+    if (!$requested) {
+      return FALSE;
+    }
+
+    if ($this->currentUser()->hasPermission('view ilas site assistant reports')) {
+      return TRUE;
+    }
+
+    $configured_token = $this->resolveDiagnosticsToken();
+    $provided_token = trim((string) $request->headers->get(self::DIAGNOSTICS_TOKEN_HEADER, ''));
+    return $configured_token !== ''
+      && $provided_token !== ''
+      && hash_equals($configured_token, $provided_token);
+  }
+
+  /**
+   * Resolves the runtime-only diagnostics token.
+   */
+  protected function resolveDiagnosticsToken(): string {
+    $settings_token = trim((string) Settings::get(self::DIAGNOSTICS_TOKEN_SETTINGS_KEY, ''));
+    if ($settings_token !== '') {
+      return $settings_token;
+    }
+
+    $env_token = getenv(self::DIAGNOSTICS_TOKEN_ENV);
+    return is_string($env_token) ? trim($env_token) : '';
+  }
+
+  /**
+   * Builds the initial public-safe diagnostics contract.
+   */
+  protected function buildDiagnosticsContract(): array {
+    // Provider/model lookups are wrapped because the dependency may be a
+    // partially-initialized stub in some test paths and we never want a
+    // diagnostics build to crash a real response.
+    try {
+      $provider_id = (string) $this->llmEnhancer->getProviderId();
+    }
+    catch (\Throwable $e) {
+      $provider_id = '';
+    }
+    try {
+      $model_id = (string) $this->llmEnhancer->getModelId();
+    }
+    catch (\Throwable $e) {
+      $model_id = '';
+    }
+    return [
+      'generation' => [
+        'provider' => $provider_id,
+        'model' => $model_id,
+        'used' => FALSE,
+        'reason' => 'not_attempted',
+      ],
+      'retrieval' => [
+        'used' => FALSE,
+        'attempted' => FALSE,
+      ],
+      'safety' => [
+        'blocked' => FALSE,
+        'stage' => 'not_blocked',
+        'class' => NULL,
+        'reason_code' => NULL,
+      ],
+      'grounding' => [
+        'used' => FALSE,
+      ],
+      'intent' => [
+        'selected' => NULL,
+        'confidence' => NULL,
+        'source' => NULL,
+      ],
+    ];
+  }
+
+  /**
+   * Records intent + route metadata into the public diagnostics envelope.
+   *
+   * Mirrors values that the privileged `_debug` block tracks, but only the
+   * minimal label/confidence/source triple — never the user message, never
+   * raw retrieval payloads.
+   */
+  protected function recordIntentDiagnostics(?array &$diagnostics, ?array $intent, ?string $source = NULL, ?float $confidence = NULL): void {
+    if (!is_array($diagnostics)) {
+      return;
+    }
+    $diagnostics['intent'] = [
+      'selected' => is_array($intent) ? ($intent['type'] ?? NULL) : NULL,
+      'confidence' => $confidence,
+      'source' => $source ?? (is_array($intent) ? ($intent['source'] ?? NULL) : NULL),
+    ];
+  }
+
+  /**
+   * Attaches sanitized diagnostics metadata when authorized.
+   */
+  protected function attachDiagnosticsMetadata(array $response, ?array $diagnostics): array {
+    if (is_array($diagnostics)) {
+      $response['diagnostics'] = $diagnostics;
+    }
+
+    return $response;
+  }
+
+  /**
+   * Records safe generation diagnostics from the LLM enhancer.
+   */
+  protected function updateGenerationDiagnostics(?array &$diagnostics, string $default_reason = 'not_attempted'): void {
+    if (!is_array($diagnostics)) {
+      return;
+    }
+
+    try {
+      $meta = $this->llmEnhancer->getLastRequestMeta() ?? [];
+    }
+    catch (\Throwable $e) {
+      $meta = [];
+    }
+    $transport_attempted = !empty($meta['transport_attempted']);
+    $cache_hit = !empty($meta['cache_hit']);
+    $success = !empty($meta['success']);
+    $reason = (string) ($meta['fallback_reason'] ?? ($success ? 'classified' : $default_reason));
+
+    $provider_from_meta = isset($meta['provider']) ? (string) $meta['provider'] : NULL;
+    $model_from_meta = isset($meta['model']) ? (string) $meta['model'] : NULL;
+    if ($provider_from_meta === NULL) {
+      try {
+        $provider_from_meta = (string) $this->llmEnhancer->getProviderId();
+      }
+      catch (\Throwable $e) {
+        $provider_from_meta = (string) ($diagnostics['generation']['provider'] ?? '');
+      }
+    }
+    if ($model_from_meta === NULL) {
+      try {
+        $model_from_meta = (string) $this->llmEnhancer->getModelId();
+      }
+      catch (\Throwable $e) {
+        $model_from_meta = (string) ($diagnostics['generation']['model'] ?? '');
+      }
+    }
+
+    $diagnostics['generation'] = [
+      'provider' => $provider_from_meta,
+      'model' => $model_from_meta,
+      'used' => $transport_attempted || $cache_hit,
+      'reason' => $reason,
+    ];
+  }
+
+  /**
+   * Returns TRUE when diagnostics may force the bounded LLM proof path.
+   */
+  protected function shouldForceDiagnosticLlmProbe(array $context, ?array $diagnostics): bool {
+    return is_array($diagnostics) && !empty($context['diagnostics']['force_llm_probe']);
+  }
+
+  /**
    * Returns TRUE when running in Pantheon live environment.
    */
   protected function isLiveEnvironment(): bool {
-    return $this->environmentDetector?->isLiveEnvironment() ?? false;
+    return $this->environmentDetector?->isLiveEnvironment() ?? FALSE;
   }
 
   /**
@@ -4007,12 +4592,85 @@ class AssistantApiController extends ControllerBase {
       $vector_status = 'enabled_not_needed';
     }
 
+    // Aggregate vector + embedding identity, indexes, and top scores from
+    // the per-service retrieval operations so the response contract can
+    // *prove* which provider/model/index was queried.
+    $vector_provider = NULL;
+    $embedding_provider = NULL;
+    $embedding_model = NULL;
+    $expected_dimensions = NULL;
+    $indexes_considered = [];
+    $indexes_queried = [];
+    $vector_top_scores = [];
+    foreach ($operations as $operation) {
+      if (!empty($operation['vector_provider']) && $vector_provider === NULL) {
+        $vector_provider = (string) $operation['vector_provider'];
+      }
+      if (!empty($operation['embedding_provider']) && $embedding_provider === NULL) {
+        $embedding_provider = (string) $operation['embedding_provider'];
+      }
+      if (!empty($operation['embedding_model']) && $embedding_model === NULL) {
+        $embedding_model = (string) $operation['embedding_model'];
+      }
+      if (!empty($operation['expected_dimensions']) && $expected_dimensions === NULL) {
+        $expected_dimensions = (int) $operation['expected_dimensions'];
+      }
+      if (!empty($operation['vector_index_id']) && is_string($operation['vector_index_id'])) {
+        $indexes_considered[$operation['vector_index_id']] = TRUE;
+        if (!empty($operation['vector_attempted'])) {
+          $indexes_queried[$operation['vector_index_id']] = TRUE;
+        }
+      }
+      if (!empty($operation['vector_top_scores']) && is_array($operation['vector_top_scores'])) {
+        foreach ($operation['vector_top_scores'] as $score) {
+          if (is_numeric($score)) {
+            $vector_top_scores[] = (float) $score;
+          }
+        }
+      }
+    }
+    rsort($vector_top_scores, SORT_NUMERIC);
+    $vector_top_scores = array_slice($vector_top_scores, 0, 5);
+
+    // Fall back to static identity when no operation telemetry is present
+    // (e.g., synthesized responses, suggestion endpoints).
+    if ($vector_provider === NULL && $this->faqIndex && method_exists($this->faqIndex, 'getVectorTelemetryIdentity')) {
+      $identity = $this->faqIndex->getVectorTelemetryIdentity();
+      $vector_provider = $vector_provider ?? ($identity['vector_provider'] ?? NULL);
+      $embedding_provider = $embedding_provider ?? ($identity['embedding_provider'] ?? NULL);
+      $embedding_model = $embedding_model ?? ($identity['embedding_model'] ?? NULL);
+      $expected_dimensions = $expected_dimensions ?? ($identity['expected_dimensions'] ?? NULL);
+      if (!empty($identity['vector_index_id'])) {
+        $indexes_considered[$identity['vector_index_id']] = TRUE;
+      }
+    }
+    if ($this->resourceFinder && method_exists($this->resourceFinder, 'getVectorTelemetryIdentity')) {
+      $identity = $this->resourceFinder->getVectorTelemetryIdentity();
+      if (!empty($identity['vector_index_id'])) {
+        $indexes_considered[$identity['vector_index_id']] = TRUE;
+      }
+    }
+
+    $grounding_sources = $this->buildGroundingSourceSummaries($response);
+
+    $rerank_summary = $this->buildRerankSummary();
+
     return [
       'vector_enabled_effective' => $vector_enabled_effective,
       'vector_attempted' => $vector_attempted,
       'vector_status' => $vector_status,
       'vector_result_count' => $effective_vector_result_count,
       'lexical_result_count' => $effective_lexical_result_count,
+      'merged_result_count' => count($results),
+      'final_grounded_result_count' => count($grounding_sources),
+      'vector_provider' => $vector_provider,
+      'embedding_provider' => $embedding_provider,
+      'embedding_model' => $embedding_model,
+      'expected_dimensions' => $expected_dimensions,
+      'indexes_considered' => array_values(array_keys($indexes_considered)),
+      'indexes_queried' => array_values(array_keys($indexes_queried)),
+      'vector_top_scores' => $vector_top_scores,
+      'rerank' => $rerank_summary,
       'source_classes' => array_values(array_unique(array_merge(
         array_keys($source_classes),
         array_keys($operation_source_classes),
@@ -4020,8 +4678,100 @@ class AssistantApiController extends ControllerBase {
       'degraded_reason' => $degraded_reason,
       'retrieval_operations' => array_slice($operations, 0, 6),
       'retrieval_artifacts' => $this->buildRetrievalArtifactSummaries($results),
-      'grounding_sources' => $this->buildGroundingSourceSummaries($response),
+      'grounding_sources' => $grounding_sources,
     ];
+  }
+
+  /**
+   * Builds the rerank section of the retrieval contract.
+   *
+   * Always emits provider/model identity from VoyageReranker config; sets
+   * `used` based on the most recent rerank attempt for this request.
+   *
+   * @return array<string, mixed>
+   */
+
+  /**
+   * Builds the secret-free retrieval contract attached to every response.
+   *
+   * Includes proof-of-stack identity (vector_provider, embedding_provider,
+   * embedding_model), counts, top scores, and rerank summary. Excludes
+   * raw operation telemetry, query hashes, and per-turn artifacts which
+   * remain under `_debug.retrieval_trace`.
+   *
+   * @param array<string, mixed> $trace
+   *   The output of collectRetrievalTraceMetadata().
+   *
+   * @return array<string, mixed>
+   */
+  protected function buildPublicRetrievalContract(array $trace): array {
+    return [
+      'vector_enabled_effective' => (bool) ($trace['vector_enabled_effective'] ?? FALSE),
+      'vector_attempted' => (bool) ($trace['vector_attempted'] ?? FALSE),
+      'vector_status' => (string) ($trace['vector_status'] ?? 'disabled'),
+      'lexical_result_count' => (int) ($trace['lexical_result_count'] ?? 0),
+      'vector_result_count' => (int) ($trace['vector_result_count'] ?? 0),
+      'merged_result_count' => (int) ($trace['merged_result_count'] ?? 0),
+      'final_grounded_result_count' => (int) ($trace['final_grounded_result_count'] ?? 0),
+      'vector_provider' => $trace['vector_provider'] ?? NULL,
+      'embedding_provider' => $trace['embedding_provider'] ?? NULL,
+      'embedding_model' => $trace['embedding_model'] ?? NULL,
+      'expected_dimensions' => $trace['expected_dimensions'] ?? NULL,
+      'indexes_considered' => array_values($trace['indexes_considered'] ?? []),
+      'indexes_queried' => array_values($trace['indexes_queried'] ?? []),
+      'vector_top_scores' => array_values($trace['vector_top_scores'] ?? []),
+      'source_classes' => array_values($trace['source_classes'] ?? []),
+      'rerank' => $trace['rerank'] ?? [
+        'used' => FALSE,
+        'attempted' => FALSE,
+        'provider' => 'voyage',
+        'model' => NULL,
+        'input_count' => 0,
+        'output_count' => 0,
+      ],
+    ];
+  }
+
+  /**
+   *
+   */
+  protected function buildRerankSummary(): array {
+    $summary = [
+      'used' => FALSE,
+      'attempted' => FALSE,
+      'provider' => 'voyage',
+      'model' => NULL,
+      'input_count' => 0,
+      'output_count' => 0,
+      'order_changed' => FALSE,
+      'fallback_reason' => NULL,
+      'latency_ms' => NULL,
+      'enabled' => FALSE,
+    ];
+
+    if ($this->voyageReranker && method_exists($this->voyageReranker, 'getRuntimeSummary')) {
+      $runtime = $this->voyageReranker->getRuntimeSummary();
+      $summary['enabled'] = (bool) ($runtime['enabled'] ?? FALSE);
+      $summary['model'] = $runtime['rerank_model'] ?? NULL;
+    }
+
+    $meta = $this->lastRerankMeta;
+    if (is_array($meta)) {
+      $summary['attempted'] = (bool) ($meta['attempted'] ?? FALSE);
+      $summary['used'] = (bool) ($meta['applied'] ?? FALSE);
+      $summary['model'] = $meta['model'] ?? $summary['model'];
+      $summary['input_count'] = (int) ($meta['input_count'] ?? 0);
+      // Output count = number of items the reranker actually returned to
+      // the controller (input minus any malformed entries, plus any
+      // overflow appended). When applied, this matches the post-rerank
+      // result list size up to max_candidates.
+      $summary['output_count'] = $summary['used'] ? $summary['input_count'] : 0;
+      $summary['order_changed'] = (bool) ($meta['order_changed'] ?? FALSE);
+      $summary['fallback_reason'] = $meta['fallback_reason'] ?? NULL;
+      $summary['latency_ms'] = $meta['latency_ms'] ?? NULL;
+    }
+
+    return $summary;
   }
 
   /**
@@ -4394,7 +5144,7 @@ class AssistantApiController extends ControllerBase {
    * @return array
    *   Response data.
    */
-  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = []) {
+  protected function processIntent(array $intent, string $message, array $context, string $request_id = '', array $server_history = [], array $conversation_context_summary = []) {
     $config = $this->configFactory->get('ilas_site_assistant.settings');
     $canonical_urls = ilas_site_assistant_get_canonical_urls();
 
@@ -4452,9 +5202,9 @@ class AssistantApiController extends ControllerBase {
           }
 
           // Office detail requests should return office-specific data.
-          $resolver = new OfficeLocationResolver();
+          $resolver = $this->assistantFlowRunner->getOfficeLocationResolver();
           $office = $this->resolveOfficeFromMessageOrHistory($message, $server_history, $resolver);
-          $office_in_message = $resolver->resolve($message) !== null;
+          $office_in_message = $resolver->resolve($message) !== NULL;
           if ($office && ($office_in_message || $this->isOfficeDetailRequest($message))) {
             $response['type'] = 'office_location';
             $response['response_mode'] = 'navigate';
@@ -4507,8 +5257,64 @@ class AssistantApiController extends ControllerBase {
           break;
         }
         $results = $this->faqIndex->search($message, 3);
-        $response['results'] = $results;
         $response['fallback_url'] = $canonical_urls['faq'];
+
+        // FAQ-miss → grounded retrieval fallthrough.
+        // When the curated FAQ index has no match, attempt the resource index
+        // so high-confidence informational queries are answered with citations
+        // rather than an immediate refusal. We promote to type=resources ONLY
+        // if at least one result is groundable: it must carry a non-empty URL
+        // AND a source_class that the retrieval contract has approved
+        // (resource_lexical / resource_vector). Otherwise the original empty
+        // FAQ shape is preserved and the post-pipeline grounding-refusal gate
+        // flips the response to clarify_no_grounding.
+        $fallthrough_enabled = $config->get('enable_faq_resource_fallthrough');
+        $fallthrough_enabled = $fallthrough_enabled === NULL ? TRUE : (bool) $fallthrough_enabled;
+        if (count($results) === 0 && $fallthrough_enabled && $config->get('enable_resources')) {
+          $fallthrough_results = $this->resourceFinder->findResources($message, 3);
+          $approved_source_classes = (array) ($config->get('retrieval_contract.approved_source_classes')
+            ?? ['faq_lexical', 'faq_vector', 'resource_lexical', 'resource_vector']);
+          $has_groundable_result = FALSE;
+          foreach ($fallthrough_results as $result) {
+            if (!is_array($result)) {
+              continue;
+            }
+            $url = $result['url'] ?? $result['source_url'] ?? NULL;
+            $source_class = $result['source_class'] ?? NULL;
+            if (
+              is_string($url) && trim($url) !== ''
+              && is_string($source_class)
+              && in_array($source_class, $approved_source_classes, TRUE)
+            ) {
+              $has_groundable_result = TRUE;
+              break;
+            }
+          }
+          if ($has_groundable_result) {
+            $response['type'] = 'resources';
+            $response['results'] = $fallthrough_results;
+            $response['message'] = $this->t('Here is general information that may help. This is not legal advice.');
+            $response['caveat'] = $this->t('Information is general, not legal advice.');
+            $response['decision_reason'] = 'faq_miss_resource_fallthrough';
+            $response['reason_code'] = 'faq_miss_resource_fallthrough';
+            $apply_url = $canonical_urls['apply'] ?? '/apply-for-help';
+            $secondary = $response['secondary_actions'] ?? [];
+            $secondary[] = [
+              'label' => $this->t('Apply for help'),
+              'url' => $apply_url,
+              'type' => 'apply',
+            ];
+            $response['secondary_actions'] = $secondary;
+            $this->analyticsLogger->log('faq_fallthrough', $request_id ?: '');
+            $this->logger->info('[@request_id] FAQ miss → resource fallthrough served (@count results)', [
+              '@request_id' => $request_id,
+              '@count' => count($fallthrough_results),
+            ]);
+            break;
+          }
+        }
+
+        $response['results'] = $results;
         $response['message'] = count($results) > 0
           ? $this->t('I found some FAQs that might help:')
           : $this->t('I couldn\'t find a matching FAQ. Try our FAQ page or contact us for help.');
@@ -4777,7 +5583,7 @@ class AssistantApiController extends ControllerBase {
         break;
 
       case 'services':
-        $response['message'] = $this->t('Idaho Legal Aid Services provides free civil legal help in areas including housing, family law, consumer issues, public benefits, and more. Here\'s an overview of our services:');
+        $response['message'] = $this->t('Idaho Legal Aid Services provides free civil legal help to eligible Idahoans in areas including housing, family safety, consumer issues, seniors, public benefits, and other civil legal issues. You can apply for help, call our Legal Advice Line, or browse our resources, forms, and FAQs.');
         $response['service_areas'] = [
           ['label' => $this->t('Housing'), 'url' => $canonical_urls['service_areas']['housing']],
           ['label' => $this->t('Family'), 'url' => $canonical_urls['service_areas']['family']],
@@ -4822,9 +5628,9 @@ class AssistantApiController extends ControllerBase {
           break;
         }
 
-        $resolver = new OfficeLocationResolver();
+        $resolver = $this->assistantFlowRunner->getOfficeLocationResolver();
         $office = $this->resolveOfficeFromMessageOrHistory($message, $server_history, $resolver);
-        $office_in_message = $resolver->resolve($message) !== null;
+        $office_in_message = $resolver->resolve($message) !== NULL;
         if ($office && ($office_in_message || $this->isOfficeDetailRequest($message))) {
           $response['type'] = 'office_location';
           $response['response_mode'] = 'navigate';
@@ -4900,13 +5706,32 @@ class AssistantApiController extends ControllerBase {
         $area = $intent['area'] ?? '';
         $area_label = ucfirst(str_replace('_', ' ', $area));
 
+        // Detect a prior eviction context so the follow-up can name the
+        // specific situation and offer concrete next steps instead of a
+        // generic resource list.
+        $is_housing_eviction_followup = ($area === 'housing')
+          && self::isHousingEvictionFollowup($conversation_context_summary, $server_history, $message);
+
         // Follow-up detection: if user already visited this service area,
         // try to show deeper resources instead of repeating the same link.
         if ($config->get('enable_resources') && $this->isFollowUpInSameArea($intent, $server_history)) {
           $resource_results = $this->resourceFinder->findResources($area . ' ' . $message, 6);
           if (!empty($resource_results)) {
             $response['type'] = 'resources';
-            $response['message'] = $this->t('Here are @area resources that may help:', ['@area' => $area_label]);
+            if ($is_housing_eviction_followup) {
+              $response['message'] = $this->t("For your eviction notice, don't miss any court deadlines. Gather the notice, your lease, payment records, and any communications from your landlord. Here are housing and eviction resources that may help:");
+              $response['primary_action'] = [
+                'label' => $this->t('Apply for Help'),
+                'url' => $canonical_urls['apply'],
+              ];
+              $response['secondary_actions'] = [
+                ['label' => $this->t('Call Legal Advice Line'), 'url' => $canonical_urls['hotline']],
+                ['label' => $this->t('Apply for Help'), 'url' => $canonical_urls['apply']],
+              ];
+            }
+            else {
+              $response['message'] = $this->t('Here are @area resources that may help:', ['@area' => $area_label]);
+            }
             $response['results'] = $resource_results;
             $response['disclaimer'] = $this->t('These are informational resources only. If you need legal advice, please apply for help or call our Legal Advice Line.');
             $response['fallback_url'] = $canonical_urls['service_areas'][$area] ?? $canonical_urls['services'];
@@ -4920,7 +5745,12 @@ class AssistantApiController extends ControllerBase {
           }
           // No resource results — show actionable options instead of dead-end.
           $area_url = $canonical_urls['service_areas'][$area] ?? $canonical_urls['services'];
-          $response['message'] = $this->t('I can help you find more @area resources. Here are some options:', ['@area' => $area_label]);
+          if ($is_housing_eviction_followup) {
+            $response['message'] = $this->t("For your eviction notice, don't miss any court deadlines. Gather the notice, your lease, payment records, and any communications, and reach out for help right away. Here are options:");
+          }
+          else {
+            $response['message'] = $this->t('I can help you find more @area resources. Here are some options:', ['@area' => $area_label]);
+          }
           $response['links'] = [
             ['label' => $this->t('Browse @area Page', ['@area' => $area_label]), 'url' => $area_url, 'type' => 'services'],
             ['label' => $this->t('Find @area Forms', ['@area' => $area_label]), 'url' => $canonical_urls['forms'], 'type' => 'forms'],
@@ -5393,6 +6223,243 @@ class AssistantApiController extends ControllerBase {
   }
 
   /**
+   * Stores eviction topic context when the first turn exits via safety routing.
+   */
+  protected function persistEvictionSafetyExitContext(?string $conversation_id, array $server_history, string $user_message, array $safety_classification, array $safety_flags, ?string $response_type, string $session_fingerprint): void {
+    if ($conversation_id === NULL || ($safety_classification['class'] ?? '') !== SafetyClassifier::CLASS_EVICTION_EMERGENCY) {
+      return;
+    }
+
+    $server_history[] = [
+      'role' => 'user',
+      'text' => PiiRedactor::redactForStorage($user_message, 200),
+      'intent' => 'topic_housing_eviction',
+      'route_source' => 'safety_exit',
+      'safety_flags' => $safety_flags,
+      'timestamp' => time(),
+      'area' => 'housing',
+      'topic_id' => NULL,
+      'topic' => 'eviction',
+      'response_type' => $response_type,
+    ];
+    $cache_data = array_slice($server_history, -10);
+    if ($this->conversationContextSummary) {
+      $cache_data['conversation_context_summary'] = $this->conversationContextSummary->summarizeTurn(
+        $user_message,
+        [
+          'type' => 'topic_housing_eviction',
+          'area' => 'housing',
+          'topic' => 'eviction',
+          'source' => 'safety_exit',
+          'extraction' => [],
+        ],
+        [
+          'type' => $response_type ?? 'escalation',
+          'response_mode' => 'navigate',
+          'links' => [
+            ['label' => 'Legal Advice Line', 'url' => '/Legal-Advice-Line', 'type' => 'hotline'],
+            ['label' => 'Apply for Help', 'url' => '/apply-for-help', 'type' => 'apply'],
+          ],
+        ],
+        [],
+        ['safety_flags' => $safety_flags],
+      );
+    }
+    if ($session_fingerprint !== '') {
+      $cache_data['_session_fp'] = $session_fingerprint;
+    }
+
+    $this->conversationCache->set(
+      'ilas_conv:' . $conversation_id,
+      $cache_data,
+      time() + self::CONVERSATION_STATE_TTL
+    );
+  }
+
+  /**
+   * Infers a broad service area from a topic intent key.
+   */
+  protected function inferAreaFromIntentType(string $intent_type): ?string {
+    if (str_starts_with($intent_type, 'topic_housing')) {
+      return 'housing';
+    }
+    if (str_starts_with($intent_type, 'topic_family')) {
+      return 'family';
+    }
+    if (str_starts_with($intent_type, 'topic_consumer')) {
+      return 'consumer';
+    }
+    if (str_starts_with($intent_type, 'topic_seniors')) {
+      return 'seniors';
+    }
+    if (str_starts_with($intent_type, 'topic_health') || str_starts_with($intent_type, 'topic_benefits')) {
+      return 'health';
+    }
+    if (str_starts_with($intent_type, 'topic_civil_rights') || str_starts_with($intent_type, 'topic_employment')) {
+      return 'civil_rights';
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Adds non-sensitive continuity hints from the conversation summary.
+   */
+  protected function applyConversationContextResponseHints(array $response, array $summary, array $canonical_urls): array {
+    $summary = $this->conversationContextSummary
+      ? $this->conversationContextSummary->normalizeStoredSummary($summary)
+      : [];
+    if ($summary === [] || ($summary['service_area'] ?? '') === '') {
+      return $response;
+    }
+
+    $followup_parts = [];
+    if (($summary['deadline_or_notice'] ?? '') === '3_day_notice') {
+      $followup_parts[] = (string) $this->t('You mentioned a 3-day notice, so getting help quickly is important.');
+    }
+    elseif (($summary['deadline_or_notice'] ?? '') === 'lockout') {
+      $followup_parts[] = (string) $this->t('A lockout can be urgent, so quick follow-up may be important.');
+    }
+
+    if (!empty($summary['household_context']['children_present']) && ($summary['service_area'] ?? '') === 'housing') {
+      $followup_parts[] = (string) $this->t('Because children are involved, prompt human help may be especially important.');
+    }
+
+    $county = (string) ($summary['county'] ?? '');
+    if ($county !== '') {
+      $office = $this->assistantFlowRunner->getOfficeLocationResolver()->resolve($county . ' county');
+      if (is_array($office)) {
+        $followup_parts[] = (string) $this->t('If you need local help in @county County, the @office office serves that area.', [
+          '@county' => ucfirst($county),
+          '@office' => $office['name'] ?? $this->t('nearest'),
+        ]);
+        $response = $this->appendSecondaryAction($response, [
+          'label' => (string) $this->t('Nearest office: @office', ['@office' => $office['name'] ?? $this->t('Office')]),
+          'url' => $office['url'] ?? $canonical_urls['offices'],
+        ]);
+      }
+    }
+
+    if ($followup_parts !== []) {
+      $existing = trim((string) ($response['followup'] ?? ''));
+      $response['followup'] = trim(implode(' ', array_unique(array_filter(array_merge(
+        $existing !== '' ? [$existing] : [],
+        $followup_parts,
+      )))));
+    }
+
+    return $response;
+  }
+
+  /**
+   * Replaces a generic clarify with context-aware next steps when possible.
+   */
+  protected function recoverClarifyFromConversationContext(array $response, array $summary, array $canonical_urls): array {
+    $summary = $this->conversationContextSummary
+      ? $this->conversationContextSummary->normalizeStoredSummary($summary)
+      : [];
+    if ($summary === [] || ($summary['current_topic'] ?? '') === '') {
+      return $response;
+    }
+
+    $links = $this->buildConversationContextLinks($summary, $canonical_urls);
+    if ($links === []) {
+      return $response;
+    }
+
+    $topic_label = $this->labelForConversationTopic((string) ($summary['current_topic'] ?? ''), (string) ($summary['service_area'] ?? ''));
+    $response['type'] = 'context_recovery';
+    $response['response_mode'] = 'navigate';
+    $response['message'] = (string) $this->t('You\'re still asking about @topic. I can\'t tell you what to say to win, but here are the safest next steps I can offer right now.', [
+      '@topic' => $topic_label,
+    ]);
+    $response['links'] = $links;
+    $response['primary_action'] = $links[0];
+    $response['reason_code'] = 'conversation_context_recovery';
+    unset($response['topic_suggestions'], $response['suggestions']);
+
+    return $response;
+  }
+
+  /**
+   * Builds safe navigation links from the stored summary.
+   */
+  protected function buildConversationContextLinks(array $summary, array $canonical_urls): array {
+    $links = [];
+    $action_map = [
+      'apply' => ['label' => (string) $this->t('Apply for Help'), 'url' => $canonical_urls['apply'], 'type' => 'apply'],
+      'hotline' => ['label' => (string) $this->t('Legal Advice Line'), 'url' => $canonical_urls['hotline'], 'type' => 'hotline'],
+      'forms' => ['label' => (string) $this->t('Find Forms'), 'url' => $canonical_urls['forms'], 'type' => 'forms'],
+      'guides' => ['label' => (string) $this->t('Find Guides'), 'url' => $canonical_urls['guides'], 'type' => 'guides'],
+      'resources' => ['label' => (string) $this->t('Browse Resources'), 'url' => $canonical_urls['resources'], 'type' => 'resources'],
+      'services' => ['label' => (string) $this->t('Our Services'), 'url' => $canonical_urls['services'], 'type' => 'services'],
+      'office' => ['label' => (string) $this->t('Office Locations'), 'url' => $canonical_urls['offices'], 'type' => 'office'],
+    ];
+
+    foreach ((array) ($summary['last_offered_actions'] ?? []) as $token) {
+      if (isset($action_map[$token])) {
+        $links[] = $action_map[$token];
+      }
+    }
+
+    $service_area = (string) ($summary['service_area'] ?? '');
+    if ($service_area !== '' && isset($canonical_urls['service_areas'][$service_area])) {
+      $links[] = [
+        'label' => (string) $this->t('Browse @area Help', ['@area' => ucfirst(str_replace('_', ' ', $service_area))]),
+        'url' => $canonical_urls['service_areas'][$service_area],
+        'type' => 'services',
+      ];
+    }
+
+    if ($links === []) {
+      $links[] = $action_map['hotline'];
+      $links[] = $action_map['apply'];
+    }
+
+    $deduped = [];
+    $seen = [];
+    foreach ($links as $link) {
+      $key = ($link['label'] ?? '') . '|' . ($link['url'] ?? '');
+      if (isset($seen[$key])) {
+        continue;
+      }
+      $seen[$key] = TRUE;
+      $deduped[] = $link;
+    }
+
+    return array_slice($deduped, 0, 4);
+  }
+
+  /**
+   * Appends a secondary action while avoiding duplicates.
+   */
+  protected function appendSecondaryAction(array $response, array $action): array {
+    $existing = is_array($response['secondary_actions'] ?? NULL) ? $response['secondary_actions'] : [];
+    foreach ($existing as $item) {
+      if (($item['url'] ?? '') === ($action['url'] ?? '')) {
+        return $response;
+      }
+    }
+
+    $existing[] = $action;
+    $response['secondary_actions'] = $existing;
+    return $response;
+  }
+
+  /**
+   * Returns a user-facing topic label for continuity copy.
+   */
+  protected function labelForConversationTopic(string $topic, string $service_area): string {
+    return match ($topic) {
+      'housing_eviction' => 'eviction help',
+      'family_custody' => 'custody help',
+      default => $service_area !== ''
+        ? strtolower(str_replace('_', ' ', $service_area)) . ' help'
+        : 'that topic',
+    };
+  }
+
+  /**
    * Applies loop prevention for repeated clarify responses.
    */
   protected function applyClarifyLoopGuard(array $response, string $conversation_id, string $request_id, array $meta): array {
@@ -5670,7 +6737,69 @@ class AssistantApiController extends ControllerBase {
   }
 
   /**
-   * Returns TRUE if message is asking for office details.
+   * Returns TRUE when the housing-eviction continuity guard should fire.
+   *
+   * Encapsulates every precondition the inline guard checks so the predicate
+   * can be regression-tested in isolation. Only fires when:
+   *  - server_history is non-empty,
+   *  - the current intent is OVERRIDE-ELIGIBLE: either a generic/ambiguous
+   *    follow-up (`unknown`, `faq`, `services_overview`, etc.), an
+   *    `intent_pack_meta_*` meta-intent, or `offices_contact`. The last is
+   *    included because IntentRouter classifies bare-city replies like
+   *    "This is in Boise" / "It happened in Idaho Falls" as `offices_contact`
+   *    via its city-name pattern, but in an active eviction conversation
+   *    those messages are location refinements, not new office searches.
+   *    A clear NEW TOPIC like `topic_family` (custody/divorce),
+   *    `topic_consumer` (debt), `topic_benefits` (SSI), `topic_civil_rights`
+   *    (protection orders), or `service_area` with non-housing area is NEVER
+   *    overridden, even if the message also carries a county or "next steps"
+   *    phrase. Custody messages such as "What should I do about custody,
+   *    I'm in Ada County?" route to topic_family / service_area=family in
+   *    IntentRouter step 6/9, so they are excluded here by intent type
+   *    rather than by message-content scanning.
+   *  - the message looks like a county/city/zip reply OR a "next steps"
+   *    phrase,
+   *  - the message does NOT carry a topic-shift reset signal
+   *    (HistoryIntentResolver::RESET_SIGNALS),
+   *  - and isHousingEvictionFollowup() agrees there is an active eviction
+   *    thread to continue.
+   */
+  public static function shouldApplyHousingEvictionContinuityGuard(
+    array $intent,
+    array $generic_followup_intents,
+    array $server_history,
+    array $conversation_context_summary,
+    string $current_message,
+    bool $is_location_like_reply,
+    bool $is_next_step_followup,
+  ): bool {
+    return (new HousingEvictionContinuityDecider())->shouldOverrideOfficesContact(
+      $intent,
+      $generic_followup_intents,
+      $server_history,
+      $conversation_context_summary,
+      $current_message,
+      $is_location_like_reply,
+      $is_next_step_followup,
+    );
+  }
+
+  /**
+   * Returns TRUE when the current housing turn follows an eviction conversation.
+   *
+   * Checks the conversation context summary first (cheap & deterministic), then
+   * falls back to scanning recent history texts for eviction keywords.
+   */
+  public static function isHousingEvictionFollowup(array $conversation_context_summary, array $server_history, string $current_message): bool {
+    return (new HousingEvictionContinuityDecider())->isHousingEvictionFollowup(
+      $conversation_context_summary,
+      $server_history,
+      $current_message
+    );
+  }
+
+  /**
+   * Returns TRUE when the message asks for office-detail information.
    */
   protected function isOfficeDetailRequest(string $message): bool {
     $normalized = mb_strtolower(trim($message));
@@ -5690,12 +6819,76 @@ class AssistantApiController extends ControllerBase {
    */
   protected function buildOfficeDetailMessage(array $office): string {
     $hours = (string) ($office['hours'] ?? $this->t('Hours may vary. Please call to confirm current office hours.'));
-    return (string) $this->t("Here are the details for the @office office:\n\nAddress: @address\nPhone: @phone\nHours: @hours", [
+    $message = (string) $this->t("Here are the details for the @office office:\n\nAddress: @address\nPhone: @phone\nHours: @hours", [
       '@office' => $office['name'] ?? $this->t('local'),
       '@address' => $office['address'] ?? $this->t('Address unavailable'),
       '@phone' => $office['phone'] ?? $this->t('Call for contact details'),
       '@hours' => $hours,
     ]);
+    // Final scrubbing seam: ensure no deny-list token leaked into the
+    // rendered message. assertNoStaleTokens() throws in dev/test and logs +
+    // returns FALSE in prod; on prod failure we substitute a safe link.
+    if ($this->officeDirectory !== NULL && !$this->officeDirectory->assertNoStaleTokens($message, 'office_detail_message')) {
+      return (string) $this->t('For current office locations and contact information, please visit /contact/offices.');
+    }
+    return $message;
+  }
+
+  /**
+   * Strips poisoned office records and validates against the deny-list.
+   *
+   * Returns NULL when the record is unsalvageable (e.g., the canonical
+   * directory marked it poisoned and address/phone fields were cleared).
+   * In dev/test, the OfficeDirectory throws on poisoned records before this
+   * point.
+   */
+  protected function scrubOfficeRecord(array $office): ?array {
+    if ($this->officeDirectory === NULL) {
+      return $office;
+    }
+    if (!empty($office['poisoned'])) {
+      $this->logger->error('Refusing to render poisoned office record (slug=@slug, nid=@nid).', [
+        '@slug' => (string) ($office['slug'] ?? ''),
+        '@nid' => (int) ($office['source_nid'] ?? 0),
+      ]);
+      return NULL;
+    }
+    $serialized = trim(implode(' | ', [
+      (string) ($office['name'] ?? ''),
+      (string) ($office['address'] ?? ''),
+      (string) ($office['street'] ?? ''),
+      (string) ($office['phone'] ?? ''),
+      (string) ($office['phone_secondary'] ?? ''),
+    ]));
+    if ($serialized !== '' && !$this->officeDirectory->assertNoStaleTokens($serialized, 'office_record')) {
+      return NULL;
+    }
+    return $office;
+  }
+
+  /**
+   * Builds a safe fallback response when an office record is unrenderable.
+   */
+  protected function buildOfficeFallbackResponse(string $request_id, bool $debug_mode, ?array $debug_meta): JsonResponse {
+    $response = [
+      'type' => 'navigate',
+      'response_mode' => 'navigate',
+      'message' => (string) $this->t('For current office locations and contact information, please visit /contact/offices.'),
+      'primary_action' => [
+        'label' => $this->t('All Offices'),
+        'url' => '/contact/offices',
+      ],
+      'reason_code' => 'office_followup_safe_fallback',
+      'request_id' => $request_id,
+    ];
+    if ($debug_mode) {
+      $debug_meta['intent_selected'] = 'office_location_safe_fallback';
+      $debug_meta['intent_source'] = 'deny_list_scrubber';
+      $debug_meta['final_action'] = 'navigate';
+      $debug_meta['reason_code'] = 'office_followup_safe_fallback';
+      $response['_debug'] = $debug_meta;
+    }
+    return $this->jsonResponse($response, 200, [], $request_id);
   }
 
   /**
@@ -6122,10 +7315,19 @@ class AssistantApiController extends ControllerBase {
    *   JSON response with office details.
    */
   protected function handleOfficeFollowUp(Request $request, array $office, string $user_message, string $conversation_id, array $server_history, string $request_id, bool $debug_mode, ?array $debug_meta, float $start_time, array $langfuse_base_metadata = []): JsonResponse {
+    // Defense-in-depth: scrub the office record before rendering. If a
+    // poisoned record slipped past the entity layer, fail loud in dev/test
+    // and degrade to a safe /contact/offices clarification in production.
+    $office = $this->scrubOfficeRecord($office);
+    if ($office === NULL) {
+      return $this->buildOfficeFallbackResponse($request_id, $debug_mode, $debug_meta);
+    }
+
+    $message_text = $this->buildOfficeDetailMessage($office);
     $response = [
       'type' => 'office_location',
       'response_mode' => 'navigate',
-      'message' => $this->buildOfficeDetailMessage($office),
+      'message' => $message_text,
       'office' => [
         'name' => $office['name'],
         'address' => $office['address'],
@@ -6751,6 +7953,12 @@ class AssistantApiController extends ControllerBase {
         }
 
         $item['url'] = $url;
+        if (empty($item['topic'])) {
+          $topic = $this->resolveCitationTopic($item, $url);
+          if ($topic !== NULL) {
+            $item['topic'] = $topic;
+          }
+        }
         $citations[] = $item;
       }
 
@@ -6806,10 +8014,118 @@ class AssistantApiController extends ControllerBase {
       if ($source !== NULL) {
         $citation['source'] = $source;
       }
+      // Topic resolution: prefer explicit fields on the result, then taxonomy
+      // term name, then derive from URL slug. Keeps the citation contract
+      // assertable by promptfoo's `expected_topic` matcher.
+      $topic = $this->resolveCitationTopic($result, $url);
+      if ($topic !== NULL) {
+        $citation['topic'] = $topic;
+      }
+      $topic_id = $this->resolveCitationTopicId($result);
+      if ($topic_id !== NULL) {
+        $citation['topic_id'] = $topic_id;
+      }
       $citations[] = $citation;
     }
 
     return $citations;
+  }
+
+  /**
+   * Resolves a topic label for a citation/result row.
+   *
+   * Priority: explicit topic field on the row → taxonomy term name → URL
+   * slug heuristic. Returns NULL when no topic could be derived.
+   */
+  private function resolveCitationTopic(array $row, ?string $url): ?string {
+    foreach (['topic', 'topic_name', 'category', 'taxonomy_topic', 'service_area'] as $key) {
+      if (!empty($row[$key]) && is_string($row[$key])) {
+        return strtolower(trim($row[$key]));
+      }
+      if (!empty($row[$key]) && is_array($row[$key])) {
+        $first = reset($row[$key]);
+        if (is_string($first) && $first !== '') {
+          return strtolower(trim($first));
+        }
+      }
+    }
+
+    // Walk known taxonomy field names that may carry a topic label.
+    foreach (['field_topics', 'field_service_areas', 'field_service_area', 'field_tags'] as $field_key) {
+      if (!empty($row[$field_key])) {
+        $value = $row[$field_key];
+        if (is_string($value)) {
+          return strtolower(trim($value));
+        }
+        if (is_array($value)) {
+          foreach ($value as $item) {
+            if (is_string($item) && $item !== '') {
+              return strtolower(trim($item));
+            }
+            if (is_array($item) && !empty($item['name']) && is_string($item['name'])) {
+              return strtolower(trim($item['name']));
+            }
+          }
+        }
+      }
+    }
+
+    // URL-slug fallback: known canonical paths reveal the topic. Order
+    // matters — more specific slugs first.
+    $url_lower = strtolower((string) ($url ?? ($row['url'] ?? $row['source_url'] ?? '')));
+    static $slug_topics = [
+      'eviction' => 'eviction',
+      'tenant' => 'tenant',
+      'housing' => 'housing',
+      'foreclosure' => 'foreclosure',
+      'security-deposit' => 'deposit',
+      'deposit' => 'deposit',
+      'custody' => 'custody',
+      'guardianship' => 'guardianship',
+      'divorce' => 'divorce',
+      'family' => 'family',
+      'protection-order' => 'protection',
+      'domestic-violence' => 'protection',
+      'protection' => 'protection',
+      'benefits' => 'benefits',
+      'ssi' => 'benefits',
+      'social-security' => 'benefits',
+      'medicaid' => 'benefits',
+      'snap' => 'benefits',
+      'unemployment' => 'benefits',
+      'consumer' => 'debt',
+      'debt' => 'debt',
+      'wage' => 'employment',
+      'migrant' => 'employment',
+      'employment' => 'employment',
+    ];
+    foreach ($slug_topics as $slug => $topic) {
+      if (str_contains($url_lower, $slug)) {
+        return $topic;
+      }
+    }
+
+    // Source-class fallback (`faq_lexical_eviction` → `eviction`).
+    $source_class = is_string($row['source_class'] ?? NULL) ? strtolower($row['source_class']) : '';
+    foreach ($slug_topics as $slug => $topic) {
+      if (str_contains($source_class, str_replace('-', '_', $slug))) {
+        return $topic;
+      }
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Resolves a stable topic identifier (taxonomy term ID or slug).
+   */
+  private function resolveCitationTopicId(array $row): ?string {
+    foreach (['topic_id', 'term_id', 'category_id'] as $key) {
+      if (!empty($row[$key])) {
+        return (string) $row[$key];
+      }
+    }
+    return NULL;
   }
 
   /**

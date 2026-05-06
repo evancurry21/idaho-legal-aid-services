@@ -3,6 +3,10 @@
 namespace Drupal\Tests\ilas_site_assistant\Functional;
 
 use Drupal\Tests\BrowserTestBase;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\node\Entity\Node;
+use Drupal\node\Entity\NodeType;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Cookie\CookieJarInterface;
 
@@ -33,7 +37,9 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
   protected static $modules = [
     'ilas_site_assistant_action_compat',
     'eca',
+    'field',
     'node',
+    'text',
     'taxonomy',
     'user',
     'views',
@@ -48,6 +54,7 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    \Drupal::service('router.builder')->rebuild();
 
     // Pin LLM to disabled so FallbackGate returns DECISION_CLARIFY for
     // unknown intents — gives deterministic clarify without a real backend.
@@ -55,8 +62,12 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
     // in BrowserTestBase (no content nodes, missing paragraph field
     // definitions). Disable analytics logging to avoid DB writes to the
     // stats table for cleaner test isolation.
+    // Pin all paid providers off — these tests must never reach
+    // Pinecone/Voyage/Cohere even by accident if shipped-config defaults flip.
     \Drupal::configFactory()->getEditable('ilas_site_assistant.settings')
       ->set('llm.enabled', FALSE)
+      ->set('vector_search.enabled', FALSE)
+      ->set('voyage.enabled', FALSE)
       ->set('enable_faq', FALSE)
       ->set('enable_resources', FALSE)
       ->set('enable_logging', FALSE)
@@ -204,6 +215,90 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
       'Session B must not have turn_type set (FOLLOW_UP requires history, which fingerprint guard should block)');
   }
 
+  /**
+   * Eviction follow-ups keep prior notice context when new facts are added.
+   */
+  public function testEvictionContextSummaryCarriesFactOnlyFollowups(): void {
+    // Fixture: this test asserts on Ada County / Boise office facts when the
+    // user mentions "Ada County", so it must seed the office_information node
+    // itself — BrowserTestBase does not import the site config export.
+    $this->seedBoiseOfficeNode();
+    $this->clearMessageFloodEvents();
+    [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
+    $convId = \Drupal::service('uuid')->generate();
+
+    $r1 = $this->sendAnonymousMessage($cookies, $token, 'I got a 3-day eviction notice.', $convId);
+    $r1Text = $this->responseText($r1);
+    $this->assertMatchesRegularExpression('/3-day|eviction|notice|housing/', $r1Text);
+
+    $r2 = $this->sendAnonymousMessage($cookies, $token, 'I live in Ada County and I have kids.', $convId);
+    $r2Text = $this->responseText($r2);
+    $this->assertNotSame('clarify', $r2['response_mode'] ?? '', 'Turn 2 must stay in eviction context instead of falling back to generic clarify.');
+    $this->assertMatchesRegularExpression('/(3-day|eviction|notice)/', $r2Text);
+    $this->assertMatchesRegularExpression('/(ada|boise)/', $r2Text);
+    $this->assertMatchesRegularExpression('/(kid|child)/', $r2Text);
+    $this->assertMatchesRegularExpression('/(legal advice line|apply for help|hotline)/', $r2Text);
+
+    $r3 = $this->sendAnonymousMessage($cookies, $token, 'What should I do next?', $convId);
+    $r3Text = $this->responseText($r3);
+    $this->assertNotSame('clarify', $r3['response_mode'] ?? '', 'Turn 3 must continue the eviction thread with actionable next steps.');
+    $this->assertMatchesRegularExpression('/(3-day|eviction|notice)/', $r3Text);
+    $this->assertMatchesRegularExpression('/(ada|boise)/', $r3Text);
+    $this->assertMatchesRegularExpression('/(legal advice line|apply for help|hotline|guide|form)/', $r3Text);
+  }
+
+  /**
+   * Courtroom-strategy requests are refused and redirected safely.
+   */
+  public function testLegalStrategyRequestGetsClearBoundaryResponse(): void {
+    $this->clearMessageFloodEvents();
+    [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
+    $convId = \Drupal::service('uuid')->generate();
+
+    $this->sendAnonymousMessage($cookies, $token, 'I got a 3-day eviction notice.', $convId);
+    $response = $this->sendAnonymousMessage($cookies, $token, 'Can you write exactly what I should tell the judge so I win?', $convId);
+    $text = $this->responseText($response);
+
+    $this->assertMatchesRegularExpression('/(can.t|cannot)\s+tell.*judge.*win/', $text);
+    $this->assertMatchesRegularExpression('/legal strategy/', $text);
+    $this->assertMatchesRegularExpression('/(legal advice line|apply for help|guide|form)/', $text);
+    $this->assertDoesNotMatchRegularExpression('/say exactly this|you will win/', $text);
+  }
+
+  /**
+   * Session changes clear the ephemeral continuity summary with history.
+   */
+  public function testConversationContextDoesNotLeakAcrossSessionReset(): void {
+    $this->clearMessageFloodEvents();
+    $convId = \Drupal::service('uuid')->generate();
+
+    [$cookiesA, $tokenA] = $this->getAnonymousSessionCookiesAndToken();
+    $this->sendAnonymousMessage($cookiesA, $tokenA, 'I got a 3-day eviction notice.', $convId);
+
+    [$cookiesB, $tokenB] = $this->getAnonymousSessionCookiesAndToken();
+    $response = $this->sendAnonymousMessage($cookiesB, $tokenB, 'I live in Ada County and I have kids.', $convId);
+    $text = $this->responseText($response);
+
+    $this->assertDoesNotMatchRegularExpression('/3-day|eviction/', $text);
+  }
+
+  /**
+   * Clearing the cache removes the ephemeral continuity summary.
+   */
+  public function testConversationContextClearsWhenConversationCacheIsRemoved(): void {
+    $this->clearMessageFloodEvents();
+    [$cookies, $token] = $this->getAnonymousSessionCookiesAndToken();
+    $convId = \Drupal::service('uuid')->generate();
+
+    $this->sendAnonymousMessage($cookies, $token, 'I got a 3-day eviction notice.', $convId);
+    $this->clearConversationContextCache($convId);
+
+    $response = $this->sendAnonymousMessage($cookies, $token, 'What should I do next?', $convId);
+    $text = $this->responseText($response);
+
+    $this->assertDoesNotMatchRegularExpression('/3-day|eviction/', $text);
+  }
+
   // -----------------------------------------------------------------------
   // Helpers: duplicated from AssistantApiFunctionalTest (trait extraction
   // deferred until 5+ multi-turn methods are stable).
@@ -323,6 +418,88 @@ class AssistantMultiTurnFunctionalTest extends BrowserTestBase {
         'ilas_assistant_hr',
       ], 'IN')
       ->execute();
+  }
+
+  /**
+   * Returns a lowercase searchable string view of the response payload.
+   */
+  protected function responseText(array $response): string {
+    return mb_strtolower((string) json_encode($response));
+  }
+
+  /**
+   * Clears ephemeral conversation cache entries for one conversation.
+   */
+  protected function clearConversationContextCache(string $conversationId): void {
+    \Drupal::service('cache.ilas_site_assistant')->delete('ilas_conv:' . $conversationId);
+    \Drupal::service('cache.ilas_site_assistant')->delete('ilas_conv_meta:' . $conversationId);
+  }
+
+  /**
+   * Seeds a Boise / Ada County office_information node for office-aware tests.
+   *
+   * BrowserTestBase installs a fresh Drupal with only the modules listed in
+   * $modules; the office_information bundle and its fields live in the
+   * site-level config export, which is not imported here. Without a seeded
+   * node, OfficeDirectory::load() returns [] and any test asserting on Ada
+   * County / Boise office facts fails because the assistant has no office
+   * data to surface.
+   *
+   * Mirrors the canonical Boise fixture used by
+   * AssistantMessageRuntimeBehaviorFunctionalTest::seedBoiseOfficeNode() and
+   * OfficeLocationResolverTest::makeFakeDirectory() so all three test paths
+   * agree on the same source of truth for office facts.
+   */
+  protected function seedBoiseOfficeNode(): void {
+    if (!NodeType::load('office_information')) {
+      NodeType::create([
+        'type' => 'office_information',
+        'name' => 'Office Information',
+      ])->save();
+    }
+
+    $string_fields = [
+      'field_street_address',
+      'field_address_city',
+      'field_postal_code',
+      'field_office_hours',
+      'field_county',
+      'field_phone_number',
+    ];
+
+    foreach ($string_fields as $field_name) {
+      if (!FieldStorageConfig::loadByName('node', $field_name)) {
+        FieldStorageConfig::create([
+          'field_name' => $field_name,
+          'entity_type' => 'node',
+          'type' => 'string',
+          'cardinality' => 1,
+          'settings' => ['max_length' => 255],
+        ])->save();
+      }
+      if (!FieldConfig::loadByName('node', 'office_information', $field_name)) {
+        FieldConfig::create([
+          'field_name' => $field_name,
+          'entity_type' => 'node',
+          'bundle' => 'office_information',
+          'label' => $field_name,
+        ])->save();
+      }
+    }
+
+    Node::create([
+      'type' => 'office_information',
+      'title' => 'Boise Office',
+      'status' => 1,
+      'field_street_address' => '1447 S Tyrell Lane',
+      'field_address_city' => 'Boise',
+      'field_postal_code' => '83706',
+      'field_office_hours' => 'Monday through Friday, 8:30 a.m. to 4:30 p.m. (call to confirm current office hours).',
+      'field_county' => 'Ada',
+      'field_phone_number' => '208-746-7541',
+    ])->save();
+
+    \Drupal::service('ilas_site_assistant.office_directory')->invalidate();
   }
 
 }

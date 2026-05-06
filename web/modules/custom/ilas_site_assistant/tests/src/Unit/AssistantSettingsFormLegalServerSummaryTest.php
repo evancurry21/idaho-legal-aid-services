@@ -81,6 +81,9 @@ final class AssistantSettingsFormLegalServerSummaryTest extends TestCase {
 
     $form = new class($configFactory, $typedConfigManager) extends AssistantSettingsForm {
 
+      /**
+       *
+       */
       public function publicBuildLegalServerRuntimeNotice(bool $runtimeConfigured, ?array $check): string {
         return $this->buildLegalServerRuntimeNotice($runtimeConfigured, $check);
       }
@@ -89,10 +92,16 @@ final class AssistantSettingsFormLegalServerSummaryTest extends TestCase {
 
     $form->setStringTranslation(new class implements TranslationInterface {
 
+      /**
+       *
+       */
       public function translate($string, array $args = [], array $options = []) {
         return strtr((string) $string, array_map(static fn(mixed $value): string => (string) $value, $args));
       }
 
+      /**
+       *
+       */
       public function translateString($translated_string, array $options = []) {
         if (is_object($translated_string) && method_exists($translated_string, 'getUntranslatedString')) {
           $string = (string) $translated_string->getUntranslatedString();
@@ -105,6 +114,9 @@ final class AssistantSettingsFormLegalServerSummaryTest extends TestCase {
         return (string) $translated_string;
       }
 
+      /**
+       *
+       */
       public function formatPlural($count, $singular, $plural, array $args = [], array $options = []) {
         $template = $count == 1 ? $singular : $plural;
         return strtr((string) $template, array_map(static fn(mixed $value): string => (string) $value, $args));

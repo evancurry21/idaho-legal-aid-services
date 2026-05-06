@@ -61,7 +61,9 @@ class HistoryIntentResolver {
     'new question',
     'different issue',
     'switching gears',
+    'actually',
     'actually,',
+    'instead',
     'instead,',
     'something else',
     'different topic',
@@ -177,6 +179,9 @@ class HistoryIntentResolver {
     // Walk backward to find the most recent entry with an area.
     for ($i = count($server_history) - 1; $i >= 0; $i--) {
       $entry = $server_history[$i];
+      if (!is_array($entry)) {
+        continue;
+      }
       if (!empty($entry['area'])) {
         return [
           'area' => $entry['area'],
@@ -184,6 +189,59 @@ class HistoryIntentResolver {
           'topic' => $entry['topic'] ?? NULL,
         ];
       }
+
+      $inferred = self::inferTopicContextFromEntry($entry);
+      if ($inferred !== NULL) {
+        return $inferred;
+      }
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Infers topic context from older history entries without area metadata.
+   */
+  protected static function inferTopicContextFromEntry(array $entry): ?array {
+    $intent = mb_strtolower((string) ($entry['intent'] ?? ''));
+    $topic = mb_strtolower((string) ($entry['topic'] ?? ''));
+    $text = mb_strtolower((string) ($entry['text'] ?? ''));
+    $haystack = trim($intent . ' ' . $topic . ' ' . $text);
+
+    if ($haystack === '') {
+      return NULL;
+    }
+
+    // Office context: triggered by intent=office_location, the literal
+    // office_location token, or a known Idaho Legal Aid office city. The
+    // bare word "office" alone is not enough — that would over-match phrases
+    // like "post office" or "office hours" without a city signal.
+    $office_cities = '(?:boise|coeur\s*d[\' ]?\s*alene|idaho\s+falls|lewiston|pocatello|twin\s+falls|caldwell)';
+    if ($intent === 'office_location'
+      || str_contains($haystack, 'office_location')
+      || preg_match('/\b' . $office_cities . '\b/u', $haystack)
+    ) {
+      return [
+        'area' => 'office_location',
+        'topic_id' => $entry['topic_id'] ?? NULL,
+        'topic' => $entry['topic'] ?? NULL,
+      ];
+    }
+
+    if (preg_match('/\b(topic_housing|housing|eviction|evicted|landlord|tenant|rent|lease|notice|desalojo)\b/u', $haystack)) {
+      return [
+        'area' => 'housing',
+        'topic_id' => $entry['topic_id'] ?? NULL,
+        'topic' => preg_match('/\b(eviction|evicted|notice|desalojo)\b/u', $haystack) ? 'eviction' : ($entry['topic'] ?? NULL),
+      ];
+    }
+
+    if (preg_match('/\b(topic_family|family|custody|divorce|child\s+support|visitation|protection\s+order|custodia|divorcio)\b/u', $haystack)) {
+      return [
+        'area' => 'family',
+        'topic_id' => $entry['topic_id'] ?? NULL,
+        'topic' => $entry['topic'] ?? NULL,
+      ];
     }
 
     return NULL;

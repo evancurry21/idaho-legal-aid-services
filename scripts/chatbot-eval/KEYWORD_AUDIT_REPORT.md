@@ -1,5 +1,9 @@
 # Keyword Extraction Audit Report
 
+> **Historical legacy report.** This report was produced by deprecated
+> `scripts/chatbot-eval` tooling. Use Promptfoo, assistant smoke tests,
+> PHPUnit/functional tests, and Playwright for current Site Assistant coverage.
+
 **Date:** 2026-01-23
 **Audit Type:** Keyword Extraction & Matching Audit
 

@@ -35,6 +35,9 @@ class GreetingFalsePositiveTest extends TestCase {
     $this->assertFalse((bool) $new_behavior, "Word boundary should prevent match: $description");
   }
 
+  /**
+   *
+   */
   public static function substringFalsePositiveProvider(): array {
     return [
       // "hi" inside various words.
@@ -66,6 +69,9 @@ class GreetingFalsePositiveTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function actualGreetingProvider(): array {
     return [
       ['hi', 'hi', 'standalone hi'],
@@ -108,6 +114,9 @@ class GreetingFalsePositiveTest extends TestCase {
     );
   }
 
+  /**
+   *
+   */
   public static function topicKeywordProvider(): array {
     return [
       // Should block greeting detection.
@@ -182,6 +191,9 @@ class GreetingFalsePositiveTest extends TestCase {
     }
   }
 
+  /**
+   *
+   */
   public static function evalFailingCasesProvider(): array {
     return [
       // Specific eval failures.
@@ -225,6 +237,9 @@ class GreetingFalsePositiveTest extends TestCase {
     $this->assertEquals($isGreeting, (bool) $actual_greeting, $description);
   }
 
+  /**
+   *
+   */
   public static function edgeCaseProvider(): array {
     return [
       // Pure greetings with punctuation.

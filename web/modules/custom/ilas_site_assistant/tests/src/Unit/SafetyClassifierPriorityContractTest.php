@@ -9,7 +9,6 @@ use Drupal\Core\Config\ImmutableConfig;
 use Drupal\ilas_site_assistant\Service\SafetyClassifier;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 /**
  * Contract tests that lock SafetyClassifier structural invariants.
@@ -63,7 +62,7 @@ class SafetyClassifierPriorityContractTest extends TestCase {
       'CLASS_SAFE',
     ];
 
-    $ref = new ReflectionClass(SafetyClassifier::class);
+    $ref = new \ReflectionClass(SafetyClassifier::class);
     $classConstants = array_filter(
       array_keys($ref->getConstants()),
       fn(string $name) => str_starts_with($name, 'CLASS_'),
@@ -86,7 +85,7 @@ class SafetyClassifierPriorityContractTest extends TestCase {
       'ESCALATION_NONE',
     ];
 
-    $ref = new ReflectionClass(SafetyClassifier::class);
+    $ref = new \ReflectionClass(SafetyClassifier::class);
     $escalationConstants = array_filter(
       array_keys($ref->getConstants()),
       fn(string $name) => str_starts_with($name, 'ESCALATION_'),
@@ -123,9 +122,9 @@ class SafetyClassifierPriorityContractTest extends TestCase {
       'frustration',
     ];
 
-    $ref = new ReflectionClass(SafetyClassifier::class);
+    $ref = new \ReflectionClass(SafetyClassifier::class);
     $rulesProp = $ref->getProperty('rules');
-    $rulesProp->setAccessible(true);
+    $rulesProp->setAccessible(TRUE);
     $rules = $rulesProp->getValue($this->classifier);
 
     $this->assertSame(
@@ -171,9 +170,9 @@ class SafetyClassifierPriorityContractTest extends TestCase {
       'frustration' => SafetyClassifier::ESCALATION_STANDARD,
     ];
 
-    $ref = new ReflectionClass(SafetyClassifier::class);
+    $ref = new \ReflectionClass(SafetyClassifier::class);
     $rulesProp = $ref->getProperty('rules');
-    $rulesProp->setAccessible(true);
+    $rulesProp->setAccessible(TRUE);
     $rules = $rulesProp->getValue($this->classifier);
 
     foreach ($expectedMapping as $category => $expectedEscalation) {
@@ -190,7 +189,7 @@ class SafetyClassifierPriorityContractTest extends TestCase {
    * Every rule's 'class' value must be a valid CLASS_* constant.
    */
   public function testEveryRuleMapsToValidClassConstant(): void {
-    $ref = new ReflectionClass(SafetyClassifier::class);
+    $ref = new \ReflectionClass(SafetyClassifier::class);
     $classConstantValues = array_filter(
       $ref->getConstants(),
       fn(string $name) => str_starts_with($name, 'CLASS_'),
@@ -198,7 +197,7 @@ class SafetyClassifierPriorityContractTest extends TestCase {
     );
 
     $rulesProp = $ref->getProperty('rules');
-    $rulesProp->setAccessible(true);
+    $rulesProp->setAccessible(TRUE);
     $rules = $rulesProp->getValue($this->classifier);
 
     foreach ($rules as $category => $rule) {
@@ -211,7 +210,7 @@ class SafetyClassifierPriorityContractTest extends TestCase {
   }
 
   /**
-   * classify() must always return the documented key set.
+   * Classify() must always return the documented key set.
    */
   public function testClassifyReturnShape(): void {
     $expectedKeys = [

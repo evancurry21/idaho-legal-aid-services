@@ -14,7 +14,6 @@ use Psr\Log\LoggerInterface;
  *
  * Tests real database writes, metadata-only message persistence, request_id
  * storage, and cleanup behavior with actual SQL.
- *
  */
 #[CoversClass(ConversationLogger::class)]
 #[Group('ilas_site_assistant')]

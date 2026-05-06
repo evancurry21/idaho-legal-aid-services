@@ -24,7 +24,8 @@ $GLOBALS['INTENT_MAPPING'] = [
   'faq' => ['faq'],
   'senior_risk_detector' => ['risk_detector'],
   'services_overview' => ['services'],
-  'multi_intent' => ['multi_intent'], // Special handling
+// Special handling.
+  'multi_intent' => ['multi_intent'],
   'adversarial' => ['adversarial', 'unknown'],
 ];
 
@@ -448,7 +449,8 @@ function checkMatch(array $result, string $expected_intent, array $intent_mappin
 
   // Partial matches (acceptable alternatives).
   $acceptable_alternatives = [
-    'forms_finder' => ['topic_family', 'topic_housing'], // Form requests often mention topic.
+  // Form requests often mention topic.
+    'forms_finder' => ['topic_family', 'topic_housing'],
     'guides_finder' => ['faq', 'resources'],
     'services_overview' => ['apply', 'faq'],
     'apply_for_help' => ['eligibility'],
@@ -488,7 +490,8 @@ function runTests(bool $useBaseline = FALSE): array {
   $cases = [];
   if (file_exists($csv_path)) {
     $handle = fopen($csv_path, 'r');
-    fgetcsv($handle); // Skip header row.
+    // Skip header row.
+    fgetcsv($handle);
 
     while (($row = fgetcsv($handle)) !== FALSE) {
       if (count($row) < 2) {
@@ -683,7 +686,9 @@ function formatResults(array $comparison): string {
     $output[] = "────────────────────────────────────────────────────────────────";
     $count = 0;
     foreach ($enhanced['failures'] as $failure) {
-      if ($count >= 10) break;
+      if ($count >= 10) {
+        break;
+      }
       $output[] = sprintf("  Utterance: \"%s\"", substr($failure['utterance'], 0, 50));
       $output[] = sprintf("  Expected: %s → Got: %s", $failure['expected'], $failure['got']);
       $output[] = "";

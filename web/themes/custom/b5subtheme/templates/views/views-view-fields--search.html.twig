@@ -21,6 +21,17 @@
  */
 #}
 
+{#
+  Safety note: `excerpt_clean|raw` below outputs a Twig string built from
+  `fields.search_api_excerpt.content|render|trim`, then run through `|replace`
+  to drop leading ellipsis markers. The `search_api_excerpt` field is configured
+  with `filter_type: xss` (see config/views.view.search.yml), so the Search API
+  XSS-filters the excerpt before Views renders it. The Twig `|replace` only
+  swaps whitespace/ellipsis tokens, so it cannot reintroduce HTML risk. We
+  re-emit through `|raw` to preserve the highlight `<em>` markers around
+  matched search terms.
+#}
+
 {# Determine if this is a media item or a node based on available fields #}
 {% set is_media = fields.name is defined and fields.name.content|render|trim is not empty %}
 {% set is_node = fields.title is defined and fields.title.content|render|trim is not empty %}

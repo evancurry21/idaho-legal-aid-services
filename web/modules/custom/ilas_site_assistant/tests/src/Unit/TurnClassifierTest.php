@@ -138,13 +138,14 @@ class TurnClassifierTest extends TestCase {
    */
   public function testStaleHistoryPreventsFollowUp(): void {
     $now = time();
-    $history = [$this->entry('topic_housing', $now - 700)];  // >600s ago
+    // >600s ago
+    $history = [$this->entry('topic_housing', $now - 700)];
     $result = TurnClassifier::classifyTurn('and what about that?', $history, $now);
     $this->assertEquals(TurnClassifier::TURN_NEW, $result);
   }
 
   /**
-   * resolveInventoryType correctly identifies guides.
+   * ResolveInventoryType correctly identifies guides.
    */
   public function testResolveInventoryTypeGuides(): void {
     $result = TurnClassifier::resolveInventoryType('what guides do you have');
@@ -152,7 +153,7 @@ class TurnClassifierTest extends TestCase {
   }
 
   /**
-   * resolveInventoryType correctly identifies services.
+   * ResolveInventoryType correctly identifies services.
    */
   public function testResolveInventoryTypeServices(): void {
     $result = TurnClassifier::resolveInventoryType('what services do you offer');
@@ -160,7 +161,7 @@ class TurnClassifierTest extends TestCase {
   }
 
   /**
-   * resolveInventoryType defaults to forms.
+   * ResolveInventoryType defaults to forms.
    */
   public function testResolveInventoryTypeDefaultForms(): void {
     $result = TurnClassifier::resolveInventoryType('list everything');

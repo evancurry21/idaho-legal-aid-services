@@ -1,5 +1,5 @@
 /**
- * @file k6 Load Test Script for ILAS Chatbot API
+ * @file k6 Load Test Script for ILAS Site Assistant API
  *
  * Tests the /assistant/api/message endpoint with various query types
  * and concurrency levels.
@@ -35,7 +35,10 @@ const httpErrors = new Counter('http_errors');
 // Configuration
 const BASE_URL = __ENV.BASE_URL || 'https://ilas-pantheon.ddev.site';
 const API_ENDPOINT = `${BASE_URL}/assistant/api/message`;
-const CSRF_ENDPOINT = `${BASE_URL}/session/token`;
+const BOOTSTRAP_ENDPOINT = `${BASE_URL}/assistant/api/session/bootstrap`;
+const ALLOW_LIVE_LOAD = readBoolean(__ENV.ALLOW_LIVE_LOAD);
+const QUICK_MODE = readBoolean(__ENV.QUICK_MODE);
+let vuSession = null;
 
 // Test scenarios with realistic query variations
 const SCENARIOS = {
@@ -65,110 +68,117 @@ const SCENARIOS = {
   ],
 };
 
-// k6 test configuration - staged ramping through concurrency levels
-export const options = {
-  scenarios: {
-    // Stage 1: Low concurrency warmup (1 VU)
-    low_concurrency: {
-      executor: 'constant-vus',
-      vus: 1,
-      duration: '30s',
-      startTime: '0s',
-      tags: { concurrency: '1' },
-    },
-    // Stage 2: Medium concurrency (5 VUs)
-    medium_concurrency: {
-      executor: 'constant-vus',
-      vus: 5,
-      duration: '30s',
-      startTime: '35s',
-      tags: { concurrency: '5' },
-    },
-    // Stage 3: High concurrency (20 VUs)
-    high_concurrency: {
-      executor: 'constant-vus',
-      vus: 20,
-      duration: '30s',
-      startTime: '70s',
-      tags: { concurrency: '20' },
-    },
+const stagedScenarios = {
+  // Stage 1: Low concurrency warmup (1 VU)
+  low_concurrency: {
+    executor: 'constant-vus',
+    vus: 1,
+    duration: '30s',
+    startTime: '0s',
+    tags: { concurrency: '1' },
   },
-  thresholds: {
-    // Overall thresholds
-    http_req_duration: ['p(50)<500', 'p(95)<2000', 'p(99)<5000'],
-    http_req_failed: ['rate<0.05'], // Less than 5% errors
-    error_rate: ['rate<0.05'],
-
-    // Per-scenario thresholds
-    short_query_duration: ['p(50)<200', 'p(95)<500'],
-    navigation_query_duration: ['p(50)<300', 'p(95)<1000'],
-    retrieval_query_duration: ['p(50)<500', 'p(95)<2000'],
+  // Stage 2: Medium concurrency (5 VUs)
+  medium_concurrency: {
+    executor: 'constant-vus',
+    vus: 5,
+    duration: '30s',
+    startTime: '35s',
+    tags: { concurrency: '5' },
   },
-
-  // TLS config for self-signed DDEV certificates
-  insecureSkipTLSVerify: true,
+  // Stage 3: High concurrency (20 VUs)
+  high_concurrency: {
+    executor: 'constant-vus',
+    vus: 20,
+    duration: '30s',
+    startTime: '70s',
+    tags: { concurrency: '20' },
+  },
 };
 
-// Setup function: Get CSRF token for the test
-export function setup() {
-  console.log(`\n=== ILAS Chatbot API Load Test ===`);
-  console.log(`Target: ${API_ENDPOINT}`);
-  console.log(`Scenarios: short, navigation, retrieval`);
-  console.log(`Concurrency stages: 1 → 5 → 20 VUs\n`);
+const loadThresholds = {
+  // Overall thresholds
+  http_req_duration: ['p(50)<500', 'p(95)<2000', 'p(99)<5000'],
+  http_req_failed: ['rate<0.05'], // Less than 5% errors
+  error_rate: ['rate<0.05'],
 
-  const startTime = Date.now();
+  // Per-scenario thresholds
+  short_query_duration: ['p(50)<200', 'p(95)<500'],
+  navigation_query_duration: ['p(50)<300', 'p(95)<1000'],
+  retrieval_query_duration: ['p(50)<500', 'p(95)<2000'],
+};
 
-  // Fetch CSRF token from Drupal
-  const tokenRes = http.get(CSRF_ENDPOINT, {
-    tags: { name: 'csrf_token' },
-  });
+// k6 test configuration - staged ramping through concurrency levels by default,
+// or one VU for ten seconds when QUICK_MODE=1.
+export const options = buildOptions();
 
-  csrfTokenFetch.add(Date.now() - startTime);
+function buildOptions() {
+  const builtOptions = {
+    // TLS config for self-signed DDEV certificates
+    insecureSkipTLSVerify: true,
+  };
 
-  let csrfToken = '';
-  if (tokenRes.status === 200) {
-    csrfToken = tokenRes.body;
-    console.log('CSRF token acquired successfully');
-  } else {
-    console.warn(`Warning: Could not fetch CSRF token (status ${tokenRes.status})`);
-    console.warn('Tests may fail if CSRF protection is enabled');
+  if (QUICK_MODE) {
+    builtOptions.vus = 1;
+    builtOptions.duration = '10s';
+    return builtOptions;
   }
 
-  return { csrfToken };
+  builtOptions.scenarios = stagedScenarios;
+  builtOptions.thresholds = loadThresholds;
+  return builtOptions;
+}
+
+// Setup function: validate target and summarize the test. Each VU bootstraps its
+// own anonymous session before posting messages.
+export function setup() {
+  console.log(`\n=== ILAS Site Assistant API Load Test ===`);
+  console.log(`Target: ${API_ENDPOINT}`);
+  console.log(`Bootstrap: ${BOOTSTRAP_ENDPOINT}`);
+  console.log(`Scenarios: short, navigation, retrieval`);
+  console.log(QUICK_MODE ? `Quick mode: 1 VU for 10s\n` : `Concurrency stages: 1 → 5 → 20 VUs\n`);
+
+  if (isProductionLikeTarget(BASE_URL) && !ALLOW_LIVE_LOAD) {
+    throw new Error(
+      'Refusing to run load test against a live/public target. ' +
+      'Use a local/staging URL, or set ALLOW_LIVE_LOAD=1 only with explicit production approval.'
+    );
+  }
+
+  return {};
 }
 
 // Main test function
-export default function(data) {
-  const csrfToken = data.csrfToken;
-
-  // Headers for API requests
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
-
-  if (csrfToken) {
-    headers['X-CSRF-Token'] = csrfToken;
-  }
-
+export default function() {
   // Randomly select and run one scenario type per iteration
   const scenarioType = selectScenarioType();
 
   group(`${scenarioType}_queries`, function() {
+    const session = ensureVuSession(false);
+    if (!session) {
+      errorRate.add(true);
+      httpErrors.add(1);
+      sleep(1);
+      return;
+    }
+
     const queries = SCENARIOS[scenarioType];
     const query = queries[Math.floor(Math.random() * queries.length)];
 
-    const payload = JSON.stringify(query);
+    const payload = JSON.stringify({
+      message: query.message,
+      conversation_id: makeConversationId(`${__VU}:${__ITER}:${scenarioType}:${query.message}`),
+      context: { history: [] },
+    });
     const startTime = Date.now();
 
-    const response = http.post(API_ENDPOINT, payload, {
-      headers: headers,
-      tags: {
-        name: 'chatbot_message',
-        scenario: scenarioType,
-      },
-      timeout: '10s',
-    });
+    let response = postMessage(payload, session, scenarioType);
+
+    if (response.status === 403) {
+      const refreshedSession = ensureVuSession(true);
+      if (refreshedSession) {
+        response = postMessage(payload, refreshedSession, scenarioType);
+      }
+    }
 
     const duration = Date.now() - startTime;
 
@@ -235,6 +245,116 @@ function selectScenarioType() {
   return 'retrieval';                   // 60% retrieval-heavy
 }
 
+function ensureVuSession(forceRefresh) {
+  if (vuSession && !forceRefresh) {
+    return vuSession;
+  }
+
+  const startTime = Date.now();
+  const tokenRes = http.get(BOOTSTRAP_ENDPOINT, {
+    headers: { Accept: 'text/plain' },
+    tags: { name: 'assistant_session_bootstrap' },
+    timeout: '10s',
+  });
+  csrfTokenFetch.add(Date.now() - startTime);
+
+  const cookies = extractCookies(tokenRes);
+  const csrfToken = tokenRes.status === 200 ? String(tokenRes.body || '').trim() : '';
+
+  const isReady = check(tokenRes, {
+    'bootstrap status is 200': (r) => r.status === 200,
+    'bootstrap returned CSRF token': () => csrfToken.length > 0,
+    'bootstrap returned session cookie': () => Object.keys(cookies).length > 0,
+  });
+
+  if (!isReady) {
+    console.warn(`Warning: Could not bootstrap assistant session (status ${tokenRes.status})`);
+    vuSession = null;
+    return null;
+  }
+
+  vuSession = { csrfToken, cookies };
+  return vuSession;
+}
+
+function postMessage(payload, session, scenarioType) {
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-CSRF-Token': session.csrfToken,
+    },
+    tags: {
+      name: 'assistant_message',
+      scenario: scenarioType,
+    },
+    timeout: '10s',
+  };
+
+  if (Object.keys(session.cookies).length > 0) {
+    params.cookies = session.cookies;
+  }
+
+  return http.post(API_ENDPOINT, payload, params);
+}
+
+function extractCookies(response) {
+  const cookies = {};
+
+  for (const name in response.cookies) {
+    if (
+      Object.prototype.hasOwnProperty.call(response.cookies, name) &&
+      response.cookies[name] &&
+      response.cookies[name].length > 0
+    ) {
+      cookies[name] = response.cookies[name][0].value;
+    }
+  }
+
+  return cookies;
+}
+
+function makeConversationId(seed) {
+  const hash = hashHex(seed, 32);
+  return hash.slice(0, 8) + '-' +
+    hash.slice(8, 12) + '-' +
+    '4' + hash.slice(13, 16) + '-' +
+    '8' + hash.slice(17, 20) + '-' +
+    hash.slice(20, 32);
+}
+
+function hashHex(seed, length) {
+  let hash = 2166136261;
+  let output = '';
+
+  while (output.length < length) {
+    const input = seed + ':' + output.length;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    output += (hash >>> 0).toString(16).padStart(8, '0');
+  }
+
+  return output.slice(0, length);
+}
+
+function readBoolean(value) {
+  return value === true || value === '1' || value === 'true' || value === 'yes';
+}
+
+function isProductionLikeTarget(baseUrl) {
+  const match = String(baseUrl).match(/^https?:\/\/([^/:?#]+)/i);
+  if (!match) {
+    return false;
+  }
+  const host = match[1].toLowerCase();
+
+  return host === 'idaholegalaid.org' ||
+    host === 'www.idaholegalaid.org' ||
+    host.indexOf('live-idaho-legal-aid-services') === 0;
+}
+
 // Teardown function: Summary output
 export function teardown(data) {
   console.log('\n=== Load Test Complete ===');
@@ -276,8 +396,10 @@ export function handleSummary(data) {
     config: {
       base_url: BASE_URL,
       endpoint: API_ENDPOINT,
+      bootstrap_endpoint: BOOTSTRAP_ENDPOINT,
       scenarios: Object.keys(SCENARIOS),
-      concurrency_stages: [1, 5, 20],
+      concurrency_stages: QUICK_MODE ? [1] : [1, 5, 20],
+      quick_mode: QUICK_MODE,
     },
     overall: {
       total_requests: httpReqs,
@@ -353,7 +475,7 @@ function generateMarkdownReport(summary) {
   var p95Status = p95Overall < 1000 ? '✅' : (p95Overall < 2000 ? '⚠️' : '❌');
   var errorStatus = errorRate < 1 ? '✅' : (errorRate < 5 ? '⚠️' : '❌');
 
-  var md = '# ILAS Chatbot API Load Test Report\n\n' +
+  var md = '# ILAS Site Assistant API Load Test Report\n\n' +
     '**Generated:** ' + summary.timestamp + '\n' +
     '**Target:** ' + summary.config.endpoint + '\n\n' +
     '## Summary\n\n' +

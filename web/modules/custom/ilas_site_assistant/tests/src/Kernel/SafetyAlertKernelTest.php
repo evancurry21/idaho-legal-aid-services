@@ -12,7 +12,6 @@ use PHPUnit\Framework\Attributes\Group;
  *
  * Tests threshold detection, cooldown logic, and email dispatch
  * against a real database with mocked mail/state services.
- *
  */
 #[CoversClass(SafetyAlertService::class)]
 #[Group('ilas_site_assistant')]
@@ -116,7 +115,8 @@ class SafetyAlertKernelTest extends AssistantKernelTestBase {
     $state = $this->createMock('Drupal\Core\State\StateInterface');
     $state->method('get')
       ->with(SafetyAlertService::STATE_LAST_ALERT, 0)
-      ->willReturn($now - 1800); // 30 minutes ago, cooldown is 60.
+    // 30 minutes ago, cooldown is 60.
+      ->willReturn($now - 1800);
 
     $mailManager = $this->createMock('Drupal\Core\Mail\MailManagerInterface');
     $mailManager->expects($this->never())->method('mail');
@@ -247,7 +247,8 @@ class SafetyAlertKernelTest extends AssistantKernelTestBase {
     // Create a tracker that reports fewer violations (below threshold).
     $trackerState = $this->createMock('Drupal\Core\State\StateInterface');
     $trackerState->method('get')
-      ->willReturn([]); // Empty = 0 violations via tracker.
+    // Empty = 0 violations via tracker.
+      ->willReturn([]);
     $trackerState->method('set');
     $tracker = new SafetyViolationTracker($trackerState);
 
@@ -275,7 +276,8 @@ class SafetyAlertKernelTest extends AssistantKernelTestBase {
     // Tracker has 10 recent timestamps.
     $timestamps = [];
     for ($i = 0; $i < 10; $i++) {
-      $timestamps[] = $now - ($i * 60); // One per minute, all within 1 hour.
+      // One per minute, all within 1 hour.
+      $timestamps[] = $now - ($i * 60);
     }
 
     $trackerState = $this->createMock('Drupal\Core\State\StateInterface');
@@ -325,7 +327,7 @@ class SafetyAlertKernelTest extends AssistantKernelTestBase {
     $mailManager = NULL,
     $state = NULL,
     int $timestamp = 0,
-    SafetyViolationTracker $tracker = NULL
+    ?SafetyViolationTracker $tracker = NULL,
   ): SafetyAlertService {
     if ($timestamp === 0) {
       $timestamp = time();

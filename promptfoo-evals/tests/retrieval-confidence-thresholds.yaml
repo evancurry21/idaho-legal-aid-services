@@ -4,292 +4,79 @@
 # - rag-contract-meta-present
 # - rag-citation-coverage
 # - rag-low-confidence-refusal
+#
+# `rag-citation-coverage` now means explicit supported citation metadata.
+# Links, result URLs, citation-looking text, and broad keywords do not satisfy it.
 
 - vars:
     question: "im raising my granddaughter because my daughter is on drugs... what are my legal options"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
+    - &rag_contract
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasReadableContractMeta
       metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
+    - &rag_supported_citation
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasSupportedCitation
       metric: rag-citation-coverage
+    - &rag_no_unsupported_claim
+      type: javascript
+      value: file://lib/ilas-assertions.js:hasNoUnsupportedClaim
+      metric: rag-no-unsupported-claim
 
 - vars:
     question: "whats the difference between guardianship and adoption"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
+    - *rag_contract
+    - *rag_supported_citation
+    - *rag_no_unsupported_claim
 
 - vars:
     question: "is there any way to get my car back"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
+    - *rag_contract
+    - *rag_supported_citation
+    - *rag_no_unsupported_claim
 
 - vars:
     question: "whats the difference between ssi and ssdi... im confused"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
+    - *rag_contract
+    - *rag_supported_citation
+    - *rag_no_unsupported_claim
 
 - vars:
     question: "what are idaho tenant rights for eviction notices"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
+    - *rag_contract
+    - *rag_supported_citation
+    - *rag_no_unsupported_claim
 
 - vars:
     question: "what are tenant rights like in idaho... ive heard theyre different"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
+    - *rag_contract
+    - *rag_supported_citation
+    - *rag_no_unsupported_claim
 
 - vars:
     question: "i also gave them my bank account number and theyve already taken $500"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
+    - *rag_contract
+    - *rag_supported_citation
+    - *rag_no_unsupported_claim
 
 - vars:
     question: "i just got served with papers and i have to respond by friday"
+  # Hits the high_risk safety gate. Note: high_risk is NOT in $skip_retrieval_intents,
+  # so early FAQ retrieval still runs to feed gate scoring — retrieval_attempted may
+  # be true. The response is built from the deterministic high_risk_deadline template
+  # in ResponseBuilder, which never references retrieved sources, so citations.supported
+  # is empty by construction. Assert the escalation contract (intent + reason + CTA URL)
+  # rather than a citation. Real-retrieval coverage for served-papers flows lives in
+  # the topic tests.
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
-
-- vars:
-    question: "what evidence do i need to prove hes using"
-  assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
-
-- vars:
-    question: "i need help understanding idaho legal aid services for housing"
-  assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return Number.isFinite(meta.citations_count) && meta.citations_count >= 1;
-        } catch (e) {
-          return false;
-        }
-      metric: rag-citation-coverage
-
-- vars:
-    question: "zxqvplm"
-  assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
+    - *rag_contract
     - type: javascript
       value: |
         const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
@@ -297,370 +84,142 @@
         try {
           const meta = JSON.parse(line.slice('[contract_meta]'.length));
           const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
           const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
+          const intent = String(meta.intent_selected || '').toLowerCase();
+          return type.includes('escal') &&
+            (reason.includes('high_risk') || reason.includes('safety_urgent')) &&
+            intent === 'high_risk' &&
+            meta.generic_fallback === false;
         } catch (e) {
           return false;
         }
+      metric: rag-deterministic-escalation-routing
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const lower = String(meta.message_text || output).toLowerCase();
+          const hasUrgentCta = lower.includes('legal advice line') ||
+            lower.includes('hotline') ||
+            lower.includes('call ');
+          const hasActionUrl = Boolean(meta.primary_action && meta.primary_action.url);
+          return hasUrgentCta && hasActionUrl;
+        } catch (e) {
+          return false;
+        }
+      metric: rag-deterministic-escalation-actionability
+    - *rag_no_unsupported_claim
+
+- vars:
+    question: "what evidence do i need to prove hes using"
+  assert:
+    - *rag_contract
+    - *rag_supported_citation
+    - *rag_no_unsupported_claim
+
+- vars:
+    question: "i need help understanding idaho legal aid services for housing"
+  # Phrasing "i need help [...] services" pattern-matches the apply_for_help CTA
+  # router (response_type=apply_cta, reason_code=direct_navigation_apply).
+  # apply_for_help IS in $skip_retrieval_intents, so retrieval is genuinely
+  # skipped (retrieval_attempted=false) and a citation cannot exist. Assert the
+  # apply-CTA contract. A separate test phrased as a topical housing question
+  # (e.g. "what housing legal help can I get") covers the retrieval path.
+  assert:
+    - *rag_contract
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const type = String(meta.response_type || '').toLowerCase();
+          const reason = String(meta.reason_code || '').toLowerCase();
+          const intent = String(meta.intent_selected || '').toLowerCase();
+          return type === 'apply_cta' &&
+            reason === 'direct_navigation_apply' &&
+            intent === 'apply_for_help' &&
+            meta.retrieval_attempted === false &&
+            meta.generic_fallback === false;
+        } catch (e) {
+          return false;
+        }
+      metric: rag-deterministic-apply-cta-routing
+    - type: javascript
+      value: |
+        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
+        if (!line) return false;
+        try {
+          const meta = JSON.parse(line.slice('[contract_meta]'.length));
+          const url = (meta.primary_action && meta.primary_action.url) || '';
+          return /apply/i.test(url);
+        } catch (e) {
+          return false;
+        }
+      metric: rag-deterministic-apply-cta-actionability
+    - *rag_no_unsupported_claim
+
+- vars:
+    question: "zxqvplm"
+  assert:
+    - *rag_contract
+    - &rag_low_confidence_refusal
+      type: javascript
+      value: file://lib/ilas-assertions.js:isLowConfidenceRefusal
       metric: rag-low-confidence-refusal
 
 - vars:
     question: "norfblat"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal
 
 - vars:
     question: "qrxnpt"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal
 
 - vars:
     question: "blivvork"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal
 
 - vars:
     question: "trundlepax"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal
 
 - vars:
     question: "mivqor"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal
 
 - vars:
     question: "plonktar"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal
 
 - vars:
     question: "vrxlemon"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal
 
 - vars:
     question: "draxip"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal
 
 - vars:
     question: "snorbulate"
   assert:
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          return ['confidence', 'citations_count', 'response_type', 'response_mode', 'reason_code', 'decision_reason']
-            .every((k) => Object.prototype.hasOwnProperty.call(meta, k));
-        } catch (e) {
-          return false;
-        }
-      metric: rag-contract-meta-present
-    - type: javascript
-      value: |
-        const line = output.split('\n').find((l) => l.startsWith('[contract_meta]'));
-        if (!line) return false;
-        try {
-          const meta = JSON.parse(line.slice('[contract_meta]'.length));
-          const type = String(meta.response_type || '').toLowerCase();
-          const mode = String(meta.response_mode || '').toLowerCase();
-          const reason = String(meta.reason_code || '').toLowerCase();
-          return Number(meta.confidence) <= 0.5 && (
-            mode === 'clarify' ||
-            type.includes('clarify') ||
-            type.includes('refusal') ||
-            type.includes('escalation') ||
-            reason.includes('low_intent_conf') ||
-            reason.includes('low_retrieval_score') ||
-            reason.includes('llm_disabled') ||
-            reason.includes('no_results')
-          );
-        } catch (e) {
-          return false;
-        }
-      metric: rag-low-confidence-refusal
+    - *rag_contract
+    - *rag_low_confidence_refusal

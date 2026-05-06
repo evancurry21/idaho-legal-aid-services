@@ -2,6 +2,8 @@
 
 namespace Drupal\ilas_test\Controller;
 
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Drupal\Core\Url;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\File\FileSystemInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -56,13 +58,13 @@ class TestDashboardController extends ControllerBase {
       ],
     ];
 
-    // Get latest test results
+    // Get latest test results.
     $latest_results = $this->getLatestTestResults();
     if ($latest_results) {
       $build['#results'] = $latest_results;
     }
 
-    // Add test execution form
+    // Add test execution form.
     $build['execute_form'] = \Drupal::formBuilder()->getForm('Drupal\ilas_test\Form\ExecuteTestsForm');
 
     return $build;
@@ -124,7 +126,7 @@ class TestDashboardController extends ControllerBase {
           'data' => [
             '#type' => 'link',
             '#title' => $this->t('View'),
-            '#url' => \Drupal\Core\Url::fromRoute('ilas_test.report', [
+            '#url' => Url::fromRoute('ilas_test.report', [
               'report_id' => $report['id'],
             ]),
           ],
@@ -142,7 +144,7 @@ class TestDashboardController extends ControllerBase {
     $report = $this->loadTestReport($report_id);
 
     if (!$report) {
-      throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
+      throw new NotFoundHttpException();
     }
 
     $build = [
@@ -177,8 +179,8 @@ class TestDashboardController extends ControllerBase {
       return [];
     }
 
-    // Sort by timestamp descending
-    usort($files, function($a, $b) {
+    // Sort by timestamp descending.
+    usort($files, function ($a, $b) {
       return filemtime($b->uri) - filemtime($a->uri);
     });
 
@@ -227,4 +229,5 @@ class TestDashboardController extends ControllerBase {
 
     return $report;
   }
+
 }

@@ -33,6 +33,16 @@ services:
     arguments: ['@service_container']
     tags:
       - { name: drush.command }
+  ilas_site_assistant.cohere_probe_commands:
+    class: \Drupal\ilas_site_assistant\Commands\CohereProbeCommands
+    arguments: ['@ilas_site_assistant.cohere_generation_probe']
+    tags:
+      - { name: drush.command }
+  ilas_site_assistant.provider_health_commands:
+    class: \Drupal\ilas_site_assistant\Commands\ProviderHealthCommands
+    arguments: ['@ilas_site_assistant.provider_health_check']
+    tags:
+      - { name: drush.command }
   ilas_site_assistant.vector_maintenance_commands:
     class: \Drupal\ilas_site_assistant\Commands\VectorMaintenanceCommands
     arguments: ['@ilas_site_assistant.vector_index_hygiene']

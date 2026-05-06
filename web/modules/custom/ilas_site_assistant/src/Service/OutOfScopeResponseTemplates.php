@@ -11,7 +11,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
  * - Briefly explain why ILAS cannot help (not legal advice)
  * - Suggest appropriate next steps when possible
  * - Politely decline when necessary
- * - Direct to emergency services when appropriate
+ * - Direct to emergency services when appropriate.
  */
 class OutOfScopeResponseTemplates {
 
