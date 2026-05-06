@@ -1,10 +1,6 @@
 name: 'ILAS Testing Suite'
 type: module
-description: 'Comprehensive testing suite for Idaho Legal Aid Services modules'
+description: 'Internal test-runner dashboard for ad-hoc QA of ILAS custom modules. Provides /admin/config/development/ilas-test.'
 package: 'Idaho Legal Aid - Development'
 core_version_requirement: ^10.3 || ^11
-dependencies:
-  - drupal:simpletest
-  - ilas_civicrm:ilas_civicrm
-  - ilas_events:ilas_events
-  - ilas_reports:ilas_reports
+dependencies: {  }
