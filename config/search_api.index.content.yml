@@ -58,7 +58,7 @@ field_settings:
     datasource_id: 'entity:node'
     property_path: title
     type: text
-    boost: 3.0
+    boost: 5.0
     dependencies:
       module:
         - node
@@ -101,7 +101,7 @@ processor_settings:
     excerpt_length: 256
     exclude_fields: {  }
     highlight: always
-    highlight_partial: true
+    highlight_partial: false
   html_filter:
     weights:
       preprocess_index: -15

@@ -1,0 +1,19 @@
+uuid: 9c7de437-aee7-409d-9c3e-6f534cb801e5
+langcode: en
+status: true
+dependencies: {  }
+id: taxonomy_term__tags
+label: 'Taxonomy term: Tags'
+tags:
+  title: '[term:name] | [site:name]'
+  description: 'Content tagged [term:name] on Idaho Legal Aid Services. This tag listing is excluded from search-engine indexes.'
+  canonical_url: '[current-page:url:absolute]'
+  robots: 'noindex, follow'
+  og_type: website
+  og_site_name: '[site:name]'
+  og_title: '[term:name] | [site:name]'
+  og_description: 'Content tagged [term:name] on Idaho Legal Aid Services.'
+  og_url: '[current-page:url:absolute]'
+  twitter_cards_type: summary
+  twitter_cards_title: '[term:name] | Idaho Legal Aid'
+  twitter_cards_description: 'Content tagged [term:name] on Idaho Legal Aid Services.'
