@@ -19,10 +19,28 @@ class FingerprintingTest extends BrowserTestBase {
 
   /**
    * {@inheritdoc}
+   *
+   * Install-pass fix (Phase 3 follow-up): the minimal 4-module whitelist
+   * (system + node + metatag + ilas_seo) cannot complete BrowserTestBase
+   * install because core's node module installs system.action.* config
+   * referencing PHP-attribute-discovered action plugins (e.g.
+   * node_make_sticky_action) that are not yet registered with
+   * ActionManager at install time. The project's ilas_site_assistant_action_compat
+   * test-only module + eca cover those legacy plugin IDs; user/field/filter/
+   * text/views are the standard test scaffolding modules core itself relies
+   * on. Same pattern used in SchemaPropertiesTest. No behavior change to the
+   * generator-meta-tag assertion below.
    */
   protected static $modules = [
+    'ilas_site_assistant_action_compat',
+    'eca',
     'system',
+    'user',
+    'field',
+    'filter',
+    'text',
     'node',
+    'views',
     'metatag',
     'ilas_seo',
   ];

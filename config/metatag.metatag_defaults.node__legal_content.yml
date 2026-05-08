@@ -7,7 +7,6 @@ label: 'Content: Legal Content'
 tags:
   article_published_time: '[node:created:custom:c]'
   article_modified_time: '[node:changed:custom:c]'
-  article_section: '[node:field_service_area:entity:name]'
   title: '[node:title] | [site:name]'
   description: '[node:field_legal_content_description:summary|Learn about [node:title]. Free legal help with [node:field_service_area:entity:name] issues from Idaho Legal Aid Services.]'
   og_type: article
@@ -29,4 +28,3 @@ tags:
   schema_article_main_entity_of_page: '[node:url]'
   schema_article_is_accessible_for_free: 'True'
   schema_article_about: '[node:field_service_area:entity:name]'
-  schema_article_article_section: '[node:field_service_area:entity:name]'

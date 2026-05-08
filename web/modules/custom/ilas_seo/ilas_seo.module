@@ -128,6 +128,47 @@ function ilas_seo_page_attachments_alter(array &$attachments) {
     ];
   }
 
+  // SEO-03 Phase 2: emit Organization foundingDate as JSON-LD.
+  // schema_metatag 3.x has no Tag plugin for SchemaOrganizationFoundingDate
+  // (verified absent in web/modules/contrib/schema_metatag/schema_organization/src/Plugin/metatag/Tag/),
+  // so the YAML key in config/metatag.metatag_defaults.global.yml is inert.
+  // Inject directly via the schema_metatag aggregator (parseJsonld) per D-05.
+  // Mirrors the publishingPrinciples pattern below.
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#tag' => 'meta',
+      '#attributes' => [
+        'name' => 'foundingDate',
+        'content' => '1967',
+        'group' => 'schema_organization',
+        'schema_metatag' => TRUE,
+      ],
+    ],
+    'schema_organization_founding_date',
+  ];
+
+  // SEO-03 Phase 2: emit Organization areaServed as JSON-LD.
+  // The existing config/metatag.metatag_defaults.global.yml line is a
+  // PHP-serialized string, which only deserializes inside Tag plugins —
+  // schema_metatag has no SchemaOrganizationAreaServed plugin (Pitfall 1
+  // in 02-RESEARCH.md). We pass a real PHP array; parseJsonld stores it
+  // verbatim into the @graph.
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#tag' => 'meta',
+      '#attributes' => [
+        'name' => 'areaServed',
+        'content' => [
+          '@type' => 'State',
+          'name' => 'Idaho',
+        ],
+        'group' => 'schema_organization',
+        'schema_metatag' => TRUE,
+      ],
+    ],
+    'schema_organization_area_served',
+  ];
+
   // Add publishingPrinciples to Article schema for article content types.
   $route_match = \Drupal::routeMatch();
   $node = $route_match->getParameter('node');
@@ -146,6 +187,110 @@ function ilas_seo_page_attachments_alter(array &$attachments) {
         ],
         'schema_article_publishing_principles',
       ];
+
+      // SEO-03 Phase 2: emit articleSection per bundle as JSON-LD.
+      // schema_metatag 3.x has no SchemaArticleArticleSection plugin (verified
+      // absent in web/modules/contrib/schema_metatag/schema_article/src/Plugin/metatag/Tag/),
+      // so YAML article_section / schema_article_article_section keys in the
+      // four bundle config files are inert. The alter hook is the single source
+      // of truth (D-05). For resource (multi-value field_service_areas), emit
+      // a JSON array per D-02; Schema.org articleSection accepts Text or Text[].
+      // press_entry value is the literal "Press" per D-01 (the legacy YAML's
+      // longer "Press Room" string is being retired in this same plan).
+      $bundle = $node->bundle();
+      $section_value = NULL;
+
+      if ($bundle === 'news') {
+        $section_value = 'News';
+      }
+      elseif ($bundle === 'press_entry') {
+        $section_value = 'Press';
+      }
+      elseif (
+        $bundle === 'legal_content'
+        && $node->hasField('field_service_area')
+        && !$node->get('field_service_area')->isEmpty()
+      ) {
+        $term = $node->get('field_service_area')->entity;
+        $section_value = $term ? $term->label() : NULL;
+      }
+      elseif (
+        $bundle === 'resource'
+        && $node->hasField('field_service_areas')
+        && !$node->get('field_service_areas')->isEmpty()
+      ) {
+        $names = [];
+        foreach ($node->get('field_service_areas')->referencedEntities() as $term) {
+          $names[] = $term->label();
+        }
+        // Single-value: emit string. Multi-value: emit array (D-02; per
+        // 02-PATTERNS.md, do NOT implode — parseJsonld stores arrays verbatim).
+        if (count($names) === 1) {
+          $section_value = $names[0];
+        }
+        elseif (count($names) > 1) {
+          $section_value = $names;
+        }
+      }
+
+      if (!empty($section_value)) {
+        $attachments['#attached']['html_head'][] = [
+          [
+            '#tag' => 'meta',
+            '#attributes' => [
+              'name' => 'articleSection',
+              'content' => $section_value,
+              'group' => 'schema_article',
+              'schema_metatag' => TRUE,
+            ],
+          ],
+          'schema_article_article_section',
+        ];
+      }
+    }
+
+    // SEO-03 Phase 2: emit office_information areaServed as JSON-LD array of
+    // AdministrativeArea entries derived from field_county (D-03 + D-04).
+    // schema_metatag has no plugin for SchemaOrganizationAreaServed; inject
+    // via the alter hook (D-05). Group MUST be 'schema_organization' to merge
+    // into the same @graph entry as the office's other schema_organization_*
+    // tags (Pitfall 3 in 02-RESEARCH.md — verified against
+    // config/metatag.metatag_defaults.node__office_information.yml).
+    if (
+      $node->bundle() === 'office_information'
+      && $node->hasField('field_county')
+      && !$node->get('field_county')->isEmpty()
+    ) {
+      $raw_county = (string) $node->get('field_county')->value;
+      $counties = _ilas_seo_parse_county_string($raw_county);
+      if (!empty($counties)) {
+        $area_served = array_map(
+          static fn(string $county) => [
+            '@type' => 'AdministrativeArea',
+            'name' => $county . ' County, Idaho',
+          ],
+          $counties
+        );
+        $attachments['#attached']['html_head'][] = [
+          [
+            '#tag' => 'meta',
+            '#attributes' => [
+              'name' => 'areaServed',
+              'content' => $area_served,
+              'group' => 'schema_organization',
+              'schema_metatag' => TRUE,
+            ],
+          ],
+          'schema_organization_office_area_served',
+        ];
+      }
+      else {
+        // Non-empty raw input parsed to zero counties — log for triage.
+        \Drupal::logger('ilas_seo')->warning(
+          'office_information node @nid has non-empty field_county "@raw" but parser returned zero counties.',
+          ['@nid' => $node->id(), '@raw' => $raw_county]
+        );
+      }
     }
   }
 }
@@ -426,6 +571,44 @@ function _ilas_seo_build_event_place(NodeInterface $node): ?array {
   }
 
   return $place;
+}
+
+/**
+ * Parses a free-text county string into a normalized list of bare county names.
+ *
+ * Handles all real production shapes for office_information.field_county:
+ *   - Empty / whitespace-only input    -> []
+ *   - Single county                    -> ["Ada"]
+ *   - Two with "and"                   -> ["Ada", "Boise"]                 (input: "Ada and Boise")
+ *   - Oxford-style 3+ with ", and"     -> ["Ada", "Boise", "Elmore", "Valley"]   (input: "Ada, Boise, Elmore, and Valley")
+ *   - Trailing whitespace              -> trimmed
+ *   - Stray "County" suffix            -> stripped ("Ada County, Boise County" -> ["Ada", "Boise"])
+ *   - Trailing comma / extra commas    -> empties dropped.
+ *
+ * Output is bare county names (no "County" suffix, no ", Idaho" qualifier).
+ * The caller (ilas_seo_page_attachments_alter) appends "County, Idaho" per D-04.
+ *
+ * @param string $raw
+ *   Raw value of node->get('field_county')->value (the string_long field).
+ *
+ * @return string[]
+ *   Ordered list of distinct bare county names; empty array if input is empty
+ *   after normalization.
+ */
+function _ilas_seo_parse_county_string(string $raw): array {
+  $raw = trim($raw);
+  if ($raw === '') {
+    return [];
+  }
+  // Normalize Oxford-style ", and " or " and " before the last item to ", ".
+  $normalized = preg_replace('/,?\s+and\s+/', ', ', $raw);
+  $parts = array_map('trim', explode(',', $normalized));
+  // Strip stray "County" suffixes (case-insensitive).
+  $parts = array_map(static fn(string $p) => preg_replace('/\s+County$/i', '', $p), $parts);
+  // Drop empties.
+  $parts = array_values(array_filter($parts, static fn(string $p) => $p !== ''));
+  // Preserve order, deduplicate.
+  return array_values(array_unique($parts));
 }
 
 /**
