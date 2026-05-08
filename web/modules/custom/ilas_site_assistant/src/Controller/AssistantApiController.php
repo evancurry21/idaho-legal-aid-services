@@ -3325,6 +3325,26 @@ class AssistantApiController extends ControllerBase {
         if (!empty($current_facts['deadline_or_notice'])) {
           $conversation_context_summary['deadline_or_notice'] = $current_facts['deadline_or_notice'];
         }
+        // Mirror ConversationContextSummary::summarizeTurn() household_context
+        // OR-merge so children-/survivor-/disability-aware response hints fire
+        // on the SAME turn the user introduces the fact, not only on the next
+        // turn. Without this, applyConversationContextResponseHints() reads a
+        // stored summary that doesn't yet reflect current-turn household_context
+        // flags (summarizeTurn runs after the response is built).
+        if (!empty($current_facts['household_context']) && is_array($current_facts['household_context'])) {
+          if (!isset($conversation_context_summary['household_context']) || !is_array($conversation_context_summary['household_context'])) {
+            $conversation_context_summary['household_context'] = [
+              'children_present' => FALSE,
+              'survivor_safety_mentioned' => FALSE,
+              'disability_mentioned' => FALSE,
+            ];
+          }
+          foreach (['children_present', 'survivor_safety_mentioned', 'disability_mentioned'] as $hh_flag) {
+            if (!empty($current_facts['household_context'][$hh_flag])) {
+              $conversation_context_summary['household_context'][$hh_flag] = TRUE;
+            }
+          }
+        }
         $response = $this->applyConversationContextResponseHints(
         $response,
         $conversation_context_summary,
