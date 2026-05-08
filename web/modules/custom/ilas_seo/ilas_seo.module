@@ -583,7 +583,7 @@ function _ilas_seo_build_event_place(NodeInterface $node): ?array {
  *   - Oxford-style 3+ with ", and"     -> ["Ada", "Boise", "Elmore", "Valley"]   (input: "Ada, Boise, Elmore, and Valley")
  *   - Trailing whitespace              -> trimmed
  *   - Stray "County" suffix            -> stripped ("Ada County, Boise County" -> ["Ada", "Boise"])
- *   - Trailing comma / extra commas    -> empties dropped
+ *   - Trailing comma / extra commas    -> empties dropped.
  *
  * Output is bare county names (no "County" suffix, no ", Idaho" qualifier).
  * The caller (ilas_seo_page_attachments_alter) appends "County, Idaho" per D-04.

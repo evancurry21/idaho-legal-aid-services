@@ -238,7 +238,8 @@ final class SchemaPropertiesTest extends BrowserTestBase {
    * Returns the JSON-LD @graph entry whose @type matches $type, or NULL.
    *
    * Iterates every <script type="application/ld+json"> block on the current
-   * rendered page, decodes via Json::decode, unwraps the schema_metatag
+   * rendered page, decodes via Json::decode, unwraps the schema_metatag.
+   *
    * @graph array, and returns the first entry with a matching @type.
    */
   protected function getJsonLdGraphEntry(string $type): ?array {
