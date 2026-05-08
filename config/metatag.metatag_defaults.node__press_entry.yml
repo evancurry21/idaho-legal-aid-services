@@ -10,7 +10,6 @@ tags:
   og_type: article
   article_published_time: '[node:field_publication_date:date:custom:c|node:created:custom:c]'
   article_modified_time: '[node:changed:custom:c]'
-  article_section: 'Press Room'
   og_title: '[node:title]'
   og_description: '[node:field_seo_description|node:field_body:summary]'
   twitter_cards_description: '[node:field_seo_description|node:field_body:summary]'
@@ -26,7 +25,6 @@ tags:
   schema_article_publisher: 'a:3:{s:5:"@type";s:3:"NGO";s:3:"@id";s:42:"https://idaholegalaid.org/#organization";s:4:"logo";a:2:{s:5:"@type";s:11:"ImageObject";s:3:"url";s:82:"https://idaholegalaid.org/themes/custom/b5subtheme/images/ILAS_logo_notagline_bg-white_raster.png";}}'
   schema_article_main_entity_of_page: '[node:url]'
   schema_article_is_accessible_for_free: 'True'
-  schema_article_article_section: 'Press Room'
   schema_web_page_type: WebPage
   schema_web_page_id: '[node:url]#webpage'
   schema_web_page_name: '[node:title]'

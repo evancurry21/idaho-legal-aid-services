@@ -10,7 +10,6 @@ tags:
   description: '[node:field_seo_description|node:field_main_content:summary]'
   og_description: '[node:field_seo_description|node:field_main_content:summary]'
   twitter_cards_description: '[node:field_seo_description|node:field_main_content:summary]'
-  article_section: '[node:field_service_areas:entity:name]'
   schema_article_type: Article
   schema_article_id: '[node:url]#article'
   schema_article_name: '[node:title]'
