@@ -128,6 +128,47 @@ function ilas_seo_page_attachments_alter(array &$attachments) {
     ];
   }
 
+  // SEO-03 Phase 2: emit Organization foundingDate as JSON-LD.
+  // schema_metatag 3.x has no Tag plugin for SchemaOrganizationFoundingDate
+  // (verified absent in web/modules/contrib/schema_metatag/schema_organization/src/Plugin/metatag/Tag/),
+  // so the YAML key in config/metatag.metatag_defaults.global.yml is inert.
+  // Inject directly via the schema_metatag aggregator (parseJsonld) per D-05.
+  // Mirrors the publishingPrinciples pattern below.
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#tag' => 'meta',
+      '#attributes' => [
+        'name' => 'foundingDate',
+        'content' => '1967',
+        'group' => 'schema_organization',
+        'schema_metatag' => TRUE,
+      ],
+    ],
+    'schema_organization_founding_date',
+  ];
+
+  // SEO-03 Phase 2: emit Organization areaServed as JSON-LD.
+  // The existing config/metatag.metatag_defaults.global.yml line is a
+  // PHP-serialized string, which only deserializes inside Tag plugins —
+  // schema_metatag has no SchemaOrganizationAreaServed plugin (Pitfall 1
+  // in 02-RESEARCH.md). We pass a real PHP array; parseJsonld stores it
+  // verbatim into the @graph.
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#tag' => 'meta',
+      '#attributes' => [
+        'name' => 'areaServed',
+        'content' => [
+          '@type' => 'State',
+          'name' => 'Idaho',
+        ],
+        'group' => 'schema_organization',
+        'schema_metatag' => TRUE,
+      ],
+    ],
+    'schema_organization_area_served',
+  ];
+
   // Add publishingPrinciples to Article schema for article content types.
   $route_match = \Drupal::routeMatch();
   $node = $route_match->getParameter('node');
