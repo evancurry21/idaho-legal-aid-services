@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # SEO JSON-LD verification smoke test.
+# Authoritative pre-merge coverage lives in web/modules/custom/ilas_seo/tests/src/Functional/SchemaPropertiesTest.php (Phase 3 / TEST-01).
 #
 # Asserts (Phase 2 success criteria, minus SEO-01 which is deferred):
 #   - Organization JSON-LD on /about contains "foundingDate":"1967" and "name":"Idaho"
