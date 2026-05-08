@@ -530,6 +530,44 @@ function _ilas_seo_build_event_place(NodeInterface $node): ?array {
 }
 
 /**
+ * Parses a free-text county string into a normalized list of bare county names.
+ *
+ * Handles all real production shapes for office_information.field_county:
+ *   - Empty / whitespace-only input    -> []
+ *   - Single county                    -> ["Ada"]
+ *   - Two with "and"                   -> ["Ada", "Boise"]                 (input: "Ada and Boise")
+ *   - Oxford-style 3+ with ", and"     -> ["Ada", "Boise", "Elmore", "Valley"]   (input: "Ada, Boise, Elmore, and Valley")
+ *   - Trailing whitespace              -> trimmed
+ *   - Stray "County" suffix            -> stripped ("Ada County, Boise County" -> ["Ada", "Boise"])
+ *   - Trailing comma / extra commas    -> empties dropped
+ *
+ * Output is bare county names (no "County" suffix, no ", Idaho" qualifier).
+ * The caller (ilas_seo_page_attachments_alter) appends "County, Idaho" per D-04.
+ *
+ * @param string $raw
+ *   Raw value of node->get('field_county')->value (the string_long field).
+ *
+ * @return string[]
+ *   Ordered list of distinct bare county names; empty array if input is empty
+ *   after normalization.
+ */
+function _ilas_seo_parse_county_string(string $raw): array {
+  $raw = trim($raw);
+  if ($raw === '') {
+    return [];
+  }
+  // Normalize Oxford-style ", and " or " and " before the last item to ", ".
+  $normalized = preg_replace('/,?\s+and\s+/', ', ', $raw);
+  $parts = array_map('trim', explode(',', $normalized));
+  // Strip stray "County" suffixes (case-insensitive).
+  $parts = array_map(static fn(string $p) => preg_replace('/\s+County$/i', '', $p), $parts);
+  // Drop empties.
+  $parts = array_values(array_filter($parts, static fn(string $p) => $p !== ''));
+  // Preserve order, deduplicate.
+  return array_values(array_unique($parts));
+}
+
+/**
  * Ensures Article/NewsArticle schema has an image property.
  *
  * Sets the schema_article_image directly from the entity's media fields,
