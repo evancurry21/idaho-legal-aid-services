@@ -248,6 +248,50 @@ function ilas_seo_page_attachments_alter(array &$attachments) {
         ];
       }
     }
+
+    // SEO-03 Phase 2: emit office_information areaServed as JSON-LD array of
+    // AdministrativeArea entries derived from field_county (D-03 + D-04).
+    // schema_metatag has no plugin for SchemaOrganizationAreaServed; inject
+    // via the alter hook (D-05). Group MUST be 'schema_organization' to merge
+    // into the same @graph entry as the office's other schema_organization_*
+    // tags (Pitfall 3 in 02-RESEARCH.md — verified against
+    // config/metatag.metatag_defaults.node__office_information.yml).
+    if (
+      $node->bundle() === 'office_information'
+      && $node->hasField('field_county')
+      && !$node->get('field_county')->isEmpty()
+    ) {
+      $raw_county = (string) $node->get('field_county')->value;
+      $counties = _ilas_seo_parse_county_string($raw_county);
+      if (!empty($counties)) {
+        $area_served = array_map(
+          static fn(string $county) => [
+            '@type' => 'AdministrativeArea',
+            'name' => $county . ' County, Idaho',
+          ],
+          $counties
+        );
+        $attachments['#attached']['html_head'][] = [
+          [
+            '#tag' => 'meta',
+            '#attributes' => [
+              'name' => 'areaServed',
+              'content' => $area_served,
+              'group' => 'schema_organization',
+              'schema_metatag' => TRUE,
+            ],
+          ],
+          'schema_organization_office_area_served',
+        ];
+      }
+      else {
+        // Non-empty raw input parsed to zero counties — log for triage.
+        \Drupal::logger('ilas_seo')->warning(
+          'office_information node @nid has non-empty field_county "@raw" but parser returned zero counties.',
+          ['@nid' => $node->id(), '@raw' => $raw_county]
+        );
+      }
+    }
   }
 }
 
