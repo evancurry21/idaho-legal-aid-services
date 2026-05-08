@@ -187,6 +187,66 @@ function ilas_seo_page_attachments_alter(array &$attachments) {
         ],
         'schema_article_publishing_principles',
       ];
+
+      // SEO-03 Phase 2: emit articleSection per bundle as JSON-LD.
+      // schema_metatag 3.x has no SchemaArticleArticleSection plugin (verified
+      // absent in web/modules/contrib/schema_metatag/schema_article/src/Plugin/metatag/Tag/),
+      // so YAML article_section / schema_article_article_section keys in the
+      // four bundle config files are inert. The alter hook is the single source
+      // of truth (D-05). For resource (multi-value field_service_areas), emit
+      // a JSON array per D-02; Schema.org articleSection accepts Text or Text[].
+      // press_entry value is the literal "Press" per D-01 (the legacy YAML's
+      // longer "Press Room" string is being retired in this same plan).
+      $bundle = $node->bundle();
+      $section_value = NULL;
+
+      if ($bundle === 'news') {
+        $section_value = 'News';
+      }
+      elseif ($bundle === 'press_entry') {
+        $section_value = 'Press';
+      }
+      elseif (
+        $bundle === 'legal_content'
+        && $node->hasField('field_service_area')
+        && !$node->get('field_service_area')->isEmpty()
+      ) {
+        $term = $node->get('field_service_area')->entity;
+        $section_value = $term ? $term->label() : NULL;
+      }
+      elseif (
+        $bundle === 'resource'
+        && $node->hasField('field_service_areas')
+        && !$node->get('field_service_areas')->isEmpty()
+      ) {
+        $names = [];
+        foreach ($node->get('field_service_areas')->referencedEntities() as $term) {
+          $names[] = $term->label();
+        }
+        // Single-value: emit string. Multi-value: emit array (D-02; per
+        // 02-PATTERNS.md, do NOT implode — parseJsonld stores arrays verbatim).
+        if (count($names) === 1) {
+          $section_value = $names[0];
+        }
+        elseif (count($names) > 1) {
+          $section_value = $names;
+        }
+      }
+
+      if (!empty($section_value)) {
+        $attachments['#attached']['html_head'][] = [
+          [
+            '#tag' => 'meta',
+            '#attributes' => [
+              'name' => 'articleSection',
+              'content' => $section_value,
+              'group' => 'schema_article',
+              'schema_metatag' => TRUE,
+            ],
+          ],
+          'schema_article_article_section',
+        ];
+      }
     }
   }
 }
