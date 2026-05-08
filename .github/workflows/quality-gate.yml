@@ -388,6 +388,45 @@ jobs:
           ddev logs --tail 200 || true
           ddev drush watchdog:show --count=50 --severity=Error --extended || true
 
+  seo-functional-gate:
+    # Pre-merge gate locking Phase 2's deployed JSON-LD schema properties
+    # (SEO-03) against silent regression. Runs SchemaPropertiesTest under
+    # --testsuite functional and the FaqSchemaTest canary (Phase 2 C-02)
+    # under --testsuite kernel inside DDEV. Required on PR.
+    #
+    # Side effect (D-CI-02 from Phase 3 CONTEXT): this is the first CI
+    # job that runs the kernel suite, so FaqSchemaTest is now enforced on
+    # every PR — previously it only ran locally.
+    name: SEO Functional + Kernel Tests (DDEV)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Set up DDEV
+        uses: ddev/github-action-setup-ddev@fdf2f5c97943bae638f31df6df86f1defa6210c0 # v1.12.1
+
+      - name: Ensure DDEV Composer dependencies
+        run: ddev composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run PHPUnit functional suite
+        run: ddev exec vendor/bin/phpunit -c phpunit.xml --testsuite functional --colors=always
+
+      - name: Run PHPUnit kernel suite (FaqSchemaTest C-02 canary)
+        run: ddev exec vendor/bin/phpunit -c phpunit.xml --testsuite kernel --colors=always
+
+      - name: Capture DDEV diagnostics on failure
+        if: ${{ failure() }}
+        run: |
+          ddev describe || true
+          ddev logs --tail 200 || true
+          ddev drush watchdog:show --count=50 --severity=Error --extended || true
+
   assistant-pr-gate:
     name: Assistant PR Quality Gate
     runs-on: ubuntu-latest
