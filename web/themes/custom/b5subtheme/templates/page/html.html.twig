@@ -101,6 +101,36 @@
     {% endif %}
     <js-bottom-placeholder token="{{ placeholder_token }}">
 
-    {# GA4 bootstrap is delivered by b5subtheme/ga4 library (attached from b5subtheme_preprocess_html). #}
+    {# GA4 configuration. Inline because the externalised library path
+       (b5subtheme/ga4) silently failed in production after the Apr 30
+       theme refactor — drupalSettings was not delivered to anonymous
+       cached pages. CSP currently allows 'unsafe-inline' in script-src,
+       so this is safe. #}
+    {% if google_tag_id %}
+      <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+
+        gtag('consent', 'default', {
+          'ad_storage': 'granted',
+          'ad_user_data': 'granted',
+          'ad_personalization': 'granted',
+          'analytics_storage': 'granted',
+          'functionality_storage': 'granted',
+          'personalization_storage': 'granted',
+          'security_storage': 'granted'
+        });
+
+        gtag('js', new Date());
+
+        gtag('config', '{{ google_tag_id }}', {
+          'send_page_view': true,
+          'allow_google_signals': false,
+          'transport_type': 'beacon',
+          'content_group': '{{ node_type|default("general") }}',
+          'page_type': '{{ node_type|default("page") }}'
+        });
+      </script>
+    {% endif %}
   </body>
 </html>
