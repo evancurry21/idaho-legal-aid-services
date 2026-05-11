@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "gates": [
+    {
+      "id": "composer_dryrun",
+      "library_fn": "gate_composer_dryrun",
+      "required_in": ["pre-push", "publish-gate-local", "ci:quality-gate"],
+      "critical_config": {
+        "command": "composer install --no-interaction --no-progress --prefer-dist --dry-run",
+        "advisory": true,
+        "notes": "Advisory in all contexts; non-zero exit warns but does not fail the consumer (see publish-gates.lib.sh gate_composer_dryrun)."
+      }
+    },
+    {
+      "id": "vc_pure",
+      "library_fn": "gate_vc_pure",
+      "required_in": ["pre-push", "publish-gate-local", "ci:quality-gate"],
+      "critical_config": {
+        "phpunit_config": "phpunit.pure.xml",
+        "bootstrap": "phpunit.pure.bootstrap.php",
+        "notes": "Pure-PHP unit suite (no Drupal kernel); runs on host PHP without DDEV."
+      }
+    },
+    {
+      "id": "module_quality",
+      "library_fn": "gate_module_quality",
+      "required_in": ["pre-push", "publish-gate-local", "ci:quality-gate"],
+      "critical_config": {
+        "runner": "web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh",
+        "expected_runtime_seconds": 660,
+        "notes": "11-min pole; calls run-quality-gate.sh which spawns ddev exec / npm run / phpunit children. Primary FD-leak suspect per RESEARCH H#1."
+      }
+    },
+    {
+      "id": "promptfoo_branch_aware",
+      "library_fn": "gate_promptfoo_branch_aware",
+      "required_in": ["pre-push", "publish-gate-local"],
+      "critical_config": {
+        "live_provider_opt_in": "ILAS_LIVE_PROVIDER_GATE",
+        "advisory": true,
+        "notes": "Advisory; gated by ILAS_LIVE_PROVIDER_GATE env var. Silently skips when env unset (see publish-gates.lib.sh:206)."
+      }
+    },
+    {
+      "id": "promptfoo_deploy_bound",
+      "library_fn": "gate_promptfoo_deploy_bound_required",
+      "required_in": ["pre-push:master-origin-only"],
+      "critical_config": {
+        "config_file": "promptfooconfig.deploy.yaml",
+        "requires_ddev": true,
+        "fail_closed": true,
+        "wave_status": "library_fn does NOT yet exist (Wave 2 plan 04 creates gate_promptfoo_deploy_bound_required as the fail-closed replacement for the current gate_promptfoo_deploy_bound which silently skips when ILAS_LIVE_PROVIDER_GATE is unset, per PIPE-02). Lockfile encodes the target state; Wave 3 parity verifier triggers on drift."
+      }
+    }
+  ]
+}
