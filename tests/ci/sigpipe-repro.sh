@@ -28,8 +28,49 @@ set -euo pipefail
 # Phase: 03.1-publish-pipeline-audit-hardening — Plan 03.1-01 (Wave 0 lays the harness).
 #
 # Exit contract:
-#   0 — harness ran end-to-end; verdict token captured on final stdout line.
-#   1 — harness itself failed (cannot source library, etc.).
+#   0 — harness ran end-to-end; verdict token captured on final stdout line
+#       (pre-fix mode) OR FD-isolation markers verified present (post-fix mode).
+#   1 — harness itself failed (cannot source library, missing hook, etc.).
+#       In post-fix mode, exit 1 also means the installed hook does NOT contain
+#       the expected defensive FD-isolation markers.
+#
+# Modes (added 03.1-03 Wave 2):
+#   --mode pre-fix   (default; backward-compat with the Wave 1 spike behavior).
+#                    Runs the gate-isolated push experiment and emits a verdict
+#                    token. This is what produced the H1-CONFIRMED-DRY-RUN
+#                    evidence in 03.1-02-SPIKE.md.
+#   --mode post-fix  Asserts the installed .git/hooks/pre-push contains the
+#                    defensive FD-isolation markers from 03.1-03 Task 2
+#                    (>= 5 </dev/null tokens in non-comment lines, exec 0<&-,
+#                    and the value-chain header comment). Per planner grep-gate
+#                    hygiene: comments are FILTERED before counting tokens so
+#                    the header block (which itself contains `</dev/null`
+#                    inside prose) cannot self-invalidate the gate.
+
+usage() {
+  cat <<'USAGE'
+Usage: sigpipe-repro.sh [--mode pre-fix|post-fix]
+
+  --mode pre-fix   (default) Run the gate-isolated push experiment and emit a
+                   verdict token (hypothesis1-confirmed / hypothesis1-falsified
+                   / inconclusive). This is the Wave 1 spike behavior.
+  --mode post-fix  Assert .git/hooks/pre-push contains the H1/H3 defensive
+                   FD-isolation markers per 03.1-02-SPIKE.md §"Recommended
+                   Fix Shape" defensive H1 patches. Exits 0 if present, 1 if
+                   missing.
+  -h, --help       Show this help.
+USAGE
+}
+
+MODE="${MODE:-pre-fix}"
+while (($# > 0)); do
+  case "$1" in
+    --mode) MODE="$2"; shift 2 ;;
+    --mode=*) MODE="${1#--mode=}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown arg: $1" >&2; usage >&2; exit 64 ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if ! REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
@@ -39,6 +80,38 @@ fi
 # Source the assertion helpers (used for sanity checks before the spike).
 # shellcheck source=./_assert.sh
 source "$SCRIPT_DIR/_assert.sh"
+
+if [[ "$MODE" == "post-fix" ]]; then
+  # Post-fix verification: assert defensive H1/H3 FD-isolation markers are
+  # present in the installed hook. Per 03.1-02-SPIKE.md §"Recommended Fix Shape"
+  # defensive H1 patches + planner grep-gate hygiene (filter comments before
+  # counting `</dev/null` so the header block does not self-invalidate the gate).
+  hook="$REPO_ROOT/.git/hooks/pre-push"
+  if [[ ! -f "$hook" ]]; then
+    echo "[FAIL] .git/hooks/pre-push missing — run scripts/ci/install-pre-push-strict-hook.sh" >&2
+    exit 1
+  fi
+  count=$(grep -v '^[[:space:]]*#' "$hook" | grep -c '</dev/null' || true)
+  if [[ "$count" -lt 5 ]]; then
+    echo "[FAIL] expected >= 5 </dev/null at non-comment gate sites; found $count" >&2
+    echo "       Re-run: bash scripts/ci/install-pre-push-strict-hook.sh" >&2
+    exit 1
+  fi
+  if ! grep -qE '^[[:space:]]*exec 0<&-' "$hook"; then
+    echo "[FAIL] missing exec 0<&- in installed hook (H1 parent-side fd close)" >&2
+    echo "       Re-run: bash scripts/ci/install-pre-push-strict-hook.sh" >&2
+    exit 1
+  fi
+  if ! grep -q 'Pantheon drops idle SSH at ~603s' "$hook"; then
+    echo "[FAIL] value-chain header comment missing from installed hook" >&2
+    echo "       Re-run: bash scripts/ci/install-pre-push-strict-hook.sh" >&2
+    exit 1
+  fi
+  echo "[ok] FD-isolation markers present: </dev/null count=$count (>=5); exec 0<&- present; value-chain header present."
+  exit 0
+fi
+
+# --- pre-fix mode (Wave 1 spike experiment; preserves backward-compat) ---
 
 # Sanity: publish-gates.lib.sh must exist.
 GATES_LIB="$REPO_ROOT/scripts/ci/publish-gates.lib.sh"
