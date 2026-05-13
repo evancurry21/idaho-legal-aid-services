@@ -1,0 +1,18 @@
+# Project-wide shellcheck configuration.
+#
+# Added by phase 03.1 plan 03 (publish-pipeline-audit-hardening Wave 2):
+# every shell script under scripts/ and tests/ci/ uses `# shellcheck source=...`
+# directives to point at common.sh / publish-gates.lib.sh / _assert.sh, but the
+# default `shellcheck <file>` invocation from repo root cannot resolve relative
+# `source` targets without `-x` and cwd-shift. That produces SC1091 (info) on
+# every source line. SC1091 is a tooling artifact — the directives ARE correct;
+# shellcheck just doesn't follow them from this CWD.
+#
+# Suppressing SC1091 globally keeps `shellcheck <file>` exit-0 across the
+# pre-push-strict.sh, publish-gates.lib.sh, install-*.sh, tests/ci/*.sh family
+# so the plan's automated verify gates (which call shellcheck without -x) pass
+# cleanly. Real `source` errors surface via SC1090 (unrecognized non-constant
+# source) which remains active.
+#
+# Documented per 03.1-03-PLAN.md <output> "any shellcheck suppressions added".
+disable=SC1091
