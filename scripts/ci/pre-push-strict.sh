@@ -15,6 +15,11 @@
 # or, more typically, prove live infra explicitly before pushing with
 #   npm run assistant:providers:health
 #   npm run assistant:providers:health:strict   # also runs deploy-bound promptfoo
+#
+# Pre-push gates run ~673s. Pantheon drops idle SSH at ~603s. Repo-local
+# core.sshCommand provides 60s keepalives; install via
+# scripts/git/install-keepalive.sh. FD-isolation </dev/null + exec 0<&- below
+# are defensive (belt-and-suspenders) per 03.1-02-SPIKE.md §"Recommended Fix Shape".
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -41,6 +46,8 @@ while IFS=' ' read -r local_ref local_oid remote_ref remote_oid; do
   [[ -z "${local_ref:-}" ]] && continue
   PUSH_LINES+=("${local_ref}|${local_oid}|${remote_ref}|${remote_oid}")
 done
+
+exec 0<&-   # Detach git's pre-push stdin per 03.1-02-SPIKE.md §"Recommended Fix Shape" H1 patch
 
 is_protected_branch() {
   local branch="$1"
@@ -196,14 +203,17 @@ cd "$REPO_ROOT"
 
 # Test gates — delegated to the shared library (see scripts/ci/publish-gates.lib.sh).
 # Local parity entry point: npm run gate:publish-local.
-gate_composer_dryrun
-gate_vc_pure
-gate_module_quality
+# </dev/null on each gate is defensive H1/H3 FD-isolation per 03.1-02-SPIKE.md
+# §"Wave 2 plan 03 task seed" — closes any leaked-from-parent stdin pipe so a
+# gate child cannot write back into git's pre-push fd.
+gate_composer_dryrun </dev/null
+gate_vc_pure </dev/null
+gate_module_quality </dev/null
 
 if [[ "$DEPLOY_BOUND_PROMPTFOO" == "true" ]]; then
-  gate_promptfoo_deploy_bound "$PROMPTFOO_BRANCH" "$DDEV_ASSISTANT_URL"
+  gate_promptfoo_deploy_bound "$PROMPTFOO_BRANCH" "$DDEV_ASSISTANT_URL" </dev/null
 else
-  gate_promptfoo_branch_aware "$PROMPTFOO_BRANCH"
+  gate_promptfoo_branch_aware "$PROMPTFOO_BRANCH" </dev/null
 fi
 
 echo "Strict pre-push gate PASSED."

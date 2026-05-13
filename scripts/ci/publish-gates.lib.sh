@@ -73,8 +73,13 @@ publish_gates_record_drift() {
 # Install the EXIT trap that prints the final structured summary block at the
 # very bottom of the gate output, on both success and failure. The trap
 # preserves the upstream exit code — it never alters caller semantics.
+#
+# 03.1-02-SPIKE.md §"File 2" — trap stdin isolation: the </dev/null below
+# closes the summarizer child's stdin so it cannot inherit and re-leak the
+# pre-push pipe back to git on EXIT (defensive H1/H3 patch).
 publish_gates_install_summary_trap() {
-  trap 'gate_exit=$?; bash "'"$_PUBLISH_GATES_LIB_DIR"'/publish-failure-summary.sh" "$gate_exit"; exit "$gate_exit"' EXIT
+  # shellcheck disable=SC2154  # gate_exit is assigned in the trap-string itself ($?), shellcheck cannot follow
+  trap 'gate_exit=$?; bash "'"$_PUBLISH_GATES_LIB_DIR"'/publish-failure-summary.sh" "$gate_exit" </dev/null; exit "$gate_exit"' EXIT
 }
 
 # Print a structured FAIL block to stderr.

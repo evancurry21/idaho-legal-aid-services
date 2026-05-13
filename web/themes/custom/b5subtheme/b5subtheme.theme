@@ -630,22 +630,13 @@ function b5subtheme_preprocess_html(array &$variables): void {
   $variables['language'] = $current_language;
 
   // Keep sitewide GA available, but deny GA/bootstrap on the assistant page.
+  // gtag.js loader and gtag('config') call are both inline in
+  // templates/page/html.html.twig — see commit history for why the
+  // externalised b5subtheme/ga4 library path was abandoned.
   $google_tag_id = $route_name === 'ilas_site_assistant.page'
     ? NULL
     : Settings::get('google_tag_id');
   $variables['google_tag_id'] = $google_tag_id;
-  if (!empty($google_tag_id)) {
-    // Externalised gtag bootstrap — see js/ga4-init.js. Inline <script>
-    // formerly in templates/page/html.html.twig was removed to allow CSP
-    // without 'unsafe-inline' on script-src.
-    $node_type = $variables['node_type'] ?? NULL;
-    $variables['#attached']['library'][] = 'b5subtheme/ga4';
-    $variables['#attached']['drupalSettings']['b5subtheme']['ga4'] = [
-      'id' => $google_tag_id,
-      'contentGroup' => $node_type ?: 'general',
-      'pageType' => $node_type ?: 'page',
-    ];
-  }
 
   // All custom JSON-LD (WebSite/SearchAction, BreadcrumbList, FAQPage,
   // JobPosting, LearningResource) is owned by ilas_seo's GraphBuilder service

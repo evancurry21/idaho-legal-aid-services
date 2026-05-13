@@ -26,6 +26,10 @@ if [[ ! -d "$HOOKS_DIR" ]]; then
   exit 1
 fi
 
+# PIPE-01 / 03.1-02-SPIKE.md §"File 0" mandate #2: provision repo-local SSH keepalive
+# alongside the strict hook so a fresh clone gets both load-bearing pieces in one command.
+bash "$REPO_ROOT/scripts/git/install-keepalive.sh"
+
 cp "$PRE_COMMIT_SOURCE" "$PRE_COMMIT_DEST"
 cp "$PRE_PUSH_SOURCE" "$PRE_PUSH_DEST"
 chmod +x "$PRE_COMMIT_DEST" "$PRE_PUSH_DEST"
@@ -74,3 +78,7 @@ echo "then runs a hosted Pantheon dev verification plus waits for the hosted pos
 echo "Pantheon test/live promotion remains a separate workflow."
 echo ""
 echo "Bypass once (not recommended): git push --no-verify"
+echo ""
+echo "Verify load-bearing SIGPIPE fix:"
+echo "  git config --local --get core.sshCommand"
+echo "  expected to contain ServerAliveInterval=60 and ServerAliveCountMax=20"
