@@ -34,6 +34,19 @@ SUMMARY_FILE="$REPO_ROOT/promptfoo-evals/output/phpunit-summary.txt"
 JUNIT_DIR="$REPO_ROOT/promptfoo-evals/output/junit"
 PROMPTFOO_ERROR_TXT="$REPO_ROOT/promptfoo-evals/output/structured-error-summary.txt"
 
+# PIPE-03: see 03.1-SPEC.md.
+# Emit a single machine-grep-able verdict line at the top of stderr.
+# Format: PUBLISH-VERDICT <kind> gate=<id> reason=<dash-token> next=<dash-command>
+# Contract: single line, top of stderr, ^PUBLISH-VERDICT , spaces in reason/next replaced by dashes.
+emit_top_verdict() {
+  local kind="$1"
+  local gate="$2"
+  local reason="$3"
+  local next="$4"
+  printf 'PUBLISH-VERDICT %s gate=%s reason=%s next=%s\n' \
+    "$kind" "$gate" "${reason// /-}" "${next// /-}" >&2
+}
+
 # The PHP parser does the heavy lifting: scan the summary file for the first
 # phase with nonzero exit_code, open its JUnit XML, walk all JUnit XMLs for
 # warning/deprecation/skipped counts, emit a single tab-separated record.
@@ -252,6 +265,22 @@ phase_label() {
 }
 
 BAR="════════════════════════════════════════════════════════════════════"
+
+# PIPE-03: emit_top_verdict is called once here, before the existing structured block,
+# so the verdict line is the FIRST thing on stderr from this script.
+if [[ "${R[BLOCKER]}" == "1" ]]; then
+  _v_gate="${R[B_PHASE]:-unknown}"
+  _v_method="${R[B_NAME]:-}"
+  _v_file="${R[B_FILE]:-}"
+  _v_repro="$(repro_for_phase "$_v_gate" "$_v_method" "$_v_file")"
+  emit_top_verdict FAIL "$_v_gate" "${R[B_MESSAGE]:-gate-failed}" "$_v_repro"
+elif [[ -n "${R[DRIFT]:-}" ]]; then
+  emit_top_verdict WARN sync-check drift-detected see-drift-line-below
+elif [[ -f "$SUMMARY_FILE" ]] && grep -q "^bypass=" "$SUMMARY_FILE" 2>/dev/null; then
+  emit_top_verdict BYPASS --no-verify operator-explicit-override "$SUMMARY_FILE"
+else
+  emit_top_verdict PASS all ok none
+fi
 
 echo ""
 if [[ "${R[BLOCKER]}" == "1" ]]; then
