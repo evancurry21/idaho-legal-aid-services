@@ -135,7 +135,9 @@ printf '[ok] Scenario B: delegation to gate_promptfoo_deploy_bound confirmed (st
 # Scenario C: call-site verification in pre-push-strict.sh
 # ---------------------------------------------------------------------------
 
-required_count="$(grep -cE '^\s*gate_promptfoo_deploy_bound_required' "$REPO_ROOT/scripts/ci/pre-push-strict.sh" || true)"
+# After plan 03.1-05, gate calls are wrapped via _publish_gates_run_with_record,
+# so the call site pattern is: _publish_gates_run_with_record gate_promptfoo_deploy_bound_required ...
+required_count="$(grep -cE 'gate_promptfoo_deploy_bound_required' "$REPO_ROOT/scripts/ci/pre-push-strict.sh" || true)"
 if [[ "$required_count" -ne 1 ]]; then
   printf '[FAIL] Scenario C: expected exactly 1 call to gate_promptfoo_deploy_bound_required in pre-push-strict.sh; found %s\n' "$required_count" >&2
   exit 1
