@@ -76,15 +76,16 @@ main() {
   fi
 
   for remote in "${REMOTES[@]}"; do
-    IFS=$'\t' read -r status remote_only local_only < <(describe_remote_status "$remote" "$branch")
+    # PIPE-06: emit typed recovery from describe_remote_status col4.
+    IFS=$'\t' read -r status remote_only local_only recovery_cmd < <(describe_remote_status "$remote" "$branch")
     print_remote_status "$remote" "$branch" "$status" "$remote_only" "$local_only"
 
     if [[ "$status" == "remote-ahead" || "$status" == "diverged" ]]; then
       unsafe=true
-      if [[ "$branch" == "master" && "$remote" == "github" ]]; then
-        err "Run: npm run git:sync-master"
-      elif [[ "$branch" == "master" && "$remote" == "origin" ]]; then
-        err "Run: npm run git:reconcile-origin"
+      if [[ -n "$recovery_cmd" ]]; then
+        err "Recovery: $recovery_cmd"
+      fi
+      if [[ "$branch" == "master" && "$remote" == "origin" ]]; then
         err "Verify unexpected Pantheon code movement with: terminus env:code-log idaho-legal-aid-services.dev --format=table"
       fi
       err "Inspect with: git log --left-right --cherry-pick --oneline $remote/$branch...$branch"
