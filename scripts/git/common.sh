@@ -87,15 +87,26 @@ remote_ref_exists() {
 }
 
 describe_remote_status() {
+  # Emit a 4-column tab-separated record:
+  #   col1: status token — in-sync | local-ahead | remote-ahead | diverged | missing
+  #   col2: remote_only commit count (commits remote has that local lacks)
+  #   col3: local_only commit count (commits local has that remote lacks)
+  #   col4: recovery command (non-empty for drift types; empty for in-sync and local-ahead)
+  #
+  # PIPE-06: 4th column = recovery command.
+  # Backward-compat: existing 3-column consumers (IFS=$'\t' read -r STATUS C2 C3) silently
+  # drop the 4th column; new consumers read all 4 columns for the recovery command.
   local remote="$1"
   local branch="$2"
   local raw=""
   local remote_only=""
   local local_only=""
   local status=""
+  local recovery=""
 
   if ! remote_ref_exists "$remote" "$branch"; then
-    printf 'missing\t-\t-\n'
+    recovery="git remote add $remote <url>; git fetch $remote"
+    printf 'missing\t-\t-\t%s\n' "$recovery"
     return 0
   fi
 
@@ -112,7 +123,25 @@ describe_remote_status() {
     status="diverged"
   fi
 
-  printf '%s\t%s\t%s\n' "$status" "$remote_only" "$local_only"
+  # PIPE-06: compute recovery command from (status, remote) pair.
+  case "$status:$remote" in
+    missing:*)
+      recovery="git remote add $remote <url>; git fetch $remote" ;;
+    remote-ahead:github)
+      recovery="npm run git:sync-master" ;;
+    remote-ahead:origin)
+      recovery="npm run git:reconcile-origin" ;;
+    diverged:github)
+      recovery="git log --left-right --cherry-pick --oneline github/$branch...$branch; npm run git:sync-master" ;;
+    diverged:origin)
+      recovery="git log --left-right --cherry-pick --oneline origin/$branch...$branch; npm run git:reconcile-origin" ;;
+    in-sync:*|local-ahead:*)
+      recovery="" ;;
+    *)
+      recovery="(unknown drift type: $status)" ;;
+  esac
+
+  printf '%s\t%s\t%s\t%s\n' "$status" "$remote_only" "$local_only" "$recovery"
 }
 
 print_remote_status() {
