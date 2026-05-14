@@ -24,6 +24,7 @@
     "test:a11y:report": "playwright show-report output/playwright-a11y/report",
     "test:phpunit:host": "bash scripts/ci/run-host-phpunit.sh",
     "gate:publish-local": "bash scripts/ci/publish-gate-local.sh",
+    "gate:verify-parity": "bash scripts/ci/verify-gates-parity.sh",
     "gate:github-local": "bash scripts/ci/gate-github-local.sh",
     "gate:a11y-local": "bash scripts/ci/gate-a11y-local.sh",
     "gate:assistant-functional": "bash scripts/ci/run-assistant-functional.sh",
