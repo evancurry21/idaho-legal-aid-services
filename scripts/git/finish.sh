@@ -562,6 +562,7 @@ main() {
   case "$origin_status" in
     local-ahead)
       info "Pantheon dev is behind; deploying origin/master through the local DDEV deploy gate..."
+      # PIPE-04: publish.sh delegates --no-verify pushes through scripts/git/safe-push.sh for bypass audit trail.
       bash "$SCRIPT_DIR/publish.sh" --origin-only
       ;;
     in-sync)

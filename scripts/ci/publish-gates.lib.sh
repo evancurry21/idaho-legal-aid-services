@@ -70,6 +70,62 @@ publish_gates_record_drift() {
   echo "drift=${note}" >> "$ILAS_PUBLISH_GATES_SUMMARY_FILE"
 }
 
+# PIPE-04: see 03.1-SPEC.md PIPE-04 acceptance criteria.
+# Three new record helpers (skip / duration_ms / env) and one wrapping helper.
+# Schema additions are append-only; the existing PHP parser ignores unknown keys.
+
+# Record that a gate was skipped and why.
+# Usage: publish_gates_record_skip phase reason
+publish_gates_record_skip() {
+  local phase="$1"
+  local reason="$2"
+  echo "phase_skipped=${phase} ${reason}" >> "$ILAS_PUBLISH_GATES_SUMMARY_FILE"
+}
+
+# Record per-gate duration in milliseconds.
+# Usage: publish_gates_record_duration_ms phase duration_ms
+publish_gates_record_duration_ms() {
+  local phase="$1"
+  local duration_ms="$2"
+  echo "phase_duration_ms=${phase}=${duration_ms}" >> "$ILAS_PUBLISH_GATES_SUMMARY_FILE"
+}
+
+# Record the env-var config that influenced a gate.
+# Secret redaction: any arg whose name (left of '=') matches *_KEY, *_TOKEN,
+# *_SECRET, or *_PASSWORD has its value replaced with <redacted>.
+# Usage: publish_gates_record_env phase VAR1=val1 VAR2=val2 ...
+publish_gates_record_env() {
+  local phase="$1"
+  shift
+  local redacted_args=()
+  local arg name value
+  for arg in "$@"; do
+    name="${arg%%=*}"
+    value="${arg#*=}"
+    if [[ "$name" == *_KEY || "$name" == *_TOKEN || "$name" == *_SECRET || "$name" == *_PASSWORD ]]; then
+      value="<redacted>"
+    fi
+    redacted_args+=("${name}=${value}")
+  done
+  echo "phase_env=${phase} ${redacted_args[*]}" >> "$ILAS_PUBLISH_GATES_SUMMARY_FILE"
+}
+
+# Wrap a gate call to capture per-gate duration. Records duration_ms after the
+# gate returns; preserves the gate's exit code exactly.
+# Usage: _publish_gates_run_with_record gate_fn arg1 arg2 ...
+_publish_gates_run_with_record() {
+  local gate_fn="$1"
+  shift
+  local started ended duration_ms
+  started="${EPOCHREALTIME:-$(date +%s.%N)}"
+  "$gate_fn" "$@"
+  local gate_rc=$?
+  ended="${EPOCHREALTIME:-$(date +%s.%N)}"
+  duration_ms=$(awk "BEGIN{printf \"%d\", ($ended - $started) * 1000}")
+  publish_gates_record_duration_ms "${gate_fn#gate_}" "$duration_ms"
+  return "$gate_rc"
+}
+
 # Install the EXIT trap that prints the final structured summary block at the
 # very bottom of the gate output, on both success and failure. The trap
 # preserves the upstream exit code — it never alters caller semantics.
@@ -271,4 +327,39 @@ gate_promptfoo_deploy_bound() {
     exit "$rc"
   fi
   publish_gates_record_phase "promptfoo_deploy_bound" "0"
+}
+
+# Gate 4b (required variant): Deploy-bound promptfoo gate — FAIL-CLOSED.
+# Per PIPE-02; closes .planning/todos/pending/2026-05-07-promptfoo-deploy-bound-gate-silently-auto-skipped.md
+#
+# Called by pre-push-strict.sh on the protected-master deploy path (DEPLOY_BOUND_PROMPTFOO=true).
+# Unlike gate_promptfoo_deploy_bound (advisory, opt-in), this variant exits 1 when
+# ILAS_LIVE_PROVIDER_GATE is unset — a deploy-bound master push MUST either run the
+# gate or fail explicitly. The "PASSED while gate ran nothing" state is unreachable
+# from this call site.
+#
+# Args: $1 = branch, $2 = ddev assistant URL.
+# Per PIPE-02; closes 2026-05-07-promptfoo-deploy-bound-gate-silently-auto-skipped.md
+gate_promptfoo_deploy_bound_required() {
+  local branch="${1:-}"
+  local url="${2:-}"
+  if [[ -z "$branch" || -z "$url" ]]; then
+    echo "gate_promptfoo_deploy_bound_required: missing branch or url arg" >&2
+    exit 2
+  fi
+  if [[ "${ILAS_LIVE_PROVIDER_GATE:-0}" != "1" ]]; then
+    publish_gates_record_phase "promptfoo_deploy_bound" "1"
+    # Inline skip record (plan 05 will introduce publish_gates_record_skip helper)
+    echo "phase_skipped=promptfoo_deploy_bound ILAS_LIVE_PROVIDER_GATE-not-set" \
+      >> "$ILAS_PUBLISH_GATES_SUMMARY_FILE"
+    _publish_gates_print_fail \
+      "Promptfoo deploy-bound (required on master push)" \
+      "promptfooconfig.deploy.yaml against ${url}" \
+      "ILAS_LIVE_PROVIDER_GATE=1 git push origin master" \
+      "$ILAS_PUBLISH_GATES_SUMMARY_FILE" \
+      ""
+    exit 1
+  fi
+  # Env var is set — delegate to the advisory variant which owns the live eval body.
+  gate_promptfoo_deploy_bound "$branch" "$url"
 }

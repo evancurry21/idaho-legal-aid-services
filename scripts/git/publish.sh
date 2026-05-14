@@ -94,7 +94,8 @@ push_refspec() {
   local args=(git -C "$REPO_ROOT" push "$remote" "$refspec")
 
   if [[ "$no_verify" == "true" ]]; then
-    args=(git -C "$REPO_ROOT" push --no-verify "$remote" "$refspec")
+    # PIPE-04: delegate --no-verify push through safe-push.sh to record bypass intent.
+    args=(bash "$SCRIPT_DIR/safe-push.sh" --no-verify "$remote" "$refspec")
   fi
 
   if "$DRY_RUN"; then

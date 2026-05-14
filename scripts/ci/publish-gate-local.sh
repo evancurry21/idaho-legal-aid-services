@@ -43,6 +43,10 @@ source "$REPO_ROOT/scripts/ci/publish-gates.lib.sh"
 publish_gates_init_run "publish-gate-local"
 publish_gates_install_summary_trap
 
+# PIPE-05: fail closed if local-mirror drifts from lockfile.
+info "Verifying gate parity against scripts/ci/gates.lock.json..."
+bash "$REPO_ROOT/scripts/ci/verify-gates-parity.sh"
+
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 PROMPTFOO_BRANCH="${CI_BRANCH:-$CURRENT_BRANCH}"
 

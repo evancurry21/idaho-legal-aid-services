@@ -160,12 +160,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # gate_composer_dryrun — PIPE-05: parity annotation for gates.lock.json
       - name: Install Composer dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Install npm dependencies
         run: npm ci
 
+      # gate_vc_pure — PIPE-05: parity annotation for gates.lock.json
       - name: Run PHPUnit pure/unit classifier and safety tests
         run: vendor/bin/phpunit -c phpunit.pure.xml --colors=always
 
@@ -175,6 +177,7 @@ jobs:
       - name: Run UX/a11y widget hardening suite (P3-EXT-01)
         run: node web/modules/custom/ilas_site_assistant/tests/js/run-assistant-widget-hardening.mjs
 
+      # gate_module_quality — PIPE-05: parity annotation for gates.lock.json
       - name: Run provider/runtime harness and golden checks
         run: bash web/modules/custom/ilas_site_assistant/tests/run-quality-gate.sh --profile basic --skip-phpunit
 
@@ -614,3 +617,18 @@ jobs:
             promptfoo-evals/output/structured-error-summary.txt
             promptfoo-evals/output/vector-provenance-smoke.jsonl
           if-no-files-found: warn
+
+  # PIPE-05: enforce gates.lock.json parity across consumers.
+  # Runs on every PR that touches gate scripts, hook scripts, or the workflow itself.
+  # The parity check is fast (~5s, read-only grep + jq) and fails closed on drift.
+  parity-check:
+    name: Gate Manifest Parity Check (PIPE-05)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run gate manifest parity verifier
+        run: bash scripts/ci/verify-gates-parity.sh

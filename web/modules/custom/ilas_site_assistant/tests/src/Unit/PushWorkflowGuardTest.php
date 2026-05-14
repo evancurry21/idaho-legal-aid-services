@@ -95,10 +95,10 @@ final class PushWorkflowGuardTest extends TestCase {
     $this->assertStringContainsString('describe_remote_status "origin" "$CURRENT_BRANCH"', $preCommitHook);
     $this->assertStringContainsString('Local master is stale; github/master is ahead by', $preCommitHook);
     $this->assertStringContainsString('Local master diverged from github/master.', $preCommitHook);
-    $this->assertStringContainsString('Run: npm run git:sync-master', $preCommitHook);
+    $this->assertStringContainsString('Recovery: $GITHUB_RECOVERY', $preCommitHook);
     $this->assertStringContainsString('Pantheon origin/master is ahead by', $preCommitHook);
     $this->assertStringContainsString('Local master diverged from origin/master.', $preCommitHook);
-    $this->assertStringContainsString('Run: npm run git:reconcile-origin', $preCommitHook);
+    $this->assertStringContainsString('Recovery: $ORIGIN_RECOVERY', $preCommitHook);
     $this->assertStringContainsString('terminus env:code-log idaho-legal-aid-services.dev --format=table', $preCommitHook);
     $this->assertStringContainsString('git cherry-pick <local-master-commit>', $preCommitHook);
     $this->assertStringContainsString('github/master is required for commits on local master.', $preCommitHook);

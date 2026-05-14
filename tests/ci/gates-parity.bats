@@ -1,31 +1,51 @@
 #!/usr/bin/env bats
-# tests/ci/gates-parity.bats — PIPE-05 lockfile-vs-consumer parity test (STUB until Wave 3).
+# tests/ci/gates-parity.bats — PIPE-05 lockfile-vs-consumer parity test.
 #
-# Purpose: when wired in Wave 3, this test will diff each consumer
-# (scripts/ci/pre-push-strict.sh, scripts/ci/publish-gate-local.sh, .github/workflows/quality-gate.yml)
-# against scripts/ci/gates.lock.json and fail on any gate listed by a consumer but missing from the
-# lockfile OR vice versa. The verifier helper (scripts/ci/verify-gates-parity.sh) is created by
-# Wave 3 plan 03.1-05.
+# Purpose: when bats is installed, wraps the hand-rolled test harness in
+# tests/ci/gates-parity.sh so both invocation styles produce the same results.
 #
-# Requirement(s) served: PIPE-05 (lockfile-based parity check).
-# Wired by: Wave 3 plan 03.1-05.
-# Phase: 03.1-publish-pipeline-audit-hardening — Plan 03.1-01 (Wave 0 lays the harness).
+# Wired by: Wave 5 plan 03.1-06.
+# Phase: 03.1-publish-pipeline-audit-hardening
 #
-# Hand-rolled fallback (bats not installed on host per Wave 0 audit, see VALIDATION.md
-# §"Tooling Audit"): this file is ALSO executable as plain bash via the dispatcher below.
-# When `bats` is later installed, native bats execution remains valid.
+# Hand-rolled fallback: bats not installed on this host per Wave 0 audit
+# (see .planning/phases/03.1-publish-pipeline-audit-hardening/03.1-VALIDATION.md
+# §"Tooling Audit"). The real implementation lives in tests/ci/gates-parity.sh.
+# Run it directly: bash tests/ci/gates-parity.sh
+#
+# PIPE-05 enforcement test.
 
 # --- Hand-rolled bash dispatcher (when invoked as `bash tests/ci/gates-parity.bats`) ---
-# bats sources files with its own runner; when executed via bash directly, BASH_SOURCE[0] == $0
-# and BATS_TEST_FILENAME is unset, so we emit the fail-loud stub message and exit 64.
 if [ -z "${BATS_TEST_FILENAME:-}" ] && [ "${BASH_SOURCE[0]:-}" = "${0:-}" ]; then
-  printf '[FAIL] gates-parity stub — Wave 3 plan 05 wires the real verifier; bats not installed (see VALIDATION.md Tooling Audit)\n' >&2
-  exit 64
+  # Not running under bats — forward to the hand-rolled harness
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  exec bash "$SCRIPT_DIR/gates-parity.sh" "$@"
 fi
 
-@test "stub fails until Wave 3 verifier lands" {
-  # Intentionally fail: this test is a placeholder for the real parity check that Wave 3 wires.
-  # The real test will run `scripts/ci/verify-gates-parity.sh` (created by plan 03.1-05) and
-  # assert exit 0 with no drift messages on stderr.
-  false
+@test "clean state: verifier exits 0 on un-drifted repo" {
+  REPO_ROOT="$(git -C "$(dirname "$BATS_TEST_FILENAME")" rev-parse --show-toplevel)"
+  run bash "$REPO_ROOT/scripts/ci/verify-gates-parity.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "extra gate call in publish-gate-local → verifier exits 1 and names the gate" {
+  REPO_ROOT="$(git -C "$(dirname "$BATS_TEST_FILENAME")" rev-parse --show-toplevel)"
+  TMPDIR_BATS="$(mktemp -d)"
+  fake_local="$TMPDIR_BATS/publish-gate-local.sh"
+  cp "$REPO_ROOT/scripts/ci/publish-gate-local.sh" "$fake_local"
+  printf '\ngate_phantom_xyz\n' >> "$fake_local"
+  run env PARITY_LOCAL_OVERRIDE="$fake_local" bash "$REPO_ROOT/scripts/ci/verify-gates-parity.sh"
+  rm -rf "$TMPDIR_BATS"
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ gate_phantom_xyz ]]
+}
+
+@test "missing required gate in pre-push copy → verifier exits 1 and names the gate" {
+  REPO_ROOT="$(git -C "$(dirname "$BATS_TEST_FILENAME")" rev-parse --show-toplevel)"
+  TMPDIR_BATS="$(mktemp -d)"
+  fake_prepush="$TMPDIR_BATS/pre-push-strict.sh"
+  grep -v 'gate_composer_dryrun' "$REPO_ROOT/scripts/ci/pre-push-strict.sh" > "$fake_prepush"
+  run env PARITY_PREPUSH_OVERRIDE="$fake_prepush" bash "$REPO_ROOT/scripts/ci/verify-gates-parity.sh"
+  rm -rf "$TMPDIR_BATS"
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ composer_dryrun ]]
 }
