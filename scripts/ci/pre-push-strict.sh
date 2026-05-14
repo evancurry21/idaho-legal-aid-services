@@ -201,20 +201,21 @@ fi
 
 cd "$REPO_ROOT"
 
+# PIPE-04: wrap gates with _publish_gates_run_with_record for per-gate duration recording.
 # Test gates — delegated to the shared library (see scripts/ci/publish-gates.lib.sh).
 # Local parity entry point: npm run gate:publish-local.
 # </dev/null on each gate is defensive H1/H3 FD-isolation per 03.1-02-SPIKE.md
 # §"Wave 2 plan 03 task seed" — closes any leaked-from-parent stdin pipe so a
 # gate child cannot write back into git's pre-push fd.
-gate_composer_dryrun </dev/null
-gate_vc_pure </dev/null
-gate_module_quality </dev/null
+_publish_gates_run_with_record gate_composer_dryrun </dev/null
+_publish_gates_run_with_record gate_vc_pure </dev/null
+_publish_gates_run_with_record gate_module_quality </dev/null
 
 # PIPE-02: fail-closed if ILAS_LIVE_PROVIDER_GATE unset on deploy-bound master push
 if [[ "$DEPLOY_BOUND_PROMPTFOO" == "true" ]]; then
-  gate_promptfoo_deploy_bound_required "$PROMPTFOO_BRANCH" "$DDEV_ASSISTANT_URL" </dev/null
+  _publish_gates_run_with_record gate_promptfoo_deploy_bound_required "$PROMPTFOO_BRANCH" "$DDEV_ASSISTANT_URL" </dev/null
 else
-  gate_promptfoo_branch_aware "$PROMPTFOO_BRANCH" </dev/null
+  _publish_gates_run_with_record gate_promptfoo_branch_aware "$PROMPTFOO_BRANCH" </dev/null
 fi
 
 echo "Strict pre-push gate PASSED."
