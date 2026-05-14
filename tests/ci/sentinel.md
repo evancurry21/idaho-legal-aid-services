@@ -6,4 +6,3 @@ round-trip that empirically proves the SIGPIPE fix on protected-master.
 
 Sentinel timestamps appended below are reverted in the same task that adds them.
 Do not modify this file outside of sigpipe-verification flows.
-sigpipe-fix-verify-20260514T163327Z
