@@ -210,8 +210,9 @@ gate_composer_dryrun </dev/null
 gate_vc_pure </dev/null
 gate_module_quality </dev/null
 
+# PIPE-02: fail-closed if ILAS_LIVE_PROVIDER_GATE unset on deploy-bound master push
 if [[ "$DEPLOY_BOUND_PROMPTFOO" == "true" ]]; then
-  gate_promptfoo_deploy_bound "$PROMPTFOO_BRANCH" "$DDEV_ASSISTANT_URL" </dev/null
+  gate_promptfoo_deploy_bound_required "$PROMPTFOO_BRANCH" "$DDEV_ASSISTANT_URL" </dev/null
 else
   gate_promptfoo_branch_aware "$PROMPTFOO_BRANCH" </dev/null
 fi
