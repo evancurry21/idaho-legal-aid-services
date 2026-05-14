@@ -272,3 +272,38 @@ gate_promptfoo_deploy_bound() {
   fi
   publish_gates_record_phase "promptfoo_deploy_bound" "0"
 }
+
+# Gate 4b (required variant): Deploy-bound promptfoo gate — FAIL-CLOSED.
+# Per PIPE-02; closes .planning/todos/pending/2026-05-07-promptfoo-deploy-bound-gate-silently-auto-skipped.md
+#
+# Called by pre-push-strict.sh on the protected-master deploy path (DEPLOY_BOUND_PROMPTFOO=true).
+# Unlike gate_promptfoo_deploy_bound (advisory, opt-in), this variant exits 1 when
+# ILAS_LIVE_PROVIDER_GATE is unset — a deploy-bound master push MUST either run the
+# gate or fail explicitly. The "PASSED while gate ran nothing" state is unreachable
+# from this call site.
+#
+# Args: $1 = branch, $2 = ddev assistant URL.
+# Per PIPE-02; closes 2026-05-07-promptfoo-deploy-bound-gate-silently-auto-skipped.md
+gate_promptfoo_deploy_bound_required() {
+  local branch="${1:-}"
+  local url="${2:-}"
+  if [[ -z "$branch" || -z "$url" ]]; then
+    echo "gate_promptfoo_deploy_bound_required: missing branch or url arg" >&2
+    exit 2
+  fi
+  if [[ "${ILAS_LIVE_PROVIDER_GATE:-0}" != "1" ]]; then
+    publish_gates_record_phase "promptfoo_deploy_bound" "1"
+    # Inline skip record (plan 05 will introduce publish_gates_record_skip helper)
+    echo "phase_skipped=promptfoo_deploy_bound ILAS_LIVE_PROVIDER_GATE-not-set" \
+      >> "$ILAS_PUBLISH_GATES_SUMMARY_FILE"
+    _publish_gates_print_fail \
+      "Promptfoo deploy-bound (required on master push)" \
+      "promptfooconfig.deploy.yaml against ${url}" \
+      "ILAS_LIVE_PROVIDER_GATE=1 git push origin master" \
+      "$ILAS_PUBLISH_GATES_SUMMARY_FILE" \
+      ""
+    exit 1
+  fi
+  # Env var is set — delegate to the advisory variant which owns the live eval body.
+  gate_promptfoo_deploy_bound "$branch" "$url"
+}
